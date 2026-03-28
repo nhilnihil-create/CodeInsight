@@ -2,293 +2,229 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
+// Color constants - matching mockup exactly
+const COLORS = {
+  bg: '#0c1220',
+  surface: '#131d30',
+  surface2: '#1a2640',
+  border: '#1e304d',
+  teal: '#85D2D0',
+  purple: '#a99dd4',
+  text: '#dce8f5',
+  muted: '#6a85a8',
+  success: '#4ade80',
+  warning: '#fbbf24',
+  error: '#f87171'
+};
+
 export default function StudentExerciseList() {
   const [exercises, setExercises] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ total: 0, done: 0, pending: 0, locked: 0 });
-  const [filterActive, setFilterActive] = useState('all');
+  const [hoveredCard, setHoveredCard] = useState(null);
 
   useEffect(() => {
-    fetchExercises();
+    fetchData();
   }, []);
 
-  const fetchExercises = async () => {
+  const fetchData = async () => {
     try {
-      const res = await api.get('/api/student/exercises');
-      setExercises(res.data || []);
-      calculateStats(res.data);
+      const [exRes, statsRes] = await Promise.all([
+        api.get('/api/student/exercises'),
+        api.get('/api/student/stats')
+      ]);
+      
+      let exData = exRes.data || [];
+      exData = exData.map(ex => {
+        if (ex.test_cases && typeof ex.test_cases === 'string') {
+          ex.test_cases = JSON.parse(ex.test_cases);
+        }
+        return ex;
+      });
+      
+      setExercises(exData);
+      setStats(statsRes.data || {});
     } catch (err) {
-      console.error('Error fetching exercises:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (exData) => {
-    const total = exData.length;
-    const done = exData.filter(e => e.status === 'completed').length;
-    const pending = exData.filter(e => e.status === 'pending').length;
-    const locked = exData.filter(e => e.status === 'locked').length;
-    setStats({ total, done, pending, locked });
+  const getFilteredExercises = () => {
+    if (filter === 'all') return exercises;
+    if (filter === 'completed') return exercises.filter(ex => ex.status === 'completed');
+    if (filter === 'pending') return exercises.filter(ex => ex.status === 'pending' || ex.status === 'locked');
+    return exercises;
   };
 
-  const filterExercises = () => {
-    let filtered = exercises;
-    if (filterActive === 'pending') filtered = exercises.filter(e => e.status === 'pending');
-    if (filterActive === 'completed') filtered = exercises.filter(e => e.status === 'completed');
-    return filtered;
+  const getStatusColor = (status) => {
+    if (status === 'completed') return COLORS.success;
+    if (status === 'pending') return COLORS.warning;
+    return COLORS.muted;
   };
 
-  const getConceptColor = (concept) => {
-    const colors = {
-      'Datatypes': 'concept-dt',
-      'Variables': 'concept-vars',
-      'Conditionals': 'concept-cond',
-      'Loops': 'concept-loops',
-      'Functions': 'concept-fn',
-      'Arrays': 'concept-arrays',
-      'OOP': 'concept-oop'
-    };
-    return colors[concept] || 'concept-dt';
+  const getCDSColor = (cds) => {
+    if (!cds) return COLORS.muted;
+    if (cds <= 0.33) return COLORS.error;
+    if (cds <= 0.66) return COLORS.warning;
+    return COLORS.success;
   };
 
-  const getStatusBadge = (status) => {
-    if (status === 'completed') return { class: 'status-done', text: '✓ Done' };
-    if (status === 'pending') return { class: 'status-pending', text: '⏳ Pending' };
-    return { class: 'status-locked', text: '🔒 Locked' };
+  const getCDSLabel = (cds) => {
+    if (!cds) return 'Unscored';
+    if (cds <= 0.33) return 'Low';
+    if (cds <= 0.66) return 'Moderate';
+    return 'High';
   };
-
-  const formatCDS = (cds) => {
-    if (!cds || cds === null) return { val: '—', label: 'Unscored', class: 'cds-none' };
-    const num = typeof cds === 'string' ? parseFloat(cds) : cds;
-    if (num <= 0.33) return { val: num.toFixed(2), label: 'Low', class: 'cds-low' };
-    if (num <= 0.66) return { val: num.toFixed(2), label: 'Moderate', class: 'cds-mod' };
-    return { val: num.toFixed(2), label: 'High', class: 'cds-high' };
-  };
-
-  const completionPercent = stats.total ? Math.round((stats.done / stats.total) * 100) : 0;
 
   if (loading) {
-    return <div style={{ padding: '40px', color: '#6a85a8' }}>Loading exercises...</div>;
+    return <div style={{ padding: '40px', color: COLORS.muted, background: COLORS.bg, height: '100vh' }}>Loading...</div>;
   }
 
+  const filteredExercises = getFilteredExercises();
+
   return (
-    <div style={{
-      padding: '22px 26px',
-      width: '100%',
-      boxSizing: 'border-box',
-      overflowY: 'auto',
-      height: '100vh',
-      background: '#0c1220'
-    }}>
-      {/* Top Bar */}
-      <div style={{ marginBottom: '22px' }}>
-        <div style={{ fontSize: '16px', fontWeight: 700, color: '#dce8f5' }}>
-          My Exercises
-        </div>
-        <div style={{ fontSize: '10px', color: '#6a85a8', marginTop: '2px' }}>
-          CS101 — Introduction to C++ · AY 2025–2026
-        </div>
+    <div style={{ background: COLORS.bg, color: COLORS.text, fontFamily: "'DM Sans', sans-serif", minHeight: '100vh', padding: '24px 40px' }}>
+      {/* HEADER */}
+      <div style={{ marginBottom: '32px' }}>
+        <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px' }}>Exercises</div>
+        <div style={{ fontSize: '14px', color: COLORS.muted }}>Solve coding challenges and improve your programming skills</div>
       </div>
 
-      {/* Progress Summary */}
-      <div style={{
-        background: '#131d30',
-        border: '1px solid #1e304d',
-        borderRadius: '12px',
-        padding: '18px 22px',
-        marginBottom: '20px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
-        boxSizing: 'border-box'
-      }}>
-        <div style={{ textAlign: 'center', minWidth: '60px' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '22px', fontWeight: 700, color: '#dce8f5' }}>
-            {stats.total}
+      {/* STATS CARDS */}
+      {stats && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: COLORS.teal, marginBottom: '4px' }}>{stats.total_exercises || 0}</div>
+            <div style={{ fontSize: '12px', color: COLORS.muted, fontWeight: 600 }}>Total Exercises</div>
+            <div style={{ height: '4px', background: COLORS.surface2, borderRadius: '2px', marginTop: '12px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: COLORS.teal, width: `${stats.total_exercises > 0 ? 100 : 0}%` }} />
+            </div>
           </div>
-          <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#6a85a8', marginTop: '3px' }}>
-            Total
-          </div>
-        </div>
-        <div style={{ width: '1px', height: '40px', background: '#1e304d' }}></div>
-        <div style={{ textAlign: 'center', minWidth: '60px' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '22px', fontWeight: 700, color: '#4ade80' }}>
-            {stats.done}
-          </div>
-          <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#6a85a8', marginTop: '3px' }}>
-            Done
-          </div>
-        </div>
-        <div style={{ width: '1px', height: '40px', background: '#1e304d' }}></div>
-        <div style={{ textAlign: 'center', minWidth: '60px' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '22px', fontWeight: 700, color: '#fbbf24' }}>
-            {stats.pending}
-          </div>
-          <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#6a85a8', marginTop: '3px' }}>
-            Pending
-          </div>
-        </div>
-        <div style={{ width: '1px', height: '40px', background: '#1e304d' }}></div>
-        <div style={{ textAlign: 'center', minWidth: '60px' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '22px', fontWeight: 700, color: '#6a85a8' }}>
-            {stats.locked}
-          </div>
-          <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#6a85a8', marginTop: '3px' }}>
-            Locked
-          </div>
-        </div>
-        <div style={{ width: '1px', height: '40px', background: '#1e304d' }}></div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '10px', color: '#6a85a8', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Overall Completion</span>
-            <span style={{ color: '#dce8f5', fontWeight: 600 }}>{completionPercent}%</span>
-          </div>
-          <div style={{ background: '#1a2640', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              borderRadius: '6px',
-              background: `linear-gradient(90deg, #85D2D0, #a99dd4)`,
-              width: `${completionPercent}%`,
-              transition: 'width 0.3s'
-            }}></div>
-          </div>
-        </div>
-      </div>
 
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        {['all', 'pending', 'completed'].map(filter => (
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: COLORS.success, marginBottom: '4px' }}>{stats.completed_exercises || 0}</div>
+            <div style={{ fontSize: '12px', color: COLORS.muted, fontWeight: 600 }}>Completed</div>
+            <div style={{ height: '4px', background: COLORS.surface2, borderRadius: '2px', marginTop: '12px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: COLORS.success, width: `${stats.total_exercises > 0 ? (stats.completed_exercises / stats.total_exercises * 100) : 0}%` }} />
+            </div>
+          </div>
+
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: COLORS.warning, marginBottom: '4px' }}>{stats.pending_exercises || 0}</div>
+            <div style={{ fontSize: '12px', color: COLORS.muted, fontWeight: 600 }}>Pending</div>
+            <div style={{ height: '4px', background: COLORS.surface2, borderRadius: '2px', marginTop: '12px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: COLORS.warning, width: `${stats.total_exercises > 0 ? (stats.pending_exercises / stats.total_exercises * 100) : 0}%` }} />
+            </div>
+          </div>
+
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '28px', fontWeight: 700, color: COLORS.purple, marginBottom: '4px' }}>{stats.average_cds ? stats.average_cds.toFixed(2) : '0.00'}</div>
+            <div style={{ fontSize: '12px', color: COLORS.muted, fontWeight: 600 }}>Average CDS</div>
+            <div style={{ height: '4px', background: COLORS.surface2, borderRadius: '2px', marginTop: '12px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: COLORS.purple, width: `${(stats.average_cds || 0) * 100}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FILTER TABS */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', borderBottom: `1px solid ${COLORS.border}`, paddingBottom: '16px' }}>
+        {['all', 'pending', 'completed'].map(f => (
           <button
-            key={filter}
-            onClick={() => setFilterActive(filter)}
+            key={f}
+            onClick={() => setFilter(f)}
             style={{
-              padding: '6px 14px',
-              borderRadius: '20px',
-              fontSize: '11px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer',
-              border: '1.5px solid ' + (filterActive === filter ? '#85D2D0' : '#1e304d'),
-              color: filterActive === filter ? '#85D2D0' : '#6a85a8',
-              background: filterActive === filter ? 'rgba(133,210,208,0.1)' : 'transparent',
+              border: 'none',
+              background: filter === f ? COLORS.teal : 'transparent',
+              color: filter === f ? '#091a1a' : COLORS.muted,
               fontFamily: "'DM Sans', sans-serif",
-              transition: 'all 0.15s'
+              transition: 'all 0.2s',
+              textTransform: 'capitalize'
             }}
           >
-            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            {f === 'all' ? 'All' : f === 'completed' ? 'Completed' : 'Pending'}
           </button>
         ))}
       </div>
 
-      {/* Exercise Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {filterExercises().map(exercise => {
-          const cdsInfo = formatCDS(exercise.latest_cds);
-          const statusInfo = getStatusBadge(exercise.status);
-          const conceptColor = getConceptColor(exercise.concept_name);
-
-          return (
-            <Link
-              key={exercise.id}
-              to={exercise.status === 'locked' ? '#' : `/student/exercises/${exercise.id}`}
-              style={{ textDecoration: 'none' }}
-            >
-              <div style={{
-                background: '#131d30',
-                border: '1px solid ' + (exercise.status === 'locked' ? '#1e304d' : (exercise.status === 'completed' ? 'rgba(74,222,128,0.2)' : 'rgba(251,191,36,0.25)')),
-                borderRadius: '12px',
-                padding: '18px',
-                cursor: exercise.status === 'locked' ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s',
-                opacity: exercise.status === 'locked' ? 0.5 : 1,
-                position: 'relative',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%'
-              }}
-              onMouseEnter={(e) => {
-                if (exercise.status !== 'locked') {
-                  e.currentTarget.style.borderColor = '#85D2D0';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (exercise.status !== 'locked') {
-                  e.currentTarget.style.borderColor = e.currentTarget.style.borderColor;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }
-              }}
-              >
-                {exercise.status === 'completed' && (
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: '#4ade80' }}></div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '4px 10px',
-                    borderRadius: '12px',
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    letterSpacing: '0.8px',
-                    textTransform: 'uppercase',
-                    background: 'rgba(136,123,176,0.15)',
-                    color: '#a99dd4',
-                    border: '1px solid rgba(136,123,176,0.3)',
-                    minWidth: 'fit-content'
-                  }}>
+      {/* EXERCISE GRID */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+        {filteredExercises.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: COLORS.muted }}>
+            <div style={{ fontSize: '14px' }}>No exercises found</div>
+          </div>
+        ) : (
+          filteredExercises.map(exercise => (
+            <Link key={exercise.id} to={`/student/exercises/${exercise.id}`} style={{ textDecoration: 'none' }}>
+              <div 
+                onMouseEnter={() => setHoveredCard(exercise.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                style={{ 
+                  background: COLORS.surface, 
+                  border: `1px solid ${hoveredCard === exercise.id ? COLORS.teal : COLORS.border}`, 
+                  borderRadius: '12px', 
+                  padding: '20px', 
+                  cursor: 'pointer', 
+                  transition: 'all 0.2s',
+                  boxShadow: hoveredCard === exercise.id ? `0 0 16px rgba(133, 210, 208, 0.15)` : 'none'
+                }}>
+                {/* Concept chip */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '4px 10px', borderRadius: '10px', background: 'rgba(136,123,176,0.15)', color: COLORS.purple, border: '1px solid rgba(136,123,176,0.3)' }}>
                     {exercise.concept_name}
-                  </div>
-                  <div style={{
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    padding: '3px 8px',
-                    borderRadius: '10px',
-                    background: statusInfo.class.includes('done') ? 'rgba(74,222,128,0.12)' : (statusInfo.class.includes('pending') ? 'rgba(251,191,36,0.12)' : 'rgba(100,100,140,0.2)'),
-                    color: statusInfo.class.includes('done') ? '#4ade80' : (statusInfo.class.includes('pending') ? '#fbbf24' : '#6a85a8')
-                  }}>
-                    {statusInfo.text}
-                  </div>
+                  </span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', padding: '4px 12px', borderRadius: '6px', background: `rgba(${exercise.status === 'completed' ? '74, 222, 128' : exercise.status === 'pending' ? '251, 191, 36' : '106, 133, 168'}, 0.12)`, color: getStatusColor(exercise.status) }}>
+                    {exercise.status === 'completed' ? 'Completed' : exercise.status === 'pending' ? 'Pending' : 'Locked'}
+                  </span>
                 </div>
 
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#dce8f5', marginBottom: '5px', lineHeight: '1.4' }}>
+                {/* Title */}
+                <div style={{ fontSize: '16px', fontWeight: 700, color: COLORS.text, marginBottom: '8px' }}>
                   {exercise.title}
                 </div>
 
-                <div style={{ fontSize: '11px', color: '#6a85a8', lineHeight: '1.5', marginBottom: '12px', flex: 1 }}>
-                  {exercise.description?.substring(0, 100)}{exercise.description?.length > 100 ? '...' : ''}
+                {/* Description preview */}
+                <div style={{ fontSize: '12px', color: COLORS.muted, marginBottom: '16px', lineHeight: '1.5', maxHeight: '40px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {exercise.description}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: '10px', color: '#6a85a8', display: 'flex', gap: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      ⏱ {exercise.time_limit_minutes} min
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      📅 {new Date(exercise.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#6a85a8' }}>
-                      CDS
-                    </span>
-                    <span style={{
-                      fontFamily: "'Space Mono', monospace",
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: cdsInfo.class === 'cds-low' ? '#4ade80' : (cdsInfo.class === 'cds-mod' ? '#fbbf24' : (cdsInfo.class === 'cds-high' ? '#f87171' : '#6a85a8'))
-                    }}>
-                      {cdsInfo.val} {cdsInfo.label !== 'Unscored' ? '· ' + cdsInfo.label : ''}
-                    </span>
-                  </div>
+                {/* Metadata */}
+                <div style={{ display: 'flex', gap: '16px', fontSize: '10px', color: COLORS.muted, marginBottom: '16px', paddingBottom: '16px', borderBottom: `1px solid ${COLORS.border}` }}>
+                  <span>⏱ {exercise.time_limit_minutes}m</span>
+                  <span>📅 {exercise.deadline ? new Date(exercise.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No deadline'}</span>
+                  <span style={{ marginLeft: 'auto' }}>{Array.isArray(exercise.test_cases) ? exercise.test_cases.length : 0} tests</span>
                 </div>
+
+                {/* CDS Score and Stats */}
+                {exercise.status === 'completed' && exercise.cds !== null && (
+                  <div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: COLORS.muted, marginBottom: '6px' }}>DIFFICULTY</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 700, color: getCDSColor(exercise.cds) }}>{exercise.cds.toFixed(2)}</div>
+                      <div style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', background: `rgba(${getCDSColor(exercise.cds) === COLORS.success ? '74, 222, 128' : getCDSColor(exercise.cds) === COLORS.warning ? '251, 191, 36' : '248, 113, 113'}, 0.12)`, color: getCDSColor(exercise.cds) }}>
+                        {getCDSLabel(exercise.cds)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {exercise.status !== 'completed' && (
+                  <div style={{ fontSize: '10px', color: COLORS.muted, textAlign: 'center', padding: '12px', borderRadius: '8px', background: COLORS.surface2 }}>
+                    {exercise.status === 'locked' ? 'Complete prerequisites to unlock' : 'Start solving'}
+                  </div>
+                )}
               </div>
             </Link>
-          );
-        })}
+          ))
+        )}
       </div>
     </div>
   );

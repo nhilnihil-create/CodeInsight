@@ -16,8 +16,8 @@ export default function Sidebar() {
     width: isOpen ? '220px' : '70px',
     minWidth: isOpen ? '220' : '70px',
     height: '100vh',
-    background: '#0f0f1a',
-    borderRight: '1px solid #2e2e4a',
+    background: '#131d30',
+    borderRight: '1px solid #1e304d',
     display: 'flex',
     flexDirection: 'column',
     position: 'fixed',
@@ -35,8 +35,8 @@ export default function Sidebar() {
     padding: '9px 16px',
     fontSize: '12.5px',
     fontWeight: 500,
-    color: isActive ? '#85D2D0' : '#8884a0',
-    background: isActive ? 'rgba(133,210,208,0.06)' : 'transparent',
+    color: isActive ? '#85D2D0' : '#6a85a8',
+    background: isActive ? 'rgba(133,210,208,0.1)' : 'transparent',
     borderLeft: isActive ? '3px solid #85D2D0' : '3px solid transparent',
     textDecoration: 'none',
     transition: 'all 0.15s'
@@ -62,7 +62,7 @@ export default function Sidebar() {
       {/* Logo & Toggle */}
       <div style={{ 
         padding: isOpen ? '20px 18px 16px' : '16px 12px',
-        borderBottom: '1px solid #2e2e4a',
+        borderBottom: '1px solid #1e304d',
         display: 'flex',
         alignItems: 'center',
         justifyContent: isOpen ? 'space-between' : 'center',
@@ -82,7 +82,7 @@ export default function Sidebar() {
             <div style={{ 
               fontSize: '9px', 
               fontWeight: 700, 
-              color: '#8884a0',
+              color: '#6a85a8',
               marginTop: '4px',
               letterSpacing: '2px',
               textTransform: 'uppercase'
@@ -96,8 +96,8 @@ export default function Sidebar() {
           style={{
             width: '32px',
             height: '32px',
-            background: '#1a1a2e',
-            border: '1px solid #2e2e4a',
+            background: '#1a2640',
+            border: '1px solid #1e304d',
             borderRadius: '6px',
             color: '#85D2D0',
             cursor: 'pointer',
@@ -107,9 +107,6 @@ export default function Sidebar() {
             justifyContent: 'center',
             padding: 0,
             transition: 'all 0.2s',
-            hover: {
-              background: '#484f58'
-            },
             flexShrink: 0
           }}
           title={isOpen ? 'Close sidebar' : 'Open sidebar'}
@@ -133,7 +130,7 @@ export default function Sidebar() {
       {isOpen && (
         <div style={{ 
           padding: '14px 16px', 
-          borderTop: '1px solid #2e2e4a' 
+          borderTop: '1px solid #1e304d' 
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
             <div style={{

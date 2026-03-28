@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
+const { ensureTablesExist } = require('./migrations');
 
 const app = express();
 
@@ -31,7 +32,17 @@ app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/analytics',   require('./routes/analytics'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`CodeInsight running on port ${PORT}`);
-  console.log(`PostgreSQL connected`);
+
+// Run migrations and start server
+ensureTablesExist().then(() => {
+  app.listen(PORT, () => {
+    console.log(`CodeInsight running on port ${PORT}`);
+    console.log(`PostgreSQL connected`);
+  });
+}).catch(err => {
+  console.error('Failed to run migrations:', err);
+  app.listen(PORT, () => {
+    console.log(`CodeInsight running on port ${PORT} (migration failed)`);
+    console.log(`PostgreSQL connected`);
+  });
 });

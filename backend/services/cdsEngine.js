@@ -121,4 +121,37 @@ async function getLivePeerRanking(exerciseId, db) {
   });
 }
 
-module.exports = { computeBatchCDS, getLivePeerRanking };
+// Calculate CDS score from test results
+function calculateCDS(testResults, exercise) {
+  if (!testResults || !Array.isArray(testResults)) {
+    return { score: 0, ner: 0, nrs: 0, nts: 0, classification: 'Unscored' };
+  }
+
+  const totalTests = testResults.length;
+  const passedTests = testResults.filter(r => r.passed).length;
+  const failedTests = totalTests - passedTests;
+
+  // NER: Normalized Error Rate (failed tests / total tests)
+  const ner = failedTests / Math.max(totalTests, 1);
+
+  // NRS: Normalized Retry Score (simple - 0 unless multiple runs)
+  const nrs = 0;
+
+  // NTS: Normalized Time on Task (0 - we don't track this in run)
+  const nts = 0;
+
+  // CDS: Composite Difficulty Score
+  // If all tests pass, CDS = 0 (no difficulty)
+  // If some fail, CDS scales from 0 to 1
+  const cds = ner * 0.5; // NER weighted at 50%
+
+  return {
+    score: Math.min(cds, 1),
+    ner: ner,
+    nrs: nrs,
+    nts: nts,
+    classification: classify(Math.min(cds, 1))
+  };
+}
+
+module.exports = { computeBatchCDS, getLivePeerRanking, calculateCDS };
