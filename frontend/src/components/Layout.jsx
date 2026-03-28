@@ -11,7 +11,7 @@ export default function Layout({ children }) {
         marginLeft: isOpen ? '120px' : '70px',
         height: '100vh',
         overflow: 'auto',
-        background: '#0d1117',
+        background: 'var(--bg)',
         transition: 'margin-left 0.3s ease'
       }}>
         {children}

@@ -68,7 +68,7 @@ function AppContent() {
         {/* Student Routes */}
         <Route path="/student" element={
           <ProtectedRoute requiredRole="student">
-            <StudentExercises />
+            <StudentExerciseList />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises" element={

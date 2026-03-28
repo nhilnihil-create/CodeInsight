@@ -1,0 +1,2 @@
+  1 | Basic For Loop - Sum Array | [{"input": "5\n1 2 3 4 5", "hidden": false, "expected_output": "15"}, {"input": "3\n10 20 30", "hidden": true, "expected_output": "60"}]
+
