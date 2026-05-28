@@ -32,11 +32,29 @@ export default function StudentCodeEditor() {
   const [abortController, setAbortController] = useState(null);
   const [highlightedLine, setHighlightedLine] = useState(null);
   const exerciseStartTimeRef = useRef(null);
+  const pausedAccumRef = useRef(0); // total milliseconds paused
+  const lastHiddenAtRef = useRef(null);
   const editorRef = useRef(null);
 
   useEffect(() => {
     fetchExercise();
   }, [exerciseId]);
+
+  useEffect(() => {
+    // Page Visibility API: track paused time when tab is hidden
+    const handleVisibility = () => {
+      if (document.hidden) {
+        lastHiddenAtRef.current = Date.now();
+      } else {
+        if (lastHiddenAtRef.current) {
+          pausedAccumRef.current += Date.now() - lastHiddenAtRef.current;
+          lastHiddenAtRef.current = null;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => { document.removeEventListener('visibilitychange', handleVisibility); };
+  }, []);
 
   useEffect(() => {
     if (timeRemaining && timeRemaining > 0) {
@@ -119,16 +137,32 @@ export default function StudentCodeEditor() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const elapsedSeconds = exerciseStartTimeRef.current
-        ? Math.floor((Date.now() - exerciseStartTimeRef.current) / 1000)
-        : 0;
+      const elapsedMs = exerciseStartTimeRef.current ? (Date.now() - exerciseStartTimeRef.current) : 0;
+      const activeMs = Math.max(0, elapsedMs - (pausedAccumRef.current || 0));
+      const activeSeconds = Math.floor(activeMs / 1000);
       
       const res = await api.post(`/api/student/exercises/${exerciseId}/submit`, { 
         code,
-        timeSpentSeconds: elapsedSeconds
+        timeSpentSeconds: activeSeconds
       });
-      setTestResults(res.data);
-      setAttempts(prev => [res.data, ...prev]);
+      // Normalize response: visible results are in `results`, hidden summary in `hidden`
+      const data = res.data || {};
+      const visible = Array.isArray(data.results) ? data.results : (data.testResults || []);
+      const normalized = {
+        passed: data.allPassed ?? data.passed ?? false,
+        testResults: visible,
+        hiddenSummary: data.hidden || null,
+        cds: data.cds,
+        classification: data.classification
+      };
+      setTestResults(normalized);
+      // Add a lightweight attempt entry for attempt list
+      const attemptEntry = {
+        passed: normalized.passed,
+        submitted_at: new Date().toISOString(),
+        attemptNumber: data.attemptNumber
+      };
+      setAttempts(prev => [attemptEntry, ...prev]);
       setActiveTab('output');
     } catch (err) {
       setTestResults({
@@ -429,6 +463,41 @@ export default function StudentCodeEditor() {
                         {testResults.cds?.toFixed(2) || '—'} ({testResults.classification || 'Unscored'})
                       </div>
                     </div>
+                    {testResults.hiddenSummary && (
+                      <div style={{ marginTop: '8px', padding: '8px', background: COLORS.surface2, borderRadius: '4px', fontSize: '11px', color: COLORS.muted }}>
+                        Hidden tests: {testResults.hiddenSummary.count} — {testResults.hiddenSummary.passed ? 'All passed' : 'Some failed'}
+                      </div>
+                    )}
+
+                    {/* Micro-concept feedback panel */}
+                    {testResults.microConceptFeedback && testResults.microConceptFeedback.hasFeedback && (
+                      <div style={{ marginTop: '16px', padding: '12px', background: COLORS.surface2, borderRadius: '4px', borderLeft: `4px solid ${COLORS.teal}` }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: COLORS.muted, marginBottom: '8px' }}>
+                          Specific Feedback
+                        </div>
+                        <div style={{ fontSize: '11px', lineHeight: '1.5', color: COLORS.text }}>
+                          {testResults.microConceptFeedback.studentMessages?.map((msg, idx) => (
+                            <div key={idx} style={{ marginBottom: '6px' }}>
+                              <span style={{ color: COLORS.warning, fontWeight: 600 }}>💡</span> {msg}
+                            </div>
+                          )) || [
+                            <div key="no-msg" style={{ marginBottom: '6px' }}>
+                              <span style={{ color: COLORS.warning, fontWeight: 600 }}>💡</span> {testResults.microConceptFeedback.message}
+                            </div>
+                          ]}
+                          {testResults.microConceptFeedback.evidence && testResults.microConceptFeedback.evidence.length > 0 && (
+                            <div style={{ marginTop: '8px', fontSize: '10px', color: COLORS.muted }}>
+                              <div style={{ fontWeight: 600, marginBottom: '4px' }}>Evidence:</div>
+                              {testResults.microConceptFeedback.evidence.map((ev, idx) => (
+                                <div key={idx} style={{ marginBottom: '4px', paddingLeft: '12px' }}>
+                                  • {ev.evidence}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : <div style={{ color: COLORS.muted }}>(No output)</div>
               ) : (

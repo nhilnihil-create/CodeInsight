@@ -21,7 +21,7 @@ export default function InstructorCreateExercise() {
     track_nrs: true,
     track_nts: true,
     auto_alert: true,
-    test_cases: [{ input: '', expected_output: '' }]
+    test_cases: [{ input: '', expected_output: '', hidden: false }]
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +55,7 @@ export default function InstructorCreateExercise() {
   const addTestCase = () => {
     setFormData({
       ...formData,
-      test_cases: [...formData.test_cases, { input: '', expected_output: '' }]
+      test_cases: [...formData.test_cases, { input: '', expected_output: '', hidden: false }]
     });
   };
 
@@ -234,6 +234,9 @@ export default function InstructorCreateExercise() {
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#e8e6f0', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #2e2e4a' }}>
               Test Cases
             </div>
+            <div style={{ fontSize: '11px', color: '#8884a0', marginBottom: '16px' }}>
+              Use hidden test cases to prevent students from seeing inputs/outputs while still affecting their score
+            </div>
 
             {formData.test_cases.map((tc, idx) => (
               <div key={idx} style={{
@@ -266,7 +269,7 @@ export default function InstructorCreateExercise() {
                   <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '5px' }}>
                     Input
                   </div>
-                  <textarea 
+                  <textarea
                     value={tc.input}
                     onChange={(e) => handleTestCaseChange(idx, 'input', e.target.value)}
                     placeholder="e.g., 3&#10;1 2 3"
@@ -290,7 +293,7 @@ export default function InstructorCreateExercise() {
                   <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '5px' }}>
                     Expected Output
                   </div>
-                  <textarea 
+                  <textarea
                     value={tc.expected_output}
                     onChange={(e) => handleTestCaseChange(idx, 'expected_output', e.target.value)}
                     placeholder="e.g., 6"
@@ -309,6 +312,17 @@ export default function InstructorCreateExercise() {
                       boxSizing: 'border-box'
                     }}
                   />
+                </div>
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={tc.hidden}
+                    onChange={(e) => handleTestCaseChange(idx, 'hidden', e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <label style={{ fontSize: '11px', color: '#8884a0', fontWeight: 500, cursor: 'pointer' }}>
+                    Hidden from students
+                  </label>
                 </div>
                 {formData.test_cases.length > 2 && (
                   <button

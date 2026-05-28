@@ -10,5 +10,7 @@ router.put('/alerts/:alertId/review',      verifyToken, requireRole('instructor'
 router.get('/live/:exerciseId',            verifyToken, requireRole('instructor'), ctrl.liveRanking);
 router.get('/student/:studentId/profile',  verifyToken, requireRole('instructor'), ctrl.studentProfile);
 router.get('/my-scores',                   verifyToken, requireRole('student'),    ctrl.myScores);
+router.get('/misconception/:exerciseId',   verifyToken, requireRole('instructor'), ctrl.classMisconceptionReport);
+router.get('/longitudinal/:studentId/:conceptId', verifyToken, requireRole('instructor'), ctrl.longitudinalReport);
 
 module.exports = router;

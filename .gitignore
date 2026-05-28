@@ -1,4 +1,49 @@
+# Dependencies
 node_modules/
 .env
 *.log
+
+# Build outputs
+/dist
+/build
+/coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.sql
 prototype_backup.sql
+
+# Claude
+.claude/
+
+# Documentation/Reference (keep only essential docs)
+ARCHITECTURE_DECISION.md
+CODEBASE_OVERVIEW.md
+DIAGRAMS.md
+FRONTEND_BACKEND_CONSISTENCY_CHECK.md
+FullFeatureDescription.md
+IMPLEMENTATION_NOTES_CDS_FIXES.md
+IMPLEMENTATION_PLAN.md
+IMPLEMENTATION_SUMMARY.md
+"INTRODUCTION \342\200\224 KEY POINTS TO COVER.txt"
+IT53_CODEINSIGHT_Chapter1.pdf
+IT53_CodeInsight_Chapter2.pdf
+IT53_CodeInsight_Chapter3.pdf
+NEXT_STEPS_RECOMMENDATION.md
+RRL_ALIGNMENT_SUMMARY.md
+RRL_CHAPTER_2_COMPLETE_UPDATED.md
+RRL_EVALUATION_AND_REFINEMENT.md
+RRL_QUICK_REFINEMENT_GUIDE.md
+SESSION_SUMMARY.md
+
+# Misc
+gemini.md
