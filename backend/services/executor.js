@@ -124,7 +124,8 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5) 
       actual:   result.output,
       passed,
       status:   result.status,
-      error:    result.error
+      error:    result.error,
+      hidden:   !!tc.hidden
     });
   }
   return results;

@@ -1,5 +1,7 @@
 const db        = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
+const classMisconceptionReport = require('../services/classMisconceptionReport');
+const longitudinalReportEngine = require('../services/longitudinalReportEngine');
 
 const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
 
@@ -137,11 +139,11 @@ exports.recentActivity = async (req, res) => {
   try {
     const { sectionId } = req.params;
     const r = await db.query(
-      `SELECT 
+      `SELECT
         al.id, al.student_id, al.cds_score as cds, al.exercise_id, al.created_at,
         u.name AS student_name, ex.title AS exercise_title, ex.concept_id,
         c.name AS concept_name,
-        CASE 
+        CASE
           WHEN al.cds_score > 0.66 THEN 'High'
           WHEN al.cds_score > 0.33 THEN 'Moderate'
           ELSE 'Low'
@@ -157,4 +159,33 @@ exports.recentActivity = async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) { res.status(500).json({ message: err.message }); }
+};
+
+// New endpoint for class misconception report
+exports.classMisconceptionReport = async (req, res) => {
+  try {
+    const { exerciseId } = req.params;
+    const report = await classMisconceptionReport.generateClassMisconceptionReport(parseInt(exerciseId));
+    res.json(report);
+  } catch (err) {
+    console.error('Error generating class misconception report:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// New endpoint for longitudinal report (mastery velocity)
+exports.longitudinalReport = async (req, res) => {
+  try {
+    const { studentId, conceptId } = req.params;
+    const sectionId = req.query.sectionId || null;
+    const report = await longitudinalReportEngine.calculateMasteryVelocity(
+      parseInt(studentId),
+      parseInt(conceptId),
+      sectionId ? parseInt(sectionId) : null
+    );
+    res.json(report);
+  } catch (err) {
+    console.error('Error generating longitudinal report:', err);
+    res.status(500).json({ message: err.message });
+  }
 };

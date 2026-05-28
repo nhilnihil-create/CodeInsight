@@ -1,7 +1,8 @@
 const alertEngine = require('./alertEngine');
 
-function classify(cds) {
+function classify(cds, isPreliminary = false) {
   if (cds === null || cds === undefined) return 'Unscored';
+  if (isPreliminary) return 'Preliminary';
   if (cds <= 0.33) return 'Low';
   if (cds <= 0.66) return 'Moderate';
   return 'High';
@@ -20,32 +21,82 @@ async function computeBatchCDS(exerciseId, db) {
     [exercise.section_id]
   );
 
-  const allSubs = await db.query(
-    `SELECT student_id,
-            COUNT(*) AS total_attempts,
-            COUNT(*) FILTER (WHERE is_correct=false) AS failed_attempts,
-            MAX(time_spent_seconds) AS max_time
+  // Minimum class size check: if fewer than 3 students, mark as Preliminary
+  const MIN_CLASS_SIZE = 3;
+  const isPreliminaryClass = students.rows.length < MIN_CLASS_SIZE;
+
+  // Fetch all submissions for the exercise and compute per-student counts
+  const subsRes = await db.query(
+    `SELECT student_id, attempt_number, is_correct, time_spent_seconds, code
      FROM submissions
      WHERE exercise_id=$1
-     GROUP BY student_id`,
+     ORDER BY student_id, attempt_number ASC`,
     [exerciseId]
   );
 
-  let maxFailed = 0, maxTotal = 0;
-  for (const row of allSubs.rows) {
-    if (parseInt(row.failed_attempts) > maxFailed) maxFailed = parseInt(row.failed_attempts);
-    if (parseInt(row.total_attempts) > maxTotal) maxTotal = parseInt(row.total_attempts);
+  // Group by student and apply post-solution cutoff: only count attempts up to first accepted
+  const perStudent = {};
+  for (const r of subsRes.rows) {
+    const sid = r.student_id;
+    if (!perStudent[sid]) perStudent[sid] = { attempts: [], max_time: 0 };
+    perStudent[sid].attempts.push({
+      attempt_number: r.attempt_number,
+      is_correct: r.is_correct,
+      time_spent_seconds: r.time_spent_seconds,
+      code: r.code
+    });
   }
-  if (maxFailed === 0) maxFailed = 1;
-  if (maxTotal === 0) maxTotal = 1;
 
   const subMap = {};
-  for (const row of allSubs.rows) subMap[row.student_id] = row;
+  let maxFailed = 0, maxTotal = 0;
+  for (const [sid, info] of Object.entries(perStudent)) {
+    const attempts = info.attempts;
+    // find first accepted attempt number
+    const firstAccepted = attempts.find(a => a.is_correct === true);
+    const cutoff = firstAccepted ? firstAccepted.attempt_number : null;
 
+    const counted = cutoff ? attempts.filter(a => a.attempt_number <= cutoff) : attempts;
+    const total_attempts = counted.length;
+    const failed_attempts = counted.filter(a => a.is_correct === false).length;
+    const max_time = counted.reduce((m, a) => Math.max(m, a.time_spent_seconds || 0), 0);
+
+    subMap[sid] = {
+      total_attempts,
+      failed_attempts,
+      max_time
+    };
+
+    if (failed_attempts > maxFailed) maxFailed = failed_attempts;
+    if (total_attempts > maxTotal) maxTotal = total_attempts;
+  }
+
+    // Outlier capping: cap maxima at mean + 2*stddev to avoid extreme skew
+    const failedValues = Object.values(subMap).map(s => s.failed_attempts);
+    const totalValues = Object.values(subMap).map(s => s.total_attempts);
+
+    function mean(arr) { return arr.reduce((a,b)=>a+b,0) / Math.max(arr.length,1); }
+    function stddev(arr) {
+      if (!arr.length) return 0;
+      const m = mean(arr);
+      const v = arr.reduce((a,b)=>a + Math.pow(b-m,2),0) / arr.length;
+      return Math.sqrt(v);
+    }
+
+    const failedMean = mean(failedValues);
+    const failedStd = stddev(failedValues);
+    const failedCap = Math.max(1, Math.ceil(failedMean + 2 * failedStd));
+    maxFailed = Math.min(maxFailed, failedCap);
+
+    const totalMean = mean(totalValues);
+    const totalStd = stddev(totalValues);
+    const totalCap = Math.max(1, Math.ceil(totalMean + 2 * totalStd));
+    maxTotal = Math.min(maxTotal, totalCap);
+
+  const starterCode = exercise.starter_code || '';
   const blankRes = await db.query(
     `SELECT DISTINCT student_id FROM submissions
-     WHERE exercise_id=$1 AND code=''`,
-    [exerciseId]
+     WHERE exercise_id=$1 AND (code = $2 OR code = '')`,
+    [exerciseId, starterCode]
   );
   const blankStudents = new Set(blankRes.rows.map(r => r.student_id));
 
@@ -70,9 +121,17 @@ async function computeBatchCDS(exerciseId, db) {
       nrs = Math.min(total / maxTotal, 1.0);
       nts = Math.min(timeSec / timeLimitSeconds, 1.0);
 
-      cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
-      cds = Math.round(cds * 10000) / 10000;
-      classification = classify(cds);
+      // NTS edge case: if student used >=90% time but had zero successes, force High
+      const successCount = total - failed;
+      const ntsRatio = timeSec / timeLimitSeconds;
+      if (ntsRatio >= 0.9 && successCount === 0) {
+        ner = 1; nrs = 1; nts = 1; cds = 1.0;
+        classification = 'High';
+      } else {
+        cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
+        cds = Math.round(cds * 10000) / 10000;
+        classification = classify(cds, isPreliminaryClass);
+      }
     }
 
     await db.query(
