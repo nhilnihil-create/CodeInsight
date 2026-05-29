@@ -3,6 +3,7 @@
  * This script is idempotent - it checks if the column exists before adding it
  */
 
+require('dotenv').config();
 const db = require('../config/db');
 
 async function addStarterCodeColumn() {

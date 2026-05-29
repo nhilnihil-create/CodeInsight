@@ -6,11 +6,12 @@ import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorSections from './pages/instructor/Sections';
 import SectionDetail from './pages/instructor/SectionDetail';
 import InstructorCreateExercise from './pages/instructor/CreateExercise';
+import InstructorEditExercise from './pages/instructor/EditExercise';
 import InstructorAlerts from './pages/instructor/Alerts';
 import InstructorDeveloper from './pages/instructor/Developer';
 import StudentExercises from './pages/student/Exercises';
 import StudentExerciseList from './pages/student/ExerciseList';
-import StudentCodeEditor from './pages/student/CodeEditor';
+import StudentCodeEditor from './pages/student/CodeEditor_new';
 import StudentProgress from './pages/student/Progress';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
@@ -52,6 +53,11 @@ function AppContent() {
         <Route path="/instructor/create-exercise" element={
           <ProtectedRoute requiredRole="instructor">
             <InstructorCreateExercise />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/exercises/:id/edit" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorEditExercise />
           </ProtectedRoute>
         } />
         <Route path="/instructor/alerts" element={

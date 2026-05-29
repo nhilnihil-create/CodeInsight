@@ -118,3 +118,33 @@ exports.close = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.reopen = async (req, res) => {
+  try {
+    const r = await db.query(
+      'UPDATE exercises SET closed_at=NULL WHERE id=$1 AND created_by=$2 RETURNING *',
+      [req.params.id, req.user.id]
+    );
+    if (!r.rows.length)
+      return res.status(404).json({ message: 'Exercise not found or not authorized' });
+    res.json({ message: 'Exercise reopened.', exercise: r.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.remove = async (req, res) => {
+  try {
+    const r = await db.query(
+      'DELETE FROM exercises WHERE id=$1 AND created_by=$2 RETURNING *',
+      [req.params.id, req.user.id]
+    );
+    if (!r.rows.length)
+      return res.status(404).json({ message: 'Exercise not found or not authorized' });
+    res.json({ message: 'Exercise deleted successfully', exercise: r.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
