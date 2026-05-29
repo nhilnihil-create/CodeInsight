@@ -150,8 +150,15 @@ exports.submit = async (req, res) => {
     );
     const allPassed = tcResults.every(r => r.passed);
 
+    // Get required nodes from the exercise's concept
+    const requiredNodesRes = await db.query(
+      'SELECT ast_nodes FROM concepts WHERE id=$1',
+      [exercise.concept_id]
+    );
+    const requiredNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
+
     // Run AST verifier before saving submission
-    const verifyRes = await astVerifier.verify(code, { required_nodes: exercise.ast_nodes || [] }, { starter_code: exercise.starter_code });
+    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code });
     const is_verified = !!verifyRes.is_verified;
     const verification_note = (verifyRes.reasons || []).map(r => r.message || JSON.stringify(r)).join('; ');
 
@@ -245,7 +252,11 @@ exports.submit = async (req, res) => {
       attemptNumber,
       allPassed,
       results: visibleResults,
-      hidden: hiddenSummary
+      hidden: hiddenSummary,
+      verification: {
+        is_verified: is_verified,
+        note: verification_note || (is_verified ? 'Code structure verified' : 'Verification failed')
+      }
     };
 
     // Add micro-concept feedback if available

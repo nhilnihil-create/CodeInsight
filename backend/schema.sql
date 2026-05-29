@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   time_limit_minutes INT NOT NULL DEFAULT 45,
   test_cases        JSONB NOT NULL DEFAULT '[]',
   starter_code      TEXT DEFAULT E'#include <iostream>\nusing namespace std;\n\nint main() {\n  // Write code here\n  return 0;\n}\n',
+  ast_nodes         TEXT[],
   deadline          TIMESTAMP,
   is_draft          BOOLEAN DEFAULT false,
   track_ner         BOOLEAN DEFAULT true,
@@ -59,7 +60,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   exercise_id       INT REFERENCES exercises(id) ON DELETE CASCADE,
   code              TEXT NOT NULL,
   test_results      JSONB DEFAULT '[]',
-  passed            BOOLEAN DEFAULT false,
+  is_correct        BOOLEAN DEFAULT false,
   cds               DECIMAL(6,4) DEFAULT 0,
   ner               DECIMAL(6,4) DEFAULT 0,
   nrs               DECIMAL(6,4) DEFAULT 0,
@@ -110,6 +111,19 @@ CREATE TABLE IF NOT EXISTS verification_logs (
   line_number    INT,
   column_number  INT,
   created_at     TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS performance_logs (
+  id                   SERIAL PRIMARY KEY,
+  submission_id        INT REFERENCES submissions(id) ON DELETE SET NULL,
+  student_id           INT REFERENCES users(id) ON DELETE CASCADE,
+  exercise_id          INT REFERENCES exercises(id) ON DELETE CASCADE,
+  time_to_interactive_ms INT,
+  response_latency_ms  INT,
+  endpoint             VARCHAR(50),
+  http_status_code     INT,
+  user_agent           TEXT,
+  created_at           TIMESTAMP DEFAULT NOW()
 );
 
 -- ── SEED DATA ──────────────────────────────────────────────────────────────

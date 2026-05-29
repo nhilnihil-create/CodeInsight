@@ -9,5 +9,7 @@ router.get('/',            verifyToken, ctrl.list);
 router.get('/:id',         verifyToken, ctrl.getOne);
 router.put('/:id',         verifyToken, requireRole('instructor'), ctrl.update);
 router.post('/:id/close',  verifyToken, requireRole('instructor'), ctrl.close);
+router.post('/:id/reopen', verifyToken, requireRole('instructor'), ctrl.reopen);
+router.delete('/:id',      verifyToken, requireRole('instructor'), ctrl.remove);
 
 module.exports = router;

@@ -145,7 +145,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
           exercise_id, student_id, code, is_correct, attempt_number, time_spent_seconds
         )
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
+        RETURNING id, exercise_id, student_id, is_correct, attempt_number, created_at, time_spent_seconds
       `, [
         exercise.id, req.user.id, code, passed, attempt_number, timeSpentSeconds || 0
       ]);
@@ -160,7 +160,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
         attempt_number,
         testResults: results,
         classification: cds.classification,
-        submitted_at: new Date(),
+        created_at: new Date(),
         time_spent_seconds: timeSpentSeconds || 0
       });
     }
@@ -182,10 +182,10 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 router.get('/exercises/:id/attempts', verifyToken, requireRole('student'), async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT id, exercise_id, is_correct AS passed, attempt_number, submitted_at AS created_at
+      SELECT id, exercise_id, is_correct AS passed, attempt_number, created_at
       FROM submissions
       WHERE exercise_id = $1 AND student_id = $2
-      ORDER BY submitted_at DESC
+      ORDER BY created_at DESC
       LIMIT 10
     `, [req.params.id, req.user.id]);
     
