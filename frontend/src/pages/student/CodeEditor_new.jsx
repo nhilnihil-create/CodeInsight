@@ -29,6 +29,7 @@ export default function StudentCodeEditor() {
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('output');
+  const [microConceptFeedback, setMicroConceptFeedback] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [abortController, setAbortController] = useState(null);
   const editorRef = useRef(null);
@@ -132,6 +133,7 @@ export default function StudentCodeEditor() {
         timeSpentSeconds: elapsedSeconds
       });
       setTestResults(res.data);
+      setMicroConceptFeedback(res.data.microConceptFeedback || null);
       setAttempts(prev => [res.data, ...prev]);
       setActiveTab('output');
     } catch (err) {
@@ -140,6 +142,7 @@ export default function StudentCodeEditor() {
         testResults: [],
         error: err.response?.data?.message || err.message
       });
+      setMicroConceptFeedback(null);
     } finally {
       setSubmitting(false);
     }
@@ -313,9 +316,9 @@ export default function StudentCodeEditor() {
           {/* Output panel */}
           <div style={{ height: '160px', minHeight: '160px', background: COLORS.surface, borderTop: `1px solid ${COLORS.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
             <div style={{ display: 'flex', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.surface2 }}>
-              {['output', 'log'].map(tab => (
+              {['output', 'feedback', 'log'].map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '8px 16px', fontSize: '11px', fontWeight: 600, color: activeTab === tab ? COLORS.teal : COLORS.muted, cursor: 'pointer', border: 'none', background: 'transparent', borderBottom: activeTab === tab ? `2px solid ${COLORS.teal}` : '2px solid transparent', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s' }}>
-                  {tab === 'output' ? 'Output' : 'Compiler Log'}
+                  {tab === 'output' ? 'Output' : tab === 'feedback' ? 'Feedback' : 'Compiler Log'}
                 </button>
               ))}
             </div>
@@ -339,6 +342,40 @@ export default function StudentCodeEditor() {
                   </>
                 ) : (
                   <div style={{ color: COLORS.muted }}>(No output yet)</div>
+                )
+              ) : activeTab === 'feedback' ? (
+                microConceptFeedback ? (
+                  <>
+                    {microConceptFeedback.hasFeedback ? (
+                      <>
+                        <div style={{ marginBottom: '12px', padding: '10px', background: 'rgba(167,139,250,0.1)', border: `1px solid rgba(167,139,250,0.3)`, borderRadius: '6px', color: COLORS.purple, fontSize: '11px', fontWeight: 600 }}>
+                          ⚠️ {microConceptFeedback.summary}
+                        </div>
+                        {microConceptFeedback.issues && microConceptFeedback.issues.map((issue, idx) => (
+                          <div key={idx} style={{ marginBottom: '10px', padding: '10px', background: COLORS.surface2, borderRadius: '6px', borderLeft: `3px solid ${COLORS.warning}` }}>
+                            <div style={{ fontWeight: 700, color: COLORS.warning, marginBottom: '4px' }}>• {issue.name}</div>
+                            <div style={{ fontSize: '10px', color: COLORS.muted, marginBottom: '4px' }}>{issue.description}</div>
+                            {microConceptFeedback.evidence?.[idx]?.evidence && (
+                              <div style={{ fontSize: '9px', color: COLORS.text, background: COLORS.editorBg, padding: '6px', borderRadius: '4px', fontFamily: "'Space Mono', monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                {microConceptFeedback.evidence[idx].evidence}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {microConceptFeedback.suggestedAction && (
+                          <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(74,222,128,0.1)', border: `1px solid rgba(74,222,128,0.3)`, borderRadius: '6px', color: COLORS.success, fontSize: '10px' }}>
+                            💡 {microConceptFeedback.suggestedAction}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ color: COLORS.success, fontSize: '11px', fontWeight: 700 }}>
+                        ✓ No specific micro-concept issues detected. Great work!
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ color: COLORS.muted }}>(No feedback yet - submit code to receive feedback)</div>
                 )
               ) : (
                 testResults ? (
