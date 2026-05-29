@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import Layout from '../../components/Layout';
 
@@ -13,6 +13,9 @@ export default function SectionDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState(null);
+  const navigate = useNavigate();
 
   const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
 
@@ -83,6 +86,40 @@ export default function SectionDetail() {
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleEditExercise = (exercise) => {
+    navigate(`/instructor/exercises/${exercise.id}/edit`);
+  };
+
+  const handleDeleteExercise = async (exercise) => {
+    if (showDeleteConfirm && selectedExercise?.id === exercise.id) {
+      try {
+        await api.delete(`/api/exercises/${exercise.id}`);
+        setExercises(exercises.filter(e => e.id !== exercise.id));
+        setShowDeleteConfirm(false);
+        setSelectedExercise(null);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete exercise');
+      }
+    } else {
+      setShowDeleteConfirm(true);
+      setSelectedExercise(exercise);
+    }
+  };
+
+  const handleToggleExerciseStatus = async (exercise) => {
+    try {
+      const endpoint = exercise.closed_at ? 'reopen' : 'close';
+      const res = await api.post(`/api/exercises/${exercise.id}/${endpoint}`, {});
+      setExercises(exercises.map(e =>
+        e.id === exercise.id ? { ...e, closed_at: res.data.exercise?.closed_at || null } : e
+      ));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update exercise status');
+    }
+  };
 
   if (loading) {
     return (
@@ -513,12 +550,136 @@ export default function SectionDetail() {
                         )}
                       </div>
                     </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #2e2e4a' }} className="exercise-actions">
+                      <button
+                        onClick={() => handleEditExercise(exercise)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#85D2D0',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          fontFamily: 'DM Sans, sans-serif',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        ✎ Edit
+                      </button>
+                      <button
+                        onClick={() => handleToggleExerciseStatus(exercise)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: 'transparent',
+                          color: exercise.closed_at ? '#4ade80' : '#f87171',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          fontFamily: 'DM Sans, sans-serif',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {exercise.closed_at ? '↻ Reopen' : '⊗ Close'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteExercise(exercise)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: showDeleteConfirm && selectedExercise?.id === exercise.id ? '#f87171' : 'transparent',
+                          color: showDeleteConfirm && selectedExercise?.id === exercise.id ? '#fff' : '#f87171',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          fontFamily: 'DM Sans, sans-serif',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {showDeleteConfirm && selectedExercise?.id === exercise.id ? '⚠ Confirm Delete' : '🗑 Delete'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
 
+          {showDeleteConfirm && selectedExercise && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}>
+              <div style={{
+                background: '#1a1a2e',
+                border: '2px solid #f87171',
+                borderRadius: '12px',
+                padding: '28px',
+                maxWidth: '420px',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+              }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#f87171', marginBottom: '12px' }}>
+                  ⚠ Delete Exercise
+                </div>
+                <p style={{ color: '#8884a0', marginBottom: '16px', lineHeight: '1.5' }}>
+                  Are you sure you want to delete <strong style={{ color: '#e8e6f0' }}>"{selectedExercise.title}"</strong>?
+                </p>
+                <p style={{ color: '#8884a0', fontSize: '11px', marginBottom: '20px', fontStyle: 'italic' }}>
+                  This will permanently remove the exercise and all related student submissions. This action cannot be undone.
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => { setShowDeleteConfirm(false); setSelectedExercise(null); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      background: '#2e2e4a',
+                      color: '#e8e6f0',
+                      border: '1px solid #3e3e5a',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '12px',
+                      fontFamily: 'DM Sans, sans-serif',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDeleteExercise(selectedExercise)}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      background: '#f87171',
+                      color: '#0f1a1a',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      fontFamily: 'DM Sans, sans-serif',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    Delete Permanently
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === 'heatmap' && heatmapData && (
             <div>
               <div style={{ marginBottom: '20px' }}>
