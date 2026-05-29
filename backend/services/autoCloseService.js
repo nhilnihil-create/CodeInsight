@@ -17,7 +17,7 @@ function startAutoCloseService() {
   console.log('Starting auto-close service...');
 
   // Schedule job to run every 5 minutes to check for exercises to close
-  schedule.scheduleJotInterval ('*/5 * * * *', async () => {
+  schedule.scheduleJob('*/5 * * * *', async () => {
     try {
       console.log('[AutoClose] Checking for exercises to close...');
       await processExercisesForAutoClose();

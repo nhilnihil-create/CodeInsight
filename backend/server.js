@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
 const { ensureTablesExist } = require('./migrations');
+const { startAutoCloseService } = require('./services/autoCloseService');
 
 const app = express();
 
@@ -38,11 +39,13 @@ ensureTablesExist().then(() => {
   app.listen(PORT, () => {
     console.log(`CodeInsight running on port ${PORT}`);
     console.log(`PostgreSQL connected`);
+    startAutoCloseService();
   });
 }).catch(err => {
   console.error('Failed to run migrations:', err);
   app.listen(PORT, () => {
     console.log(`CodeInsight running on port ${PORT} (migration failed)`);
     console.log(`PostgreSQL connected`);
+    startAutoCloseService();
   });
 });
