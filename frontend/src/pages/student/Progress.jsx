@@ -9,6 +9,9 @@ export default function StudentProgress() {
 
   useEffect(() => {
     fetchScores();
+    // Poll for updates every 5 seconds to catch new CDS scores
+    const interval = setInterval(fetchScores, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchScores = async () => {
@@ -41,7 +44,7 @@ export default function StudentProgress() {
 
   return (
     <div style={{ 
-      padding: isOpen ? '28px 28px 28px 28px' : '28px 28px 28px 0',
+      padding: '28px 28px 28px 16px',
       width: '100%',
       boxSizing: 'border-box',
       background: '#0c1220',
