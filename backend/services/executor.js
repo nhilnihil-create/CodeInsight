@@ -2,13 +2,16 @@ const { exec } = require('child_process');
 const fs        = require('fs');
 const path      = require('path');
 
-const BLOCKED = ['system(','exec(','fork(','popen(','unlink(','rmdir('];
+const BLOCKED_REGEX = /\b(system|exec|fork|popen|unlink|rmdir|remove|rename)\s*\(/i;
 
 function isSafe(code) {
-  return !BLOCKED.some(p => code.includes(p));
+  // Remove comments before checking for blocked keywords to avoid false positives
+  const cleanCode = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  return !BLOCKED_REGEX.test(cleanCode);
 }
 
 // Parse g++ error messages to extract line numbers, code, and format them nicely
+// Handles multiple g++ error formats: errors, warnings, and notes
 function parseCompilerError(errorOutput, sourceCode) {
   if (!errorOutput || !sourceCode) {
     return errorOutput || 'Compilation failed';
@@ -17,12 +20,18 @@ function parseCompilerError(errorOutput, sourceCode) {
   const codeLines = sourceCode.split('\n');
   const lines = errorOutput.split('\n');
   const formatted = [];
+  let lastProcessedLineNum = -1;
   
   for (const line of lines) {
     if (!line.trim()) continue;
     
-    // Format: solution.cpp:10:5: error: name 'x' is not declared
-    const match = line.match(/solution\.cpp:(\d+):(\d+):\s*(error|warning):\s*(.+)/);
+    // Match various g++ error/warning formats:
+    // Format 1: solution.cpp:10:5: error: message
+    // Format 2: solution.cpp:10:5: warning: message
+    // Format 3: solution.cpp:10:5: note: message
+    // Format 4: At global scope (context line)
+    const match = line.match(/solution\.cpp:(\d+):(\d+):\s*(error|warning|note):\s*(.+)/);
+    
     if (match) {
       const lineNum = parseInt(match[1]);
       const col = parseInt(match[2]);
@@ -35,14 +44,21 @@ function parseCompilerError(errorOutput, sourceCode) {
       // Create a pointer to the error column
       const columnPointer = ' '.repeat(Math.max(0, col - 1)) + '^';
       
-      formatted.push(`[Line ${lineNum}:${col}] ${type.toUpperCase()}: ${msg}\n    ${errorCodeLine}\n    ${columnPointer}`);
-    } else if (line.trim()) {
-      // Keep other non-empty lines as context
-      formatted.push(line);
+      // Only include "error" and "warning" entries; skip notes unless they're the first message
+      if (type === 'error' || type === 'warning' || (type === 'note' && formatted.length === 0)) {
+        formatted.push(`[Line ${lineNum}:${col}] ${type.toUpperCase()}: ${msg}\n    ${errorCodeLine}\n    ${columnPointer}`);
+        lastProcessedLineNum = lineNum;
+      }
+    } else if (line.trim() && !line.match(/^compilation terminated/i) && !line.match(/^In function/i)) {
+      // Keep other non-empty lines as context (but skip common non-essential compiler messages)
+      if (formatted.length > 0) {
+        formatted.push(line);
+      }
     }
   }
   
-  return formatted.join('\n');
+  // If no errors were found, return the raw output
+  return formatted.length > 0 ? formatted.join('\n').trim() : errorOutput.trim();
 }
 
 function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
@@ -90,8 +106,11 @@ function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
       }
 
       // Step 2: Run with timeout and stdin
-      const safeStdin = (stdin || '').replace(/"/g, '\\"');
-      const cmd = `echo "${safeStdin}" | timeout ${timeLimitSeconds}s "${binFile}" 2>&1`;
+      // Use a temporary file for stdin to avoid shell escaping issues with multi-line input
+      const stdinFile = path.join(tmpDir, 'stdin.txt');
+      fs.writeFileSync(stdinFile, stdin || '');
+
+      const cmd = `timeout ${timeLimitSeconds}s "${binFile}" < "${stdinFile}" 2>&1`;
 
       exec(cmd, { timeout: (timeLimitSeconds + 2) * 1000 }, (runErr, stdout, stderr) => {
         cleanup(tmpDir);
@@ -112,22 +131,35 @@ function cleanup(dir) {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}
 }
 
-async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5) {
+// Execute code against multiple test cases
+// maskHidden: if true, masks hidden test case details; if false, returns full results (for internal use only)
+async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, maskHidden = true) {
   const results = [];
   for (const tc of testCases) {
-    const result = await executeCode(sourceCode, tc.input, timeLimitSeconds);
-    const passed = result.status === 'Success' &&
-                   result.output.trim() === (tc.expected_output || '').trim();
+    // Normalize input and expected fields to be robust to different test case shapes
+    const stdin = (tc.input || tc.stdin || '').toString();
+    const expectedRaw = tc.expected_output || tc.expected || tc.expectedOutput || '';
+    const expectedStr = expectedRaw === null || expectedRaw === undefined ? '' : expectedRaw.toString();
+
+    const result = await executeCode(sourceCode, stdin, timeLimitSeconds);
+    const actualStr = (result.output || '').toString();
+    const passed = result.status === 'Success' && actualStr.trim() === expectedStr.trim();
+    
+    // Apply masking based on parameter and hidden flag
+    const shouldMask = maskHidden && tc.hidden;
+    
     results.push({
-      input:    tc.input,
-      expected: tc.expected_output,
-      actual:   result.output,
+      // Mask data for hidden test cases only if maskHidden=true
+      input:    shouldMask ? "[Hidden]" : stdin,
+      expected: shouldMask ? "[Hidden]" : expectedStr,
+      actual:   shouldMask ? (passed ? "[Hidden]" : "Output Mismatch") : actualStr,
       passed,
       status:   result.status,
-      error:    result.error,
+      error:    shouldMask ? (result.status === 'Success' ? '' : result.status) : result.error,
       hidden:   !!tc.hidden
     });
   }
+
   return results;
 }
 

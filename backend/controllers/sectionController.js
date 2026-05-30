@@ -1,13 +1,13 @@
 const db = require('../config/db');
 
 exports.create = async (req, res) => {
-  const { name, course_code, school_year } = req.body;
+  const { name, course_code, school_year, semester } = req.body;
   if (!name || !course_code)
     return res.status(400).json({ message: 'name and course_code required' });
   try {
     const r = await db.query(
-      'INSERT INTO sections(name,course_code,school_year,instructor_id) VALUES($1,$2,$3,$4) RETURNING *',
-      [name, course_code, school_year || '', req.user.id]
+      'INSERT INTO sections(name,course_code,school_year,semester,instructor_id) VALUES($1,$2,$3,$4,$5) RETURNING *',
+      [name, course_code, school_year || '', semester || 'Sem 1', req.user.id]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { res.status(500).json({ message: err.message }); }
@@ -63,7 +63,13 @@ exports.getOne = async (req, res) => {
   try {
     const sec = await db.query(
       `SELECT s.*, u.name AS instructor_name,
-       (SELECT COUNT(*) FROM enrollments e WHERE e.section_id=s.id) AS student_count
+       (SELECT COUNT(*) FROM enrollments e WHERE e.section_id=s.id) AS student_count,
+       (SELECT COUNT(*) FROM exercises ex WHERE ex.section_id=s.id) AS exercise_count,
+       (SELECT COUNT(*) FROM (
+           SELECT ex.id, (SELECT COUNT(DISTINCT student_id) FROM submissions sub WHERE sub.exercise_id=ex.id AND sub.student_id IN (SELECT student_id FROM enrollments WHERE section_id=s.id)) AS submitted_count,
+           (SELECT COUNT(*) FROM enrollments WHERE section_id=s.id) AS total_students
+         FROM exercises ex WHERE ex.section_id=s.id
+         ) t WHERE t.submitted_count >= t.total_students) AS completed_exercises
        FROM sections s JOIN users u ON u.id=s.instructor_id
        WHERE s.id=$1`, [req.params.id]
     );
@@ -89,7 +95,7 @@ exports.enroll = async (req, res) => {
     let enrolled = 0;
     for (const sid of ids) {
       await db.query(
-        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT (student_id, section_id) DO NOTHING;',
         [sid, sectionId]
       );
       enrolled++;
@@ -147,17 +153,17 @@ exports.getSectionExercises = async (req, res) => {
       `SELECT 
         ex.id, ex.title, ex.description, ex.concept_id, ex.section_id,
         ex.closed_at, ex.created_at, c.name AS concept_name,
-        (SELECT COUNT(*) FROM enrollments WHERE section_id=$1) AS total_students,
-        (SELECT COUNT(DISTINCT student_id) FROM submissions 
+        (SELECT COUNT(*)::INTEGER FROM enrollments WHERE section_id=$1) AS total_students,
+        (SELECT COUNT(DISTINCT student_id)::INTEGER FROM submissions 
          WHERE exercise_id=ex.id AND student_id IN 
            (SELECT student_id FROM enrollments WHERE section_id=$1)) AS submitted_count,
         (SELECT AVG(cs.cds) FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS avg_cds,
-        (SELECT COUNT(CASE WHEN cs.cds <= 0.33 THEN 1 END) FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds <= 0.33 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS low_count,
-        (SELECT COUNT(CASE WHEN cs.cds > 0.33 AND cs.cds <= 0.66 THEN 1 END) FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds > 0.33 AND cs.cds <= 0.66 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS moderate_count,
-        (SELECT COUNT(CASE WHEN cs.cds > 0.66 THEN 1 END) FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds > 0.66 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS high_count
        FROM exercises ex
        JOIN concepts c ON c.id=ex.concept_id

@@ -55,7 +55,7 @@ exports.list = async (req, res) => {
          FROM exercises ex
          JOIN concepts c ON c.id=ex.concept_id
          JOIN enrollments en ON en.section_id=ex.section_id
-         WHERE en.student_id=$1
+         WHERE en.student_id=$1 AND ex.is_draft=false
          ORDER BY ex.created_at DESC`,
         [req.user.id]
       );
