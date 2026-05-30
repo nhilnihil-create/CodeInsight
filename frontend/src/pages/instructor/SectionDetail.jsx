@@ -256,6 +256,7 @@ export default function SectionDetail() {
                   </div>
                 </div>
               </div>
+              </div>
 
               {/* Two Column Layout */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
