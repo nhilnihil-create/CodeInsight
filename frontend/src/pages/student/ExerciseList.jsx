@@ -66,16 +66,18 @@ export default function StudentExerciseList() {
   };
 
   const getCDSColor = (cds) => {
-    if (!cds) return COLORS.muted;
-    if (cds <= 0.33) return COLORS.error;
-    if (cds <= 0.66) return COLORS.warning;
+    const numCds = typeof cds === 'string' ? parseFloat(cds) : cds;
+    if (!numCds && numCds !== 0) return COLORS.muted;
+    if (numCds <= 0.33) return COLORS.error;
+    if (numCds <= 0.66) return COLORS.warning;
     return COLORS.success;
   };
 
   const getCDSLabel = (cds) => {
-    if (!cds) return 'Unscored';
-    if (cds <= 0.33) return 'Low';
-    if (cds <= 0.66) return 'Moderate';
+    const numCds = typeof cds === 'string' ? parseFloat(cds) : cds;
+    if (!numCds && numCds !== 0) return 'Unscored';
+    if (numCds <= 0.33) return 'Low';
+    if (numCds <= 0.66) return 'Moderate';
     return 'High';
   };
 
@@ -95,7 +97,7 @@ export default function StudentExerciseList() {
 
       {/* STATS CARDS */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '32px' }}>
           <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
             <div style={{ fontSize: '28px', fontWeight: 700, color: COLORS.teal, marginBottom: '4px' }}>{stats.total_exercises || 0}</div>
             <div style={{ fontSize: '12px', color: COLORS.muted, fontWeight: 600 }}>Total Exercises</div>
@@ -120,13 +122,6 @@ export default function StudentExerciseList() {
             </div>
           </div>
 
-          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '28px', fontWeight: 700, color: COLORS.purple, marginBottom: '4px' }}>{stats.average_cds ? stats.average_cds.toFixed(2) : '0.00'}</div>
-            <div style={{ fontSize: '12px', color: COLORS.muted, fontWeight: 600 }}>Average CDS</div>
-            <div style={{ height: '4px', background: COLORS.surface2, borderRadius: '2px', marginTop: '12px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: COLORS.purple, width: `${(stats.average_cds || 0) * 100}%` }} />
-            </div>
-          </div>
         </div>
       )}
 
@@ -204,11 +199,11 @@ export default function StudentExerciseList() {
                 </div>
 
                 {/* CDS Score and Stats */}
-                {exercise.status === 'completed' && exercise.cds !== null && (
+                {exercise.status === 'completed' && exercise.cds !== null && exercise.cds !== undefined && (
                   <div>
                     <div style={{ fontSize: '10px', fontWeight: 700, color: COLORS.muted, marginBottom: '6px' }}>DIFFICULTY</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: getCDSColor(exercise.cds) }}>{exercise.cds.toFixed(2)}</div>
+                      <div style={{ fontSize: '20px', fontWeight: 700, color: getCDSColor(exercise.cds) }}>{parseFloat(exercise.cds).toFixed(2)}</div>
                       <div style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', background: `rgba(${getCDSColor(exercise.cds) === COLORS.success ? '74, 222, 128' : getCDSColor(exercise.cds) === COLORS.warning ? '251, 191, 36' : '248, 113, 113'}, 0.12)`, color: getCDSColor(exercise.cds) }}>
                         {getCDSLabel(exercise.cds)}
                       </div>

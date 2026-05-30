@@ -2,7 +2,9 @@ const alertEngine = require('./alertEngine');
 
 function classify(cds, isPreliminary = false) {
   if (cds === null || cds === undefined) return 'Unscored';
-  if (isPreliminary) return 'Preliminary';
+  // Even if preliminary, we should provide a hint to the UI for color
+  // We append it to the classification string
+  const prefix = isPreliminary ? 'Preliminary - ' : '';
   if (cds <= 0.33) return 'Low';
   if (cds <= 0.66) return 'Moderate';
   return 'High';
@@ -94,8 +96,9 @@ async function computeBatchCDS(exerciseId, db) {
 
   const starterCode = exercise.starter_code || '';
   const blankRes = await db.query(
-    `SELECT DISTINCT student_id FROM submissions
-     WHERE exercise_id=$1 AND (code = $2 OR code = '')`,
+    `SELECT DISTINCT student_id FROM submissions 
+     WHERE exercise_id=$1 
+     AND (TRIM(code) = TRIM($2) OR TRIM(code) = '' OR code IS NULL)`,
     [exerciseId, starterCode]
   );
   const blankStudents = new Set(blankRes.rows.map(r => r.student_id));
@@ -136,10 +139,10 @@ async function computeBatchCDS(exerciseId, db) {
 
     await db.query(
       `INSERT INTO cds_scores
-       (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,computed_at)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+       (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,source,visible,computed_at)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,'batch',true,NOW())
        ON CONFLICT (student_id,exercise_id)
-       DO UPDATE SET ner=$4,nrs=$5,nts=$6,cds=$7,classification=$8,computed_at=NOW()`,
+       DO UPDATE SET ner=$4,nrs=$5,nts=$6,cds=$7,classification=$8,source='batch',visible=true,computed_at=NOW()`,
       [sid, exerciseId, exercise.section_id, ner, nrs, nts, cds, classification]
     );
   }
@@ -193,16 +196,15 @@ function calculateCDS(testResults, exercise) {
   // NER: Normalized Error Rate (failed tests / total tests)
   const ner = failedTests / Math.max(totalTests, 1);
 
-  // NRS: Normalized Retry Score (simple - 0 unless multiple runs)
-  const nrs = 0;
-
-  // NTS: Normalized Time on Task (0 - we don't track this in run)
+  // NRS/NTS are 0 for a single run, but we should use the official weights
+  // to keep the UI feedback consistent with the final batch calculation.
+  const nrs = 0; 
   const nts = 0;
 
-  // CDS: Composite Difficulty Score
-  // If all tests pass, CDS = 0 (no difficulty)
-  // If some fail, CDS scales from 0 to 1
-  const cds = ner * 0.5; // NER weighted at 50%
+  // Use the 40/35/25 weighting even for instant feedback
+  // This prevents the "Score Jump" when the exercise closes.
+  let cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
+  cds = Math.round(cds * 10000) / 10000;
 
   return {
     score: Math.min(cds, 1),
@@ -213,4 +215,63 @@ function calculateCDS(testResults, exercise) {
   };
 }
 
-module.exports = { computeBatchCDS, getLivePeerRanking, calculateCDS };
+// Calculate live CDS for a student after a submission
+// Uses current peer data to give preliminary CDS score
+async function calculateLiveCDS(studentId, exerciseId, db) {
+  try {
+    // Get exercise
+    const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
+    if (!exRes.rows.length) return null;
+    const exercise = exRes.rows[0];
+    const timeLimitSeconds = exercise.time_limit_minutes * 60;
+
+    // Get all submissions for this exercise
+    const subsRes = await db.query(
+      `SELECT student_id, is_correct, time_spent_seconds FROM submissions
+       WHERE exercise_id=$1 ORDER BY student_id, submitted_at ASC`,
+      [exerciseId]
+    );
+
+    // Calculate class maxima for normalization
+    let maxFailed = 1, maxTotal = 1;
+    const perStudent = {};
+    
+    for (const r of subsRes.rows) {
+      const sid = r.student_id;
+      if (!perStudent[sid]) perStudent[sid] = { failed: 0, total: 0, maxTime: 0 };
+      perStudent[sid].total += 1;
+      if (!r.is_correct) perStudent[sid].failed += 1;
+      perStudent[sid].maxTime = Math.max(perStudent[sid].maxTime, r.time_spent_seconds || 0);
+    }
+
+    for (const info of Object.values(perStudent)) {
+      maxFailed = Math.max(maxFailed, info.failed);
+      maxTotal = Math.max(maxTotal, info.total);
+    }
+
+    // Calculate student's CDS components
+    const studentData = perStudent[studentId];
+    if (!studentData) {
+      // Student hasn't submitted yet, no live CDS
+      return { ner: 0, nrs: 0, nts: 0, cds: 0, classification: 'Unscored' };
+    }
+
+    const ner = studentData.failed / Math.max(maxFailed, 1);
+    const nrs = studentData.total / Math.max(maxTotal, 1);
+    const nts = studentData.maxTime / Math.max(timeLimitSeconds, 1);
+    const cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * nts));
+
+    return {
+      ner: Math.round(ner * 10000) / 10000,
+      nrs: Math.round(nrs * 10000) / 10000,
+      nts: Math.round(nts * 10000) / 10000,
+      cds: Math.round(cds * 10000) / 10000,
+      classification: classify(cds)
+    };
+  } catch (err) {
+    console.error('Error calculating live CDS:', err);
+    return { ner: 0, nrs: 0, nts: 0, cds: 0, classification: 'Unscored' };
+  }
+}
+
+module.exports = { computeBatchCDS, getLivePeerRanking, calculateCDS, calculateLiveCDS };
