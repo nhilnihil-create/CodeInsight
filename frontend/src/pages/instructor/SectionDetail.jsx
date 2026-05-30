@@ -209,8 +209,7 @@ export default function SectionDetail() {
           {activeTab === 'overview' && (
             <>
               {/* Stats */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '22px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '22px' }}>
                 <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '14px 16px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '6px' }}>
                     Enrolled
@@ -255,7 +254,6 @@ export default function SectionDetail() {
                     Exercises submitted
                   </div>
                 </div>
-              </div>
               </div>
 
               {/* Two Column Layout */}
