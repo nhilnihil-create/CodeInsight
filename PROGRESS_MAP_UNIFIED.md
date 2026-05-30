@@ -1,5 +1,5 @@
 # CodeInsight System — Unified Progress Map
-**Last Updated:** May 30, 2026 | **Status:** Core System 95% Complete + E2E Verification Phase
+**Last Updated:** May 30, 2026, 21:39 UTC | **Status:** Core System 100% Complete + API Route Fixes
 
 ---
 
@@ -15,6 +15,7 @@
 | **E2E Verification** | ✅ COMPLETE | 40 students + 63 submissions tested, CDS verified working |
 | **UI Polish & Sync Fixes** | ✅ COMPLETE | Data sync working, null safety enforced, cramped layout fixed |
 | **Session 288d1abf** | ✅ 8 COMMITS | Student stats sync, completion tracking, LiveCDSPanel stabilization |
+| **API Route Fixes** | ✅ 3 COMMITS | Fix baseURL config (Vite environment vars), fix double /api paths, fix enrollment endpoint path |
 
 ---
 
@@ -159,6 +160,30 @@
   - **Build & Verification:**
     - Frontend builds successfully with Vite (117 modules transformed)
     - All 8 commits pushed to dev-compiler branch with Co-authored-by trailer
+
+### Phase 6: API Route Fixes (✅ COMPLETE - 3 NEW COMMITS)
+- [x] **Fix 1: Vite Environment Variable Syntax (Commit: d6fe71b)**
+  - **Error:** `ReferenceError: process is not defined` (white screen crash)
+  - **Root Cause:** Used `process.env.VITE_API_BASE_URL` (Node.js syntax) in browser code
+  - **Solution:** Changed to `import.meta.env.VITE_API_BASE_URL` (Vite-specific)
+  - **Result:** ✅ Frontend loads without errors
+
+- [x] **Fix 2: API Base URL Double Path Issue (Commit: ae6f435)**
+  - **Error:** All endpoints returning 404 with double `/api/api/...` path
+  - **Root Cause:** baseURL was `http://localhost:5000/api` + all endpoints include `/api/`
+  - **Solution:** Changed baseURL to `http://localhost:5000` (server root only)
+  - **Result:** ✅ All API paths now correct
+
+- [x] **Fix 3: Enrollment Endpoint Path Bug (Commit: 2b70d28)**
+  - **Error:** Cannot enroll students - "Failed to enroll students" message
+  - **Investigation Results:**
+    - ✅ **Database:** Clean state verified (64 submissions, 41 enrollments, no corruption)
+    - ✅ **Simulation Impact:** Bulk test had ZERO negative impact on enrollment logic
+    - ✅ **Backend:** Endpoint works perfectly (tested with curl)
+    - ❌ **Frontend:** Single inconsistency - one endpoint without `/api/` prefix
+  - **Root Cause:** EnrollStudentsModal called `/sections/3/enroll` instead of `/api/sections/3/enroll`
+  - **Solution:** Updated line 28 to add `/api/` prefix for consistency
+  - **Result:** ✅ Enrollment endpoint now functional, consistent with all other API calls
 
 ---
 
