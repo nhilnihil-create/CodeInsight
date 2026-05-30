@@ -121,6 +121,11 @@ exports.studentProfile = async (req, res) => {
 
 exports.myScores = async (req, res) => {
   try {
+    // Per policy: students do not see per-student CDS. Return empty array to avoid exposing instructor metrics.
+    if (req.user && req.user.role === 'student') {
+      return res.json([]);
+    }
+
     const r = await db.query(
       `SELECT cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts, cs.computed_at,
               cs.exercise_id, c.name AS concept_name, ex.title AS exercise_title
