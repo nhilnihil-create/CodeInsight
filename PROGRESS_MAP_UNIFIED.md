@@ -1,5 +1,5 @@
 # CodeInsight System — Unified Progress Map
-**Last Updated:** May 30, 2026, 21:39 UTC | **Status:** Core System 100% Complete + API Route Fixes
+**Last Updated:** May 30, 2026, 22:05 UTC | **Status:** Core System 100% Complete + API Route Fixes + Section Form
 
 ---
 
@@ -16,6 +16,7 @@
 | **UI Polish & Sync Fixes** | ✅ COMPLETE | Data sync working, null safety enforced, cramped layout fixed |
 | **Session 288d1abf** | ✅ 8 COMMITS | Student stats sync, completion tracking, LiveCDSPanel stabilization |
 | **API Route Fixes** | ✅ 3 COMMITS | Fix baseURL config (Vite environment vars), fix double /api paths, fix enrollment endpoint path |
+| **Section Form** | ✅ 1 COMMIT | Add semester field to section creation form, store in database, display dynamically |
 
 ---
 
@@ -185,6 +186,26 @@
   - **Solution:** Updated line 28 to add `/api/` prefix for consistency
   - **Result:** ✅ Enrollment endpoint now functional, consistent with all other API calls
 
+### Phase 7: Section Form Enhancements (✅ COMPLETE - 1 NEW COMMIT)
+- [x] **Fix: Hardcoded Semester Field (Commit: 3847df1)**
+  - **Issue:** Section creation form had no semester input field - "Sem 2" was hardcoded
+  - **Root Cause:** 
+    - Database: No `semester` column in sections table
+    - Frontend: Form only had 3 fields (Name, Course Code, School Year)
+    - Display: Line 308 hardcoded `· Sem 2` without using actual value
+  - **Solution (3 parts):**
+    1. **Database Migration:** Added `semester VARCHAR(20) DEFAULT 'Sem 1'` to sections table
+    2. **Frontend Form:** Added dropdown field with options (Sem 1, Sem 2, Summer)
+       - Updated formData state to include `semester: 'Sem 1'` (line 10)
+       - Added select input with styling matching other form fields (lines 206-228)
+    3. **Frontend Display:** Changed hardcoded `Sem 2` to `{section.semester || 'Sem 1'}` (line 331)
+    4. **Backend:** Updated sectionController.create() to accept and save semester parameter
+  - **Result:** ✅ Instructors can now select semester when creating sections, value is stored and displayed correctly
+  - **Files Modified:**
+    - `backend/controllers/sectionController.js` - Added semester to INSERT query
+    - `frontend/src/pages/instructor/Sections.jsx` - Added semester form field and display logic
+  - **Testing:** Section creation form now has 4 input fields, sections display with correct semester
+
 ---
 
 ## 🚀 BACKEND ARCHITECTURE
@@ -219,7 +240,7 @@
 | Table | Columns | Purpose | Status |
 |-------|---------|---------|--------|
 | **users** | id, name, email, password_hash, role, created_at | Authentication | ✅ |
-| **sections** | id, name, course_code, school_year, instructor_id, created_at | Course sections | ✅ |
+| **sections** | id, name, course_code, school_year, **semester** (NEW), instructor_id, created_at | Course sections | ✅ |
 | **enrollments** | id, student_id, section_id, enrolled_at | Student enrollment | ✅ |
 | **concepts** | id, name, ast_nodes | Programming concepts (7 seeded) | ✅ |
 | **exercises** | id, title, description, concept_id, section_id, time_limit_minutes, test_cases (JSONB), deadline, is_draft, closed_at, **starter_code** (NEW), created_at | Exercise definitions | ✅ |
