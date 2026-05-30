@@ -86,11 +86,11 @@ export default function InstructorAlerts() {
 
   return (
     <div style={{ 
-      padding: '28px',
+      padding: '28px 28px 28px 16px',
       width: '100%',
       boxSizing: 'border-box',
-      overflowY: 'auto',
-      height: '100vh'
+      background: '#0c1220',
+      minHeight: '100%'
     }}>
       {/* Top Bar */}
       <div style={{ marginBottom: '28px' }}>
@@ -113,8 +113,8 @@ export default function InstructorAlerts() {
             onChange={(e) => setSelectedSection(parseInt(e.target.value))}
             style={{
               width: '100%',
-              background: '#1a1a2e',
-              border: '1px solid #2e2e4a',
+              background: '#131d30',
+              border: '1px solid #1e304d',
               borderRadius: '8px',
               padding: '10px 13px',
               fontSize: '13px',

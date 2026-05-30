@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import Layout from '../../components/Layout';
 import { useSidebar } from '../../context/SidebarContext';
 
 export default function InstructorDashboard() {
@@ -122,33 +121,28 @@ export default function InstructorDashboard() {
 
   if (loading) {
     return (
-      <Layout>
-        <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
-          Loading dashboard...
-        </div>
-      </Layout>
+      <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
+        Loading dashboard...
+      </div>
     );
   }
 
   if (sections.length === 0) {
     return (
-      <Layout>
-        <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
-          No sections yet. <Link to="/instructor/sections" style={{ color: '#85D2D0' }}>Create one</Link> to get started!
-        </div>
-      </Layout>
+      <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
+        No sections yet. <Link to="/instructor/sections" style={{ color: '#85D2D0' }}>Create one</Link> to get started!
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div style={{ 
-        padding: '28px',
-        width: '100%',
-        boxSizing: 'border-box',
-        overflowY: 'auto',
-        height: '100vh'
-      }}>
+    <div style={{ 
+      padding: '28px 28px 28px 16px',
+      width: '100%',
+      boxSizing: 'border-box',
+      background: '#0c1220',
+      minHeight: '100%'
+    }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', gap: '16px', flexWrap: 'wrap' }}>
           <div>
@@ -227,7 +221,7 @@ export default function InstructorDashboard() {
           <>
             {/* Stats Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '28px' }}>
-              <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #85D2D0' }}>
+              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #85D2D0' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
                   Total Students
                 </div>
@@ -239,7 +233,7 @@ export default function InstructorDashboard() {
                 </div>
               </div>
 
-              <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #887BB0' }}>
+              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #a99dd4' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
                   Concepts Covered
                 </div>
@@ -251,7 +245,7 @@ export default function InstructorDashboard() {
                 </div>
               </div>
 
-              <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #fbbf24' }}>
+              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #fbbf24' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
                   Moderate Risk
                 </div>
@@ -263,7 +257,7 @@ export default function InstructorDashboard() {
                 </div>
               </div>
 
-              <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #f87171' }}>
+              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #f87171' }}>
                 <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
                   High Difficulty
                 </div>
@@ -283,7 +277,7 @@ export default function InstructorDashboard() {
                   Concept Difficulty Heatmap — Class Overview
                 </div>
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                  {[['#4ade80', 'Low'], ['#fbbf24', 'Moderate'], ['#f87171', 'High'], ['#4a4a6a', 'Unscored']].map(([color, label]) => (
+                  {[['#4ade80', 'Low'], ['#fbbf24', 'Moderate'], ['#f87171', 'High'], ['#1e304d', 'Unscored']].map(([color, label]) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#8884a0' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: color }}></div>
                       {label}
@@ -294,10 +288,10 @@ export default function InstructorDashboard() {
             </div>
 
             {/* Heatmap Table */}
-            <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+            <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #2e2e4a', background: '#22223a' }}>
+                  <tr style={{ borderBottom: '1px solid #1e304d', background: '#1a2640' }}>
                     <th style={{ padding: '10px 12px', fontSize: '10px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'left', minWidth: '130px' }}>
                       Student
                     </th>
@@ -310,7 +304,7 @@ export default function InstructorDashboard() {
                 </thead>
                 <tbody>
                   {heatmapData.students.map(student => (
-                    <tr key={student.id} style={{ borderBottom: '1px solid rgba(46,46,74,0.5)' }}>
+                    <tr key={student.id} style={{ borderBottom: '1px solid #1e304d' }}>
                       <td style={{ padding: '8px 12px', fontSize: '12px' }}>
                         <div style={{ fontWeight: 600, color: '#e8e6f0', fontSize: '12px' }}>
                           {student.name}
@@ -326,7 +320,7 @@ export default function InstructorDashboard() {
                           low: { background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
                           moderate: { background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' },
                           high: { background: 'rgba(248,113,113,0.14)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' },
-                          unscored: { background: 'rgba(74,74,106,0.3)', color: '#8884a0', border: '1px solid #2e2e4a' }
+                          unscored: { background: 'rgba(30,48,77,0.3)', color: '#8884a0', border: '1px solid #1e304d' }
                         };
 
                         return (
@@ -358,8 +352,8 @@ export default function InstructorDashboard() {
             {/* Bottom Row: Alerts + Class Averages */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '14px' }}>
               {/* Alerts Panel */}
-              <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #2e2e4a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#22223a' }}>
+              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e304d', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1a2640' }}>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e6f0' }}>
                     ⚠ Early Warning Alerts
                   </div>
@@ -369,7 +363,7 @@ export default function InstructorDashboard() {
                 </div>
                 <div>
                   {alerts.slice(0, 5).map((alert, idx) => (
-                    <div key={idx} style={{ padding: '12px 16px', borderBottom: idx < Math.min(5, alerts.length - 1) ? '1px solid rgba(46,46,74,0.5)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div key={idx} style={{ padding: '12px 16px', borderBottom: idx < Math.min(5, alerts.length - 1) ? '1px solid #1e304d' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: '#e8e6f0' }}>
                           {alert.student_name}
@@ -392,8 +386,8 @@ export default function InstructorDashboard() {
               </div>
 
               {/* Class Average by Concept */}
-              <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #2e2e4a', background: '#22223a' }}>
+              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e304d', background: '#1a2640' }}>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e6f0' }}>
                     Class Average CDS by Concept
                   </div>
@@ -409,7 +403,7 @@ export default function InstructorDashboard() {
                       high: avgNum ? Math.min(avgNum * 100, 100) : 0,
                       unscored: 0
                     };
-                    const barColor = difficulty === 'low' ? '#4ade80' : difficulty === 'moderate' ? '#fbbf24' : difficulty === 'high' ? '#f87171' : '#4a4a6a';
+                    const barColor = difficulty === 'low' ? '#4ade80' : difficulty === 'moderate' ? '#fbbf24' : difficulty === 'high' ? '#f87171' : '#1e304d';
                     
                     return (
                       <div key={concept} style={{ marginBottom: '12px' }}>
@@ -419,7 +413,7 @@ export default function InstructorDashboard() {
                             {formatCDS(avgNum)} · {avg?.classification || 'Unscored'}
                           </span>
                         </div>
-                        <div style={{ background: '#22223a', borderRadius: '4px', height: '7px', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ background: '#0a1018', borderRadius: '4px', height: '7px', overflow: 'hidden', position: 'relative' }}>
                           <div style={{
                             height: '100%',
                             borderRadius: '4px',
@@ -441,6 +435,5 @@ export default function InstructorDashboard() {
           </div>
         )}
       </div>
-    </Layout>
   );
 }

@@ -7,7 +7,7 @@ export default function InstructorSections() {
   const [activityData, setActivityData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', course_code: '', school_year: '' });
+  const [formData, setFormData] = useState({ name: '', course_code: '', school_year: '', semester: 'Sem 1' });
 
   useEffect(() => {
     fetchSections();
@@ -42,7 +42,7 @@ export default function InstructorSections() {
     e.preventDefault();
     try {
       await api.post('/api/sections', formData);
-      setFormData({ name: '', course_code: '', school_year: '' });
+      setFormData({ name: '', course_code: '', school_year: '', semester: 'Sem 1' });
       setShowForm(false);
       await fetchSections();
     } catch (err) {
@@ -92,11 +92,11 @@ export default function InstructorSections() {
 
   return (
     <div style={{ 
-      padding: '28px',
+      padding: '28px 28px 28px 16px',
       width: '100%',
       boxSizing: 'border-box',
-      overflowY: 'auto',
-      height: '100vh'
+      background: '#0c1220',
+      minHeight: '100%'
     }}>
       {/* Top Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', gap: '16px' }}>
@@ -203,6 +203,29 @@ export default function InstructorSections() {
                 }}
               />
             </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8884a0', marginBottom: '6px' }}>
+                Semester
+              </label>
+              <select 
+                value={formData.semester}
+                onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: '#0f0f1a',
+                  border: '1px solid #2e2e4a',
+                  borderRadius: '8px',
+                  color: '#e8e6f0',
+                  fontSize: '12px',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="Sem 1">Sem 1</option>
+                <option value="Sem 2">Sem 2</option>
+                <option value="Summer">Summer</option>
+              </select>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 
@@ -261,8 +284,8 @@ export default function InstructorSections() {
               style={{ textDecoration: 'none' }}
             >
               <div style={{
-                background: '#1a1a2e',
-                border: '1px solid #2e2e4a',
+                background: '#131d30',
+                border: '1px solid #1e304d',
                 borderRadius: '16px',
                 overflow: 'hidden',
                 cursor: 'pointer',
@@ -305,7 +328,7 @@ export default function InstructorSections() {
                 {/* Card Body */}
                 <div style={{ padding: '16px 18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ fontSize: '10px', color: '#8884a0', marginBottom: '12px', fontWeight: 500 }}>
-                    {section.school_year || 'AY 2025–2026'} · Sem 2
+                    {section.school_year || 'AY 2025–2026'} · {section.semester || 'Sem 1'}
                   </div>
 
                   {/* Stats */}
