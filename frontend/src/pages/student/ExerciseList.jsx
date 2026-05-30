@@ -26,6 +26,9 @@ export default function StudentExerciseList() {
 
   useEffect(() => {
     fetchData();
+    // Poll for updates every 5 seconds to catch status changes
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
@@ -63,22 +66,6 @@ export default function StudentExerciseList() {
     if (status === 'completed') return COLORS.success;
     if (status === 'pending') return COLORS.warning;
     return COLORS.muted;
-  };
-
-  const getCDSColor = (cds) => {
-    const numCds = typeof cds === 'string' ? parseFloat(cds) : cds;
-    if (!numCds && numCds !== 0) return COLORS.muted;
-    if (numCds <= 0.33) return COLORS.error;
-    if (numCds <= 0.66) return COLORS.warning;
-    return COLORS.success;
-  };
-
-  const getCDSLabel = (cds) => {
-    const numCds = typeof cds === 'string' ? parseFloat(cds) : cds;
-    if (!numCds && numCds !== 0) return 'Unscored';
-    if (numCds <= 0.33) return 'Low';
-    if (numCds <= 0.66) return 'Moderate';
-    return 'High';
   };
 
   if (loading) {
@@ -197,19 +184,6 @@ export default function StudentExerciseList() {
                   <span>📅 {exercise.deadline ? new Date(exercise.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No deadline'}</span>
                   <span style={{ marginLeft: 'auto' }}>{Array.isArray(exercise.test_cases) ? exercise.test_cases.length : 0} tests</span>
                 </div>
-
-                {/* CDS Score and Stats */}
-                {exercise.status === 'completed' && exercise.cds !== null && exercise.cds !== undefined && (
-                  <div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: COLORS.muted, marginBottom: '6px' }}>DIFFICULTY</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: getCDSColor(exercise.cds) }}>{parseFloat(exercise.cds).toFixed(2)}</div>
-                      <div style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', background: `rgba(${getCDSColor(exercise.cds) === COLORS.success ? '74, 222, 128' : getCDSColor(exercise.cds) === COLORS.warning ? '251, 191, 36' : '248, 113, 113'}, 0.12)`, color: getCDSColor(exercise.cds) }}>
-                        {getCDSLabel(exercise.cds)}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {exercise.status !== 'completed' && (
                   <div style={{ fontSize: '10px', color: COLORS.muted, textAlign: 'center', padding: '12px', borderRadius: '8px', background: COLORS.surface2 }}>
