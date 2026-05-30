@@ -103,6 +103,76 @@ exports.liveRanking = async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
+exports.liveCDS = async (req, res) => {
+  // Instructor view: live CDS with preliminary badge
+  try {
+    const exerciseId = req.params.exerciseId;
+    
+    // Get exercise and time limit
+    const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
+    if (!exRes.rows.length) return res.status(404).json({ message: 'Exercise not found' });
+    const exercise = exRes.rows[0];
+    
+     // Get all CDS scores for this exercise (batch or live)
+    const scores = await db.query(`
+      SELECT 
+        cs.student_id, u.name, cs.ner, cs.nrs, cs.nts, cs.cds, cs.classification,
+        (SELECT COUNT(*) FROM submissions WHERE exercise_id=$1 AND student_id=cs.student_id) as total_attempts,
+        (SELECT COUNT(*) FROM submissions WHERE exercise_id=$1 AND student_id=cs.student_id AND is_correct=false) as failed_attempts
+      FROM cds_scores cs
+      JOIN users u ON u.id=cs.student_id
+      WHERE cs.exercise_id=$1
+      ORDER BY cs.cds DESC
+    `, [exerciseId]);
+    
+    // Calculate class metrics
+    const cdsValues = scores.rows.map(s => parseFloat(s.cds || 0));
+    const classAvg = cdsValues.length > 0 ? cdsValues.reduce((a,b)=>a+b,0) / cdsValues.length : 0;
+    const classMin = cdsValues.length > 0 ? Math.min(...cdsValues) : 0;
+    const classMax = cdsValues.length > 0 ? Math.max(...cdsValues) : 0;
+    
+    // Classify class average
+    const classAvgClassification = classAvg <= 0.33 ? 'Low' : classAvg <= 0.66 ? 'Moderate' : 'High';
+    
+    // Determine reliability
+    const studentCount = scores.rows.length;
+    const submissionCount = await db.query(
+      'SELECT COUNT(*) as count FROM submissions WHERE exercise_id=$1',
+      [exerciseId]
+    );
+    const isPreliminary = studentCount < 3;
+    const reliability = isPreliminary ? 'Preliminary' : 'Accurate';
+    
+    res.json({
+      exercise: { id: exercise.id, title: exercise.title, timeLimitMinutes: exercise.time_limit_minutes },
+      studentCount,
+      submissionCount: submissionCount.rows[0].count,
+      preliminary: isPreliminary,
+      reliability,
+      classAverage: {
+        ner: scores.rows.length > 0 ? (scores.rows.reduce((a,s)=>a + parseFloat(s.ner || 0), 0) / scores.rows.length) : 0,
+        nrs: scores.rows.length > 0 ? (scores.rows.reduce((a,s)=>a + parseFloat(s.nrs || 0), 0) / scores.rows.length) : 0,
+        nts: scores.rows.length > 0 ? (scores.rows.reduce((a,s)=>a + parseFloat(s.nts || 0), 0) / scores.rows.length) : 0,
+        cds: classAvg,
+        classification: classAvgClassification,
+        min: classMin,
+        max: classMax
+      },
+      rankings: scores.rows.map(s => ({
+        studentId: s.student_id,
+        name: s.name,
+        totalAttempts: s.total_attempts,
+        failedAttempts: s.failed_attempts,
+        ner: parseFloat(s.ner || 0),
+        nrs: parseFloat(s.nrs || 0),
+        nts: parseFloat(s.nts || 0),
+        cds: parseFloat(s.cds || 0),
+        classification: s.classification
+      }))
+    });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+};
+
 exports.studentProfile = async (req, res) => {
   try {
     const r = await db.query(
@@ -121,11 +191,7 @@ exports.studentProfile = async (req, res) => {
 
 exports.myScores = async (req, res) => {
   try {
-    // Per policy: students do not see per-student CDS. Return empty array to avoid exposing instructor metrics.
-    if (req.user && req.user.role === 'student') {
-      return res.json([]);
-    }
-
+    // Return CDS scores for the authenticated student only
     const r = await db.query(
       `SELECT cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts, cs.computed_at,
               cs.exercise_id, c.name AS concept_name, ex.title AS exercise_title
@@ -136,7 +202,9 @@ exports.myScores = async (req, res) => {
        ORDER BY cs.computed_at DESC`,
       [req.user.id]
     );
-    res.json(r.rows);
+
+    // If no scores exist, return empty array (frontend shows 'No scores yet')
+    res.json(r.rows || []);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
