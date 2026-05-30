@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import Layout from '../../components/Layout';
+import EnrollStudentsModal from '../../components/EnrollStudentsModal';
+import LiveCDSPanel from '../../components/LiveCDSPanel';
 
 export default function SectionDetail() {
   const { sectionId } = useParams();
@@ -15,6 +16,8 @@ export default function SectionDetail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [liveCDSExerciseId, setLiveCDSExerciseId] = useState(null);
   const navigate = useNavigate();
 
   const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
@@ -60,9 +63,16 @@ export default function SectionDetail() {
   const getTotalAlerts = () => alerts.length;
 
   const getCompletionPercentage = () => {
+    // Prefer aggregated section stats if provided
+    if (section && typeof section.exercise_count !== 'undefined' && typeof section.completed_exercises !== 'undefined') {
+      const total = parseInt(section.exercise_count || 0, 10) || 0;
+      const done = parseInt(section.completed_exercises || 0, 10) || 0;
+      return total > 0 ? Math.round((done / total) * 100) : 0;
+    }
+
     if (!exercises.length) return 0;
-    const totalPossible = exercises.reduce((sum, ex) => sum + (ex.submitted_count || 0), 0);
-    const totalNeeded = exercises.reduce((sum, ex) => sum + ex.total_students, 0);
+    const totalPossible = exercises.reduce((sum, ex) => sum + (parseInt(ex.submitted_count || 0, 10) || 0), 0);
+    const totalNeeded = exercises.reduce((sum, ex) => sum + (parseInt(ex.total_students || 0, 10) || 0), 0);
     return totalNeeded > 0 ? Math.round((totalPossible / totalNeeded) * 100) : 0;
   };
 
@@ -112,9 +122,8 @@ export default function SectionDetail() {
     try {
       const endpoint = exercise.closed_at ? 'reopen' : 'close';
       const res = await api.post(`/api/exercises/${exercise.id}/${endpoint}`, {});
-      setExercises(exercises.map(e =>
-        e.id === exercise.id ? { ...e, closed_at: res.data.exercise?.closed_at || null } : e
-      ));
+      // refresh all section data so top cards and heatmap reflect latest counts
+      await fetchSectionData();
     } catch (err) {
       console.error(err);
       alert('Failed to update exercise status');
@@ -123,32 +132,28 @@ export default function SectionDetail() {
 
   if (loading) {
     return (
-      <Layout>
-        <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
-          Loading section details...
-        </div>
-      </Layout>
+      <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
+        Loading section details...
+      </div>
     );
   }
 
   if (!section) {
     return (
-      <Layout>
-        <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
-          Section not found
-        </div>
-      </Layout>
+      <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
+        Section not found
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#0c1220' }}>
         {/* Section Banner */}
         <div style={{
           background: 'linear-gradient(135deg, #1e3a5f, #2d5a8e)',
           borderBottom: '1px solid rgba(255,255,255,0.1)',
-          padding: '18px 28px',
+          padding: '18px 28px 18px 16px',
           flexShrink: 0,
           position: 'relative',
           overflow: 'hidden',
@@ -166,7 +171,7 @@ export default function SectionDetail() {
             <span>📅 {section.school_year || 'AY 2025–2026'} · Sem 2</span>
           </div>
           <div style={{ position: 'absolute', right: '28px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '10px' }}>
-            <button style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(255,255,255,0.15)', color: 'white', fontFamily: 'DM Sans, sans-serif' }}>
+            <button onClick={() => setShowEnrollModal(true)} style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: 'none', background: 'rgba(255,255,255,0.15)', color: 'white', fontFamily: 'DM Sans, sans-serif' }}>
               + Enroll Students
             </button>
             <Link to="/instructor/create-exercise" style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: 'none', background: '#85D2D0', color: '#0f1a1a', fontFamily: 'DM Sans, sans-serif', textDecoration: 'none', display: 'inline-block' }}>
@@ -176,7 +181,7 @@ export default function SectionDetail() {
         </div>
 
         {/* Tabs */}
-        <div style={{ background: '#1a1a2e', borderBottom: '1px solid #2e2e4a', display: 'flex', padding: '0 28px', flexShrink: 0, overflowX: 'auto' }}>
+        <div style={{ background: '#131d30', borderBottom: '1px solid #1e304d', display: 'flex', padding: '0 28px 0 16px', flexShrink: 0, overflowX: 'auto' }}>
           {['overview', 'students', 'exercises', 'heatmap'].map(tab => (
             <button
               key={tab}
@@ -200,12 +205,13 @@ export default function SectionDetail() {
         </div>
 
         {/* Content */}
-        <div style={{ padding: '22px 28px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '22px 28px 22px 16px', overflowY: 'auto', flex: 1 }}>
           {activeTab === 'overview' && (
             <>
               {/* Stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '22px' }}>
-                <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '22px' }}>
+                <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '14px 16px' }}>
                   <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '6px' }}>
                     Enrolled
                   </div>
@@ -332,7 +338,7 @@ export default function SectionDetail() {
                   <div style={{ fontSize: '13px', fontWeight: 700 }}>Assigned Exercises</div>
                   <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {exercises.map(exercise => {
-                      const totalScores = (exercise.low_count || 0) + (exercise.moderate_count || 0) + (exercise.high_count || 0);
+                      const totalScores = (Number(exercise.low_count) || 0) + (Number(exercise.moderate_count) || 0) + (Number(exercise.high_count) || 0);
                       const avgCdsNum = exercise.avg_cds ? parseFloat(exercise.avg_cds) : null;
                       const difficulty = getDifficulty(avgCdsNum);
                       const isHighAvg = avgCdsNum && avgCdsNum > 0.66;
@@ -374,12 +380,12 @@ export default function SectionDetail() {
                           </div>
                           <div style={{ marginTop: '8px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#8884a0', marginBottom: '4px' }}>
-                              <span>Distribution</span>
-                              <span style={{ color: isHighAvg ? '#f87171' : difficulty === 'moderate' ? '#fbbf24' : '#4ade80' }}>
-                                {isHighAvg ? '⚠ High avg — intervention recommended' : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+                              <span>Difficulty Distribution</span>
+                              <span style={{ color: isHighAvg ? '#f87171' : '#8884a0' }}>
+                                Low {exercise.low_count || 0} · Mod {exercise.moderate_count || 0} · High {exercise.high_count || 0}
                               </span>
                             </div>
-                            <div style={{ height: '5px', background: '#22223a', borderRadius: '3px', display: 'flex', overflow: 'hidden' }}>
+                            <div style={{ height: '8px', background: '#22223a', borderRadius: '4px', display: 'flex', overflow: 'hidden' }}>
                               {totalScores > 0 && (
                                 <>
                                   <div style={{
@@ -470,7 +476,7 @@ export default function SectionDetail() {
           {activeTab === 'exercises' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {exercises.map(exercise => {
-                const totalScores = (exercise.low_count || 0) + (exercise.moderate_count || 0) + (exercise.high_count || 0);
+                const totalScores = (Number(exercise.low_count) || 0) + (Number(exercise.moderate_count) || 0) + (Number(exercise.high_count) || 0);
                 const avgCdsNum = exercise.avg_cds ? parseFloat(exercise.avg_cds) : null;
                 const difficulty = getDifficulty(avgCdsNum);
                 const isHighAvg = avgCdsNum && avgCdsNum > 0.66;
@@ -528,7 +534,7 @@ export default function SectionDetail() {
                           Low {exercise.low_count || 0} · Mod {exercise.moderate_count || 0} · High {exercise.high_count || 0}
                         </span>
                       </div>
-                      <div style={{ height: '5px', background: '#22223a', borderRadius: '3px', display: 'flex', overflow: 'hidden' }}>
+                      <div style={{ height: '8px', background: '#22223a', borderRadius: '4px', display: 'flex', overflow: 'hidden' }}>
                         {totalScores > 0 && (
                           <>
                             <div style={{
@@ -569,6 +575,23 @@ export default function SectionDetail() {
                         ✎ Edit
                       </button>
                       <button
+                        onClick={() => setLiveCDSExerciseId(exercise.id)}
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#85D2D0',
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          fontFamily: 'DM Sans, sans-serif',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        📊 Live CDS
+                      </button>
+                      <button
                         onClick={() => handleToggleExerciseStatus(exercise)}
                         style={{
                           padding: '6px 12px',
@@ -603,6 +626,12 @@ export default function SectionDetail() {
                         {showDeleteConfirm && selectedExercise?.id === exercise.id ? '⚠ Confirm Delete' : '🗑 Delete'}
                       </button>
                     </div>
+                    {liveCDSExerciseId === exercise.id && (
+                      <LiveCDSPanel
+                        exerciseId={exercise.id}
+                        onClose={() => setLiveCDSExerciseId(null)}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -700,7 +729,7 @@ export default function SectionDetail() {
               <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #2e2e4a', background: '#22223a' }}>
+                    <tr style={{ borderBottom: '1px solid #1e304d', background: '#1a2640' }}>
                       <th style={{ padding: '10px 12px', fontSize: '10px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'left', minWidth: '130px' }}>
                         Student
                       </th>
@@ -713,7 +742,7 @@ export default function SectionDetail() {
                   </thead>
                   <tbody>
                     {heatmapData.students.map(student => (
-                      <tr key={student.id} style={{ borderBottom: '1px solid rgba(46,46,74,0.5)' }}>
+                      <tr key={student.id} style={{ borderBottom: '1px solid #1e304d' }}>
                         <td style={{ padding: '8px 12px', fontSize: '12px' }}>
                           <div style={{ fontWeight: 600, color: '#e8e6f0', fontSize: '12px' }}>
                             {student.name}
@@ -729,7 +758,7 @@ export default function SectionDetail() {
                             low: { background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
                             moderate: { background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' },
                             high: { background: 'rgba(248,113,113,0.14)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' },
-                            unscored: { background: 'rgba(74,74,106,0.3)', color: '#8884a0', border: '1px solid #2e2e4a' }
+                            unscored: { background: 'rgba(30,48,77,0.3)', color: '#8884a0', border: '1px solid #1e304d' }
                           };
 
                           return (
@@ -760,7 +789,16 @@ export default function SectionDetail() {
             </div>
           )}
         </div>
+
+        {/* Enroll Students Modal */}
+        {showEnrollModal && (
+          <EnrollStudentsModal 
+            sectionId={sectionId} 
+            onClose={() => setShowEnrollModal(false)}
+            onSuccess={fetchSectionData}
+          />
+        )}
       </div>
-    </Layout>
+    </>
   );
 }
