@@ -315,15 +315,25 @@ router.get('/stats', verifyToken, requireRole('student'), async (req, res) => {
       SELECT COUNT(DISTINCT ex.id) as total
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE en.student_id = $1
+      WHERE en.student_id = $1 AND ex.is_draft = false
     `, [req.user.id]);
     
     const total = parseInt(totalRes.rows[0]?.total || 0);
     
+    // Completed exercises: has a correct submission (is_correct = true)
+    const completedRes = await db.query(`
+      SELECT COUNT(DISTINCT exercise_id) as completed
+      FROM submissions
+      WHERE student_id = $1 AND is_correct = true
+    `, [req.user.id]);
+    
+    const completed = parseInt(completedRes.rows[0]?.completed || 0);
+    const pending = total - completed;
+    
     res.json({
       total_exercises: total,
-      completed_exercises: 0,
-      pending_exercises: total,
+      completed_exercises: completed,
+      pending_exercises: pending,
       average_cds: 0
     });
   } catch (err) {
