@@ -121,9 +121,6 @@ exports.close = async (req, res) => {
         message: 'Exercise already closed'
       });
     }
-    // ... existing code ...
-  }
-  try {
     const r = await db.query(
       'UPDATE exercises SET closed_at=NOW() WHERE id=$1 AND created_by=$2 RETURNING *',
       [req.params.id, req.user.id]
