@@ -1,4 +1,15 @@
 const db = require('../config/db');
+
+// Helper function to get exercise details
+const getExerciseDetails = async (id) => {
+  try {
+    const result = await db.query('SELECT closed_at FROM exercises WHERE id = $1', [id]);
+    return result.rows[0];
+  } catch (err) {
+    console.error('Error getting exercise details:', err);
+    return null;
+  }
+};
 const cdsEngine = require('../services/cdsEngine');
 
 exports.getConcepts = async (req, res) => {
@@ -104,6 +115,15 @@ exports.update = async (req, res) => {
 
 exports.close = async (req, res) => {
   try {
+    const exercise = await getExerciseDetails(req.params.id);
+    if (exercise.closed_at) {
+      return res.status(400).json({
+        message: 'Exercise already closed'
+      });
+    }
+    // ... existing code ...
+  }
+  try {
     const r = await db.query(
       'UPDATE exercises SET closed_at=NOW() WHERE id=$1 AND created_by=$2 RETURNING *',
       [req.params.id, req.user.id]
@@ -111,7 +131,7 @@ exports.close = async (req, res) => {
     if (!r.rows.length)
       return res.status(404).json({ message: 'Exercise not found or not authorized' });
     // Trigger batch CDS computation
-    await cdsEngine.computeBatchCDS(req.params.id, db);
+    await cdsJobQueue.enqueueCdsComputation(req.params.id);
     res.json({ message: 'Exercise closed. CDS computed for all students.', exercise: r.rows[0] });
   } catch (err) {
     console.error(err);
