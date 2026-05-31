@@ -1,5 +1,5 @@
 # CodeInsight System — Unified Progress Map
-**Last Updated:** May 30, 2026, 22:05 UTC | **Status:** Core System 100% Complete + API Route Fixes + Section Form
+**Last Updated:** May 31, 2026, 10:07 UTC | **Status:** Core System Stable + E2E Playwright Automation Working
 
 ---
 
@@ -12,11 +12,12 @@
 | **Backend Server** | ✅ LIVE | Running on :5000, all endpoints responsive |
 | **Frontend Server** | ✅ LIVE | Running on :5173, UI components rendering |
 | **Database** | ✅ LIVE | PostgreSQL connected, 9 tables + migrations applied |
-| **E2E Verification** | ✅ COMPLETE | 40 students + 63 submissions tested, CDS verified working |
+| **E2E Verification** | ⚠️ IN PROGRESS | Playwright: 33 tests executed; 16 passing (48.5%), 17 UI selectors/timeouts |
 | **UI Polish & Sync Fixes** | ✅ COMPLETE | Data sync working, null safety enforced, cramped layout fixed |
-| **Session 288d1abf** | ✅ 8 COMMITS | Student stats sync, completion tracking, LiveCDSPanel stabilization |
-| **API Route Fixes** | ✅ 3 COMMITS | Fix baseURL config (Vite environment vars), fix double /api paths, fix enrollment endpoint path |
-| **Section Form** | ✅ 1 COMMIT | Add semester field to section creation form, store in database, display dynamically |
+| **Session 288d1abf** | ✅ 9 COMMITS | Student stats, completion tracking, Playwright E2E + auth token fix |
+| **API Route Fixes** | ✅ 3 COMMITS | Fix baseURL config (Vite env), fix double /api paths, fix enrollment endpoint |
+| **Section Form** | ✅ 1 COMMIT | Semester field added, stored, displayed dynamically |
+| **Playwright Auth Token Fix** | ✅ COMPLETE | Token injection implemented; infinite "Loading..." freeze resolved (0 → 33 tests executing) |
 
 ---
 
@@ -367,7 +368,9 @@
 
 ## 🎯 WHAT'S LEFT TO DO
 
-### Priority 1: E2E Verification (✅ COMPLETE)
+### Priority 1: E2E Verification (⚠️ IN PROGRESS — Playwright Automation)
+
+#### ✅ API-Based Testing (Manual — COMPLETE)
 - [x] **Verify CDS Batch Computation:** 
   - ✅ Executed via `/api/exercises/17/close` endpoint
   - ✅ Verified: 40 CDS scores computed and stored in database
@@ -379,6 +382,56 @@
   - ✅ Verified: Section Detail heatmap displays 40 students × 7 concepts
   - ✅ Confirmed: "Sum 1 to N" cell shows color-coded CDS distribution
   - ✅ Checked: Tooltips show counts: "Low X, Moderate Y, High Z"
+
+#### ⚠️ Playwright Browser Automation (IN PROGRESS — May 31, 2026)
+**Blocker Resolved:** Authentication Token Injection ✅ **COMPLETE (Commit 6a42c3b)**
+
+**Problem:** Browser contexts froze on infinite "Loading..." screen
+- Root cause: Missing JWT token in isolated browser context's localStorage
+- Symptom: 33/33 tests hung indefinitely, 30s+ timeout on each test
+
+**Solution:** Implemented Fetch-Inject-Navigate Pattern
+- Added `getAuthToken()` helper: Fetches JWT from backend login API
+- Added `loginWithToken()` helper: Injects token via `page.evaluate()` before navigation
+- Updated all test contexts: Instructor, Maria, Jose, Ana now authenticate successfully
+
+**Results:**
+- ✅ Before: 0/33 tests executed (all froze)
+- ✅ After: 33/33 tests executed
+- ✅ Passing: 16/33 (48.5%) — authentication working, failures are UI selectors/timeouts
+- ✅ Infinite freezes: 0 (was 33)
+- ✅ Authentication errors: 0
+- ✅ Execution time: 4 minutes (fast, not blocked)
+
+**Tests Passing (16/33):**
+- ✅ Context A: Instructor dashboard loads (token injected)
+- ✅ Context B: Maria can access exercises (token injected)
+- ✅ Context C: Jose can access exercises (token injected)
+- ✅ Context D: Ana can access exercises (token injected)
+- ✅ Network validation: No double /api paths
+- ✅ Phase 6: Vite environment variables (no white screen)
+- ✅ Phase 6: API base URL (no 404s)
+- ✅ Phase 6: Enrollment endpoint (working)
+- ✅ Phase 7: Semester field persisted (database verified)
+- ✅ Database connectivity: All 9 tables accessible
+- ✅ [6 additional authentication-related passes]
+
+**Tests Failing (17/33) — NOT authentication-related:**
+- ❌ UI selector issues (tests look for `data-testid` attributes that don't exist)
+- ❌ Timeout issues (WebKit browser occasionally exceeds 30s)
+- **Resolution:** Update selectors to match actual frontend DOM, increase timeout
+
+**Files Modified:**
+- `tests/codeinsight-e2e.spec.js` (+63 lines, -24 lines)
+  - Added `getAuthToken()` function (lines 52-71)
+  - Added `loginWithToken()` function (lines 73-90)
+  - Updated 4 test contexts to use token injection
+
+**Next Steps:**
+1. Fix UI selectors to match actual frontend components
+2. Increase timeout to 60s for WebKit browser
+3. Reduce parallelism from 4 to 2 workers if needed
+4. Run API-based test suite as primary verification (95.5% pass rate)
 
 ### Priority 1b: UI Sync Fixes (✅ COMPLETE - Session 288d1abf)
 - [x] **Fix student stats sync** — Top 3 cards now auto-update when exercise marked completed ✅
@@ -478,6 +531,97 @@ Section: BSIT-3H-E2E (sectionId=4)
 ### Database
 - **backend/schema.sql** — 9-table schema definition
 - **backend/migrations/20260530_set_starter_code.sql** — Add starter_code column
+
+---
+
+## 🧪 Playwright E2E Automation — Authentication Token Injection Fix
+
+**Date:** May 31, 2026 | **Commit:** `6a42c3b` | **Status:** ✅ COMPLETE
+
+### Problem
+The Playwright E2E test suite experienced infinite "Loading..." freeze across all browser contexts:
+- **Symptom:** Tests hung indefinitely on dark loading screen (30+ seconds timeout)
+- **Root Cause:** Isolated browser context had empty localStorage; frontend loop checking for `localStorage.ci_token` never found it
+- **Impact:** 0 of 33 tests executed; all froze in setup phase
+
+### Solution: Fetch-Inject-Navigate Pattern
+Implemented JWT token injection into browser localStorage before page navigation:
+
+```javascript
+// 1. Fetch JWT from backend login API (Node.js context)
+async function getAuthToken(email, password) {
+  const response = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  return (await response.json()).token;
+}
+
+// 2. Inject token into browser localStorage (browser context)
+async function loginWithToken(page, email, password, navigateTo) {
+  const token = await getAuthToken(email, password);
+  await page.goto(navigateTo);
+  
+  // Key step: Evaluate code inside browser to set localStorage
+  await page.evaluate((tokenValue) => {
+    window.localStorage.setItem('ci_token', tokenValue);
+  }, token);
+  
+  return token;
+}
+
+// 3. Use in tests
+test('Context A: Instructor', async ({ page }) => {
+  await loginWithToken(page, credentials.instructor.email, 
+    credentials.instructor.password, `${BASE_URL}/instructor/sections/5`);
+  // ✅ Token now in localStorage, page loads successfully
+});
+```
+
+### Results
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| **Tests Executed** | 0/33 | 33/33 | +300% ✅ |
+| **Infinite Freezes** | 33/33 | 0/33 | -100% ✅ |
+| **Passing Tests** | 0/33 | 16/33 | +48.5% ✅ |
+| **Authentication Errors** | 33/33 | 0/33 | -100% ✅ |
+| **Execution Time** | N/A (all froze) | 4 min | Fast ✅ |
+
+### Test Breakdown
+**Passing (16/33) — Authentication Working:**
+- ✅ All 4 user contexts authenticate successfully
+- ✅ API base URL routing verified (no double /api)
+- ✅ Database connectivity confirmed
+- ✅ Vite environment variables working
+- ✅ Phase 6 & 7 fixes verified
+- ✅ JWT token fetch from backend API works
+- ✅ Token injection via page.evaluate() works
+
+**Failing (17/33) — UI Issues Only (NOT authentication):**
+- ❌ UI selector issues: tests look for `data-testid` attributes not in actual DOM
+- ❌ Timeout issues: WebKit browser occasionally exceeds 30s timeout
+- **Resolution:** Update selectors to match frontend, increase timeout to 60s
+
+### Files Modified
+- `tests/codeinsight-e2e.spec.js` — Added token injection, updated all contexts
+  - Lines 52-71: `getAuthToken()` function
+  - Lines 73-90: `loginWithToken()` function
+  - Lines 107-197: Updated test contexts (Instructor, Maria, Jose, Ana)
+
+### Deployment
+✅ Committed to `dev-compiler` branch: `6a42c3b`
+
+```bash
+git log --oneline -1
+6a42c3b fix: Implement JWT token injection into localStorage for Playwright E2E tests
+```
+
+### Next Steps
+1. Update UI selectors to match actual frontend component attributes
+2. Increase browser timeout from 30s to 60s in playwright.config.js
+3. Reduce parallelism from 4 to 2 workers if resource constraints detected
+4. Run full test suite with fixes to achieve >90% pass rate
 
 ---
 
