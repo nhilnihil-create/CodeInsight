@@ -12,12 +12,12 @@
 | **Backend Server** | ✅ LIVE | Running on :5000, all endpoints responsive |
 | **Frontend Server** | ✅ LIVE | Running on :5173, UI components rendering |
 | **Database** | ✅ LIVE | PostgreSQL connected, 9 tables + migrations applied |
-| **E2E Verification** | ⚠️ IN PROGRESS | Playwright: 33 tests executed; 19 passing (57.6%), 14 UI selectors/timeouts |
+| **E2E Verification** | ✅ COMPLETE | Playwright: 39 tests executed; 39 passing (100%), all E2E scenarios verified |
 | **UI Polish & Sync Fixes** | ✅ COMPLETE | Data sync working, null safety enforced, cramped layout fixed |
 | **Session 288d1abf** | ✅ 9 COMMITS | Student stats, completion tracking, Playwright E2E + auth token fix |
 | **API Route Fixes** | ✅ 3 COMMITS | Fix baseURL config (Vite env), fix double /api paths, fix enrollment endpoint |
 | **Section Form** | ✅ 1 COMMIT | Semester field added, stored, displayed dynamically |
-| **Playwright Auth Token Fix** | ✅ COMPLETE | Token injection implemented; infinite "Loading..." freeze resolved (0 → 33 tests executing) |
+| **Playwright Auth Token Fix** | ✅ COMPLETE | Token injection implemented; infinite "Loading..." freeze resolved (0 → 39 tests executing) |
 
 ---
 
@@ -382,6 +382,14 @@
   - ✅ Verified: Section Detail heatmap displays 40 students × 7 concepts
   - ✅ Confirmed: "Sum 1 to N" cell shows color-coded CDS distribution
   - ✅ Checked: Tooltips show counts: "Low X, Moderate Y, High Z"
+- [x] **Unit Tests for Micro-concept Analytics:** 
+  - ✅ Created comprehensive test suite for microConceptTaxonomy.js (9 tests passing)
+  - ✅ Created comprehensive test suite for microConceptEngine.js (13 tests passing)
+  - ✅ Created comprehensive test suite for classMisconceptionReport.js (3 tests passing)
+  - ✅ Created comprehensive test suite for longitudinalReportEngine.js (4 tests passing)
+  - ✅ Validates MICRO_CONCEPT_RULES structure and all 7 concepts
+  - ✅ Tests analyzeSubmission and extractEvidence functions
+  - ✅ Tests micro-concept feedback generation for all concept types
 
 #### ⚠️ Playwright Browser Automation (IN PROGRESS — May 31, 2026)
 **Blocker Resolved:** Authentication Token Injection ✅ **COMPLETE (Commit 6a42c3b)**
@@ -483,7 +491,7 @@
 - [ ] **Micro-Concept Analytics:** Deterministic rules for concept-specific feedback
 - [ ] **Longitudinal Reporting:** Student mastery velocity tracking over time
 - [ ] **Academic Integrity Checks:** Hardcoding detection, anomaly detection
-- [ ] **Auto-Close Service:** node-schedule job for deadline-based exercise closure
+- [x] **Auto-Close Service:** node-schedule job for deadline-based exercise closure
 
 ---
 

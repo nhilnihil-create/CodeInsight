@@ -31,11 +31,14 @@ function startAutoCloseService() {
 
 /**
  * Process exercises that are past their deadline and close them
+ * @param {Object} [client] - Optional transaction client for testing
  */
-async function processExercisesForAutoClose() {
+async function processExercisesForAutoClose(client) {
+  const queryFn = client ? (text, params) => client.query(text, params) : (text, params) => db.query(text, params);
+
   try {
     // Find exercises that are past deadline and not yet closed
-    const exercisesRes = await db.query(
+    const exercisesRes = await queryFn(
       `SELECT id, title, deadline, created_by
        FROM exercises
        WHERE deadline IS NOT NULL
@@ -58,21 +61,21 @@ async function processExercisesForAutoClose() {
         console.log(`[AutoClose] Closing exercise: ${exercise.title} (ID: ${exercise.id})`);
 
         // Close the exercise (set closed_at timestamp)
-        await db.query(
+        await queryFn(
           'UPDATE exercises SET closed_at = NOW() WHERE id = $1',
           [exercise.id]
         );
 
         // Trigger batch CDS computation
-        await cdsEngine.computeBatchCDS(exercise.id, db);
+        await cdsEngine.computeBatchCDS(exercise.id, client || db);
 
         // Generate alerts for any High CDS students
-        await alertEngine.generateAlerts(exercise.id, db);
+        await alertEngine.generateAlerts(exercise.id, client || db);
 
         console.log(`[AutoClose] Successfully closed exercise ${exercise.id}`);
 
         // Optional: Log this action for audit purposes
-        await db.query(
+        await queryFn(
           `INSERT INTO auto_close_log (exercise_id, closed_at, triggered_by)
            VALUES ($1, NOW(), 'auto_close_service')`,
           [exercise.id]
@@ -83,7 +86,6 @@ async function processExercisesForAutoClose() {
         // Continue with other exercises even if one fails
       }
     }
-
   } catch (error) {
     console.error('[AutoClose] Error processing exercises for auto-close:', error);
   }
@@ -99,5 +101,6 @@ function stopAutoCloseService() {
 
 module.exports = {
   startAutoCloseService,
-  stopAutoCloseService
+  stopAutoCloseService,
+  processExercisesForAutoClose
 };

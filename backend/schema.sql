@@ -126,6 +126,14 @@ CREATE TABLE IF NOT EXISTS performance_logs (
   created_at           TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS auto_close_log (
+  id             SERIAL PRIMARY KEY,
+  exercise_id    INT REFERENCES exercises(id) ON DELETE CASCADE,
+  closed_at      TIMESTAMP DEFAULT NOW(),
+  triggered_by   VARCHAR(50) DEFAULT 'auto_close_service',
+  created_at     TIMESTAMP DEFAULT NOW()
+);
+
 -- ── SEED DATA ──────────────────────────────────────────────────────────────
 -- Insert 7 programming concepts
 INSERT INTO concepts (name, ast_nodes) VALUES
