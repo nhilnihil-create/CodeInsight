@@ -418,62 +418,6 @@ export default function SectionDetail() {
             </>
           )}
 
-          {activeTab === 'exercises' && (
-            <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #2e2e4a', background: '#22223a' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700 }}>All Students</div>
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#22223a' }}>
-                      <th style={{ padding: '9px 14px', fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'left', borderBottom: '1px solid #2e2e4a' }}>Name</th>
-                      <th style={{ padding: '9px 14px', fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'left', borderBottom: '1px solid #2e2e4a' }}>Email</th>
-                      <th style={{ padding: '9px 14px', fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'center', borderBottom: '1px solid #2e2e4a' }}>Latest CDS</th>
-                      <th style={{ padding: '9px 14px', fontSize: '9px', fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'center', borderBottom: '1px solid #2e2e4a' }}>Submissions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map(student => {
-                      const difficulty = getDifficulty(student.latest_cds);
-                      const pillarColors = {
-                        low: { background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
-                        moderate: { background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' },
-                        high: { background: 'rgba(248,113,113,0.12)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }
-                      };
-                      const pillStyle = difficulty === 'unscored' ?
-                        { background: 'rgba(74,74,106,0.3)', color: '#8884a0', border: '1px solid #2e2e4a' } :
-                        pillarColors[difficulty];
-
-                      return (
-                        <tr key={student.id} style={{ borderBottom: '1px solid rgba(46,46,74,0.4)' }}>
-                          <td style={{ padding: '9px 14px', fontSize: '12px', fontWeight: 600, color: '#e8e6f0' }}>{student.name}</td>
-                          <td style={{ padding: '9px 14px', fontSize: '12px', color: '#8884a0' }}>{student.email}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'center' }}>
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '3px 8px',
-                              borderRadius: '8px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              fontFamily: "'Space Mono', monospace",
-                              ...pillStyle
-                            }}>
-                              {formatCDS(student.latest_cds)}
-                            </div>
-                          </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'center', fontSize: '11px', color: '#8884a0' }}>
-                            {student.submitted_count || 0}/{student.total_exercises || 0}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {activeTab === 'exercises' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
