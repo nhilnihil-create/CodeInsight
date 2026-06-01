@@ -316,7 +316,7 @@ function ExerciseAccordion({ sectionId }) {
                         </div>
                       </div>
                     </div>
-                    </>
+                  </>
                 )}
               </div>
             </div>
