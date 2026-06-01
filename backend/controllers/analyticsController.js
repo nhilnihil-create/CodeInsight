@@ -262,3 +262,255 @@ exports.longitudinalReport = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ── NEW: Section-Scoped Analytics Controllers ────────────────────────────────
+
+/**
+ * GET /api/analytics/sections/:sectionId/micro-concept-alerts
+ * Returns micro-concept alerts for all students in section
+ */
+exports.getMicroConceptAlerts = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    const { classification, concept } = req.query;
+
+    // Get students in section
+    const studentsRes = await db.query(
+      `SELECT u.id FROM users u
+       JOIN enrollments e ON e.student_id = u.id
+       WHERE e.section_id = $1`,
+      [sectionId]
+    );
+    const studentIds = studentsRes.rows.map(r => r.id);
+
+    // Get CDS scores for students
+    let query = `
+      SELECT cs.*, u.name AS student_name, ex.title AS exercise_title, 
+             c.name AS concept_name
+      FROM cds_scores cs
+      JOIN users u ON cs.student_id = u.id
+      JOIN exercises ex ON cs.exercise_id = ex.id
+      JOIN concepts c ON ex.concept_id = c.id
+      WHERE cs.student_id = ANY($1) AND cs.section_id = $2
+    `;
+    const params = [studentIds, sectionId];
+
+    // Filter by classification if provided
+    if (classification) {
+      query += ` AND cs.classification = $${params.length + 1}`;
+      params.push(classification);
+    }
+
+    // Filter by concept if provided
+    if (concept) {
+      query += ` AND c.name = $${params.length + 1}`;
+      params.push(concept);
+    }
+
+    query += ` ORDER BY cs.cds DESC, cs.computed_at DESC`;
+
+    const scoresRes = await db.query(query, params);
+    res.json(scoresRes.rows);
+  } catch (err) {
+    console.error('Error fetching micro-concept alerts:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * PUT /api/analytics/micro-concept-alerts/:alertId/mark-reviewed
+ */
+exports.markMicroConceptAlertReviewed = async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const result = await db.query(
+      `UPDATE alerts SET is_reviewed = true WHERE id = $1 RETURNING *`,
+      [alertId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error marking alert reviewed:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/class-insights
+ * Returns class misconception reports for all exercises in section
+ */
+exports.getClassInsights = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+
+    // Get all closed exercises in section
+    const exercisesRes = await db.query(
+      `SELECT e.id, e.title, c.name AS concept_name
+       FROM exercises e
+       JOIN concepts c ON e.concept_id = c.id
+       WHERE e.section_id = $1 AND e.closed_at IS NOT NULL
+       ORDER BY e.closed_at DESC`,
+      [sectionId]
+    );
+
+    // Generate reports for each exercise
+    const reports = [];
+    for (const exercise of exercisesRes.rows) {
+      try {
+        const report = await classMisconceptionReport.generateClassMisconceptionReport(exercise.id);
+        reports.push(report);
+      } catch (err) {
+        console.error(`Error generating report for exercise ${exercise.id}:`, err);
+      }
+    }
+
+    res.json(reports);
+  } catch (err) {
+    console.error('Error fetching class insights:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/class-insights/:exerciseId
+ * Returns class misconception report for specific exercise
+ */
+exports.getClassInsightsByExercise = async (req, res) => {
+  try {
+    const { sectionId, exerciseId } = req.params;
+
+    // Verify exercise belongs to section
+    const exerciseRes = await db.query(
+      `SELECT id FROM exercises WHERE id = $1 AND section_id = $2`,
+      [exerciseId, sectionId]
+    );
+
+    if (!exerciseRes.rows.length) {
+      return res.status(404).json({ message: 'Exercise not found in section' });
+    }
+
+    const report = await classMisconceptionReport.generateClassMisconceptionReport(exerciseId);
+    res.json(report);
+  } catch (err) {
+    console.error('Error fetching class insights:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/longitudinal
+ * Returns longitudinal progress for all students in section
+ */
+exports.getSectionLongitudinal = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+
+    // Get students in section
+    const studentsRes = await db.query(
+      `SELECT u.id, u.name FROM users u
+       JOIN enrollments e ON e.student_id = u.id
+       WHERE e.section_id = $1
+       ORDER BY u.name`,
+      [sectionId]
+    );
+
+    // Get progression for each student
+    const students = [];
+    for (const student of studentsRes.rows) {
+      const progressionRes = await db.query(
+        `SELECT cs.cds, cs.classification, cs.computed_at,
+                ex.title AS exercise_title, ex.id AS exercise_id,
+                c.id AS concept_id, c.name AS concept_name
+         FROM cds_scores cs
+         JOIN exercises ex ON cs.exercise_id = ex.id
+         JOIN concepts c ON ex.concept_id = c.id
+         WHERE cs.student_id = $1 AND cs.section_id = $2
+         ORDER BY cs.computed_at ASC`,
+        [student.id, sectionId]
+      );
+
+      // Calculate mastery velocity
+      const progression = progressionRes.rows;
+      let masteryVelocity = 'stable';
+      if (progression.length >= 2) {
+        const recent = progression.slice(-3);
+        const cdsValues = recent.map(p => parseFloat(p.cds));
+        const trend = cdsValues[cdsValues.length - 1] - cdsValues[0];
+        if (trend > 0.1) masteryVelocity = 'improving';
+        else if (trend < -0.1) masteryVelocity = 'declining';
+      }
+
+      students.push({
+        studentId: student.id,
+        studentName: student.name,
+        progression,
+        masteryVelocity
+      });
+    }
+
+    res.json({ sectionId, students });
+  } catch (err) {
+    console.error('Error fetching section longitudinal data:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/integrity-flags
+ * Returns all integrity flags for section grouped by exercise
+ */
+exports.getIntegrityFlags = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    const integrityFlagEngine = require('../services/integrityFlagEngine');
+
+    const flags = await integrityFlagEngine.getFlagsForSection(sectionId);
+    res.json(flags);
+  } catch (err) {
+    console.error('Error fetching integrity flags:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/integrity-flags/:exerciseId
+ * Returns integrity flags for specific exercise
+ */
+exports.getIntegrityFlagsByExercise = async (req, res) => {
+  try {
+    const { sectionId, exerciseId } = req.params;
+    const integrityFlagEngine = require('../services/integrityFlagEngine');
+
+    // Verify exercise belongs to section
+    const exerciseRes = await db.query(
+      `SELECT id FROM exercises WHERE id = $1 AND section_id = $2`,
+      [exerciseId, sectionId]
+    );
+
+    if (!exerciseRes.rows.length) {
+      return res.status(404).json({ message: 'Exercise not found in section' });
+    }
+
+    const flags = await integrityFlagEngine.getFlagsForExercise(exerciseId);
+    res.json(flags);
+  } catch (err) {
+    console.error('Error fetching exercise integrity flags:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * PUT /api/analytics/integrity-flags/:flagId/mark-reviewed
+ */
+exports.markIntegrityFlagReviewed = async (req, res) => {
+  try {
+    const { flagId } = req.params;
+    const { instructorNote } = req.body;
+    const integrityFlagEngine = require('../services/integrityFlagEngine');
+
+    const flag = await integrityFlagEngine.markFlagReviewed(flagId, instructorNote);
+    res.json(flag);
+  } catch (err) {
+    console.error('Error marking flag reviewed:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
