@@ -134,6 +134,22 @@ CREATE TABLE IF NOT EXISTS auto_close_log (
   created_at     TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS integrity_flags (
+  id                  SERIAL PRIMARY KEY,
+  section_id          INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  flag_type           VARCHAR(50) NOT NULL, -- 'code_paste_detected', 'code_growth_anomaly', 'retry_storm'
+  severity            VARCHAR(20) NOT NULL, -- 'high', 'medium', 'low'
+  evidence            JSONB DEFAULT '{}',
+  context_behaviors   TEXT[] DEFAULT '{}',
+  status              VARCHAR(20) DEFAULT 'flagged', -- 'flagged', 'reviewed', 'dismissed'
+  instructor_note     TEXT,
+  reviewed_at         TIMESTAMP,
+  created_at          TIMESTAMP DEFAULT NOW(),
+  UNIQUE(exercise_id, student_id, flag_type)
+);
+
 -- ── SEED DATA ──────────────────────────────────────────────────────────────
 -- Insert 7 programming concepts
 INSERT INTO concepts (name, ast_nodes) VALUES

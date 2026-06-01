@@ -46,8 +46,9 @@ exports.run = async (req, res) => {
     const result = await executor.executeCode(
       code, visibleTC[0].input, exercise.time_limit_minutes * 60
     );
+    const expectedOutput = visibleTC[0].expected || visibleTC[0].expected_output || '';
     const passed = result.status === 'Success' &&
-                   result.output.trim() === visibleTC[0].expected_output.trim();
+                   result.output.trim() === expectedOutput.trim();
 
     // Calculate response latency for performance logging
     const endTime = Date.now();
@@ -63,7 +64,7 @@ exports.run = async (req, res) => {
       userAgent: req.get('User-Agent') || ''
     });
 
-    res.json({ ...result, expected: visibleTC[0].expected_output, passed });
+    res.json({ ...result, expected: expectedOutput, passed });
   } catch (err) {
     // Calculate response latency for performance logging even on error
     const endTime = Date.now();

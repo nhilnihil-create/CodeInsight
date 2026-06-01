@@ -3,6 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import EnrollStudentsModal from '../../components/EnrollStudentsModal';
 import LiveCDSPanel from '../../components/LiveCDSPanel';
+import StudentAlertCard from '../../components/analytics/StudentAlertCard';
+import ExerciseAccordion from '../../components/analytics/ExerciseAccordion';
+import LongitudinalTab from '../../components/analytics/LongitudinalTab';
 
 export default function SectionDetail() {
   const { sectionId } = useParams();
@@ -12,7 +15,7 @@ export default function SectionDetail() {
   const [heatmapData, setHeatmapData] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('live');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -182,7 +185,7 @@ export default function SectionDetail() {
 
         {/* Tabs */}
         <div style={{ background: '#131d30', borderBottom: '1px solid #1e304d', display: 'flex', padding: '0 28px 0 16px', flexShrink: 0, overflowX: 'auto' }}>
-          {['overview', 'students', 'exercises', 'heatmap'].map(tab => (
+          {['live', 'exercises', 'longitudinal'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -199,14 +202,14 @@ export default function SectionDetail() {
                 fontFamily: 'DM Sans, sans-serif'
               }}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'live' ? 'Live Monitoring' : tab === 'exercises' ? 'Exercise Analytics' : 'Longitudinal Reports'}
             </button>
           ))}
         </div>
 
         {/* Content */}
         <div style={{ padding: '22px 28px 22px 16px', overflowY: 'auto', flex: 1 }}>
-          {activeTab === 'overview' && (
+          {activeTab === 'live' && (
             <>
               {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '22px' }}>
@@ -415,7 +418,7 @@ export default function SectionDetail() {
             </>
           )}
 
-          {activeTab === 'students' && (
+          {activeTab === 'exercises' && (
             <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid #2e2e4a', background: '#22223a' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700 }}>All Students</div>
@@ -527,7 +530,7 @@ export default function SectionDetail() {
                       </div>
                     </div>
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#8884a0', marginBottom: '4px' }}>
+                      <div style={{ display: 'fx', justifyContent: 'space-between', fontSize: '9px', color: '#8884a0', marginBottom: '4px' }}>
                         <span>Difficulty Distribution</span>
                         <span style={{ color: isHighAvg ? '#f87171' : '#8884a0' }}>
                           Low {exercise.low_count || 0} · Mod {exercise.moderate_count || 0} · High {exercise.high_count || 0}
@@ -786,6 +789,9 @@ export default function SectionDetail() {
                 </table>
               </div>
             </div>
+          )}
+          {activeTab === 'longitudinal' && (
+            <LongitudinalTab sectionId={sectionId} />
           )}
         </div>
 

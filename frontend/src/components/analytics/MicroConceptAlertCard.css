@@ -1,0 +1,133 @@
+.micro-concept-alert-card {
+  background: rgba(251, 191, 36, 0.05);
+  border-left: 4px solid #fbbf24;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.student-info h4 {
+  margin: 0 0 4px 0;
+  color: #dce8f5;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.exercise-title {
+  margin: 0;
+  color: #a1aebd;
+  font-size: 14px;
+}
+
+.classification-badge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.badge-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card-content {
+  margin-bottom: 12px;
+}
+
+.concept-section,
+.evidence-section,
+.instructor-section {
+  margin-bottom: 12px;
+}
+
+.section-title {
+  margin: 0 0 6px 0;
+  color: #dce8f5;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.concept-text,
+.evidence-text,
+.instructor-text {
+  margin: 0;
+  color: #a1aebd;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.no-detail-section {
+  background: rgba(251, 191, 36, 0.1);
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.no-detail-text {
+  margin: 0;
+  color: #fbbf24;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.card-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.btn-review,
+.btn-dismiss {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-review {
+  background: #fbbf24;
+  color: #0c1220;
+}
+
+.btn-review:hover {
+  background: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.btn-dismiss {
+  background: #1e304d;
+  color: #a1aebd;
+  border: 1px solid #2a3f5f;
+}
+
+.btn-dismiss:hover {
+  background: #2a3f5f;
+}
+
+@media (max-width: 640px) {
+  .card-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card-footer {
+    flex-wrap: wrap;
+  }
+}

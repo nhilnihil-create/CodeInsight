@@ -174,7 +174,8 @@ export default function StudentCodeEditor() {
 
   const handleReadyCancel = () => {
     setShowReadyModal(false);
-    navigate('/student/exercises');
+    setSessionState(SESSION_STATES.CLOSED);
+    navigate('/student/exercises', { replace: true });
   };
 
   // Page Visibility API - pause timer when tab hidden and resume when visible
@@ -700,13 +701,18 @@ export default function StudentCodeEditor() {
               ) : activeTab === 'compiler' ? (
                 testResults ? (
                   <>
-                    {testResults.compilerError ? (
-                      <div style={{ color: COLORS.error, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: "'Space Mono', monospace", fontSize: '11px' }}>
-                        {testResults.compilerError}
-                      </div>
-                    ) : (
-                      <div style={{ color: COLORS.success, fontSize: '12px' }}>✓ Code compiled successfully</div>
-                    )}
+                    {(() => {
+                      // Extract compiler error from results if any test has an error
+                      const compilerErrorResult = testResults.results?.find(r => r.error && (r.status === 'Compile Error' || r.status === 'Runtime Error'));
+                      const compilerError = compilerErrorResult?.error || testResults.compilerError;
+                      return compilerError ? (
+                        <div style={{ color: COLORS.error, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: "'Space Mono', monospace", fontSize: '11px' }}>
+                          {compilerError}
+                        </div>
+                      ) : (
+                        <div style={{ color: COLORS.success, fontSize: '12px' }}>✓ Code compiled successfully</div>
+                      );
+                    })()}
                   </>
                 ) : (
                   <div style={{ color: COLORS.muted }}>(No compiler output yet)</div>

@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useSidebar } from '../../context/SidebarContext';
+import analyticsService from '../../api/analyticsService';
+import MicroConceptAlertCard from '../../components/analytics/MicroConceptAlertCard';
+import ClassMisconceptionReport from '../../components/analytics/ClassMisconceptionReport';
+import LongitudinalProgressChart from '../../components/analytics/LongitudinalProgressChart';
+import IntegrityMonitoringBanner from '../../components/analytics/IntegrityMonitoringBanner';
 
 export default function InstructorDashboard() {
   const { isOpen } = useSidebar();
@@ -13,6 +18,14 @@ export default function InstructorDashboard() {
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // New analytics features state
+  const [microConceptAlerts, setMicroConceptAlerts] = useState([]);
+  const [classMisconceptionReport, setClassMisconceptionReport] = useState(null);
+  const [selectedStudentProgress, setSelectedStudentProgress] = useState(null);
+  const [integrityFlags, setIntegrityFlags] = useState([]);
+  const [selectedExerciseId, setSelectedExerciseId] = useState(null);
+  const [showMisconceptionModal, setShowMisconceptionModal] = useState(false);
 
   const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
 
@@ -45,12 +58,14 @@ export default function InstructorDashboard() {
   const fetchAnalytics = async (sectionId) => {
     setAnalyticsLoading(true);
     try {
-      const [heatRes, alertRes] = await Promise.all([
+      const [heatRes, alertRes, microRes] = await Promise.all([
         api.get(`/api/analytics/heatmap/${sectionId}`),
-        api.get(`/api/analytics/alerts/${sectionId}`)
+        api.get(`/api/analytics/alerts/${sectionId}`),
+        analyticsService.getAlerts(sectionId).catch(() => ({ data: [] }))
       ]);
       setHeatmapData(heatRes.data);
       setAlerts(alertRes.data || []);
+      setMicroConceptAlerts(microRes.data || []);
     } catch (err) {
       console.error('Error fetching analytics:', err);
     } finally {
@@ -117,6 +132,25 @@ export default function InstructorDashboard() {
       if (hasHigh) seen.add(studentId);
     }
     return seen.size;
+  };
+
+  const handleLoadMisconceptionReport = async (exerciseId) => {
+    try {
+      const res = await analyticsService.getClassMisconceptionReport(exerciseId);
+      setClassMisconceptionReport(res.data);
+      setShowMisconceptionModal(true);
+    } catch (err) {
+      console.error('Error loading misconception report:', err);
+    }
+  };
+
+  const handleLoadStudentProgress = async (studentId) => {
+    try {
+      const res = await analyticsService.getLongitudinalProgress(studentId, null, selectedSectionId);
+      setSelectedStudentProgress(res.data);
+    } catch (err) {
+      console.error('Error loading student progress:', err);
+    }
   };
 
   if (loading) {
@@ -427,6 +461,63 @@ export default function InstructorDashboard() {
                   })}
                 </div>
               </div>
+
+              {/* NEW: Integrity Monitoring Banner */}
+              <div style={{ marginTop: '20px' }}>
+                <IntegrityMonitoringBanner flaggedSubmissions={integrityFlags} />
+              </div>
+
+              {/* NEW: Micro-Concept Alerts Section */}
+              {microConceptAlerts.length > 0 && (
+                <div style={{ marginTop: '28px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#e8e6f0', marginBottom: '16px' }}>
+                    📚 Micro-Concept Alerts for High/Moderate CDS Students
+                  </div>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {microConceptAlerts.slice(0, 5).map(alert => (
+                      <MicroConceptAlertCard 
+                        key={alert.id} 
+                        alert={alert}
+                        onDismiss={() => setMicroConceptAlerts(microConceptAlerts.filter(a => a.id !== alert.id))}
+                      />
+                    ))}
+                  </div>
+                  {microConceptAlerts.length > 5 && (
+                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                      <button style={{
+                        padding: '8px 14px',
+                        background: 'transparent',
+                        border: '1px solid #1e304d',
+                        color: '#85D2D0',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        View All {microConceptAlerts.length} Alerts
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* NEW: Class Misconception Report Modal */}
+              {showMisconceptionModal && (
+                <ClassMisconceptionReport 
+                  report={classMisconceptionReport}
+                  onClose={() => setShowMisconceptionModal(false)}
+                />
+              )}
+
+              {/* NEW: Student Longitudinal Progress (if selected) */}
+              {selectedStudentProgress && (
+                <div style={{ marginTop: '28px', background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px' }}>
+                  <LongitudinalProgressChart 
+                    data={selectedStudentProgress}
+                    studentName={selectedStudentProgress.studentName}
+                  />
+                </div>
+              )}
             </div>
           </>
         ) : (
