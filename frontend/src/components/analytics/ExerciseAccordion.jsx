@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import ClassMisconceptionReport from './ClassMisconceptionReport';
+import IntegrityFlagDropdown from './IntegrityFlagDropdown';
 
 function ExerciseAccordion({ sectionId }) {
   const [exercises, setExercises] = useState([]);
@@ -8,6 +9,7 @@ function ExerciseAccordion({ sectionId }) {
   const [error, setError] = useState(null);
   const [reports, setReports] = useState({});
   const [loadingReports, setLoadingReports] = useState({});
+  const [integrityDropdown, setIntegrityDropdown] = useState({});
 
   useEffect(() => {
     fetchSectionExercises();
@@ -194,20 +196,56 @@ function ExerciseAccordion({ sectionId }) {
 
                 <div style={{
                   display: 'flex',
-                  gap: '16px',
-                  alignItems: 'center',
-                  fontSize: '11px',
-                  color: '#8884a0'
+                  gap: '12px',
+                  alignItems: 'center'
                 }}>
-                  <div>
-                    Submitted: <strong style={{ color: '#e8e6f0' }}>
-                      {exercise.submitted_count || 0}/{exercise.total_students || 0}
-                    </strong>
-                  </div>
-                  <div>
-                    Avg CDS: <strong style={{ color: exercise.avg_cds && parseFloat(exercise.avg_cds) > 0.66 ? '#f87171' : exercise.avg_cds && parseFloat(exercise.avg_cds) > 0.33 ? '#fbbf24' : '#4ade80' }}>
-                      {exercise.avg_cds ? parseFloat(exercise.avg_cds).toFixed(2) : '--'}
-                    </strong>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIntegrityDropdown(prev => ({
+                        ...prev,
+                        [exercise.id]: !prev[exercise.id]
+                      }));
+                    }}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      border: '1px solid rgba(248,113,113,0.3)',
+                      background: integrityDropdown[exercise.id] ? 'rgba(248,113,113,0.15)' : 'rgba(248,113,113,0.08)',
+                      color: '#f87171',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(248,113,113,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = integrityDropdown[exercise.id] ? 'rgba(248,113,113,0.15)' : 'rgba(248,113,113,0.08)';
+                    }}
+                  >
+                    🛡️ Integrity
+                  </button>
+
+                  <div style={{
+                    display: 'flex',
+                    gap: '16px',
+                    alignItems: 'center',
+                    fontSize: '11px',
+                    color: '#8884a0'
+                  }}>
+                    <div>
+                      Submitted: <strong style={{ color: '#e8e6f0' }}>
+                        {exercise.submitted_count || 0}/{exercise.total_students || 0}
+                      </strong>
+                    </div>
+                    <div>
+                      Avg CDS: <strong style={{ color: exercise.avg_cds && parseFloat(exercise.avg_cds) > 0.66 ? '#f87171' : exercise.avg_cds && parseFloat(exercise.avg_cds) > 0.33 ? '#fbbf24' : '#4ade80' }}>
+                        {exercise.avg_cds ? parseFloat(exercise.avg_cds).toFixed(2) : '--'}
+                      </strong>
+                    </div>
                   </div>
                 </div>
 
@@ -254,7 +292,7 @@ function ExerciseAccordion({ sectionId }) {
                   </div>
                 )}
 
-                {report && !isReportLoading && (
+               {report && !isReportLoading && (
                   <>
                     <div style={{
                       padding: '16px',
@@ -262,6 +300,18 @@ function ExerciseAccordion({ sectionId }) {
                     }}>
                       <ClassMisconceptionReport report={report} onClose={() => {}} />
                     </div>
+
+                    <IntegrityFlagDropdown
+                      sectionId={sectionId}
+                      exerciseId={exercise.id}
+                      isOpen={integrityDropdown[exercise.id] || false}
+                      onToggle={() => {
+                        setIntegrityDropdown(prev => ({
+                          ...prev,
+                          [exercise.id]: !prev[exercise.id]
+                        }));
+                      }}
+                    />
 
                     {/* Analytical Anomaly Footer Drawer */}
                     <div style={{
