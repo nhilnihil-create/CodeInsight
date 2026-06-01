@@ -16,9 +16,9 @@ describe('AST Verifier Test Suite', function() {
           int x = 5;
           int y = 10;
           if (x > y) {
-            cout << "x is greater" << endl;
+            cout << "x: " << x << endl;
           } else {
-            cout << "y is greater or equal" << endl;
+            cout << "y: " << y << endl;
           }
           return 0;
         }

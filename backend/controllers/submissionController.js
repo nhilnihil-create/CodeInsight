@@ -105,15 +105,37 @@ exports.submit = async (req, res) => {
     );
     const attemptNumber = attRes.rows[0].next;
 
+    // Calculate Code Growth Delta (Pillar 4: Jadud 2006)
+    // Calculate line-count delta from the previous attempt
+    let codeGrowthDelta = 0;
+    if (attemptNumber > 1) {
+      const prevRes = await db.query(
+        'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+        [studentId, exerciseId, attemptNumber - 1]
+      );
+      if (prevRes.rows.length > 0) {
+        const prevCode = prevRes.rows[0].code || '';
+        const currentLines = (code || '').split('\n').length;
+        const prevLines = prevCode.split('\n').length;
+        codeGrowthDelta = currentLines - prevLines;
+      }
+    } else {
+      // For first attempt, delta is from starter code
+      const starterCode = exercise.starter_code || '';
+      const currentLines = (code || '').split('\n').length;
+      const starterLines = starterCode.split('\n').length;
+      codeGrowthDelta = currentLines - starterLines;
+    }
+
     // Handle blank submission (template-only or empty)
     const isBlank = !code || !code.trim() || code === exercise.starter_code;
     if (isBlank) {
       const verification_note = 'Blank or template-only submission';
       const ins = await db.query(
         `INSERT INTO submissions
-         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note)
-         VALUES($1,$2,$3,false,$4,$5,$6,$7) RETURNING id`,
-        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note]
+         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta)
+         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8) RETURNING id`,
+        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta]
       );
 
       // Log verification failure
@@ -140,7 +162,8 @@ exports.submit = async (req, res) => {
       return res.json({
         attemptNumber, allPassed: false,
         results: [], status: 'Blank submission',
-        message: 'Blank submission recorded.'
+        message: 'Blank submission recorded.',
+        codeGrowthDelta
       });
     }
 
@@ -215,12 +238,12 @@ exports.submit = async (req, res) => {
 
     const microConceptFeedback = await microConceptEngine.getMicroConceptFeedback(microContext, conceptName);
 
-    // Save submission (include verification fields)
+    // Save submission (include verification fields and code growth delta)
     const insRes = await db.query(
       `INSERT INTO submissions
-       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note]
+       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta]
     );
 
     // If verification failed, record a verification_log row
@@ -247,12 +270,13 @@ exports.submit = async (req, res) => {
       passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true
     };
 
-    // Prepare response with micro-concept feedback
+    // Prepare response with micro-concept feedback and code growth delta
     const responseData = {
       attemptNumber,
       allPassed,
       results: visibleResults,
       hidden: hiddenSummary,
+      codeGrowthDelta,
       verification: {
         is_verified: is_verified,
         note: verification_note || (is_verified ? 'Code structure verified' : 'Verification failed')

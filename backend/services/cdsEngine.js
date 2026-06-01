@@ -95,6 +95,10 @@ async function computeBatchCDS(exerciseId, db) {
     maxTotal = Math.min(maxTotal, totalCap);
 
   const starterCode = exercise.starter_code || '';
+  
+  // Blank check using starter_code comparison (Pillar 1: Jadud 2006)
+  // We consider a submission blank if it matches the starter code exactly (trimmed)
+  // or if it's empty.
   const blankRes = await db.query(
     `SELECT DISTINCT student_id FROM submissions 
      WHERE exercise_id=$1 

@@ -26,67 +26,57 @@ function canonizeCode(code) {
   try {
     const parser = getParser();
     const tree = parser.parse(code);
+    let result = '';
 
-    // Walk the tree and replace identifiers and literals with placeholders
-    function canonizeNode(node) {
-      // Handle different node types
-      switch (node.type) {
-        case 'identifier':
-          return 'IDENT';
-        case 'string_literal':
-          return '"STR"';
-        case 'character_literal':
-          return "'C'";
-        case 'number_literal':
-          return 'NUM';
-        case 'true':
-        case 'false':
-          return 'BOOL';
-        case 'nullptr':
-          return 'NULLPTR';
-        default:
-          // For other nodes, canonize their children
-          let result = node.type;
-          for (let i = 0; i < node.childCount; i++) {
-            const child = node.child(i);
-            const childCanon = canonizeNode(child);
-            // Find the position of this child in the original text and replace it
-            // This is a simplified approach - in practice we'd reconstruct the text
-            // For now, we'll return a simplified canonized version
-          }
-          return result;
+    function walk(node) {
+      // Skip comments entirely
+      if (node.type === 'comment') return;
+
+      if (node.childCount === 0 || node.type === 'string_literal' || node.type === 'number_literal' || node.type === 'char_literal') {
+        // Atomic nodes or literals
+        switch (node.type) {
+          case 'identifier':
+            result += 'IDENT ';
+            break;
+          case 'string_literal':
+            result += 'STR ';
+            break;
+          case 'number_literal':
+            result += 'NUM ';
+            break;
+          case 'char_literal':
+            result += 'CHAR ';
+            break;
+          case 'true':
+          case 'false':
+            result += 'BOOL ';
+            break;
+          default:
+            // Keywords, symbols, etc.
+            result += node.text + ' ';
+        }
+      } else {
+        // Recursive walk for interior nodes
+        for (let i = 0; i < node.childCount; i++) {
+          walk(node.child(i));
+        }
       }
     }
 
-    // Simplified approach: use regex-based canonization but enhanced
-    let canonized = code;
-
-    // Remove comments
-    canonized = canonized.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-
-    // Replace string literals with placeholder
-    canonized = canonized.replace(/"(?:\\.|[^"\\])*"/g, '"STR"');
-
-    // Replace character literals
-    canonized = canonized.replace(/'(?:\\.|[^'\\])*'/g, "'C'");
-
-    // Replace numeric literals
-    canonized = canonized.replace(/\b\d+(\.\d+)?([eE][+-]?\d+)?[flL]?\b/g, 'NUM');
-
-    // Replace identifiers (but keep keywords and symbols)
-    // This is a simplified approach - a more sophisticated version would use tree-sitter
-    // to identify and replace only actual identifiers while preserving structure
-    canonized = canonized.replace(/\b[a-zA-Z_]\w*\b/g, 'IDENT');
-
-    return canonized;
+    walk(tree.rootNode);
+    return result.trim();
   } catch (error) {
-    // Fallback to basic canonization if tree-sitter fails
+    console.error('Canonization error:', error);
+    // Fallback to basic regex-based canonization
     let canonized = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
-    canonized = canonized.replace(/"(?:\\.|[^"\\])*"/g, '"STR"');
-    canonized = canonized.replace(/'(?:\\.|[^'\\])*'/g, "'C'");
+    canonized = canonized.replace(/"(?:\\.|[^"\\])*"/g, 'STR');
+    canonized = canonized.replace(/'(?:\\.|[^'\\])*'/g, 'CHAR');
     canonized = canonized.replace(/\b\d+(\.\d+)?([eE][+-]?\d+)?[flL]?\b/g, 'NUM');
-    canonized = canonized.replace(/\b[a-zA-Z_]\w*\b/g, 'IDENT');
-    return canonized;
+    canonized = canonized.replace(/\b[a-zA-Z_]\w*\b/g, (match) => {
+      const keywords = ['int', 'float', 'double', 'char', 'bool', 'void', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'return', 'using', 'namespace', 'std', 'include', 'main'];
+      return keywords.includes(match) ? match : 'IDENT';
+    });
+    return canonized.trim();
   }
 }
 
@@ -151,13 +141,12 @@ function checkEmptyBodies(tree) {
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
         // Skip over braces, parentheses, etc. and look for actual statements
-        if (child.type !== '{' && child.type !== '}' &&
-            child.type !== '(' && child.type !== ')' &&
-            child.type !== ';' &&
-            child.type !== 'comment') {
+        if (child.isNamed && child.type !== 'comment') {
           hasMeaningfulContent = true;
           break;
         }
+        // Special case: if it's an expression_statement containing only a semicolon, it's still "empty" in some contexts,
+        // but for now we follow named node check.
       }
 
       if (!hasMeaningfulContent) {
@@ -181,54 +170,106 @@ function checkEmptyBodies(tree) {
 
 /**
  * Detect hardcoded output (cout/literal usage without variables)
- * @param {string} code - Source code to analyze
+ * @param {treeSitter.Tree} tree - Parsed tree
  * @returns {Array<{message: string, line: number, column: number}>} List of hardcoding warnings
  */
-function detectHardcodedOutput(code) {
+function detectHardcodedOutput(tree) {
   const warnings = [];
-  const lines = code.split('\n');
+  const rootNode = tree.rootNode;
 
-  // Look for cout or printf with literal strings but no variables
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  /**
+   * Helper to check if a node contains any variables/logic
+   * (Identifiers that aren't keywords or standard library names)
+   */
+  function hasVariables(node) {
+    if (node.type === 'identifier') {
+      const text = node.text;
+      const ignore = ['endl', 'cout', 'std', 'printf', 'scanf', 'cin', 'size_t', 'string'];
+      return !ignore.includes(text);
+    }
+    // Check children
+    for (let i = 0; i < node.childCount; i++) {
+      if (hasVariables(node.child(i))) return true;
+    }
+    return false;
+  }
 
-    // Check for cout with string literals but no stream insertion of variables
-    if (/cout\s*<<\s*["']/i.test(line) && !/cout\s*<<\s*["'][^"]*["']\s*<<\s*[^";]/.test(line)) {
-      // Simple heuristic: if it's just a string literal followed by endl or semicolon
-      if (/cout\s*<<\s*["'][^"']*["']\s*(;\s*$|endl)/.test(line)) {
+  function traverse(node) {
+    // 1. Check for cout streams
+    if (node.type === 'binary_expression' && node.child(1).text === '<<') {
+      // Find the base of the stream (the leftmost part)
+      let curr = node;
+      while (curr.type === 'binary_expression' && curr.child(1).text === '<<') {
+        curr = curr.child(0);
+      }
+
+      // If the base is cout or std::cout
+      if (curr.text.endsWith('cout')) {
+        // Check if this is a top-level cout insertion
+        let p = node.parent;
+        let isTopLevelInsertion = true;
+        if (p && p.type === 'binary_expression' && p.child(1).text === '<<') {
+          isTopLevelInsertion = false;
+        }
+
+        if (isTopLevelInsertion) {
+          // Check for variables in the entire chain
+          let hasVar = false;
+          function checkChain(n) {
+            if (n.type === 'binary_expression' && n.child(1).text === '<<') {
+              if (hasVariables(n.child(2))) hasVar = true;
+              checkChain(n.child(0));
+            }
+          }
+          checkChain(node);
+
+          if (!hasVar) {
+            warnings.push({
+              message: 'Hardcoded output detected: cout used with only literals/constants',
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column + 1
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Check for printf calls
+    if (node.type === 'call_expression' &&
+        (node.firstChild.text === 'printf' || node.firstChild.text === 'std::printf')) {
+      const args = node.lastChild; // argument_list
+      let hasVar = false;
+      let namedArgsFound = 0;
+
+      for (let i = 0; i < args.childCount; i++) {
+        const arg = args.child(i);
+        if (arg.isNamed) {
+          namedArgsFound++;
+          if (namedArgsFound > 1) { // Not the format string
+            if (hasVariables(arg)) {
+              hasVar = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (namedArgsFound > 0 && !hasVar) {
         warnings.push({
-          message: 'Hardcoded output detected: using literal string without variables',
-          line: i + 1,
-          column: line.indexOf('cout') + 1
+          message: 'Hardcoded output detected: printf used without variables',
+          line: node.startPosition.row + 1,
+          column: node.startPosition.column + 1
         });
       }
     }
 
-    // Check for printf with format string but no variables
-    if (/printf\s*\(/.test(line)) {
-      // Count % format specifiers vs arguments after the format string
-      const printfMatch = line.match(/printf\s*\(\s*"([^"]*)"\s*,?\s*([^)]*)\)/);
-      if (printfMatch) {
-        const formatString = printfMatch[1];
-        const args = printfMatch[2] || '';
-
-        // Count format specifiers
-        const formatCount = (formatString.match(/%/g) || []).length;
-
-        // Count arguments (simple comma split, not perfect but good enough for detection)
-        const argCount = args.trim() ? args.split(',').filter(a => a.trim()).length : 0;
-
-        if (formatCount > argCount) {
-          warnings.push({
-            message: 'Potential hardcoded printf: format specifiers exceed provided arguments',
-            line: i + 1,
-            column: line.indexOf('printf') + 1
-          });
-        }
-      }
+    // Recurse
+    for (let i = 0; i < node.childCount; i++) {
+      traverse(node.child(i));
     }
   }
 
+  traverse(rootNode);
   return warnings;
 }
 
@@ -307,29 +348,20 @@ function analyzeStructure(tree) {
  * @returns {boolean} True if this is the main function
  */
 function isMainFunction(node) {
-  // Breadth-first search for an identifier with text "main" within this function_definition
   const queue = [node];
   while (queue.length > 0) {
     const current = queue.shift();
-
-    // Add children to queue
     for (let i = 0; i < current.childCount; i++) {
       queue.push(current.child(i));
     }
-
-    // Check if this is an identifier with text "main"
     if (current.type === 'identifier' && current.text === 'main') {
-      // Verify it's within a function definition by checking parents
       let parent = current.parent;
       while (parent) {
-        if (parent.type === 'function_definition') {
-          return true;
-        }
+        if (parent.type === 'function_definition') return true;
         parent = parent.parent;
       }
     }
   }
-
   return false;
 }
 
@@ -344,18 +376,12 @@ function detectNovicePatterns(tree, code) {
   const rootNode = tree.rootNode;
 
   function traverse(node) {
-    // Detect deeply nested code (potential complexity issue)
-    if (node.type === 'if_statement' ||
-        node.type === 'for_statement' ||
-        node.type === 'while_statement' ||
-        node.type === 'do_statement') {
+    // Detect deeply nested code
+    if (['if_statement', 'for_statement', 'while_statement', 'do_statement'].includes(node.type)) {
       let depth = 0;
       let parent = node.parent;
       while (parent) {
-        if (parent.type === 'if_statement' ||
-            parent.type === 'for_statement' ||
-            parent.type === 'while_statement' ||
-            parent.type === 'do_statement') {
+        if (['if_statement', 'for_statement', 'while_statement', 'do_statement'].includes(parent.type)) {
           depth++;
         }
         parent = parent.parent;
@@ -369,19 +395,17 @@ function detectNovicePatterns(tree, code) {
       }
     }
 
-    // Detect switch without default (common mistake)
+    // Detect switch without default
     if (node.type === 'switch_statement') {
       let hasDefault = false;
-      for (let i = 0; i < node.childCount; i++) {
-        const child = node.child(i);
-        if (child.type === 'switch_case' &&
-            child.childCount > 0 &&
-            child.firstChild &&
-            child.firstChild.type === 'case' &&
-            child.firstChild.nextSibling &&
-            child.firstChild.nextSibling.text === 'default') {
-          hasDefault = true;
-          break;
+      const body = node.lastChild;
+      if (body && body.type === 'compound_statement') {
+        for (let i = 0; i < body.childCount; i++) {
+          const child = body.child(i);
+          if (child.type === 'case_statement' && child.firstChild && child.firstChild.text === 'default') {
+            hasDefault = true;
+            break;
+          }
         }
       }
       if (!hasDefault) {
@@ -393,7 +417,6 @@ function detectNovicePatterns(tree, code) {
       }
     }
 
-    // Recurse to children
     for (let i = 0; i < node.childCount; i++) {
       traverse(node.child(i));
     }
@@ -407,26 +430,18 @@ async function verify(code, requirements = {}, options = {}) {
   const reasons = [];
 
   try {
-    // Get parser instance
     const parser = getParser();
-
-    // Parse the code
     const tree = parser.parse(code);
 
-    // Check for parse errors
     if (tree.rootNode.hasError) {
-      // Traverse to find first error
       function findFirstError(node) {
-        if (node.type === 'ERROR') {
-          return node;
-        }
+        if (node.type === 'ERROR') return node;
         for (let i = 0; i < node.childCount; i++) {
           const error = findFirstError(node.child(i));
           if (error) return error;
         }
         return null;
       }
-
       const errorNode = findFirstError(tree.rootNode);
       if (errorNode) {
         reasons.push({
@@ -438,10 +453,8 @@ async function verify(code, requirements = {}, options = {}) {
       }
     }
 
-    // Template detection (if starter code provided)
     if (options.starter_code) {
-      const isTemplate = code.trim() === options.starter_code.trim();
-      if (isTemplate) {
+      if (code.trim() === options.starter_code.trim()) {
         reasons.push({
           message: 'Submission matches starter/template code',
           line: 1,
@@ -451,7 +464,6 @@ async function verify(code, requirements = {}, options = {}) {
       }
     }
 
-    // Basic heuristic: non-empty main body (fallback)
     const nonWhitespace = code.replace(/\/\*.*?\*\//gs, '').replace(/\/\/.*$/gm, '').trim();
     if (nonWhitespace.length < 10) {
       reasons.push({
@@ -462,23 +474,17 @@ async function verify(code, requirements = {}, options = {}) {
       return { is_verified: false, reasons };
     }
 
-    // Structural validation based on requirements
     if (requirements.required_nodes && requirements.required_nodes.length) {
       const missingNodes = checkRequiredNodes(tree, requirements.required_nodes);
       reasons.push(...missingNodes);
     }
 
-    // Check for empty construct bodies
     const emptyBodies = checkEmptyBodies(tree);
     reasons.push(...emptyBodies);
 
-    // Hardcoding detection (if requested or always run for integrity)
     if (options.checkHardcoding !== false) {
-      const hardcodingWarnings = detectHardcodedOutput(code);
-      // For now, treat hardcoding as warnings that don't fail verification
-      // but could be used for feedback
+      const hardcodingWarnings = detectHardcodedOutput(tree);
       if (hardcodingWarnings.length > 0) {
-        // Add as informational reasons (don't fail verification)
         reasons.push(...hardcodingWarnings.map(w => ({
           ...w,
           message: `[Notice] ${w.message}`
@@ -486,10 +492,8 @@ async function verify(code, requirements = {}, options = {}) {
       }
     }
 
-    // Advanced structural analysis
     const structure = analyzeStructure(tree);
 
-    // Add structural insights as notices
     if (structure.functionCount === 0 && !options.starter_code) {
       reasons.push({
         message: '[Notice] No function definitions found',
@@ -506,16 +510,12 @@ async function verify(code, requirements = {}, options = {}) {
       });
     }
 
-    // Detect novice patterns
     const novicePatterns = detectNovicePatterns(tree, code);
     reasons.push(...novicePatterns.map(w => ({
       ...w,
       message: `[Notice] ${w.message}`
     })));
 
-    // CodeNet pattern matching (placeholder for future integration)
-
-    // If we have any errors from structural checks, verification fails
     const hasErrors = reasons.some(reason =>
       !reason.message.startsWith('[Notice]') &&
       (reason.message.includes('Required') ||
@@ -540,4 +540,4 @@ async function verify(code, requirements = {}, options = {}) {
   }
 }
 
-module.exports = { verify };
+module.exports = { verify, canonizeCode };
