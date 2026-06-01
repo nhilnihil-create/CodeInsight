@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import api from '../../services/api';
 
@@ -34,6 +34,7 @@ const SESSION_STATES = {
 
 export default function StudentCodeEditor() {
   const { exerciseId } = useParams();
+  const navigate = useNavigate();
   const [exercise, setExercise] = useState(null);
   const [code, setCode] = useState('');
   const [testResults, setTestResults] = useState(null);
@@ -173,7 +174,7 @@ export default function StudentCodeEditor() {
 
   const handleReadyCancel = () => {
     setShowReadyModal(false);
-    // User declined - navigate back (could add history.back() here)
+    navigate('/student/exercises');
   };
 
   // Page Visibility API - pause timer when tab hidden and resume when visible
