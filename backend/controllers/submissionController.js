@@ -1,6 +1,8 @@
 const db       = require('../config/db');
 const executor = require('../services/executor');
 const astVerifier = require('../services/astVerifier');
+const academicIntegrityEngine = require('../services/academicIntegrityEngine');
+const integrityFlagEngine = require('../services/integrityFlagEngine');
 
 /**
  * Log performance metrics for ISO 25010 Performance Efficiency evaluation
@@ -170,7 +172,7 @@ exports.submit = async (req, res) => {
 
     // Run against ALL test cases
     const tcResults = await executor.runAgainstTestCases(
-      code, exercise.test_cases, exercise.time_limit_minutes * 60
+      code, exercise.test_cases, exercise.time_limit_minutes * 60, true
     );
     const allPassed = tcResults.every(r => r.passed);
 
@@ -247,13 +249,53 @@ exports.submit = async (req, res) => {
       [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta]
     );
 
+    const submissionId = insRes.rows[0].id;
+
     // If verification failed, record a verification_log row
     if (!is_verified) {
       await db.query(
         `INSERT INTO verification_logs (submission_id, student_id, exercise_id, verification_type, reason)
          VALUES($1,$2,$3,$4,$5)`,
-        [insRes.rows[0].id, studentId, exerciseId, 'ast_verifier', verification_note || 'Verification failed']
+        [submissionId, studentId, exerciseId, 'ast_verifier', verification_note || 'Verification failed']
       );
+    }
+
+    // Run academic integrity checks
+    try {
+      const academicIntegrityFlags = await academicIntegrityEngine.evaluateIntegrity({
+        code,
+        starterCode: exercise.starter_code || '',
+        studentId,
+        exerciseId,
+        submission: {
+          ...(allPassed !== undefined && { is_correct: allPassed }),
+          test_results: tcResults,
+          time_spent_seconds: timeSpentSeconds || 0,
+          submission_id: submissionId
+        },
+        exercise,
+        cdsEngine: require('../services/cdsEngine'), // Pass reference for historical data if needed
+        behavioralData: {} // Frontend would send this data - for now empty
+      });
+
+      // Insert any integrity flags into the database
+      for (const flag of academicIntegrityFlags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId: exerciseId,
+          studentId: studentId,
+          flagType: flag.type,
+          severity: flag.severity,
+          evidence: flag.evidence || {},
+          contextBehaviors: flag.context_behaviors || [],
+          status: 'flagged',
+          instructorNote: flag.instructor_note || '',
+          submissionId: submissionId
+        });
+      }
+    } catch (integrityError) {
+      // Don't let integrity check errors break the submission flow
+      console.warn('Academic integrity check failed:', integrityError.message);
     }
 
     // Split visible vs hidden results for response
@@ -271,6 +313,29 @@ exports.submit = async (req, res) => {
       passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true
     };
 
+    // Calculate live CDS for display and persistence
+    const cdsEngine = require('../services/cdsEngine');
+    let liveCDS = null;
+    try {
+      liveCDS = await cdsEngine.calculateLiveCDS(studentId, exerciseId, db);
+      
+      if (liveCDS && liveCDS.cds !== null) {
+        await db.query(`
+          INSERT INTO cds_scores (student_id, exercise_id, section_id, ner, nrs, nts, cds, classification, has_flagged_attempts, integrity_flag_count, source, visible, computed_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'live', false, NOW())
+          ON CONFLICT (student_id, exercise_id)
+          DO UPDATE SET ner=$4, nrs=$5, nts=$6, cds=$7, classification=$8, has_flagged_attempts=$9, integrity_flag_count=$10, source='live', visible=false, computed_at=NOW()
+        `, [
+          studentId, exerciseId, exercise.section_id,
+          liveCDS.ner || 0, liveCDS.nrs || 0, liveCDS.nts || 0,
+          liveCDS.cds || 0, liveCDS.classification || 'Unscored',
+          liveCDS.hasFlaggedAttempt || false, liveCDS.integrityFlagCount || 0
+        ]);
+      }
+    } catch (liveErr) {
+      console.warn('Error calculating or saving live CDS:', liveErr.message);
+    }
+
     // Prepare response with micro-concept feedback and code growth delta
     const responseData = {
       attemptNumber,
@@ -278,6 +343,7 @@ exports.submit = async (req, res) => {
       results: visibleResults,
       hidden: hiddenSummary,
       codeGrowthDelta,
+      liveCDS,
       verification: {
         is_verified: is_verified,
         note: verification_note || (is_verified ? 'Code structure verified' : 'Verification failed')

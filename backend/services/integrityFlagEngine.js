@@ -22,23 +22,37 @@ const executorService = require('./executor');
  */
 async function detectCodePaste(code, exerciseId) {
   try {
-    // Get reference solution from exercise (if stored)
+    // Query exercise for reference solution
     const exerciseRes = await db.query(
       `SELECT reference_solution FROM exercises WHERE id = $1`,
       [exerciseId]
     );
 
     if (!exerciseRes.rows.length || !exerciseRes.rows[0].reference_solution) {
-      return { detected: false, matchPercent: 0, details: 'No reference solution available' };
+      // No reference solution configured - return false to avoid false positives
+      return { detected: false, matchPercent: 0, details: 'No reference solution configured for this exercise' };
     }
 
-    const refCode = exerciseRes.rows[0].reference_solution;
-    const similarity = calculateSimilarity(code, refCode);
+    const referenceSolution = exerciseRes.rows[0].reference_solution;
+
+    // If either code is empty, no similarity
+    if (!code || !referenceSolution) {
+      return { detected: false, matchPercent: 0, details: 'Empty code or reference solution' };
+    }
+
+    // Calculate similarity using our helper function
+    const similarity = calculateSimilarity(code, referenceSolution);
+    const matchPercent = Math.round(similarity * 100);
+
+    // Consider it a paste if similarity is above 85% (allows for minor modifications)
+    const detected = similarity > 0.85;
 
     return {
-      detected: similarity > 0.70, // >70% match = paste
-      matchPercent: Math.round(similarity * 100),
-      details: `${Math.round(similarity * 100)}% code match with reference solution`
+      detected,
+      matchPercent,
+      details: detected
+        ? `High similarity with reference solution (${matchPercent}% match)`
+        : `Low similarity with reference solution (${matchPercent}% match)`
     };
   } catch (err) {
     console.error('Error in detectCodePaste:', err);
@@ -163,22 +177,23 @@ function generateContextBehaviors(submission, allSubmissions) {
  * @returns {Object} Created/updated flag record
  */
 async function createFlag(flagData) {
-  const { sectionId, exerciseId, studentId, flagType, severity, evidence, contextBehaviors, status } = flagData;
+  const { sectionId, exerciseId, studentId, flagType, severity, evidence, contextBehaviors, status, submissionId } = flagData;
 
   try {
     const result = await db.query(
       `INSERT INTO integrity_flags 
-       (section_id, exercise_id, student_id, flag_type, severity, evidence, context_behaviors, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+       (section_id, exercise_id, student_id, flag_type, severity, evidence, context_behaviors, status, created_at, submission_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)
        ON CONFLICT (exercise_id, student_id, flag_type)
        DO UPDATE SET
          severity = EXCLUDED.severity,
          evidence = EXCLUDED.evidence,
          context_behaviors = EXCLUDED.context_behaviors,
-         status = CASE WHEN status = 'reviewed' THEN 'reviewed' ELSE EXCLUDED.status END
+         status = CASE WHEN status = 'reviewed' THEN 'reviewed' ELSE EXCLUDED.status END,
+         submission_id = EXCLUDED.submission_id
        RETURNING *`,
       [sectionId, exerciseId, studentId, flagType, severity, 
-       JSON.stringify(evidence), contextBehaviors, status || 'flagged']
+       JSON.stringify(evidence), contextBehaviors, status || 'flagged', submissionId || null]
     );
 
     return result.rows[0];

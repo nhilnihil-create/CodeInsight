@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   time_limit_minutes INT NOT NULL DEFAULT 45,
   test_cases        JSONB NOT NULL DEFAULT '[]',
   starter_code      TEXT DEFAULT E'#include <iostream>\nusing namespace std;\n\nint main() {\n  // Write code here\n  return 0;\n}\n',
+  reference_solution TEXT, -- Reference solution for code paste detection
   ast_nodes         TEXT[],
   deadline          TIMESTAMP,
   is_draft          BOOLEAN DEFAULT false,
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS cds_scores (
   nts            DECIMAL(6,4),
   cds            DECIMAL(6,4),
   classification VARCHAR(20) NOT NULL DEFAULT 'Unscored',
+  has_flagged_attempts BOOLEAN DEFAULT false,
   computed_at    TIMESTAMP DEFAULT NOW(),
   UNIQUE(student_id, exercise_id)
 );
@@ -139,6 +141,7 @@ CREATE TABLE IF NOT EXISTS integrity_flags (
   section_id          INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
   exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
   student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  submission_id       INT REFERENCES submissions(id) ON DELETE SET NULL,
   flag_type           VARCHAR(50) NOT NULL, -- 'code_paste_detected', 'code_growth_anomaly', 'retry_storm'
   severity            VARCHAR(20) NOT NULL, -- 'high', 'medium', 'low'
   evidence            JSONB DEFAULT '{}',
@@ -148,6 +151,17 @@ CREATE TABLE IF NOT EXISTS integrity_flags (
   reviewed_at         TIMESTAMP,
   created_at          TIMESTAMP DEFAULT NOW(),
   UNIQUE(exercise_id, student_id, flag_type)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id                  SERIAL PRIMARY KEY,
+  student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  section_id          INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  message             TEXT NOT NULL,
+  notification_type   VARCHAR(50) NOT NULL DEFAULT 'cds_computation',
+  is_read             BOOLEAN DEFAULT false,
+  created_at          TIMESTAMP DEFAULT NOW()
 );
 
 -- ── SEED DATA ──────────────────────────────────────────────────────────────

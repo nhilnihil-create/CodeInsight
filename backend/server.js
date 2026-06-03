@@ -31,6 +31,7 @@ app.use('/api/exercises',   require('./routes/exercises'));
 app.use('/api/student',     require('./routes/student'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/analytics',   require('./routes/analytics'));
+app.use('/api/analytics',   require('./routes/integrity')); // Academic Integrity routes
 
 const PORT = process.env.PORT || 5000;
 
