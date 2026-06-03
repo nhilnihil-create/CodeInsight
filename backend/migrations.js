@@ -39,6 +39,33 @@ async function ensureTablesExist() {
       console.log('✓ Submissions columns:', columnNames.join(', '));
     }
 
+    // Verify cds_scores table has the new column if it exists
+    const cdsScoresResult = results.find(r => r.table === 'cds_scores');
+    if (cdsScoresResult && cdsScoresResult.exists) {
+      const columns = await db.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'cds_scores'
+      `);
+
+      const columnNames = columns.rows.map(r => r.column_name);
+      console.log('✓ CDS Scores columns:', columnNames.join(', '));
+
+      // Check for the new column
+      const hasFlaggedColumn = columnNames.includes('has_flagged_attempts');
+      if (hasFlaggedColumn) {
+        console.log('✓ CDS Scores has_flagged_attempts column exists');
+      } else {
+        console.warn('⚠ CDS Scores missing has_flagged_attempts column');
+      }
+
+      const hasFlagCountColumn = columnNames.includes('integrity_flag_count');
+      if (hasFlagCountColumn) {
+        console.log('✓ CDS Scores integrity_flag_count column exists');
+      } else {
+        console.warn('⚠ CDS Scores missing integrity_flag_count column');
+      }
+    }
+
     // Return true if all critical tables exist
     const criticalTables = ['users', 'sections', 'enrollments', 'concepts', 'exercises', 'submissions'];
     const allCriticalExist = criticalTables.every(table =>

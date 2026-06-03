@@ -8,6 +8,7 @@ import SectionDetail from './pages/instructor/SectionDetail';
 import InstructorCreateExercise from './pages/instructor/CreateExercise';
 import InstructorEditExercise from './pages/instructor/EditExercise';
 import InstructorAlerts from './pages/instructor/Alerts';
+import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
 import InstructorDeveloper from './pages/instructor/Developer';
 import StudentExercises from './pages/student/Exercises';
 import StudentExerciseList from './pages/student/ExerciseList';
@@ -48,6 +49,11 @@ function AppContent() {
         <Route path="/instructor/sections/:sectionId" element={
           <ProtectedRoute requiredRole="instructor">
             <SectionDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/sections/:sectionId/academic-integrity" element={
+          <ProtectedRoute requiredRole="instructor">
+            <AcademicIntegrityFlags />
           </ProtectedRoute>
         } />
         <Route path="/instructor/create-exercise" element={
