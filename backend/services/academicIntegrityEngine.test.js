@@ -156,11 +156,12 @@ describe('Academic Integrity Engine', () => {
       );
     });
 
-    test('should return null when historical CDS is low', async () => {
+    test('should return null when current CDS is in line with historical average', async () => {
       mockDb.query.mockResolvedValueOnce({ rows: [{ avg_cds: 0.3, stddev_cds: 0.1, exercise_count: 5 }] });
 
+      const typicalSubmission = { ...submission, cds: 0.32 };
       const flag = await academicIntegrityEngine.checkBehavioralAnomaly(
-        studentId, exerciseId, submission, mockCdsEngine
+        studentId, exerciseId, typicalSubmission, mockCdsEngine
       );
 
       expect(flag).toBeNull();
@@ -250,10 +251,11 @@ describe('Academic Integrity Engine', () => {
     });
 
     test('should flag code growth anomaly when line count doubled (>100% increase)', async () => {
-      mockDb.query.mockResolvedValueOnce({ rows: [{ code: firstSubmissionCode } ] }); // First submission: 4 non-empty lines
+      const compactFirst = 'line1\nline2\nline3\nline4\nline5';
+      mockDb.query.mockResolvedValueOnce({ rows: [{ code: compactFirst }] });
 
-      // Second submission: 9 non-empty lines (125% increase)
-      const excessiveCode = '#include <iostream>\nusing namespace std;\n\nint main() {\n  int x = 5;\n  int y = 10;\n  cout << \"Hello World\";\n  cout << x;\n  cout << y;\n  cout << x + y;\n  cout << x * y;\n  return 0;\n}';
+      // >100% growth and >10 new non-empty lines vs first submission
+      const excessiveCode = Array.from({ length: 18 }, (_, i) => `stmt${i + 1};`).join('\n');
 
       const flag = await academicIntegrityEngine.checkCodeGrowthAnomaly(
         studentId, exerciseId, excessiveCode
@@ -328,107 +330,90 @@ describe('Academic Integrity Engine', () => {
     };
 
     test('should run all checks and return flags array', async () => {
-      // Mock the async functions to return specific flags for testing
-      jest.spyOn(academicIntegrityEngine, 'checkBehavioralAnomaly').mockResolvedValue(null);
-      jest.spyOn(academicIntegrityEngine, 'checkCodeGrowthAnomaly').mockResolvedValue(null);
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [] });
 
-      try {
-        const flags = await academicIntegrityEngine.evaluateIntegrity(params);
+      const flags = await academicIntegrityEngine.evaluateIntegrity(params);
 
-        // Should have called async functions
-        expect(academicIntegrityEngine.checkBehavioralAnomaly).toHaveBeenCalled();
-        expect(academicIntegrityEngine.checkCodeGrowthAnomaly).toHaveBeenCalled();
-
-        // Should return array (potentially empty if no flags)
-        expect(Array.isArray(flags)).toBe(true);
-      } finally {
-        // Restore spies
-        jest.restoreAllMocks();
-      }
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(Array.isArray(flags)).toBe(true);
     });
 
     test('should include flags from all check types when triggered', async () => {
-      // Mock checkHardcoding to return a flag
-      const hardcodingFlag = {
-        type: 'HARDCODING',
-        severity: 'MEDIUM',
-        evidence: 'Test evidence',
-        context: {}
-      };
+      const starterCode = params.starterCode;
+      const hardcodingCode = '#include <iostream>\nusing namespace std;\nint main() { cout << 42; return 0; }';
+      const growthCode = Array.from({ length: 18 }, (_, i) => `stmt${i + 1};`).join('\n');
 
-      // Mock checkBlankTemplate to return a flag
-      const blankFlag = {
-        type: 'BLANK_TEMPLATE',
-        severity: 'HIGH',
-        evidence: 'Test evidence',
-        context: {}
-      };
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [] });
+      const blankFlags = await academicIntegrityEngine.evaluateIntegrity({
+        ...params,
+        code: starterCode,
+        starterCode
+      });
+      jest.clearAllMocks();
 
-      // Mock async functions to return flags
-      const behavioralFlag = {
-        type: 'BEHAVIORAL_ANOMALY',
-        severity: 'MEDIUM',
-        evidence: 'Test evidence',
-        context: {}
-      };
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [] });
+      const hardcodingFlags = await academicIntegrityEngine.evaluateIntegrity({
+        ...params,
+        code: hardcodingCode
+      });
+      jest.clearAllMocks();
 
-      const growthFlag = {
-        type: 'CODE_GROWTH_ANOMALY',
-        severity: 'LOW',
-        evidence: 'Test evidence',
-        context: {}
-      };
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.15, exercise_count: 4 }] })
+        .mockResolvedValueOnce({ rows: [] });
+      const behavioralFlags = await academicIntegrityEngine.evaluateIntegrity({
+        ...params,
+        code: hardcodingCode,
+        submission: {
+          ...params.submission,
+          time_spent_seconds: 20,
+          is_correct: true,
+          cds: 0.9
+        }
+      });
+      jest.clearAllMocks();
 
-      // Spy on the actual functions
-      jest.spyOn(academicIntegrityEngine, 'checkHardcoding').mockReturnValue(hardcodingFlag);
-      jest.spyOn(academicIntegrityEngine, 'checkBlankTemplate').mockReturnValue(blankFlag);
-      jest.spyOn(academicIntegrityEngine, 'checkBehavioralAnomaly').mockResolvedValue(behavioralFlag);
-      jest.spyOn(academicIntegrityEngine, 'checkCodeGrowthAnomaly').mockResolvedValue(growthFlag);
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [{ code: 'line1\nline2\nline3\nline4\nline5' }] });
+      const growthFlags = await academicIntegrityEngine.evaluateIntegrity({
+        ...params,
+        code: growthCode
+      });
 
-      try {
-        const flags = await academicIntegrityEngine.evaluateIntegrity(params);
+      const flagTypes = new Set([
+        ...blankFlags.map(f => f.type),
+        ...hardcodingFlags.map(f => f.type),
+        ...behavioralFlags.map(f => f.type),
+        ...growthFlags.map(f => f.type)
+      ]);
 
-        // Should have flags from all check types
-        expect(flags.length).toBe(4);
+      expect(flagTypes).toContain('BLANK_TEMPLATE');
+      expect(flagTypes).toContain('HARDCODING');
+      expect(flagTypes).toContain('BEHAVIORAL_ANOMALY');
+      expect(flagTypes).toContain('CODE_GROWTH_ANOMALY');
 
-        // Check that each flag type is present
-        const flagTypes = flags.map(f => f.type);
-        expect(flagTypes).toContain('HARDCODING');
-        expect(flagTypes).toContain('BLANK_TEMPLATE');
-        expect(flagTypes).toContain('BEHAVIORAL_ANOMALY');
-        expect(flagTypes).toContain('CODE_GROWTH_ANOMALY');
-
-        // Check that studentId and exerciseId are added to each flag
-        flags.forEach(flag => {
-          expect(flag.studentId).toBe(params.studentId);
-          expect(flag.exerciseId).toBe(params.exerciseId);
-        });
-      } finally {
-        // Restore spies
-        jest.restoreAllMocks();
-      }
+      [...blankFlags, ...hardcodingFlags, ...behavioralFlags, ...growthFlags].forEach(flag => {
+        expect(flag.studentId).toBe(params.studentId);
+        expect(flag.exerciseId).toBe(params.exerciseId);
+      });
     });
 
     test('should handle errors in async checks gracefully', async () => {
-      // Make checkBehavioralAnomaly throw an error
-      jest.spyOn(academicIntegrityEngine, 'checkBehavioralAnomaly').mockRejectedValue(new Error('Test error'));
+      mockDb.query
+        .mockRejectedValueOnce(new Error('Test error'))
+        .mockResolvedValueOnce({ rows: [] });
 
-      // Make checkCodeGrowthAnomaly return normally
-      jest.spyOn(academicIntegrityEngine, 'checkCodeGrowthAnomaly').mockResolvedValue(null);
+      const flags = await academicIntegrityEngine.evaluateIntegrity(params);
 
-      try {
-        const flags = await academicIntegrityEngine.evaluateIntegrity(params);
-
-        // Should still return flags from synchronous checks
-        expect(Array.isArray(flags)).toBe(true);
-
-        // The async check that threw should not prevent function from completing
-        expect(academicIntegrityEngine.checkBehavioralAnomaly).toHaveBeenCalled();
-        expect(academicIntegrityEngine.checkCodeGrowthAnomaly).toHaveBeenCalled();
-      } finally {
-        // Restore spies
-        jest.restoreAllMocks();
-      }
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(Array.isArray(flags)).toBe(true);
     });
   });
 });

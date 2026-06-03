@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   time_spent_seconds INT DEFAULT 0,
   is_verified       BOOLEAN DEFAULT true,
   verification_note TEXT,
+  code_growth_delta INT DEFAULT 0,
   created_at        TIMESTAMP DEFAULT NOW()
 );
 
@@ -84,6 +85,9 @@ CREATE TABLE IF NOT EXISTS cds_scores (
   cds            DECIMAL(6,4),
   classification VARCHAR(20) NOT NULL DEFAULT 'Unscored',
   has_flagged_attempts BOOLEAN DEFAULT false,
+  integrity_flag_count INTEGER DEFAULT 0,
+  source         VARCHAR(20) DEFAULT 'batch',
+  visible        BOOLEAN DEFAULT true,
   computed_at    TIMESTAMP DEFAULT NOW(),
   UNIQUE(student_id, exercise_id)
 );
@@ -161,7 +165,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   message             TEXT NOT NULL,
   notification_type   VARCHAR(50) NOT NULL DEFAULT 'cds_computation',
   is_read             BOOLEAN DEFAULT false,
-  created_at          TIMESTAMP DEFAULT NOW()
+  created_at          TIMESTAMP DEFAULT NOW(),
+  UNIQUE(student_id, exercise_id, notification_type)
 );
 
 -- ── SEED DATA ──────────────────────────────────────────────────────────────
