@@ -5,6 +5,27 @@ const longitudinalReportEngine = require('../services/longitudinalReportEngine')
 
 const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
 
+/** CDS distribution + avg for one exercise in a section (after batch compute). */
+async function fetchExerciseCdsStats(exerciseId, sectionId) {
+  const statsRes = await db.query(
+    `SELECT
+       (SELECT COUNT(*)::INTEGER FROM enrollments WHERE section_id = $2) AS total_students,
+       (SELECT COUNT(DISTINCT student_id)::INTEGER FROM submissions
+        WHERE exercise_id = $1
+          AND student_id IN (SELECT student_id FROM enrollments WHERE section_id = $2)) AS submitted_count,
+       (SELECT AVG(cs.cds) FROM cds_scores cs
+        WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS avg_cds,
+       (SELECT COUNT(CASE WHEN cs.cds <= 0.33 THEN 1 END)::INTEGER FROM cds_scores cs
+        WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS low_count,
+       (SELECT COUNT(CASE WHEN cs.cds > 0.33 AND cs.cds <= 0.66 THEN 1 END)::INTEGER FROM cds_scores cs
+        WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS moderate_count,
+       (SELECT COUNT(CASE WHEN cs.cds > 0.66 THEN 1 END)::INTEGER FROM cds_scores cs
+        WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS high_count`,
+    [exerciseId, sectionId]
+  );
+  return statsRes.rows[0] || {};
+}
+
 exports.heatmap = async (req, res) => {
   const { sectionId } = req.params;
   try {
@@ -251,6 +272,33 @@ exports.longitudinalReport = async (req, res) => {
   try {
     const { studentId, conceptId } = req.params;
     const sectionId = req.query.sectionId || null;
+    
+    // If conceptId is missing, return a summary or all concepts for this student
+    if (!conceptId) {
+      const allConceptsRes = await db.query(
+        `SELECT DISTINCT c.id, c.name FROM concepts c
+         JOIN exercises ex ON ex.concept_id = c.id
+         JOIN cds_scores cs ON cs.exercise_id = ex.id
+         WHERE cs.student_id = $1`,
+        [studentId]
+      );
+      
+      const reports = [];
+      for (const concept of allConceptsRes.rows) {
+        try {
+          const report = await longitudinalReportEngine.calculateMasteryVelocity(
+            parseInt(studentId),
+            parseInt(concept.id),
+            sectionId ? parseInt(sectionId) : null
+          );
+          reports.push(report);
+        } catch (err) {
+          console.error(`Error generating report for concept ${concept.id}:`, err);
+        }
+      }
+      return res.json({ studentId, reports });
+    }
+
     const report = await longitudinalReportEngine.calculateMasteryVelocity(
       parseInt(studentId),
       parseInt(conceptId),
@@ -372,15 +420,19 @@ exports.getClassInsights = async (req, res) => {
 
 /**
  * GET /api/analytics/sections/:sectionId/class-insights/:exerciseId
- * Returns class misconception report for specific exercise
+ * Auto-triggers batch CDS (default), then returns misconception report + fresh stats.
+ * Query: refresh=false to skip CDS recompute (report only).
  */
 exports.getClassInsightsByExercise = async (req, res) => {
   try {
     const { sectionId, exerciseId } = req.params;
+    const shouldRefreshCds = req.query.refresh !== 'false';
 
-    // Verify exercise belongs to section
     const exerciseRes = await db.query(
-      `SELECT id FROM exercises WHERE id = $1 AND section_id = $2`,
+      `SELECT ex.id, ex.title, ex.closed_at, ex.section_id, c.name AS concept_name
+       FROM exercises ex
+       JOIN concepts c ON ex.concept_id = c.id
+       WHERE ex.id = $1 AND ex.section_id = $2`,
       [exerciseId, sectionId]
     );
 
@@ -388,8 +440,39 @@ exports.getClassInsightsByExercise = async (req, res) => {
       return res.status(404).json({ message: 'Exercise not found in section' });
     }
 
-    const report = await classMisconceptionReport.generateClassMisconceptionReport(exerciseId);
-    res.json(report);
+    const exercise = exerciseRes.rows[0];
+    let cdsResult = null;
+    let cdsError = null;
+
+    if (shouldRefreshCds) {
+      try {
+        cdsResult = await cdsEngine.computeBatchCDS(parseInt(exerciseId, 10), db);
+      } catch (err) {
+        cdsError = err.message;
+        console.error(`CDS auto-trigger failed for exercise ${exerciseId}:`, err);
+      }
+    }
+
+    const report = await classMisconceptionReport.generateClassMisconceptionReport(
+      parseInt(exerciseId, 10)
+    );
+    const exerciseStats = await fetchExerciseCdsStats(exerciseId, sectionId);
+
+    res.json({
+      exerciseId: parseInt(exerciseId, 10),
+      sectionId: parseInt(sectionId, 10),
+      title: exercise.title,
+      conceptName: exercise.concept_name,
+      closedAt: exercise.closed_at,
+      cdsComputed: Boolean(cdsResult),
+      cdsError,
+      studentsProcessed: cdsResult?.studentsProcessed ?? null,
+      exerciseStats: {
+        ...exerciseStats,
+        closed_at: exercise.closed_at
+      },
+      report
+    });
   } catch (err) {
     console.error('Error fetching class insights:', err);
     res.status(500).json({ message: err.message });
@@ -455,25 +538,8 @@ exports.getSectionLongitudinal = async (req, res) => {
 };
 
 /**
- * GET /api/analytics/sections/:sectionId/integrity-flags
- * Returns all integrity flags for section grouped by exercise
- */
-exports.getIntegrityFlags = async (req, res) => {
-  try {
-    const { sectionId } = req.params;
-    const integrityFlagEngine = require('../services/integrityFlagEngine');
-
-    const flags = await integrityFlagEngine.getFlagsForSection(sectionId);
-    res.json(flags);
-  } catch (err) {
-    console.error('Error fetching integrity flags:', err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-/**
  * GET /api/analytics/sections/:sectionId/integrity-flags/:exerciseId
- * Returns integrity flags for specific exercise
+ * Per-exercise flag list (array). Section-wide paginated list: integrityController via routes/integrity.js
  */
 exports.getIntegrityFlagsByExercise = async (req, res) => {
   try {
@@ -494,23 +560,6 @@ exports.getIntegrityFlagsByExercise = async (req, res) => {
     res.json(flags);
   } catch (err) {
     console.error('Error fetching exercise integrity flags:', err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-/**
- * PUT /api/analytics/integrity-flags/:flagId/mark-reviewed
- */
-exports.markIntegrityFlagReviewed = async (req, res) => {
-  try {
-    const { flagId } = req.params;
-    const { instructorNote } = req.body;
-    const integrityFlagEngine = require('../services/integrityFlagEngine');
-
-    const flag = await integrityFlagEngine.markFlagReviewed(flagId, instructorNote);
-    res.json(flag);
-  } catch (err) {
-    console.error('Error marking flag reviewed:', err);
     res.status(500).json({ message: err.message });
   }
 };

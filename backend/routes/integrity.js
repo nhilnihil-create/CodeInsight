@@ -4,8 +4,14 @@ const integrityController = require('../controllers/integrityController');
 const analyticsController = require('../controllers/analyticsController');
 const { verifyToken, requireRole } = require('../middleware/auth');
 
+/**
+ * Canonical integrity API paths (all under /api/analytics):
+ * - GET  /sections/:sectionId/integrity-flags          → paginated section list (integrityController)
+ * - GET  /sections/:sectionId/integrity-flags/:exerciseId → array for one exercise (analyticsController)
+ * - PUT  /integrity-flags/:flagId/mark-reviewed        → review flag (integrityController)
+ */
+
 // GET integrity flags (instructor only)
-// Supports various frontend query patterns
 
 // 1. Paginated responses (returns { flags: [], pagination: {} })
 router.get('/integrity', verifyToken, requireRole('instructor'), integrityController.getIntegrityFlags);
