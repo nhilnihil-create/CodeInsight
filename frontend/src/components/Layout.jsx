@@ -1,4 +1,5 @@
 import Sidebar from './Sidebar';
+import ThemeToggle from './ThemeToggle';
 import { useSidebar } from '../context/SidebarContext';
 import { cn } from '@/lib/utils';
 
@@ -29,9 +30,12 @@ export default function Layout({ children, pageTitle }) {
       >
         {pageTitle && (
           <header className="sticky top-0 z-30 border-b border-border bg-card/80 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              {pageTitle}
-            </h1>
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                {pageTitle}
+              </h1>
+              <ThemeToggle />
+            </div>
           </header>
         )}
         <div className="w-full max-w-7xl mx-auto p-6 lg:p-8">{children}</div>
