@@ -22,6 +22,17 @@ const executorService = require('./executor');
  */
 async function detectCodePaste(code, exerciseId) {
   try {
+    // Check if reference_solution column exists first
+    const columnCheckRes = await db.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'exercises' AND column_name = 'reference_solution'`
+    );
+
+    if (!columnCheckRes.rows.length) {
+      // Column doesn't exist - disable detection to prevent crashes
+      return { detected: false, matchPercent: 0, details: 'Code paste detection disabled: reference_solution column not found' };
+    }
+
     // Query exercise for reference solution
     const exerciseRes = await db.query(
       `SELECT reference_solution FROM exercises WHERE id = $1`,
