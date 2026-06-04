@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorSections from './pages/instructor/Sections';
@@ -10,30 +11,33 @@ import InstructorEditExercise from './pages/instructor/EditExercise';
 import InstructorAlerts from './pages/instructor/Alerts';
 import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
 import InstructorDeveloper from './pages/instructor/Developer';
-import StudentExercises from './pages/student/Exercises';
-import StudentExerciseList from './pages/student/ExerciseList';
-import StudentCodeEditor from './pages/student/CodeEditor_new';
+import InstructorReports from './pages/instructor/Reports';
+import StudentDashboard from './pages/student/Dashboard.new';
+import StudentExerciseList from './pages/student/Exercises.new';
+import StudentCodeEditor from './pages/student/CodeEditor.new';
 import StudentProgress from './pages/student/Progress';
+import StudentProfile from './pages/student/Profile';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
+import NotFound from './pages/NotFound';
 
-function ProtectedRoute({ children, requiredRole }) {
+function ProtectedRoute({ children, requiredRole, pageTitle }) {
   const { isLoggedIn, user } = useAuth();
 
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (requiredRole && user?.role !== requiredRole) {
-    const home = user?.role === 'instructor' ? '/instructor' : '/student';
+    const home = user?.role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
     return <Navigate to={home} replace />;
   }
-  return <Layout>{children}</Layout>;
+  return <Layout pageTitle={pageTitle}>{children}</Layout>;
 }
 
 function AppContent() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
         
         {/* Instructor Routes */}
         <Route path="/instructor" element={
@@ -71,6 +75,11 @@ function AppContent() {
             <InstructorAlerts />
           </ProtectedRoute>
         } />
+        <Route path="/instructor/reports" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorReports />
+          </ProtectedRoute>
+        } />
         <Route path="/instructor/developer" element={
           <ProtectedRoute requiredRole="instructor">
             <InstructorDeveloper />
@@ -79,17 +88,17 @@ function AppContent() {
         
         {/* Student Routes */}
         <Route path="/student" element={
-          <ProtectedRoute requiredRole="student">
-            <StudentExerciseList />
+          <ProtectedRoute requiredRole="student" pageTitle="Dashboard">
+            <StudentDashboard />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises" element={
-          <ProtectedRoute requiredRole="student">
+          <ProtectedRoute requiredRole="student" pageTitle="Exercises">
             <StudentExerciseList />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises/:exerciseId" element={
-          <ProtectedRoute requiredRole="student">
+          <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
             <StudentCodeEditor />
           </ProtectedRoute>
         } />
@@ -98,8 +107,65 @@ function AppContent() {
             <StudentProgress />
           </ProtectedRoute>
         } />
-        
-        <Route path="*" element={<Navigate to="/login" replace />} />
+
+        {/* Design-aligned URL paths (new aliases for design nav parity) */}
+        <Route path="/student/dashboard" element={
+          <ProtectedRoute requiredRole="student" pageTitle="Dashboard">
+            <StudentDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/code-editor" element={
+          <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
+            <StudentCodeEditor />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/code-editor/:exerciseId" element={
+          <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
+            <StudentCodeEditor />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/profile" element={
+          <ProtectedRoute requiredRole="student">
+            <StudentProfile />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/dashboard" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/my-sections" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorSections />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/students" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorSections />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/exercises" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorCreateExercise />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/integrity" element={
+          <ProtectedRoute requiredRole="instructor">
+            <AcademicIntegrityFlags />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/warnings" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorAlerts />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/violations" element={
+          <ProtectedRoute requiredRole="instructor">
+            <AcademicIntegrityFlags />
+          </ProtectedRoute>
+        } />
+
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
