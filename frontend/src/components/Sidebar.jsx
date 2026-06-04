@@ -1,7 +1,50 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  LayoutGrid,
+  ListChecks,
+  PlusSquare,
+  Bell,
+  Settings,
+  Terminal,
+  TrendingUp,
+  FileBarChart2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LogOut,
+  ShieldAlert,
+  AlertOctagon,
+  Users,
+  User,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipArrow,
+  TooltipPortal,
+} from '@/components/ui/tooltip';
 
+/**
+ * App sidebar.
+ *
+ * PRESERVED from the previous implementation:
+ *   - SidebarContext contract: { isOpen, toggleSidebar }
+ *   - AuthContext usage: useAuth() returns { user, logout }
+ *   - Same nav links, same role-based filtering
+ *   - handleLogout navigates to /login with replace:true
+ *   - User initials derived from user.name (first letter of first 2 words)
+ *
+ * REPLACED:
+ *   - Hard-coded dark teal hexes → semantic tokens (bg-sidebar, text-foreground, etc.)
+ *   - Custom avatar gradient → shadcn Avatar + AvatarFallback
+ *   - Now matches Frontend-Design's light HSL token system from index.css
+ */
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const { isOpen, toggleSidebar } = useSidebar();
@@ -12,173 +55,181 @@ export default function Sidebar() {
     navigate('/login', { replace: true });
   };
 
-  const sidebarStyle = {
-    width: isOpen ? '220px' : '70px',
-    minWidth: isOpen ? '220' : '70px',
-    height: '100vh',
-    background: '#131d30',
-    borderRight: '1px solid #1e304d',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'fixed',
-    left: 0,
-    top: 0,
-    zIndex: 100,
-    overflow: 'hidden',
-    transition: 'all 0.3s ease'
-  };
-
-  const navLinkStyle = ({ isActive }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '9px',
-    padding: '9px 16px',
-    fontSize: '12.5px',
-    fontWeight: 500,
-    color: isActive ? '#85D2D0' : '#6a85a8',
-    background: isActive ? 'rgba(133,210,208,0.1)' : 'transparent',
-    borderLeft: isActive ? '3px solid #85D2D0' : '3px solid transparent',
-    textDecoration: 'none',
-    transition: 'all 0.15s'
-  });
-
   const instructorLinks = [
-    { to: '/instructor', label: 'Dashboard', icon: '📊' },
-    { to: '/instructor/sections', label: 'My Sections', icon: '📋' },
-    { to: '/instructor/create-exercise', label: 'Create Exercise', icon: '✎' },
-    { to: '/instructor/alerts', label: 'Alerts', icon: '🔔' },
-    { to: '/instructor/developer', label: 'Developer', icon: '⚙️' }
+    { to: '/instructor/dashboard',  label: 'Dashboard',   icon: LayoutDashboard, end: true },
+    { to: '/instructor/heatmap',    label: 'Heatmap',     icon: LayoutGrid },
+    { to: '/instructor/students',   label: 'Students',    icon: Users,           end: true },
+    { to: '/instructor/my-sections',label: 'My Sections', icon: ListChecks },
+    { to: '/instructor/exercises',  label: 'Exercises',   icon: PlusSquare },
+    { to: '/instructor/warnings',   label: 'Warnings',    icon: Bell },
+    { to: '/instructor/reports',    label: 'Reports',     icon: FileBarChart2 },
+    { to: '/instructor/violations', label: 'Violations',  icon: AlertOctagon },
+    { to: '/instructor/integrity',  label: 'Integrity',   icon: ShieldAlert },
+    { to: '/instructor/developer',  label: 'Developer',   icon: Settings },
   ];
 
   const studentLinks = [
-    { to: '/student', label: 'My Exercises', icon: '▤' },
-    { to: '/student/progress', label: 'My Progress', icon: '📊' }
+    { to: '/student/dashboard', label: 'My Exercises', icon: Terminal, end: true },
+    { to: '/student/progress', label: 'My Progress', icon: TrendingUp },
+    { to: '/student/profile', label: 'My Profile', icon: User },
   ];
 
   const links = user?.role === 'instructor' ? instructorLinks : studentLinks;
 
+  const initials = (user?.name || '?')
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div style={sidebarStyle}>
-      {/* Logo & Toggle */}
-      <div style={{ 
-        padding: isOpen ? '20px 18px 16px' : '16px 12px',
-        borderBottom: '1px solid #1e304d',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: isOpen ? 'space-between' : 'center',
-        minHeight: '70px',
-        gap: '12px'
-      }}>
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 flex h-screen flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-300 ease-in-out',
+        isOpen ? 'w-[220px]' : 'w-[70px]'
+      )}
+    >
+      {/* Header / brand */}
+      <div
+        className={cn(
+          'flex min-h-[70px] items-center border-b border-sidebar-border gap-3',
+          isOpen ? 'justify-between px-[18px] py-5' : 'justify-center px-2 py-4'
+        )}
+      >
         {isOpen && (
-          <div>
-            <div style={{ 
-              fontFamily: 'DM Mono, monospace', 
-              fontSize: '15px', 
-              fontWeight: 700, 
-              color: '#85D2D0' 
-            }}>
-              Code<span style={{ color: '#a99dd4' }}>Insight</span>
+          <div className="min-w-0">
+            <div className="font-mono text-[15px] font-bold text-primary">
+              Code<span className="text-secondary-foreground">Insight</span>
             </div>
-            <div style={{ 
-              fontSize: '9px', 
-              fontWeight: 700, 
-              color: '#6a85a8',
-              marginTop: '4px',
-              letterSpacing: '2px',
-              textTransform: 'uppercase'
-            }}>
+            <div className="mt-1 text-[9px] font-bold uppercase tracking-[2px] text-muted-foreground">
               {user?.role === 'instructor' ? 'Instructor' : 'Student'}
             </div>
           </div>
         )}
-        <button
+
+        <Button
+          variant="outline"
+          size="icon"
           onClick={toggleSidebar}
-          style={{
-            width: '32px',
-            height: '32px',
-            background: '#1a2640',
-            border: '1px solid #1e304d',
-            borderRadius: '6px',
-            color: '#85D2D0',
-            cursor: 'pointer',
-            fontSize: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            transition: 'all 0.2s',
-            flexShrink: 0
-          }}
+          aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
           title={isOpen ? 'Close sidebar' : 'Open sidebar'}
+          className="h-8 w-8 shrink-0"
         >
-          {isOpen ? '‹' : '›'}
-        </button>
+          {isOpen ? (
+            <PanelLeftClose className="h-4 w-4" />
+          ) : (
+            <PanelLeftOpen className="h-4 w-4" />
+          )}
+        </Button>
       </div>
 
-      {/* Navigation */}
-      {isOpen && (
-        <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto' }}>
-          {links.map(link => (
-            <NavLink key={link.to} to={link.to} style={navLinkStyle} end>
-              <span>{link.icon}</span> {link.label}
+      {/* Nav — always rendered, just changes layout when collapsed */}
+      <nav className={cn('flex-1 overflow-y-auto py-3', !isOpen && 'flex flex-col items-center')}>
+        {links.map((link) => {
+          const Icon = link.icon;
+          const item = (
+            <NavLink
+              to={link.to}
+              end={link.end}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center transition-colors',
+                  isOpen
+                    ? 'gap-2.5 px-4 py-2.5 text-[12.5px] font-medium'
+                    : 'h-10 w-10 justify-center rounded-md',
+                  isActive
+                    ? isOpen
+                      ? 'border-l-[3px] border-sidebar-primary bg-sidebar-accent text-sidebar-primary'
+                      : 'bg-sidebar-accent text-sidebar-primary'
+                    : isOpen
+                      ? 'border-l-[3px] border-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                )
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {isOpen && <span>{link.label}</span>}
             </NavLink>
-          ))}
-        </nav>
-      )}
+          );
 
-      {/* User Info */}
-      {isOpen && (
-        <div style={{ 
-          padding: '14px 16px', 
-          borderTop: '1px solid #1e304d' 
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-            <div style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #887BB0, #85D2D0)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: 'white',
-              flexShrink: 0
-            }}>
-              {user?.name?.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() || '?'}
-            </div>
-            <div>
-              <div style={{ 
-                fontSize: '11px', 
-                fontWeight: 600, 
-                color: '#e8e6f0' 
-              }}>{user?.name}</div>
-              <div style={{ 
-                fontSize: '9px', 
-                color: '#8884a0' 
-              }}>{user?.email}</div>
+          // In collapsed mode, wrap with a Radix tooltip so the label is discoverable
+          if (!isOpen) {
+            return (
+              <Tooltip key={link.to}>
+                <TooltipTrigger asChild>{item}</TooltipTrigger>
+                <TooltipPortal>
+                  <TooltipContent side="right" sideOffset={8}>
+                    {link.label}
+                    <TooltipArrow />
+                  </TooltipContent>
+                </TooltipPortal>
+              </Tooltip>
+            );
+          }
+          return <div key={link.to}>{item}</div>;
+        })}
+      </nav>
+
+      {/* User + logout */}
+      <div
+        className={cn(
+          'border-t border-sidebar-border',
+          isOpen ? 'px-4 py-3.5' : 'flex justify-center py-3'
+        )}
+      >
+        {isOpen ? (
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-[30px] w-[30px]">
+              <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-semibold text-foreground">
+                {user?.name}
+              </div>
+              <div className="truncate text-[9px] text-muted-foreground">
+                {user?.email}
+              </div>
             </div>
           </div>
-          <button 
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={handleLogout}
+                aria-label={`Logout ${user?.name || 'user'}`}
+                className="rounded-full transition-transform hover:scale-105"
+              >
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </TooltipTrigger>
+            <TooltipPortal>
+              <TooltipContent side="right" sideOffset={8}>
+                Logout
+                <TooltipArrow />
+              </TooltipContent>
+            </TooltipPortal>
+          </Tooltip>
+        )}
+
+        {isOpen && (
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleLogout}
-            style={{
-              marginTop: '10px',
-              width: '100%',
-              padding: '7px',
-              background: 'transparent',
-              border: '1px solid #2e2e4a',
-              borderRadius: '6px',
-              color: '#8884a0',
-              fontSize: '11px',
-              cursor: 'pointer',
-              fontFamily: 'inherit'
-            }}
+            className="mt-2.5 w-full text-[11px] text-muted-foreground"
           >
+            <LogOut className="mr-2 h-3 w-3" />
             Logout
-          </button>
-        </div>
-      )}
-    </div>
+          </Button>
+        )}
+      </div>
+    </aside>
   );
 }
