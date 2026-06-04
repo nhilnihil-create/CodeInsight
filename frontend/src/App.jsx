@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
+import { ThemeProvider } from './lib/theme.jsx';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import InstructorDashboard from './pages/instructor/Dashboard';
@@ -175,7 +176,9 @@ function App() {
   return (
     <ErrorBoundary>
       <SidebarProvider>
-        <AppContent />
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
       </SidebarProvider>
     </ErrorBoundary>
   );
