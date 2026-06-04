@@ -1,530 +1,124 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import api from '../../services/api';
-import { useSidebar } from '../../context/SidebarContext';
-import analyticsService from '../../api/analyticsService';
-import MicroConceptAlertCard from '../../components/analytics/MicroConceptAlertCard';
-import ClassMisconceptionReport from '../../components/analytics/ClassMisconceptionReport';
-import LongitudinalProgressChart from '../../components/analytics/LongitudinalProgressChart';
-import IntegrityMonitoringBanner from '../../components/analytics/IntegrityMonitoringBanner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, Code2, AlertTriangle, Activity } from "lucide-react";
+import { Link } from "react-router-dom";
+import ClassMisconceptionReport from "@/components/analytics/ClassMisconceptionReport";
+import IntegrityMonitoringBanner from "@/components/analytics/IntegrityMonitoringBanner";
 
 export default function InstructorDashboard() {
-  const { isOpen } = useSidebar();
-  const [sections, setSections] = useState([]);
-  const [selectedSectionId, setSelectedSectionId] = useState(null);
-  const [selectedSection, setSelectedSection] = useState(null);
-  const [heatmapData, setHeatmapData] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  // New analytics features state
-  const [microConceptAlerts, setMicroConceptAlerts] = useState([]);
-  const [classMisconceptionReport, setClassMisconceptionReport] = useState(null);
-  const [selectedStudentProgress, setSelectedStudentProgress] = useState(null);
-  const [integrityFlags, setIntegrityFlags] = useState([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState(null);
-  const [showMisconceptionModal, setShowMisconceptionModal] = useState(false);
-
-  const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
-
-  useEffect(() => {
-    fetchSections();
-  }, []);
-
-  useEffect(() => {
-    if (selectedSectionId) {
-      fetchAnalytics(selectedSectionId);
-    }
-  }, [selectedSectionId]);
-
-  const fetchSections = async () => {
-    try {
-      const res = await api.get('/api/sections');
-      setSections(res.data || []);
-      if (res.data && res.data.length > 0) {
-        setSelectedSectionId(res.data[0].id);
-        setSelectedSection(res.data[0]);
-      }
-    } catch (err) {
-      setError('Failed to load sections: ' + (err.response?.data?.message || err.message));
-      console.error('Sections fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAnalytics = async (sectionId) => {
-    setAnalyticsLoading(true);
-    try {
-      const [heatRes, alertRes, microRes] = await Promise.all([
-        api.get(`/api/analytics/heatmap/${sectionId}`),
-        api.get(`/api/analytics/alerts/${sectionId}`),
-        analyticsService.getAlerts(sectionId).catch(() => ({ data: [] }))
-      ]);
-      setHeatmapData(heatRes.data);
-      setAlerts(alertRes.data || []);
-      setMicroConceptAlerts(microRes.data || []);
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
-  const handleSectionChange = (sectionId) => {
-    setSelectedSectionId(sectionId);
-    const section = sections.find(s => s.id === sectionId);
-    setSelectedSection(section);
-  };
-
-  const formatCDS = (value) => {
-    if (value === null || value === undefined) return '—';
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return isNaN(num) ? '—' : num.toFixed(2);
-  };
-
-  const getDifficulty = (cds) => {
-    if (cds === null || cds === undefined) return 'unscored';
-    if (cds <= 0.33) return 'low';
-    if (cds <= 0.66) return 'moderate';
-    return 'high';
-  };
-
-  const getModerateRiskCount = () => {
-    if (!heatmapData) return 0;
-    const seen = new Set();
-    let count = 0;
-    for (const concept in heatmapData.classAverages) {
-      const scores = Object.values(heatmapData.scores).map(s => s[concept]?.cds).filter(s => s !== undefined && s !== null);
-      const moderate = scores.filter(s => {
-        const num = typeof s === 'string' ? parseFloat(s) : s;
-        return num > 0.33 && num <= 0.66;
-      }).length;
-    }
-    // Count students with at least one moderate score
-    for (const studentId in heatmapData.scores) {
-      const hasModerate = CONCEPT_ORDER.some(concept => {
-        const score = heatmapData.scores[studentId][concept];
-        if (!score) return false;
-        const cds = typeof score.cds === 'string' ? parseFloat(score.cds) : score.cds;
-        return cds > 0.33 && cds <= 0.66;
-      });
-      if (hasModerate && !seen.has(studentId)) {
-        seen.add(studentId);
-        count++;
-      }
-    }
-    return count;
-  };
-
-  const getHighDifficultyCount = () => {
-    if (!heatmapData) return 0;
-    const seen = new Set();
-    for (const studentId in heatmapData.scores) {
-      const hasHigh = CONCEPT_ORDER.some(concept => {
-        const score = heatmapData.scores[studentId][concept];
-        if (!score) return false;
-        const cds = typeof score.cds === 'string' ? parseFloat(score.cds) : score.cds;
-        return cds > 0.66;
-      });
-      if (hasHigh) seen.add(studentId);
-    }
-    return seen.size;
-  };
-
-  const handleLoadMisconceptionReport = async (exerciseId) => {
-    try {
-      const res = await analyticsService.getClassMisconceptionReport(exerciseId);
-      setClassMisconceptionReport(res.data);
-      setShowMisconceptionModal(true);
-    } catch (err) {
-      console.error('Error loading misconception report:', err);
-    }
-  };
-
-  const handleLoadStudentProgress = async (studentId) => {
-    try {
-      const res = await analyticsService.getLongitudinalProgress(studentId, null, selectedSectionId);
-      setSelectedStudentProgress(res.data);
-    } catch (err) {
-      console.error('Error loading student progress:', err);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
-        Loading dashboard...
-      </div>
-    );
-  }
-
-  if (sections.length === 0) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#8884a0' }}>
-        No sections yet. <Link to="/instructor/sections" style={{ color: '#85D2D0' }}>Create one</Link> to get started!
-      </div>
-    );
-  }
-
   return (
-    <div style={{ 
-      padding: '28px 28px 28px 16px',
-      width: '100%',
-      boxSizing: 'border-box',
-      background: '#0c1220',
-      minHeight: '100%'
-    }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', gap: '16px', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: '17px', fontWeight: 700, color: '#e8e6f0', marginBottom: '2px' }}>
-              Difficulty Analytics Dashboard
-            </div>
-            {selectedSection && (
-              <div style={{ fontSize: '11px', color: '#8884a0' }}>
-                {selectedSection.course_code} · {selectedSection.name} · AY 2025–2026 · {selectedSection.student_count} students
-              </div>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button style={{
-              padding: '8px 16px',
-              background: 'transparent',
-              border: '1px solid #2e2e4a',
-              borderRadius: '8px',
-              color: '#8884a0',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.15s'
-            }}>
-              Export Report
-            </button>
-            <Link
-              to="/instructor/create-exercise"
-              style={{
-                padding: '8px 16px',
-                background: '#85D2D0',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#0f0f1a',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontSize: '12px',
-                textDecoration: 'none',
-                display: 'inline-block'
-              }}
-            >
-              + New Exercise
-            </Link>
-          </div>
-        </div>
-
-        {/* Section Selector */}
-        {sections.length > 1 && (
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: '#8884a0', marginBottom: '8px', display: 'block' }}>
-              Select Section
-            </label>
-            <select
-              value={selectedSectionId || ''}
-              onChange={(e) => handleSectionChange(parseInt(e.target.value))}
-              style={{
-                padding: '8px 12px',
-                background: '#1a1a2e',
-                border: '1px solid #2e2e4a',
-                borderRadius: '8px',
-                color: '#e8e6f0',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
-            >
-              {sections.map(s => (
-                <option key={s.id} value={s.id}>{s.course_code} - {s.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {analyticsLoading ? (
-          <div style={{ color: '#8884a0', textAlign: 'center', padding: '40px' }}>Loading analytics...</div>
-        ) : heatmapData && selectedSection ? (
-          <>
-            {/* Stats Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '28px' }}>
-              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #85D2D0' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
-                  Total Students
-                </div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '26px', fontWeight: 700, color: '#e8e6f0' }}>
-                  {selectedSection.student_count || 0}
-                </div>
-                <div style={{ fontSize: '10px', color: '#8884a0', marginTop: '4px' }}>
-                  Section active
-                </div>
-              </div>
-
-              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #a99dd4' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
-                  Concepts Covered
-                </div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '26px', fontWeight: 700, color: '#e8e6f0' }}>
-                  {(selectedSection.concept_count || CONCEPT_ORDER.length)}
-                </div>
-                <div style={{ fontSize: '10px', color: '#8884a0', marginTop: '4px' }}>
-                  of {CONCEPT_ORDER.length} planned
-                </div>
-              </div>
-
-              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #fbbf24' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
-                  Moderate Risk
-                </div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '26px', fontWeight: 700, color: '#e8e6f0' }}>
-                  {getModerateRiskCount()}
-                </div>
-                <div style={{ fontSize: '10px', color: '#8884a0', marginTop: '4px' }}>
-                  students flagged
-                </div>
-              </div>
-
-              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px 18px', position: 'relative', overflow: 'hidden', borderRight: '3px solid #f87171' }}>
-                <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#8884a0', marginBottom: '8px' }}>
-                  High Difficulty
-                </div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '26px', fontWeight: 700, color: '#e8e6f0' }}>
-                  {getHighDifficultyCount()}
-                </div>
-                <div style={{ fontSize: '10px', color: '#8884a0', marginTop: '4px' }}>
-                  need intervention
-                </div>
-              </div>
-            </div>
-
-            {/* Heatmap Section */}
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#e8e6f0', letterSpacing: '0.3px' }}>
-                  Concept Difficulty Heatmap — Class Overview
-                </div>
-                <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                  {[['#4ade80', 'Low'], ['#fbbf24', 'Moderate'], ['#f87171', 'High'], ['#1e304d', 'Unscored']].map(([color, label]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#8884a0' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: color }}></div>
-                      {label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Heatmap Table */}
-            <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #1e304d', background: '#1a2640' }}>
-                    <th style={{ padding: '10px 12px', fontSize: '10px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'left', minWidth: '130px' }}>
-                      Student
-                    </th>
-                    {CONCEPT_ORDER.map(concept => (
-                      <th key={concept} style={{ padding: '10px 12px', fontSize: '10px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase', color: '#8884a0', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {concept}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {heatmapData.students.map(student => (
-                    <tr key={student.id} style={{ borderBottom: '1px solid #1e304d' }}>
-                      <td style={{ padding: '8px 12px', fontSize: '12px' }}>
-                        <div style={{ fontWeight: 600, color: '#e8e6f0', fontSize: '12px' }}>
-                          {student.name}
-                        </div>
-                      </td>
-                      {CONCEPT_ORDER.map(concept => {
-                        const score = heatmapData.scores[student.id]?.[concept];
-                        const cds = score?.cds;
-                        const cdsNum = typeof cds === 'string' ? parseFloat(cds) : cds;
-                        const difficulty = getDifficulty(cdsNum);
-                        
-                        const cellStyles = {
-                          low: { background: 'rgba(74,222,128,0.12)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)' },
-                          moderate: { background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' },
-                          high: { background: 'rgba(248,113,113,0.14)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' },
-                          unscored: { background: 'rgba(30,48,77,0.3)', color: '#8884a0', border: '1px solid #1e304d' }
-                        };
-
-                        return (
-                          <td key={concept} style={{ padding: '8px 12px', textAlign: 'center' }}>
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '54px',
-                              height: '28px',
-                              borderRadius: '6px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              fontFamily: "'Space Mono', monospace",
-                              letterSpacing: '0.5px',
-                              ...cellStyles[difficulty]
-                            }}>
-                              {formatCDS(cdsNum)}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Row: Alerts + Class Averages */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '14px' }}>
-              {/* Alerts Panel */}
-              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e304d', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1a2640' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e6f0' }}>
-                    ⚠ Early Warning Alerts
-                  </div>
-                  <div style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px', border: '1px solid rgba(248,113,113,0.3)' }}>
-                    {alerts.length} students
-                  </div>
-                </div>
-                <div>
-                  {alerts.slice(0, 5).map((alert, idx) => (
-                    <div key={idx} style={{ padding: '12px 16px', borderBottom: idx < Math.min(5, alerts.length - 1) ? '1px solid #1e304d' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#e8e6f0' }}>
-                          {alert.student_name}
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#8884a0', marginTop: '2px' }}>
-                          High difficulty · {alert.exercise_title}
-                        </div>
-                      </div>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '12px', fontWeight: 700, color: '#f87171' }}>
-                        {formatCDS(alert.cds_score)}
-                      </div>
-                    </div>
-                  ))}
-                  {alerts.length === 0 && (
-                    <div style={{ padding: '12px 16px', textAlign: 'center', color: '#8884a0', fontSize: '12px' }}>
-                      No alerts — great job!
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Class Average by Concept */}
-              <div style={{ background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #1e304d', background: '#1a2640' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#e8e6f0' }}>
-                    Class Average CDS by Concept
-                  </div>
-                </div>
-                <div style={{ padding: '16px' }}>
-                  {CONCEPT_ORDER.map(concept => {
-                    const avg = heatmapData.classAverages[concept];
-                    const avgNum = avg?.avgCDS ? (typeof avg.avgCDS === 'string' ? parseFloat(avg.avgCDS) : avg.avgCDS) : null;
-                    const difficulty = getDifficulty(avgNum);
-                    const widths = {
-                      low: avgNum ? Math.min(avgNum * 100, 100) : 0,
-                      moderate: avgNum ? Math.min(avgNum * 100, 100) : 0,
-                      high: avgNum ? Math.min(avgNum * 100, 100) : 0,
-                      unscored: 0
-                    };
-                    const barColor = difficulty === 'low' ? '#4ade80' : difficulty === 'moderate' ? '#fbbf24' : difficulty === 'high' ? '#f87171' : '#1e304d';
-                    
-                    return (
-                      <div key={concept} style={{ marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: '#e8e6f0' }}>{concept}</span>
-                          <span style={{ fontSize: '10px', fontFamily: "'Space Mono', monospace", color: '#8884a0' }}>
-                            {formatCDS(avgNum)} · {avg?.classification || 'Unscored'}
-                          </span>
-                        </div>
-                        <div style={{ background: '#0a1018', borderRadius: '4px', height: '7px', overflow: 'hidden', position: 'relative' }}>
-                          <div style={{
-                            height: '100%',
-                            borderRadius: '4px',
-                            background: barColor,
-                            width: avgNum ? `${Math.min(avgNum * 100, 100)}%` : '0%',
-                            transition: 'width 0.6s ease'
-                          }}></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* NEW: Integrity Monitoring Banner */}
-              <div style={{ marginTop: '20px' }}>
-                <IntegrityMonitoringBanner flaggedSubmissions={integrityFlags} />
-              </div>
-
-              {/* NEW: Micro-Concept Alerts Section */}
-              {microConceptAlerts.length > 0 && (
-                <div style={{ marginTop: '28px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#e8e6f0', marginBottom: '16px' }}>
-                    📚 Micro-Concept Alerts for High/Moderate CDS Students
-                  </div>
-                  <div style={{ display: 'grid', gap: '12px' }}>
-                    {microConceptAlerts.slice(0, 5).map(alert => (
-                      <MicroConceptAlertCard 
-                        key={alert.id} 
-                        alert={alert}
-                        onDismiss={() => setMicroConceptAlerts(microConceptAlerts.filter(a => a.id !== alert.id))}
-                      />
-                    ))}
-                  </div>
-                  {microConceptAlerts.length > 5 && (
-                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
-                      <button style={{
-                        padding: '8px 14px',
-                        background: 'transparent',
-                        border: '1px solid #1e304d',
-                        color: '#85D2D0',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '600'
-                      }}>
-                        View All {microConceptAlerts.length} Alerts
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* NEW: Class Misconception Report Modal */}
-              {showMisconceptionModal && (
-                <ClassMisconceptionReport 
-                  report={classMisconceptionReport}
-                  onClose={() => setShowMisconceptionModal(false)}
-                />
-              )}
-
-              {/* NEW: Student Longitudinal Progress (if selected) */}
-              {selectedStudentProgress && (
-                <div style={{ marginTop: '28px', background: '#131d30', border: '1px solid #1e304d', borderRadius: '12px', padding: '16px' }}>
-                  <LongitudinalProgressChart 
-                    data={selectedStudentProgress}
-                    studentName={selectedStudentProgress.studentName}
-                  />
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div style={{ color: '#8884a0', textAlign: 'center', padding: '40px' }}>
-            No analytics data available
-          </div>
-        )}
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Instructor Dashboard</h1>
+        <p className="text-muted-foreground">Class overview and active alerts.</p>
       </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            <Users className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">142</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Exercises</CardTitle>
+            <Code2 className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">8</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-destructive/5 border-destructive/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-destructive">Critical Alerts</CardTitle>
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">12</div>
+            <Link to="/instructor/warnings" className="text-xs text-destructive hover:underline mt-1 inline-block">View all warnings</Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Class CDS</CardTitle>
+            <Activity className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">42.5</div>
+            <p className="text-xs text-muted-foreground">Medium Difficulty</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Class Concept Averages</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { name: "Datatypes", cds: 22 },
+                { name: "Variables", cds: 28 },
+                { name: "Conditionals", cds: 45 },
+                { name: "Loops", cds: 68 },
+                { name: "Functions", cds: 55 },
+                { name: "Arrays", cds: 72 },
+                { name: "OOP", cds: 30 }
+              ].map((concept) => (
+                <div key={concept.name} className="flex items-center">
+                  <div className="w-24 text-sm font-medium">{concept.name}</div>
+                  <div className="flex-1 flex items-center gap-2">
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${concept.cds > 75 ? 'bg-destructive' : concept.cds > 50 ? 'bg-orange-500' : concept.cds > 25 ? 'bg-blue-500' : 'bg-green-500'}`}
+                        style={{ width: `${concept.cds}%` }}
+                      />
+                    </div>
+                    <div className="w-8 text-right text-xs text-muted-foreground font-mono">{concept.cds}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {[
+                { user: "Alex Santos", action: "Triggered alert on Loops", time: "10m ago" },
+                { user: "Maria Garcia", action: "Passed Array Reversal", time: "25m ago" },
+                { user: "John Doe", action: "Integrity flag on Basic Loops", time: "1h ago" },
+                { user: "System", action: "Generated weekly report", time: "2h ago" },
+              ].map((item, i) => (
+                <div key={i} className="flex flex-col gap-1 pb-3 border-b last:border-0 last:pb-0">
+                  <div className="text-sm font-medium">{item.user}</div>
+                  <div className="text-xs text-muted-foreground">{item.action}</div>
+                  <div className="text-[10px] text-muted-foreground/70">{item.time}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Class Misconceptions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ClassMisconceptionReport embedded />
+        </CardContent>
+      </Card>
+
+      <IntegrityMonitoringBanner />
+    </div>
   );
 }
