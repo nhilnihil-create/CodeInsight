@@ -16,6 +16,7 @@ export const MONACO_THEMES = {
 };
 
 export function registerMonacoThemes(monaco) {
+  if (!monaco || !monaco.editor) return;
   monaco.editor.defineTheme('ci-light', {
     base: 'vs',
     inherit: true,
