@@ -84,9 +84,21 @@ const notifyStudent = async (exerciseId, message) => {
       }
     }
 
-    // Send emails if enabled
-    if (process.env.EMAIL_ENABLED === 'true') {
-      await sendEmailNotifications(studentsRes.rows, message, exerciseId);
+    // Send emails if enabled and configured
+    const emailEnabled = process.env.EMAIL_ENABLED &&
+      ['true', 'True', 'TRUE', 'yes', 'Yes', 'YES', '1', 'on'].includes(process.env.EMAIL_ENABLED);
+
+    if (emailEnabled) {
+      // Check if email credentials are configured
+      if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.warn('[Notification] Email credentials incomplete - skipping email notifications');
+      } else {
+        console.log('[Notification] Attempting to send email notifications...');
+        await sendEmailNotifications(studentsRes.rows, message, exerciseId);
+        console.log('[Notification] Email notifications processed');
+      }
+    } else {
+      console.log('[Notification] Email notifications disabled (EMAIL_ENABLED not set to true value)');
     }
   } catch (err) {
     console.error('Error in notifyStudent:', err);
@@ -123,7 +135,7 @@ async function sendEmailNotifications(students, message, exerciseId) {
     // Send email to each student
     for (const student of students) {
       const mailOptions = {
-        from: process.env.EMAIL_FROM,
+        from: process.env.EMAIL_FROM || 'noreply@codeinsight.psu.edu',
         to: student.email,
         subject: `CodeInsight: CDS Computation Complete for ${exerciseTitle}`,
         text: `
