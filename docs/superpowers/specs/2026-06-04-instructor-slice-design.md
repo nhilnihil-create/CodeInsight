@@ -38,6 +38,15 @@
 
 ## 2. Architecture
 
+### 2.0 Two cross-cutting additions
+
+In addition to the 10 instructor pages, this slice ships two cross-cutting concerns that apply to both student and instructor routes:
+
+1. **3-theme toggle** — a 3-way theme switcher (light = current Frontend-Design, dark teal = pre-design CodeInsight palette reconstructed from git history, PSU = maroon + gold + white) accessible from the top-right of every page. Persisted to `localStorage` only.
+2. **Monaco code editor restoration** — replace the `<textarea>` in `frontend/src/pages/student/CodeEditor.jsx` with `@monaco-editor/react`, registering 3 Monaco themes (one per app theme) so the editor's chrome matches the page chrome.
+
+These are scoped here in the same spec because the user requested them in the same conversation as the instructor-slice brainstorm. They are independent of the 10 instructor pages and could be sliced out into their own plans; doing it together keeps the UI coherent (theme toggle ships with the redesigned pages, Monaco ships while the CodeEditor is being touched in scope of the student code editor work).
+
 ### 2.1 Porting pattern (proven in student slice)
 
 The instructor slice mirrors the student slice's TSX→JSX port pattern exactly:
@@ -113,6 +122,76 @@ import ClassMisconceptionReport from '@/components/analytics/ClassMisconceptionR
 
 The component's existing CSS file (`ClassMisconceptionReport.css`, etc.) is imported in the **host page's** imports (or, if the host page doesn't import it, we add a one-line `import './ClassMisconceptionReport.css';` to the host page). The component file itself is not edited.
 
+### 2.4 Theme system architecture
+
+The app supports **3 themes** switched at runtime by a top-right toggle:
+
+| Key | Name | Description |
+| --- | --- | --- |
+| `light` | Light (default) | The current Frontend-Design palette, expressed in `index.css` as `:root` CSS custom properties |
+| `dark` | Dark teal | The pre-design CodeInsight palette reconstructed from commits `b4016ff` (Sidebar) and `62fa4cd` (index.css) |
+| `psu` | Pampanga State University | Maroon primary (`#7B0F1B`), gold accent (`#FFC72C`), white background |
+
+**Mechanism:** A `<html data-theme="...">` attribute, plus theme-scoped CSS custom properties. We extend the existing `index.css` shadcn token block with theme-specific overrides:
+
+```css
+:root { /* light (default) — unchanged */
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  /* ... current tokens ... */
+}
+
+[data-theme="dark"] {
+  --background: 224 53% 8%;   /* #0c1220 */
+  --foreground: 215 32% 86%;  /* #dce8f5 */
+  --card: 222 39% 13%;        /* #131d30 */
+  --card-foreground: 215 32% 86%;
+  --primary: 176 50% 67%;     /* #85D2D0 teal */
+  --primary-foreground: 224 53% 8%;
+  --muted: 218 36% 27%;       /* #1a2640 */
+  --muted-foreground: 213 24% 56%;  /* #6a85a8 */
+  --border: 213 41% 22%;      /* #1e304d */
+  --sidebar: 240 24% 9%;      /* #0f0f1a */
+  --sidebar-border: 240 17% 24%;  /* #2e2e4a */
+  /* secondary tokens (--accent, --destructive, --ring) get parallel overrides */
+}
+
+[data-theme="psu"] {
+  --background: 0 0% 100%;
+  --foreground: 350 78% 27%;  /* maroon #7B0F1B */
+  --card: 0 0% 100%;
+  --card-foreground: 350 78% 27%;
+  --primary: 350 78% 27%;     /* maroon */
+  --primary-foreground: 0 0% 100%;
+  --accent: 45 100% 59%;      /* gold #FFC72C */
+  --accent-foreground: 350 78% 27%;
+  --border: 350 30% 80%;
+  --sidebar: 350 78% 27%;     /* maroon sidebar */
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 350 50% 35%;
+  --sidebar-primary: 45 100% 59%;
+  --sidebar-primary-foreground: 350 78% 27%;
+}
+```
+
+Every shadcn primitive already references these tokens (`bg-background`, `text-foreground`, `bg-card`, `bg-sidebar`, etc.), so no page JSX needs to change. Components like the `Sidebar.jsx` background (`bg-sidebar`) and the destructive badge (`bg-destructive`) automatically re-skin.
+
+**State management:** a tiny `useTheme()` hook (in `frontend/src/lib/theme.js`) reads/writes a single `localStorage` key `codeinsight:theme`, defaults to `light`, and writes the value to `<html data-theme>` on mount + on change.
+
+**Default:** `light` (the Frontend-Design blue palette the student slice is already on). This means the toggle is the only thing the user has to touch to see the new themes; nothing else changes by default.
+
+**First-load behavior:** `useTheme()` synchronously reads `localStorage.getItem('codeinsight:theme')` inside a `useLayoutEffect` (so there's no flash of the wrong theme on refresh). If the value is missing or unrecognized, the default is `light` and no `data-theme` attribute is set — meaning `:root` tokens apply, which IS the light theme. (No migration story needed; the first release ships with the toggle and users who haven't picked a theme are unaffected.)
+
+**Role-switching:** the theme is per-browser, not per-user. When a user logs out and back in (or switches between a student and instructor account in the same browser), the theme persists. The login page is the only page that doesn't show the toggle (it has its own layout).
+
+**Monaco integration:** `frontend/src/lib/monacoThemes.js` registers 3 Monaco themes (`ci-light`, `ci-dark-teal`, `ci-psu`) via `monaco.editor.defineTheme()`. The `CodeEditor` page uses a `useEffect` that watches the `useTheme()` value and calls `monaco.editor.setTheme()` to swap. Monaco theme tokens are independent of the CSS custom properties (Monaco doesn't read CSS vars at runtime), so the 3 Monaco themes are hand-mapped in JS to mirror the 3 app palettes.
+
+### 2.5 Per-page edit boundaries
+
+- **In scope of the instructor-slice touches:** `Layout.jsx` (add `<ThemeToggle />` to the sticky top bar), `index.css` (add 2 theme-scoped blocks), `App.jsx` (`<ThemeProvider>` wrap), and the 10 new/overwritten instructor pages.
+- **In scope of the Monaco touches:** `CodeEditor.jsx` (replace `<textarea>` with Monaco, port the legacy's feature set), plus 1 new `monacoThemes.js` file. No other page uses Monaco.
+- **Untouched by this slice but living in the same project:** all `analytics/*` components, the existing instructor-only `Developer.jsx`, the student `Dashboard.jsx`/`Exercises.jsx` (which the slice inherits from the prior session), and the login/landing pages.
+
 ---
 
 ## 3. Per-Page Port Matrix
@@ -131,14 +210,49 @@ All paths are relative to `frontend/src/`. New files are created; old files are 
 | 8 | `pages/instructor/Reports.jsx` | `pages/instructor/Reports.jsx` (current) | 100 | `ClassWideLongitudinalChart`, `LongitudinalTab`, `charts/ResponsiveLineChart` |
 | 9 | `pages/instructor/Violations.jsx` | (no direct equivalent — closest is a section in `SectionDetail.jsx`) | 65 | none |
 | 10 | `pages/instructor/Integrity.jsx` | `pages/instructor/AcademicIntegrityFlags.jsx` | 88 | `IntegrityFlagDropdown`, `IntegrityMonitoringBanner` |
+| 11 | `pages/student/CodeEditor.jsx` (overwrite — Monaco) | `pages/student/CodeEditor.jsx` (current `<textarea>` version, ported in the student slice) | 473 (ported from legacy commit `62fa4cd`) | none |
 
-**Total LOC to port:** ~1,090 lines (TSX → JSX).
+**Total LOC to port:** ~990 instructor lines (TSX → JSX) + 473 student lines (Monaco port from legacy).
 
-**Net file count change:** 0 (10 new files, 10 old files deleted; the new files just live at different paths/names — e.g., `Sections.jsx` → `Students.jsx`, `Alerts.jsx` → `Warnings.jsx`, `CreateExercise.jsx` + `EditExercise.jsx` → `Exercises.jsx` + `ExerciseForm.jsx`).
+**Net file count change:** +1 student page (CodeEditor.jsx is overwritten in place — no rename). The 10 instructor pages net to 0 (10 new, 10 old deleted).
 
 **Net route count change:** 0 (the 10 design-aligned routes replace the 10 CodeInsight routes; old paths kept as aliases).
 
 **`Developer.jsx` is untouched** and stays on its existing `/instructor/developer` route.
+
+### 3.1 Monaco code editor scope (row 11)
+
+The student `CodeEditor.jsx` is the only page in this slice that uses a code editor, and the user has requested Monaco over the current `<textarea>`. We port the legacy implementation from commit `62fa4cd` (473 lines), preserving its feature set faithfully:
+
+**Carried over from legacy:**
+- 2-tab output panel: **Output** (per-test stdout/stderr) and **Compiler Log** (parsed error blocks with code-context highlighting and click-to-jump-to-line).
+- **Run** and **Submit** buttons in the top-right of the editor, with a **Stop** button that fires during an in-flight run via `AbortController`.
+- **Deadline countdown** in the page header (only when the exercise has a `deadline`), ticking down every second.
+- **Attempt history** list below the output panel (most recent first).
+- **Per-line error highlighting** in the editor: when a compiler error is reported at line N, the editor reveals the line, sets the cursor there, and `setHighlightedLine(N)` adds a translucent red overlay.
+- **Editor ref** (`editorRef`) so the parent can call `revealLineInCenter` / `setPosition` from the error-block click handler.
+- **Space Mono** monospace font for the terminal output panel.
+
+**Replaced from the textarea version (current student-slice file):**
+- The VS Code-style dark `<div>` chrome + plain `<Textarea>` → `<Editor>` from `@monaco-editor/react` with `theme="ci-light"` / `"ci-dark-teal"` / `"ci-psu"` (the Monaco theme name tracks the app theme — see §2.4).
+- The two `<Button>` rows become a single compact row with `Run` / `Submit` / `Stop` based on `running` / `submitting` state.
+- The mock stdout rendering (from `MOCK_EXERCISES[i].testCases`) stays — the editor's value is the same React state, so the "Run" mock handler just reads the same `code` state and renders the same per-test output.
+
+**Carried over from the student-slice file:**
+- The two-panel layout (left: description + test cases, right: editor + output).
+- The `useParams().exerciseId` lookup against `MOCK_EXERCISES`.
+- The "✓ All tests passed" submission banner.
+- The shadcn `Card` shell around the left panel (matches the design's information architecture).
+
+**New in this slice (Monaco-specific):**
+- `onMount` callback that stashes the Monaco editor instance in `editorRef.current` for the error-jump handler.
+- `onChange` callback that updates the same `code` state the textarea used.
+- A second `useEffect` that watches `useTheme()` and calls `monaco.editor.setTheme()` to swap Monaco themes live (the toggle works mid-edit without re-mounting the editor).
+
+**Out of scope (kept simple):**
+- Multi-language support: the editor is hard-coded to `language="cpp"`. All current `MOCK_EXERCISES` are C++, and a language picker would be a follow-up slice.
+- Per-exercise stored language: same as above.
+- Live collaboration / shared cursors / language server: not in the legacy, not in the new scope.
 
 ---
 
@@ -246,6 +360,100 @@ The student slice already added `MOCK_USERS`, `MOCK_EXERCISES`, `MOCK_RADAR_DATA
 
 The existing `Layout` component accepts an optional `pageTitle` prop and renders it in a sticky `bg-card/80` header. All 10 new pages pass `pageTitle` to `ProtectedRoute` so the header reads "Dashboard", "Students", etc. — matching the design's `<h1>` content. The mapping is in the routes table in §4.1.
 
+The sticky top bar is also where the **theme toggle** (next section) lives, anchored to the right of the `pageTitle`.
+
+### 5.5 ThemeToggle (top-right of every page)
+
+A new `frontend/src/components/ThemeToggle.jsx` component renders in the sticky top bar of `Layout`. It's a 3-button segmented control with a sun/moon/PSU-shield icon for each option. Visual style matches the shadcn `Button` `variant="outline"` with `size="sm"`, plus an `aria-pressed` for the active theme.
+
+```jsx
+<button
+  aria-label="Theme: Light"
+  aria-pressed={theme === 'light'}
+  onClick={() => setTheme('light')}
+  className={cn(
+    'h-8 w-8 rounded-md border border-border bg-card hover:bg-muted',
+    theme === 'light' && 'ring-2 ring-primary'
+  )}
+>
+  <Sun className="h-4 w-4" />
+</button>
+<button aria-label="Theme: Dark teal" aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')} … >
+  <Moon className="h-4 w-4" />
+</button>
+<button aria-label="Theme: PSU" aria-pressed={theme === 'psu'} onClick={() => setTheme('psu')} … >
+  <Shield className="h-4 w-4" />
+</button>
+```
+
+The toggle calls `useTheme().setTheme(key)`, which:
+1. Writes `localStorage.setItem('codeinsight:theme', key)`.
+2. Sets `document.documentElement.setAttribute('data-theme', key)` (or removes the attribute when `key === 'light'`, the default).
+3. Updates the in-memory `theme` state (so consumers like Monaco re-render).
+
+**Layout integration:** `Layout.jsx` adds `<ThemeToggle />` as a sibling of the `pageTitle` `<h1>`, justified to the right via a flex container:
+
+```jsx
+<header className="sticky top-0 z-30 border-b border-border bg-card/80 px-6 py-4 backdrop-blur">
+  <div className="flex items-center justify-between gap-4">
+    <h1 className="text-xl font-semibold tracking-tight text-foreground">{pageTitle}</h1>
+    <ThemeToggle />
+  </div>
+</header>
+```
+
+**No new dependencies.** `lucide-react` (Sun, Moon, Shield) is already a dependency; `cn` is already exported from `frontend/src/lib/utils.js`.
+
+### 5.6 Monaco theme registration
+
+A new `frontend/src/lib/monacoThemes.js` exports a `registerMonacoThemes()` function that calls `monaco.editor.defineTheme()` three times. The themes follow Monaco's documented token schema (base colors + `tokenColors` array).
+
+```js
+// sketch — the plan's implementation task fills in the full color array
+export function registerMonacoThemes(monaco) {
+  monaco.editor.defineTheme('ci-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '6a737d', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'd73a49' },
+      { token: 'string', foreground: '032f62' },
+      { token: 'number', foreground: '005cc5' },
+    ],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#24292e',
+    },
+  });
+  monaco.editor.defineTheme('ci-dark-teal', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [/* … */],
+    colors: {
+      'editor.background': '#0a1018',
+      'editor.foreground': '#dce8f5',
+      'editorLineNumber.foreground': '#3a4860',
+      'editorCursor.foreground': '#85D2D0',
+      'editor.selectionBackground': '#1e304d',
+    },
+  });
+  monaco.editor.defineTheme('ci-psu', {
+    base: 'vs',
+    inherit: true,
+    rules: [/* … */],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#7B0F1B',
+      'editorCursor.foreground': '#7B0F1B',
+    },
+  });
+}
+```
+
+`CodeEditor.jsx` calls `registerMonacoThemes(monaco)` once inside its `onMount` callback (idempotent — Monaco is happy to re-define the same name), then sets the initial theme to match `useTheme()` and adds a `useEffect` to switch the active Monaco theme whenever `useTheme()` changes.
+
+The Monaco theme registration is **monaco-side only** — it does not need to know about the app's CSS variables. The 3 hand-mapped color sets above mirror the 3 app palettes in §2.4 by hand.
+
 ---
 
 ## 6. Data Flow
@@ -285,6 +493,36 @@ This is the same pattern the student slice used; the design pages are explicitly
 
 The 9 existing analytics components and the 1 chart component already have their own fetch logic (some hit real APIs, some are pure render). This slice does NOT modify them. They may show loading states, empty states, or real data — all of which are valid for this slice. When the host page's Card frame is visible and the embedded component is loading, the user sees a Card with a title and a blank content area, which is acceptable for a mock-data slice.
 
+### 6.4 Theme data flow
+
+```
+First page load (or refresh)
+  → App boots, AuthContext + SidebarContext initialize
+  → ThemeProvider (in App.jsx) runs useLayoutEffect
+  → reads localStorage.getItem('codeinsight:theme')
+  → if value is 'dark' or 'psu', sets <html data-theme={value}>
+  → if value is missing or 'light', removes the data-theme attribute (default)
+  → CSS custom properties resolve at paint time, no FOUC
+
+User clicks ThemeToggle
+  → useTheme().setTheme(key) called
+  → writes localStorage, sets <html data-theme>, updates React state
+  → Layout re-renders (ThemeToggle is inside it; the segmented control re-paints the active highlight)
+  → CodeEditor (if mounted) listens to useTheme() in a useEffect and calls monaco.editor.setTheme()
+  → all other pages automatically re-skin via CSS var cascade — no re-render needed
+
+User logs out / switches role
+  → theme state is in localStorage, not React state above AuthContext
+  → theme persists across login transitions
+  → Login page renders without ThemeToggle (its own layout), so there's no toggle to interact with
+```
+
+**No backend round-trip.** The theme is purely a UI concern. There is no `prefers-color-scheme` follow (the user picks explicitly; auto-detect can be a follow-up).
+
+**Storage key:** `codeinsight:theme`. Value: `'light' | 'dark' | 'psu'`. Missing or unparseable → `light`.
+
+**`ThemeProvider` boundary:** lives in `App.jsx` as a wrapper around `<AppContent />` (next to `<SidebarProvider>` and `<ErrorBoundary>`). It exposes `useTheme()` via a `ThemeContext`. `ThemeToggle` and `CodeEditor` are the only consumers in this slice; future components that want to read the theme (e.g., a "theme picker" modal) can `useTheme()` too.
+
 ---
 
 ## 7. Error Handling
@@ -300,6 +538,16 @@ Three layers, matching the student slice:
    - `InstructorHeatmap` renders the heatmap table; if `MOCK_HEATMAP` is empty (which it won't be in this slice), it would render an empty body — we add an explicit empty-state row in the table to match the design's tone.
 
 No try/catch, no toast service, no global error toaster. The student slice's "no error toaster" decision is preserved.
+
+4. **Theme layer (new):**
+   - If `localStorage` is unavailable (e.g., user disabled it, private-browsing in some browsers), `useTheme()` falls back to an in-memory default (`'light'`). The toggle still works for the session; it just doesn't persist.
+   - If `localStorage` has a value that isn't `'light' | 'dark' | 'psu'` (e.g., leftover from a previous version), `useTheme()` ignores it and treats it as missing. No crash, no log.
+   - If the toggle's `setTheme` is called before `ThemeProvider` mounts (theoretically impossible given the provider wraps `<AppContent />`, but defensive), the localStorage write still happens — the React state update is just dropped.
+
+5. **Monaco layer (new):**
+   - If `@monaco-editor/react` fails to load (e.g., network failure to the Monaco CDN), the `onMount` callback never fires. `editorRef.current` stays `null`, so the "click-to-jump" error handler is a no-op. The page still renders, just without the editor chrome.
+   - If `monaco.editor.setTheme('ci-bogus')` is called (e.g., the user picks a theme we later rename), Monaco falls back to the default `vs` theme and logs a console warning. No crash.
+   - If the user types into the editor faster than the React state can update, the latest `code` state is what gets submitted — `onChange` is debounced by React's batching, so this is not a real concern at human typing speeds.
 
 ---
 
@@ -342,17 +590,21 @@ For clarity, here is what is NOT delivered in this slice:
 2. Unit tests, E2E tests, or a new test framework.
 3. Accessibility audit beyond what shadcn primitives provide.
 4. Backend changes (CDS engine, integrity engine, schema, tests).
-5. Student-side changes (already done in the prior slice).
+5. Student-side changes beyond the `CodeEditor.jsx` Monaco port (already done in the prior slice).
 6. New design pages for landing, login, or 404 (already done or untouched).
 7. Re-styling of the existing `analytics/*` components (Card frame is the only visual change; the components' CSS is unchanged).
 8. E2E submission → CDS → alerts flow (tracked in `CLAUDE.md`).
 9. Hidden test case leakage audit (tracked in `CLAUDE.md`).
+10. **Per-user backend setting for the theme** — the theme is localStorage-only. A future slice could persist the preference to the `users` table and sync across devices, but the schema/endpoint work is out of scope here.
+11. **Auto theme detection** — `prefers-color-scheme` is not consulted. The user picks explicitly via the toggle.
+12. **Monaco multi-language support** — the editor is hard-coded to C++. A language picker is a follow-up.
+13. **Monaco language server / intellisense** — not in the legacy, not in the new scope. We use Monaco's built-in C++ tokenizer only.
 
 ---
 
 ## 11. Files Touched (Summary)
 
-**Created (10):**
+**Created (13):**
 
 - `frontend/src/pages/instructor/Heatmap.jsx`
 - `frontend/src/pages/instructor/Students.jsx`
@@ -364,12 +616,18 @@ For clarity, here is what is NOT delivered in this slice:
 - `frontend/src/pages/instructor/Integrity.jsx`
 - `frontend/src/pages/instructor/Dashboard.jsx` (overwrite)
 - `frontend/src/pages/instructor/Reports.jsx` (overwrite)
+- `frontend/src/lib/theme.js` — `useTheme()` hook + `ThemeContext` + `ThemeProvider` (localStorage persistence, `<html data-theme>` write)
+- `frontend/src/lib/monacoThemes.js` — `registerMonacoThemes(monaco)` (defines `ci-light`, `ci-dark-teal`, `ci-psu`)
+- `frontend/src/components/ThemeToggle.jsx` — 3-button segmented control (Sun / Moon / Shield icons)
 
-**Modified (3):**
+**Modified (6):**
 
-- `frontend/src/App.jsx` — re-point 10 instructor routes, add 4 missing aliases, add `pageTitle` to all 10.
+- `frontend/src/App.jsx` — re-point 10 instructor routes, add 4 missing aliases, add `pageTitle` to all 10, wrap with `<ThemeProvider>`.
 - `frontend/src/components/Sidebar.jsx` — add 2 nav items, rename `My Sections` → `Students`, rename `Create Exercise` → `Exercises`, update `to:` paths.
 - `frontend/src/data/mockData.js` — add 6 new `MOCK_*` exports (~70 lines).
+- `frontend/src/components/Layout.jsx` — add `<ThemeToggle />` to the sticky top bar; switch the `<header>` to a `flex` container with the title and toggle.
+- `frontend/src/index.css` — add `[data-theme="dark"]` and `[data-theme="psu"]` blocks that override the shadcn CSS custom properties.
+- `frontend/src/pages/student/CodeEditor.jsx` (overwrite) — replace the `<textarea>` with `@monaco-editor/react`'s `<Editor>`, porting the legacy's 2-tab output, deadline countdown, attempt history, and per-line error highlighting from commit `62fa4cd`.
 
 **Deleted (7):**
 
@@ -386,7 +644,6 @@ For clarity, here is what is NOT delivered in this slice:
 - `frontend/src/pages/instructor/Developer.jsx`
 - All 9 `frontend/src/components/analytics/*` components and their CSS files
 - `frontend/src/components/charts/ResponsiveLineChart.jsx`
-- `frontend/src/components/Layout.jsx`
 - `frontend/src/components/ErrorBoundary.jsx`
 - `frontend/src/context/AuthContext.jsx`, `frontend/src/context/SidebarContext.jsx`
 - All shadcn primitives in `frontend/src/components/ui/*`
@@ -399,7 +656,13 @@ For clarity, here is what is NOT delivered in this slice:
 Per the student slice, each task is its own commit. The expected commit sequence is:
 
 ```
-feat(instructor-slice): extend mockData.js with 7 instructor MOCK_* exports
+feat(theme): add useTheme() hook + ThemeContext + localStorage persistence
+feat(theme): register 3 Monaco themes in lib/monacoThemes.js
+feat(theme): add dark teal + PSU palettes to index.css (data-theme overrides)
+feat(theme): add ThemeToggle component + ThemeProvider wrap in App.jsx
+feat(theme): add <ThemeToggle /> to Layout.jsx top bar
+feat(monaco): port legacy CodeEditor.jsx (run/submit tabs, countdown, error jumps) with @monaco-editor/react
+feat(instructor-slice): extend mockData.js with 6 instructor MOCK_* exports
 feat(instructor-slice): port Dashboard.tsx → Dashboard.jsx (design visual)
 feat(instructor-slice): port Heatmap.tsx → Heatmap.jsx
 feat(instructor-slice): port Students.tsx → Students.jsx
@@ -416,7 +679,9 @@ feat(instructor-slice): delete 7 obsolete CodeInsight instructor pages
 feat(instructor-slice): smoke test all 12 routes + build green
 ```
 
-15 commits, oldest first. The build-green check is its own commit because it's the cutover gate.
+21 commits, oldest first. The theme and Monaco commits go first because the instructor pages reference `useTheme()` (via the Layout's `<ThemeToggle />`) — landing the theme system first means the instructor pages automatically pick up the dark/PSU themes for free once they're ported.
+
+The build-green check is its own commit because it's the cutover gate.
 
 ---
 
@@ -431,5 +696,8 @@ This slice is complete when:
 5. The 9 `analytics/*` components and 1 `charts/ResponsiveLineChart` are still present and rendered (inside Card frames) on their new host pages. They may be empty/loading — that's acceptable.
 6. The 7 deleted files are gone, and no `import` statements in the surviving code reference them.
 7. The student-slice features (3 routes, 3 pages, 1 mockData extension, real auth) are unaffected.
+8. **Theme toggle (new):** `<ThemeToggle />` is visible in the top-right of every authenticated page (12 instructor + 4 student). Clicking each of the 3 buttons switches the active palette within ~100ms. The choice persists across a page refresh (verified by hard-refreshing after picking a theme). The `data-theme` attribute on `<html>` reflects the choice. Default (no localStorage value) is light.
+9. **Theme coverage (new):** Switching to dark teal or PSU visibly re-skins all shadcn primitives, the sidebar background, the sticky top bar, all card surfaces, all badges, and the radar/line/bar charts in the embedded analytics components. The Monaco editor's chrome is themed separately, per criterion 10.
+10. **Monaco (new):** `/student/exercises/e1` renders a Monaco editor (not a `<textarea>`). The C++ syntax highlights (keywords, strings, numbers, comments). The 3 Monaco themes match the 3 app themes — switching the app theme live-updates the Monaco theme without remounting the editor. The 2-tab output panel (Output / Compiler Log) renders, with per-test stdout and clickable error blocks that jump the editor cursor to the failing line. The deadline countdown (if the exercise has a deadline) and the attempt history list are present. Run / Submit / Stop buttons work against `MOCK_EXERCISES`'s test cases.
 
-If 1–7 are all true, the slice is done. The real-API cutover is a separate future slice.
+If 1–10 are all true, the slice is done. The real-API cutover is a separate future slice.
