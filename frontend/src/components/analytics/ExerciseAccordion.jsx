@@ -1,163 +1,64 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import ClassMisconceptionReport from './ClassMisconceptionReport';
-import LiveCDSPanel from '../LiveCDSPanel';
-import IntegrityFlagDropdown from './IntegrityFlagDropdown';
 
-/**
- * ExerciseAccordion — see spec §3 row 5.
- *
- * Ported from hard-coded dark teal hexes to the shadcn semantic token system.
- * Card chrome, action buttons, distribution bar, and difficulty colors all
- * resolve through Tailwind utilities that respect the active theme.
- */
-function ExerciseAccordion({
-  sectionId,
-  exercises: exercisesProp,
-  loading: loadingProp,
-  onExerciseStatsUpdate,
-  showManagement = false,
-  onEditExercise,
-  onToggleExerciseStatus,
-  onDeleteExercise,
-  liveCDSExerciseId,
-  onLiveCDSToggle,
-  showDeleteConfirm,
-  selectedExerciseId,
-  formatCDS = (v) => (v == null ? '—' : Number(v).toFixed(2)),
-  getDifficulty = (cds) => {
-    if (cds == null) return 'unscored';
-    if (cds <= 0.33) return 'low';
-    if (cds <= 0.66) return 'moderate';
-    return 'high';
-  }
-}) {
-  const [exercisesLocal, setExercisesLocal] = useState([]);
-  const [loadingLocal, setLoadingLocal] = useState(!exercisesProp);
+function ExerciseAccordion({ sectionId }) {
+  const [exercises, setExercises] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reports, setReports] = useState({});
   const [loadingReports, setLoadingReports] = useState({});
-  const [reportErrors, setReportErrors] = useState({});
-  const [expandedExercise, setExpandedExercise] = useState(null);
-  const [integrityFlagsExerciseId, setIntegrityFlagsExerciseId] = useState(null);
-
-  const exercises = exercisesProp ?? exercisesLocal;
-  const loading = loadingProp ?? loadingLocal;
-
-  const fetchSectionExercises = useCallback(async () => {
-    if (exercisesProp) return;
-    try {
-      setLoadingLocal(true);
-      setError(null);
-      const res = await api.get(`/api/sections/${sectionId}/exercises`);
-      setExercisesLocal(res.data || []);
-    } catch (err) {
-      console.error('Error fetching section exercises:', err);
-      setError('Failed to load exercises');
-      setExercisesLocal([]);
-    } finally {
-      setLoadingLocal(false);
-    }
-  }, [sectionId, exercisesProp]);
 
   useEffect(() => {
     fetchSectionExercises();
-  }, [fetchSectionExercises]);
+  }, [sectionId]);
 
-  const applyExerciseStats = (exerciseId, stats) => {
-    if (!stats) return;
-    const patch = (ex) =>
-      ex.id === exerciseId
-        ? {
-            ...ex,
-            avg_cds: stats.avg_cds ?? ex.avg_cds,
-            low_count: stats.low_count ?? ex.low_count,
-            moderate_count: stats.moderate_count ?? ex.moderate_count,
-            high_count: stats.high_count ?? ex.high_count,
-            submitted_count: stats.submitted_count ?? ex.submitted_count,
-            total_students: stats.total_students ?? ex.total_students,
-            closed_at: stats.closed_at ?? ex.closed_at
-          }
-        : ex;
-
-    if (!exercisesProp) {
-      setExercisesLocal(prev => prev.map(patch));
-    }
-    if (onExerciseStatsUpdate) {
-      onExerciseStatsUpdate(exerciseId, stats);
+  const fetchSectionExercises = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/api/sections/${sectionId}/exercises`);
+      setExercises(res.data || []);
+    } catch (err) {
+      console.error('Error fetching section exercises:', err);
+      setError('Failed to load exercises');
+      setExercises([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchExerciseReport = async (exerciseId) => {
     try {
-      setLoadingReports(prev => ({ ...prev, [exerciseId]: true }));
-      setReportErrors(prev => ({ ...prev, [exerciseId]: null }));
-
-      const res = await api.get(
-        `/api/analytics/sections/${sectionId}/class-insights/${exerciseId}`,
-        { params: { refresh: 'true' } }
-      );
-
-      const payload = res.data;
-      const report = payload.report ?? payload;
-
-      setReports(prev => ({ ...prev, [exerciseId]: report }));
-      applyExerciseStats(exerciseId, payload.exerciseStats);
+      setLoadingReports(prev => ({
+        ...prev,
+        [exerciseId]: true
+      }));
+      const res = await api.get(`/api/analytics/sections/${sectionId}/class-insights/${exerciseId}`);
+      setReports(prev => ({
+        ...prev,
+        [exerciseId]: res.data
+      }));
     } catch (err) {
       console.error(`Error fetching report for exercise ${exerciseId}:`, err);
-      const message =
-        err.response?.data?.message || 'Failed to load class insights for this exercise';
-      setReportErrors(prev => ({ ...prev, [exerciseId]: message }));
+      // Don't set error state here to avoid breaking the UI for one exercise
     } finally {
-      setLoadingReports(prev => ({ ...prev, [exerciseId]: false }));
+      setLoadingReports(prev => ({
+        ...prev,
+        [exerciseId]: false
+      }));
     }
-  };
-
-  const handleToggle = async (exerciseId) => {
-    if (expandedExercise === exerciseId) {
-      setExpandedExercise(null);
-      return;
-    }
-    setExpandedExercise(exerciseId);
-    if (!reports[exerciseId]) {
-      await fetchExerciseReport(exerciseId);
-    }
-  };
-
-  const handleLiveCDSToggle = (exerciseId) => {
-    setIntegrityFlagsExerciseId((openId) =>
-      openId === exerciseId ? null : openId
-    );
-    onLiveCDSToggle?.(exerciseId);
-  };
-
-  const handleIntegrityToggle = (exerciseId) => {
-    setIntegrityFlagsExerciseId((prev) => {
-      const next = prev === exerciseId ? null : exerciseId;
-      if (next !== null && liveCDSExerciseId === exerciseId) {
-        onLiveCDSToggle?.(null);
-      }
-      return next;
-    });
-  };
-
-  // Tailwind tones that adapt to light + dark via the dark: variant.
-  const CDS_TONE = {
-    low:      'text-emerald-600 dark:text-emerald-400',
-    moderate: 'text-amber-600 dark:text-amber-400',
-    high:     'text-red-600 dark:text-red-400',
-  };
-
-  const CDS_BAR = {
-    low:      'bg-emerald-500',
-    moderate: 'bg-amber-500',
-    high:     'bg-red-500',
   };
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground">
+      <div style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#8884a0',
+        background: '#1a1a2e',
+        borderRadius: '12px',
+        border: '1px solid #2e2e4a'
+      }}>
         Loading exercises...
       </div>
     );
@@ -165,320 +66,272 @@ function ExerciseAccordion({
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-5 text-center text-sm text-destructive">
+      <div style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#f87171',
+        background: '#1a1a2e',
+        borderRadius: '12px',
+        border: '1px solid #2e2e4a'
+      }}>
         {error}
       </div>
     );
   }
 
-  if (!exercises.length) {
+  if (exercises.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground">
-        No exercises assigned to this section yet.
+      <div style={{
+        padding: '20px',
+        textAlign: 'center',
+        color: '#8884a0',
+        background: '#1a1a2e',
+        borderRadius: '12px',
+        border: '1px solid #2e2e4a'
+      }}>
+        <div>No exercises found in this section</div>
+        <div style={{ marginTop: '8px', fontSize: '12px' }}>
+          Assign exercises to see analytics
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {showManagement && (
-        <p className="mb-1 text-xs text-muted-foreground">
-          Use the arrow on each card to run an automated CDS check and view the class misconception report.
-        </p>
-      )}
+    <div style={{
+      background: '#1a1a2e',
+      border: '1px solid #2e2e4a',
+      borderRadius: '12px',
+      overflow: 'hidden'
+    }}>
+      <div style={{
+        padding: '16px',
+        borderBottom: '1px solid #2e2e4a',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h3 style={{
+          margin: 0,
+          fontSize: '18px',
+          color: '#e8e6f0',
+          fontWeight: 600
+        }}>
+          Exercise Analytics
+        </h3>
+        <div style={{
+          fontSize: '12px',
+          color: '#85D2D0'
+        }}>
+          {exercises.length} exercises
+        </div>
+      </div>
 
-      {exercises.map(exercise => {
-        const isExpanded = expandedExercise === exercise.id;
-        const isReportLoading = loadingReports[exercise.id];
-        const report = reports[exercise.id];
-        const reportError = reportErrors[exercise.id];
-        const totalScores =
-          (Number(exercise.low_count) || 0) +
-          (Number(exercise.moderate_count) || 0) +
-          (Number(exercise.high_count) || 0);
-        const avgCdsNum =
-          exercise.avg_cds != null ? parseFloat(exercise.avg_cds) : null;
-        const difficulty = getDifficulty(avgCdsNum);
-        const isHighAvg = avgCdsNum != null && !Number.isNaN(avgCdsNum) && avgCdsNum > 0.66;
-        const panelId = `exercise-accordion-panel-${exercise.id}`;
-        const description = exercise.description?.trim();
-        const isDeleteConfirm =
-          showDeleteConfirm && selectedExerciseId === exercise.id;
+      <div style={{
+        padding: '16px',
+        maxHeight: '600px',
+        overflowY: 'auto'
+      }}>
+        {exercises.map((exercise) => {
+          const isReportLoading = loadingReports[exercise.id];
+          const report = reports[exercise.id];
 
-        return (
-          <article
-            key={exercise.id}
-            className={cn(
-              'rounded-lg border bg-card overflow-hidden transition-colors',
-              isHighAvg ? 'border-red-300 dark:border-red-900/60' : 'border-border',
-              isExpanded && 'ring-1 ring-primary/30'
-            )}
-          >
-            <div className="px-4 pt-4">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h3 className="mb-1 text-sm font-bold leading-tight text-foreground">
+          return (
+            <div key={exercise.id} style={{
+              marginBottom: '16px',
+              background: '#22223a',
+              borderRadius: '10px',
+              overflow: 'hidden'
+            }}>
+              {/* Accordion Header */}
+              <div style={{
+                padding: '16px',
+                cursor: 'pointer',
+                borderBottom: '1px solid #2e2e4a',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseEnter={() => {
+                // Hover effect would be handled by CSS in a real implementation
+              }}
+              onMouseLeave={() => {
+                // Hover effect would be handled by CSS in a real implementation
+              }}
+              >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flex: 1
+                }}>
+                  <div style={{
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#e8e6f0'
+                  }}>
                     {exercise.title}
-                  </h3>
-                  {description && (
-                    <p className="m-0 text-xs leading-relaxed text-muted-foreground">
-                      {description.length > 100
-                        ? `${description.substring(0, 100)}...`
-                        : description}
-                    </p>
-                  )}
-                </div>
-                {exercise.concept_name && (
-                  <span className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#85D2D0',
+                    background: 'rgba(133,210,208,0.1)',
+                    border: '1px solid rgba(133,210,208,0.2)',
+                    borderRadius: '6px',
+                    padding: '2px 6px',
+                    fontWeight: 600
+                  }}>
                     {exercise.concept_name}
-                  </span>
-                )}
-              </div>
+                  </div>
+                </div>
 
-              <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-muted-foreground">
-                <div>
-                  Submitted:{' '}
-                  <strong className="font-mono font-semibold text-foreground">
-                    {exercise.submitted_count || 0}/{exercise.total_students || 0}
-                  </strong>
+                <div style={{
+                  display: 'flex',
+                  gap: '16px',
+                  alignItems: 'center',
+                  fontSize: '11px',
+                  color: '#8884a0'
+                }}>
+                  <div>
+                    Submitted: <strong style={{ color: '#e8e6f0' }}>
+                      {exercise.submitted_count || 0}/{exercise.total_students || 0}
+                    </strong>
+                  </div>
+                  <div>
+                    Avg CDS: <strong style={{ color: exercise.avg_cds && parseFloat(exercise.avg_cds) > 0.66 ? '#f87171' : exercise.avg_cds && parseFloat(exercise.avg_cds) > 0.33 ? '#fbbf24' : '#4ade80' }}>
+                      {exercise.avg_cds ? parseFloat(exercise.avg_cds).toFixed(2) : '--'}
+                    </strong>
+                  </div>
                 </div>
-                <div>
-                  Avg CDS:{' '}
-                  <strong className={cn('font-mono font-semibold', CDS_TONE[difficulty])}>
-                    {formatCDS(avgCdsNum)}
-                  </strong>
-                </div>
-                <div>
-                  Status:{' '}
-                  <strong
-                    className={cn(
-                      'font-semibold',
-                      exercise.closed_at
-                        ? 'text-muted-foreground'
-                        : 'text-emerald-600 dark:text-emerald-400'
-                    )}
-                  >
-                    {exercise.closed_at ? 'Closed' : 'Active'}
-                  </strong>
-                </div>
-              </div>
 
-              <div>
-                <div
-                  className={cn(
-                    'mb-1 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground',
-                    isHighAvg && 'text-red-600 dark:text-red-400'
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  background: isReportLoading || report ? '#131d30' : 'transparent'
+                }}>
+                  {isReportLoading ? (
+                    <div style={{
+                      fontSize: '10px',
+                      color: '#85D2D0'
+                    }}>
+                      Loading...
+                    </div>
+                  ) : (
+                    <span style={{
+                      fontSize: '12px'
+                    }}>
+                      ▼
+                    </span>
                   )}
-                >
-                  <span>Difficulty Distribution</span>
-                  <span>
-                    Low {exercise.low_count || 0} · Mod {exercise.moderate_count || 0} · High{' '}
-                    {exercise.high_count || 0}
-                  </span>
                 </div>
-                <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-muted">
-                  {totalScores > 0 && (
-                    <>
-                      <div
-                        className={cn('h-full', CDS_BAR.low)}
-                        style={{
-                          width: `${((exercise.low_count || 0) / totalScores) * 100}%`
-                        }}
-                      />
-                      <div
-                        className={cn('h-full', CDS_BAR.moderate)}
-                        style={{
-                          width: `${((exercise.moderate_count || 0) / totalScores) * 100}%`
-                        }}
-                      />
-                      <div
-                        className={cn('h-full', CDS_BAR.high)}
-                        style={{
-                          width: `${((exercise.high_count || 0) / totalScores) * 100}%`
-                        }}
-                      />
+              </div>
+
+              {/* Accordion Content */}
+              <div style={{
+                overflow: 'hidden',
+                maxHeight: report ? 500 : 0,
+                transition: 'max-height 0.3s ease-out',
+                background: isReportLoading ? '#1a1a2e' : report ? '#1a1a2e' : 'transparent'
+              }}
+              >
+                {isReportLoading && (
+                  <div style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    color: '#8884a0'
+                  }}>
+                    Loading report...
+                  </div>
+                )}
+
+                {report && !isReportLoading && (
+                  <>
+                    <div style={{
+                      padding: '16px',
+                      borderBottom: '1px solid #2e2e4a'
+                    }}>
+                      <ClassMisconceptionReport report={report} onClose={() => {}} />
+                    </div>
+
+                    {/* Analytical Anomaly Footer Drawer */}
+                    <div style={{
+                      padding: '12px 16px',
+                      borderTop: '1px solid #2e2e4a',
+                      background: '#131d30',
+                      fontSize: '11px',
+                      color: '#8884a0'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        alignItems: 'flex-start'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          width: '100%'
+                        }}>
+                          <span>Historical Deviations</span>
+                          <button
+                            onClick={() => {
+                              // In a real implementation, this would toggle the drawer
+                              // For now, we'll keep it simple
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              border: '1px solid #85D2D0',
+                              background: 'transparent',
+                              color: '#85D2D0',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(133,210,208,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            ▼ View Details
+                          </button>
+                        </div>
+
+                        {/* Analytical Anomaly Content (collapsed by default) */}
+                        <div style={{
+                          marginTop: '8px',
+                          paddingTop: '8px',
+                          borderTop: '1px solid #2e2e4a',
+                          display: 'none' /* Would be toggled in real implementation */
+                        }}>
+                          <div style={{
+                            fontSize: '10px',
+                            color: '#8884a0',
+                            lineHeight: '1.4'
+                          }}>
+                            <p>• Submission velocity patterns: Monitoring for anomalous submission bursts</p>
+                            <p>• Code similarity analysis: Detecting potential collaboration patterns</p>
+                            <p>• Time-on-task outliers: Identifying unusual time distribution</p>
+                            <p>• Correctness consistency: Checking for inconsistent problem-solving approaches</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     </>
                   )}
-                </div>
               </div>
             </div>
-
-            {showManagement && (
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-                <div className="flex flex-1 flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
-                    onClick={() => onEditExercise?.(exercise)}
-                  >
-                    ✎ Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
-                    onClick={() => handleLiveCDSToggle(exercise.id)}
-                  >
-                    📊 Live CDS
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                      integrityFlagsExerciseId === exercise.id
-                        ? 'border border-primary/40 bg-primary/15 text-primary'
-                        : 'text-primary hover:bg-primary/10'
-                    )}
-                    onClick={() => handleIntegrityToggle(exercise.id)}
-                  >
-                    🛡 Integrity Flags
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                      exercise.closed_at
-                        ? 'text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400'
-                        : 'text-red-600 hover:bg-red-500/10 dark:text-red-400'
-                    )}
-                    onClick={() => onToggleExerciseStatus?.(exercise)}
-                  >
-                    {exercise.closed_at ? '↻ Reopen' : '⊗ Close'}
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                      isDeleteConfirm
-                        ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                        : 'text-red-600 hover:bg-red-500/10 dark:text-red-400'
-                    )}
-                    onClick={() => onDeleteExercise?.(exercise)}
-                  >
-                    {isDeleteConfirm ? '⚠ Confirm Delete' : '🗑 Delete'}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs transition-colors',
-                    isExpanded
-                      ? 'border-primary/40 bg-primary/15 text-primary'
-                      : 'border-border bg-muted text-muted-foreground hover:border-foreground/30 hover:text-foreground'
-                  )}
-                  onClick={() => handleToggle(exercise.id)}
-                  aria-expanded={isExpanded}
-                  aria-controls={panelId}
-                  aria-label={
-                    isExpanded
-                      ? `Collapse class insights for ${exercise.title}`
-                      : `Expand class insights for ${exercise.title}`
-                  }
-                >
-                  <span
-                    className={cn(
-                      'inline-block transition-transform duration-200',
-                      isExpanded && 'rotate-180'
-                    )}
-                  >
-                    ▼
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {!showManagement && (
-              <div className="mt-2 flex items-center justify-between gap-3 border-t border-border px-4 py-3">
-                <button
-                  type="button"
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                    integrityFlagsExerciseId === exercise.id
-                      ? 'border border-primary/40 bg-primary/15 text-primary'
-                      : 'text-primary hover:bg-primary/10'
-                  )}
-                  onClick={() => handleIntegrityToggle(exercise.id)}
-                >
-                  🛡 Integrity Flags
-                </button>
-                <span className="flex-1 text-[11px] text-muted-foreground">
-                  Class misconception report
-                </span>
-                <button
-                  type="button"
-                  className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs transition-colors',
-                    isExpanded
-                      ? 'border-primary/40 bg-primary/15 text-primary'
-                      : 'border-border bg-muted text-muted-foreground hover:border-foreground/30 hover:text-foreground'
-                  )}
-                  onClick={() => handleToggle(exercise.id)}
-                  aria-expanded={isExpanded}
-                  aria-controls={panelId}
-                  aria-label={
-                    isExpanded
-                      ? `Collapse details for ${exercise.title}`
-                      : `Expand details for ${exercise.title}`
-                  }
-                >
-                  <span
-                    className={cn(
-                      'inline-block transition-transform duration-200',
-                      isExpanded && 'rotate-180'
-                    )}
-                  >
-                    ▼
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {liveCDSExerciseId === exercise.id && (
-              <div className="border-t border-border px-4 py-3">
-                <LiveCDSPanel
-                  exerciseId={exercise.id}
-                  onClose={() => onLiveCDSToggle?.(null)}
-                />
-              </div>
-            )}
-
-            {integrityFlagsExerciseId === exercise.id && (
-              <IntegrityFlagDropdown
-                sectionId={sectionId}
-                exerciseId={exercise.id}
-                isOpen
-              />
-            )}
-
-            <div
-              id={panelId}
-              className={cn(
-                'grid border-t border-transparent transition-[grid-template-rows] duration-300',
-                isExpanded ? 'grid-rows-[1fr] border-border' : 'grid-rows-[0fr]'
-              )}
-              role="region"
-              aria-hidden={!isExpanded}
-            >
-              <div className="overflow-hidden">
-                {isExpanded && isReportLoading && (
-                  <div className="px-4 py-5 text-center text-sm text-muted-foreground">
-                    Running CDS check and loading report...
-                  </div>
-                )}
-                {isExpanded && !isReportLoading && report && (
-                  <div className="px-4 py-4">
-                    <ClassMisconceptionReport report={report} embedded />
-                  </div>
-                )}
-                {isExpanded && !isReportLoading && !report && (
-                  <div className="px-4 py-5 text-center text-sm text-destructive">
-                    {reportError || 'No report available for this exercise'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </article>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
