@@ -58,7 +58,7 @@ export default function InstructorIntegrityDetail() {
             <Button className="w-full" variant="outline">Mark Reviewed</Button>
             <Button className="w-full" variant="outline">Request 1:1</Button>
             <Button className="w-full" variant="outline">Refer to Registrar</Button>
-            <Button className="w-full" variant="ghost" className="text-destructive">Dismiss (with reason)</Button>
+            <Button className="w-full text-destructive" variant="ghost">Dismiss (with reason)</Button>
           </CardContent>
         </Card>
       </div>
