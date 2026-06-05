@@ -498,9 +498,9 @@ section_audit_log
 
 **Every mutating action writes to `section_audit_log`.** The audit log table is append-only at the DB level (no `UPDATE` or `DELETE` granted to the application role).
 
-### 11.7 Audit action enumeration (final — 18 actions)
+### 11.7 Audit action enumeration (final — 17 actions)
 
-`section_created` · `code_rotated` · `student_joined` (via code) · `student_requested_to_join` · `student_join_approved` · `student_join_denied` · `student_dropped` · `student_leave_requested` · `student_leave_acknowledged` · `student_leave_declined` · `instructor_assigned` · `instructor_reassigned` · `ta_added` · `ta_removed` · `policy_changed` · `section_archived` · `bulk_import_run` (+ `student_joined` as part of bulk import).
+`section_created` · `code_rotated` · `student_joined` (via code, also fired per-row on bulk import) · `student_requested_to_join` · `student_join_approved` · `student_join_denied` · `student_dropped` · `student_leave_requested` · `student_leave_acknowledged` · `student_leave_declined` · `instructor_assigned` · `instructor_reassigned` · `ta_added` · `ta_removed` · `policy_changed` · `section_archived` · `bulk_import_run` (a grouping row written once per import, with `meta` containing the row count and CSV filename; the per-section `section_created` + `instructor_assigned` rows are the audit entries for the import itself).
 
 ### 11.8 Concurrency & race conditions (stated policies)
 
@@ -613,7 +613,7 @@ All existing 50+ endpoints remain. No endpoint is removed. The redesign is addit
 | `evaluation_responses` | new table | ISO/IEC 25010 instrument storage |
 | `sections` | already exists | add / modify columns: `code`, `name`, `term`, `instructor_id`, `status` (remove `pending_approval`), `join_policy` (remove `open`), `max_size`, `created_at` |
 | `section_memberships` | new table | soft delete, drop reason, status enum |
-| `section_audit_log` | new table | append-only at DB level, 18-action enum |
+| `section_audit_log` | new table | append-only at DB level, 17-action enum |
 | All other tables | unchanged | `users`, `exercises`, `submissions`, `concept_mastery`, `cds_scores`, `integrity_flags`, `micro_concepts`, etc. |
 
 The migration is **additive**. No existing data is touched. The redesign can ship behind a feature flag.
