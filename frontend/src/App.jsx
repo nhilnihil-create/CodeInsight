@@ -27,6 +27,24 @@ import StudentProfile from './pages/student/Profile';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import NotFound from './pages/NotFound';
+import { useMode } from './hooks/use-mobile.js';
+import { MobileChrome } from './components/mobile/MobileChrome.jsx';
+
+// Mobile page imports (14 total)
+import MobileInstructorCommand from './pages/mobile/instructor/Command.jsx';
+import MobileInstructorStudents from './pages/mobile/instructor/Students.jsx';
+import MobileInstructorConcepts from './pages/mobile/instructor/Concepts.jsx';
+import MobileInstructorIntegrity from './pages/mobile/instructor/Integrity.jsx';
+import MobileInstructorSections from './pages/mobile/instructor/Sections.jsx';
+import MobileStudentToday from './pages/mobile/student/Today.jsx';
+import MobileStudentExercises from './pages/mobile/student/Exercises.jsx';
+import MobileStudentExerciseDetail from './pages/mobile/student/ExerciseDetail.jsx';
+import MobileStudentProgress from './pages/mobile/student/Progress.jsx';
+import MobileStudentIntegrity from './pages/mobile/student/Integrity.jsx';
+import MobileStudentSections from './pages/mobile/student/Sections.jsx';
+import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
+import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
+import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
 
 function ProtectedRoute({ children, requiredRole, pageTitle }) {
   const { isLoggedIn, user } = useAuth();
@@ -39,9 +57,18 @@ function ProtectedRoute({ children, requiredRole, pageTitle }) {
   return <Layout pageTitle={pageTitle}>{children}</Layout>;
 }
 
+function ModeSwitch({ mobile, desktop }) {
+  const mode = useMode();
+  // Spec §2.2: phone (mobile mode) gets the mobile page; tablet+desktop get desktop.
+  // We treat 'tablet' as desktop to avoid forcing a third layout surface (out of v1 scope).
+  if (mode === 'mobile' && mobile) return mobile;
+  return desktop;
+}
+
 function AppContent() {
   return (
     <BrowserRouter>
+      <MobileChrome />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -54,12 +81,12 @@ function AppContent() {
         } />
         <Route path="/instructor/heatmap" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Class Heatmap">
-            <InstructorHeatmap />
+            <ModeSwitch mobile={<MobileInstructorCommand />} desktop={<InstructorHeatmap />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/students" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Students">
-            <InstructorStudents />
+            <ModeSwitch mobile={<MobileInstructorStudents />} desktop={<InstructorStudents />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/students/:id" element={
@@ -69,7 +96,7 @@ function AppContent() {
         } />
         <Route path="/instructor/exercises" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Exercises">
-            <InstructorExercises />
+            <ModeSwitch mobile={<MobileInstructorConcepts />} desktop={<InstructorExercises />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/exercises/new" element={
@@ -99,7 +126,7 @@ function AppContent() {
         } />
         <Route path="/instructor/integrity" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Academic Integrity">
-            <InstructorIntegrity />
+            <ModeSwitch mobile={<MobileInstructorIntegrity />} desktop={<InstructorIntegrity />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/developer" element={
@@ -130,7 +157,7 @@ function AppContent() {
             Sections.jsx / SectionDetail.jsx / AcademicIntegrityFlags.jsx files. */}
         <Route path="/instructor/sections" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Sections">
-            <InstructorSections />
+            <ModeSwitch mobile={<MobileInstructorSections />} desktop={<InstructorSections />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/sections/:sectionId" element={
@@ -157,24 +184,24 @@ function AppContent() {
         } />
         <Route path="/student/exercises" element={
           <ProtectedRoute requiredRole="student" pageTitle="Exercises">
-            <StudentExerciseList />
+            <ModeSwitch mobile={<MobileStudentExercises />} desktop={<StudentExerciseList />} />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises/:exerciseId" element={
           <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
-            <StudentCodeEditor />
+            <ModeSwitch mobile={<MobileStudentExerciseDetail />} desktop={<StudentCodeEditor />} />
           </ProtectedRoute>
         } />
         <Route path="/student/progress" element={
           <ProtectedRoute requiredRole="student">
-            <StudentProgress />
+            <ModeSwitch mobile={<MobileStudentProgress />} desktop={<StudentProgress />} />
           </ProtectedRoute>
         } />
 
         {/* Design-aligned URL paths (new aliases for design nav parity) */}
         <Route path="/student/dashboard" element={
           <ProtectedRoute requiredRole="student" pageTitle="Dashboard">
-            <StudentDashboard />
+            <ModeSwitch mobile={<MobileStudentToday />} desktop={<StudentDashboard />} />
           </ProtectedRoute>
         } />
         <Route path="/student/code-editor" element={
@@ -184,12 +211,29 @@ function AppContent() {
         } />
         <Route path="/student/code-editor/:exerciseId" element={
           <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
-            <StudentCodeEditor />
+            <ModeSwitch mobile={<MobileStudentExerciseDetail />} desktop={<StudentCodeEditor />} />
           </ProtectedRoute>
         } />
         <Route path="/student/profile" element={
           <ProtectedRoute requiredRole="student">
-            <StudentProfile />
+            <ModeSwitch mobile={<MobileStudentIntegrity />} desktop={<StudentProfile />} />
+          </ProtectedRoute>
+        } />
+
+        {/* Admin routes — desktop side is a placeholder (no admin desktop pages exist yet) */}
+        <Route path="/admin/overview" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Overview">
+            <ModeSwitch mobile={<MobileAdminOverview />} desktop={<div style={{padding: 24}}>Admin desktop view (TODO)</div>} />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/evaluation" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Evaluation">
+            <ModeSwitch mobile={<MobileAdminEvaluation />} desktop={<div style={{padding: 24}}>Admin desktop view (TODO)</div>} />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/audit" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Audit">
+            <ModeSwitch mobile={<MobileAdminAudit />} desktop={<div style={{padding: 24}}>Admin desktop view (TODO)</div>} />
           </ProtectedRoute>
         } />
 
