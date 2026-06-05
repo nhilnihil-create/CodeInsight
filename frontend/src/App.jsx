@@ -18,8 +18,14 @@ import InstructorIntegrity from './pages/instructor/Integrity';
 import InstructorSections from './pages/instructor/Sections';
 import SectionDetail from './pages/instructor/SectionDetail';
 import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
+import InstructorCommand from './pages/instructor/Command';
+import InstructorIntegrityDetail from './pages/instructor/IntegrityDetail';
 import InstructorDeveloper from './pages/instructor/Developer';
 import StudentDashboard from './pages/student/Dashboard';
+import StudentToday from './pages/student/Today';
+import StudentRecommendations from './pages/student/Recommendations';
+import StudentSections from './pages/student/Sections';
+import StudentIntegrityView from './pages/student/Integrity';
 import StudentExerciseList from './pages/student/Exercises';
 import StudentCodeEditor from './pages/student/CodeEditor';
 import StudentProgress from './pages/student/Progress';
@@ -74,6 +80,11 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         
         {/* Instructor Routes — design paths canonical */}
+        <Route path="/instructor/command" element={
+          <ProtectedRoute requiredRole="instructor" pageTitle="Command Center">
+            <ModeSwitch mobile={<MobileInstructorCommand />} desktop={<InstructorCommand />} />
+          </ProtectedRoute>
+        } />
         <Route path="/instructor/dashboard" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Dashboard">
             <InstructorDashboard />
@@ -129,6 +140,11 @@ function AppContent() {
             <ModeSwitch mobile={<MobileInstructorIntegrity />} desktop={<InstructorIntegrity />} />
           </ProtectedRoute>
         } />
+        <Route path="/instructor/integrity/:id" element={
+          <ProtectedRoute requiredRole="instructor" pageTitle="Flag Detail">
+            <InstructorIntegrityDetail />
+          </ProtectedRoute>
+        } />
         <Route path="/instructor/developer" element={
           <ProtectedRoute requiredRole="instructor" pageTitle="Developer">
             <InstructorDeveloper />
@@ -177,6 +193,26 @@ function AppContent() {
         } />
 
         {/* Student Routes */}
+        <Route path="/student/today" element={
+          <ProtectedRoute requiredRole="student" pageTitle="Today's Plan">
+            <ModeSwitch mobile={<MobileStudentToday />} desktop={<StudentToday />} />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/sections" element={
+          <ProtectedRoute requiredRole="student" pageTitle="My Sections">
+            <ModeSwitch mobile={<MobileStudentSections />} desktop={<StudentSections />} />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/integrity" element={
+          <ProtectedRoute requiredRole="student" pageTitle="Learning Dashboard">
+            <StudentIntegrityView />
+          </ProtectedRoute>
+        } />
+        <Route path="/student/recommendations" element={
+          <ProtectedRoute requiredRole="student" pageTitle="Recommendations">
+            <StudentRecommendations />
+          </ProtectedRoute>
+        } />
         <Route path="/student" element={
           <ProtectedRoute requiredRole="student" pageTitle="Dashboard">
             <StudentDashboard />
@@ -228,7 +264,7 @@ function AppContent() {
         } />
         <Route path="/admin/evaluation" element={
           <ProtectedRoute requiredRole="admin" pageTitle="Evaluation">
-            <ModeSwitch mobile={<MobileAdminEvaluation />} desktop={<div style={{padding: 24}}>Admin desktop view (TODO)</div>} />
+            <AdminEvaluation />
           </ProtectedRoute>
         } />
         <Route path="/admin/audit" element={
