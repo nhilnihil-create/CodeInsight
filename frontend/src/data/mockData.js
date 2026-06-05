@@ -119,3 +119,159 @@ export const MOCK_MOST_DIFFICULT_CONCEPTS = [
   { concept: 'Functions',    score: 55 },
   { concept: 'Conditionals', score: 62 },
 ];
+
+// ----------------------------------------------------------------------------
+// Redesign mock data (added 2026-06-05) — see redesign spec §8, §9, §10, §11
+// ----------------------------------------------------------------------------
+
+export const MOCK_SECTIONS = [
+  { id: 'sec1', code: 'K7P-3QX', name: 'BSIT-1A Morning', term: '2026-1', instructorId: 'u1',
+    status: 'active', joinPolicy: 'code', maxSize: 60, studentCount: 47, avgCds: 0.42, atRiskCount: 7,
+    topInsight: 'Functions is the hardest concept this week  3 flags open' },
+  { id: 'sec2', code: 'M9R-2BV', name: 'BSIT-1B Afternoon', term: '2026-1', instructorId: 'u1',
+    status: 'active', joinPolicy: 'request', maxSize: 60, studentCount: 52, avgCds: 0.38, atRiskCount: 4,
+    topInsight: 'Loops showing improvement  1 flag open' },
+  { id: 'sec3', code: 'J5T-1XC', name: 'BSCS-1A Morning', term: '2026-1', instructorId: 'u1',
+    status: 'active', joinPolicy: 'code', maxSize: 45, studentCount: 38, avgCds: 0.45, atRiskCount: 9,
+    topInsight: 'Arrays is the hardest concept  5 flags open' },
+];
+
+export const MOCK_MEMBERSHIPS = [
+  { id: 'm1', sectionId: 'sec1', userId: 'u2', role: 'student', status: 'active', joinedAt: '2026-01-15' },
+  { id: 'm2', sectionId: 'sec1', userId: 'u3', role: 'student', status: 'active', joinedAt: '2026-01-15' },
+  { id: 'm3', sectionId: 'sec1', userId: 'u4', role: 'student', status: 'active', joinedAt: '2026-01-16' },
+  { id: 'm4', sectionId: 'sec1', userId: 'u5', role: 'student', status: 'left_requested', joinedAt: '2026-01-14', dropReason: 'schedule conflict' },
+  { id: 'm5', sectionId: 'sec2', userId: 'u2', role: 'student', status: 'active', joinedAt: '2026-01-20' },
+];
+
+export const MOCK_AUDIT_LOG = [
+  { id: 'a1', sectionId: 'sec1', actorId: 'u1', action: 'section_created', meta: { name: 'BSIT-1A Morning' }, createdAt: '2026-01-10T08:00:00Z' },
+  { id: 'a2', sectionId: 'sec1', actorId: 'u1', action: 'code_rotated', meta: { code: 'K7P-3QX' }, createdAt: '2026-01-10T08:05:00Z' },
+  { id: 'a3', sectionId: 'sec1', actorId: 'u2', action: 'student_joined', meta: { code: 'K7P-3QX' }, createdAt: '2026-01-15T09:00:00Z' },
+  { id: 'a4', sectionId: 'sec1', actorId: 'u1', action: 'student_dropped', meta: { studentId: 'u5', reason: 'transferred to BSIT-1B per registrar' }, createdAt: '2026-03-01T10:00:00Z' },
+];
+
+export const MOCK_COMMAND_CENTER = {
+  confidence: { level: 'high', n: 312, days: 18, wilsonHalfWidth: 0.08 },
+  weeklyInsight: {
+    rule: 'concept-difficulty-rising',
+    n: 47,
+    message: 'Functions is the hardest concept this week, with 14 of 47 students in High difficulty.',
+    action: 'Assign Function-Args-Warmup to BSIT-1A before Wednesdays class. 12 students covered.',
+  },
+  cards: [
+    { id: 'what', title: 'What is happening?', summary: 'Functions is the hardest concept this week. Class CDS 0.62.',
+      why: null, confidence: { level: 'high', n: 312 } },
+    { id: 'why', title: 'Why is it happening?', summary: '12 of those 14 students fail on the same test case  pass-by-reference is the dominant misconception.',
+      why: 'Pattern observation: 85% of incorrect submissions on Ex-4 fail test case 3 (pass-by-reference).',
+      confidence: { level: 'high', n: 47 } },
+    { id: 'who', title: 'Who needs help?', summary: '7 students on the at-risk roster. 3 moved Low  High in the last 7 days.',
+      why: null, confidence: { level: 'medium', n: 14 } },
+    { id: 'action', title: 'What action should be taken?', summary: 'Assign Function-Args-Warmup to BSIT-1A before Wednesdays class. 12 students covered.',
+      why: 'Recommended intervention: targeted warmup exercise covers the 12 students who failed test case 3.',
+      confidence: { level: 'high', n: 12 }, drillTo: '/instructor/exercises/new' },
+  ],
+  kpis: [
+    { label: 'Class Avg CDS', value: 0.42, delta: 0.03, trend: 'down', sparkline: [0.38, 0.40, 0.39, 0.41, 0.40, 0.42] },
+    { label: 'Submissions/Week', value: 187, delta: 12, trend: 'up', sparkline: [145, 162, 158, 175, 180, 187] },
+    { label: 'At-Risk Count', value: 7, delta: -2, trend: 'up', sparkline: [12, 11, 9, 8, 9, 7] },
+    { label: 'Integrity Flags', value: 3, delta: 1, trend: 'down', sparkline: [2, 1, 1, 2, 2, 3] },
+    { label: 'Active Sections', value: 3, delta: 0, trend: 'flat', sparkline: [2, 2, 3, 3, 3, 3] },
+    { label: 'Mastery Rate', value: 0.72, delta: 0.05, trend: 'up', sparkline: [0.62, 0.64, 0.66, 0.68, 0.70, 0.72] },
+  ],
+  conceptBars: [
+    { concept: 'FN', name: 'Functions', cds: 0.62, delta: 0.08, trend: 'down', atRiskCount: 14 },
+    { concept: 'AR', name: 'Arrays', cds: 0.55, delta: 0.03, trend: 'down', atRiskCount: 9 },
+    { concept: 'LP', name: 'Loops', cds: 0.48, delta: -0.02, trend: 'up', atRiskCount: 7 },
+    { concept: 'OP', name: 'OOP', cds: 0.45, delta: 0.01, trend: 'flat', atRiskCount: 5 },
+    { concept: 'CD', name: 'Conditionals', cds: 0.38, delta: -0.04, trend: 'up', atRiskCount: 4 },
+    { concept: 'VR', name: 'Variables', cds: 0.25, delta: -0.03, trend: 'up', atRiskCount: 2 },
+    { concept: 'DT', name: 'Datatypes', cds: 0.18, delta: -0.01, trend: 'up', atRiskCount: 1 },
+  ],
+  atRiskRoster: [
+    { id: 's1', name: 'John Doe', riskTier: 'critical', dominantConcept: 'FN' },
+    { id: 's2', name: 'Maria Garcia', riskTier: 'high', dominantConcept: 'AR' },
+    { id: 's3', name: 'Alex Santos', riskTier: 'high', dominantConcept: 'FN' },
+  ],
+  signals: [
+    '3 students repeated the same Ex-3 attempt 4+ times this week.',
+    '5 students submitted blank or near-blank templates on Ex-4.',
+    'Class avg completion time for Functions exercises: +18% vs last week.',
+  ],
+  interventions: [
+    {
+      student: { name: 'John Doe', id: 'u4' },
+      problem: { concept: 'FN', cds: 0.71, delta: 0.12, classification: 'high', trend: 'down', description: 'Failed pass-by-reference test case 3 times.' },
+      evidence: ['Attempts: 4 on Ex-4', 'Avg time: 28 min vs class avg 14 min', 'Code growth: 0% (no changes between attempts)'],
+      suggestedAction: { label: 'Assign Function Args Warmup' },
+    },
+    {
+      student: { name: 'Maria Garcia', id: 'u3' },
+      problem: { concept: 'AR', cds: 0.65, delta: 0.06, classification: 'high', trend: 'down', description: 'Array reversal with mixed types.' },
+      evidence: ['Attempts: 3 on Ex-3', 'Compiler errors: 6 per attempt avg'],
+      suggestedAction: { label: 'Schedule 1:1 Review' },
+    },
+  ],
+  integrityFlags: { count: 3, sections: 2, flags: [] },
+};
+
+export const MOCK_STUDENT_PROGRESS = {
+  cdsOverTime: [
+    { week: 'W1', student: 0.35, classAvg: 0.38 },
+    { week: 'W2', student: 0.32, classAvg: 0.40 },
+    { week: 'W3', student: 0.28, classAvg: 0.39 },
+    { week: 'W4', student: 0.25, classAvg: 0.41 },
+    { week: 'W5', student: 0.22, classAvg: 0.40 },
+    { week: 'W6', student: 0.20, classAvg: 0.42 },
+  ],
+  perConceptTrend: [
+    { concept: 'DT', name: 'Datatypes', cds: 0.15, delta: -0.05, trend: 'up' },
+    { concept: 'VR', name: 'Variables', cds: 0.18, delta: -0.03, trend: 'up' },
+    { concept: 'CD', name: 'Conditionals', cds: 0.22, delta: -0.02, trend: 'up' },
+    { concept: 'LP', name: 'Loops', cds: 0.35, delta: 0.04, trend: 'down' },
+    { concept: 'FN', name: 'Functions', cds: 0.62, delta: 0.08, trend: 'down' },
+    { concept: 'AR', name: 'Arrays', cds: 0.45, delta: 0.03, trend: 'down' },
+    { concept: 'OP', name: 'OOP', cds: 0.50, delta: 0.02, trend: 'flat' },
+  ],
+  masteredConcepts: ['Datatypes', 'Variables'],
+};
+
+export const MOCK_STUDENT_TODAY = {
+  focus: { title: 'Ex-4 on Functions', estimatedMinutes: '15-20', concept: 'FN' },
+  why: 'Functions is currently your highest-CDS concept at 0.62. Working on it now will have the biggest effect on your week.',
+  classAvg: 0.38,
+  concepts: [
+    { concept: 'DT', name: 'Datatypes', cds: 0.15, delta: -0.05, trend: 'up' },
+    { concept: 'VR', name: 'Variables', cds: 0.18, delta: -0.03, trend: 'up' },
+    { concept: 'CD', name: 'Conditionals', cds: 0.22, delta: -0.02, trend: 'up' },
+    { concept: 'LP', name: 'Loops', cds: 0.35, delta: 0.04, trend: 'down' },
+    { concept: 'FN', name: 'Functions', cds: 0.62, delta: 0.08, trend: 'down' },
+    { concept: 'AR', name: 'Arrays', cds: 0.45, delta: 0.03, trend: 'down' },
+    { concept: 'OP', name: 'OOP', cds: 0.50, delta: 0.02, trend: 'flat' },
+  ],
+  signals: [
+    'Youve improved your completion time on Loops exercises by 25%.',
+    'Functions exercises take you longer than average  thats okay, practice helps.',
+  ],
+  nextMoves: [
+    { label: 'Start Ex-4', to: '/student/exercises/e4', primary: true },
+    { label: 'Try Functions Warmup', to: '/student/exercises/w1' },
+    { label: 'Review Datatypes', to: '/student/exercises/e1' },
+  ],
+};
+
+export const MOCK_RECOMMENDATIONS = [
+  { priority: 1, pattern: 'Your Functions CDS is 0.62  the highest among your concepts.',
+    confidence: 'high', whyLink: true, action: { label: 'Start Ex-4', to: '/student/exercises/e4' } },
+  { priority: 2, pattern: 'Your completion time on Arrays is 30% above your own average.',
+    confidence: 'medium', whyLink: true, action: { label: 'Try Array Warmup', to: '/student/exercises/w2' } },
+  { priority: 3, pattern: 'Youve shown consistent mastery on Conditionals this term.',
+    confidence: 'high', whyLink: false, action: { label: 'Skip ahead', to: '/student/exercises/e5' } },
+];
+
+export const MOCK_STUDENT_INTEGRITY = {
+  flags: [
+    { id: 'f1', rule: 'behavioral_anomaly  code_growth_spike', description: 'Your code grew faster than 95% of the class in this session.',
+      date: '2026-05-28', evidence: 'Exercise: Basic Loops. Your code jumped from 5 lines to 85 lines in under 1 second.' },
+  ],
+};
