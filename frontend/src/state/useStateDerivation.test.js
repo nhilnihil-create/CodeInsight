@@ -9,7 +9,7 @@ describe('deriveState (priority insight taxonomy)', () => {
   });
 
   it('returns "NoData" when section is < 24h old regardless of submissions', () => {
-    expect(deriveState({ submissionsPerStudent: 0, sectionAgeDays: 0, students: 0 })
+    expect(deriveState({ submissionsPerStudent: 5, sectionAgeDays: 0, students: 10 })
       .state).toBe('NoData');
   });
 

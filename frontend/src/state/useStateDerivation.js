@@ -10,7 +10,7 @@ import { STATE_COPY } from './stateCopy.js';
  *   Healthy: >= 3 submissions/student AND section >= 14d
  *
  * @param {{ submissionsPerStudent: number, sectionAgeDays: number, students: number }} input
- * @returns {{ state: 'NoData'|'LowConfidence'|'Healthy', progressText?: string, copy: object }}
+ * @returns {{ state: 'NoData'|'LowConfidence'|'Healthy', progressText?: string }}
  */
 export function deriveState({ submissionsPerStudent = 0, sectionAgeDays = 0, students = 0 } = {}) {
   let state;
@@ -22,7 +22,7 @@ export function deriveState({ submissionsPerStudent = 0, sectionAgeDays = 0, stu
     state = 'Healthy';
   }
 
-  const result = { state, copy: null };
+  const result = { state };
   if (state === 'LowConfidence') {
     const nextTarget = submissionsPerStudent + 1;
     result.progressText = `${nextTarget} of ${students} submissions to full confidence`;
