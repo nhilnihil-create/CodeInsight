@@ -5,6 +5,8 @@ import instructorMobile from './mobile/instructor.json';
 import studentMobile from './mobile/student.json';
 import adminMobile from './mobile/admin.json';
 
+// Spec §10: tablet and desktop reuse the mobile config until §10 differentiates them.
+// Removing this alias will break callers that pass tablet/desktop.
 const TABLES = {
   instructor: { mobile: instructorMobile, tablet: instructorMobile, desktop: instructorMobile },
   student:    { mobile: studentMobile,    tablet: studentMobile,    desktop: studentMobile },
@@ -42,5 +44,7 @@ export function shouldShow(widget, data) {
       }
     }
   }
-  return true;
+  // Unrecognized pattern — log a warning and fail-closed (do NOT show)
+  console.warn(`[useLayoutConfig] shouldShow: unrecognized expression "${expr}" — defaulting to hidden`);
+  return false;
 }
