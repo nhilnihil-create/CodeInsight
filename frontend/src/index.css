@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -59,8 +59,85 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* LIGHT MODE — CodeInsight design tokens (from Frontend-Design) */
+/* DARK MODE — Default (spec §6.1) */
 :root {
+  --bg-0: #0B1120;
+  --bg-1: #0F172A;
+  --bg-2: #1E293B;
+  --bg-3: #334155;
+  --text-1: #F8FAFC;
+  --text-2: #94A3B8;
+  --text-3: #64748B;
+
+  --cds-low: #22C55E;
+  --cds-mod: #FACC15;
+  --cds-high: #EF4444;
+  --cds-na: #7C3AED;
+
+  --trend-up: #22C55E;
+  --trend-down: #EF4444;
+  --trend-flat: #94A3B8;
+
+  --background: 224 53% 8%;
+  --foreground: 215 32% 86%;
+
+  --card: 222 39% 13%;
+  --card-foreground: 215 32% 86%;
+  --card-border: 213 41% 22%;
+
+  --popover: 222 39% 13%;
+  --popover-foreground: 215 32% 86%;
+  --popover-border: 213 41% 22%;
+
+  --primary: 176 50% 67%;
+  --primary-foreground: 224 53% 8%;
+
+  --secondary: 218 36% 21%;
+  --secondary-foreground: 215 32% 86%;
+
+  --muted: 218 36% 21%;
+  --muted-foreground: 213 24% 56%;
+
+  --accent: 218 36% 27%;
+  --accent-foreground: 215 32% 86%;
+
+  --destructive: 0 75% 65%;
+  --destructive-foreground: 224 53% 8%;
+
+  --border: 213 41% 22%;
+  --input: 213 41% 22%;
+  --ring: 176 50% 67%;
+
+  --chart-1: 176 50% 67%;
+  --chart-2: 256 35% 70%;
+  --chart-3: 80 65% 65%;
+  --chart-4: 40 90% 60%;
+  --chart-5: 0 75% 65%;
+
+  --sidebar: 240 24% 9%;
+  --sidebar-foreground: 215 32% 86%;
+  --sidebar-border: 240 17% 24%;
+  --sidebar-primary: 176 50% 67%;
+  --sidebar-primary-foreground: 240 24% 9%;
+  --sidebar-accent: 240 17% 16%;
+  --sidebar-accent-foreground: 215 32% 86%;
+  --sidebar-ring: 176 50% 67%;
+
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-mono: 'JetBrains Mono', monospace;
+  --radius: 0.5rem;
+}
+
+/* LIGHT MODE — Professional light (spec §6.2) */
+[data-theme="light"] {
+  --bg-0: #F8FAFC;
+  --bg-1: #FFFFFF;
+  --bg-2: #F1F5F9;
+  --bg-3: #E2E8F0;
+  --text-1: #0F172A;
+  --text-2: #475569;
+  --text-3: #94A3B8;
+
   --background: 210 40% 98%;
   --foreground: 222 47% 11%;
 
@@ -72,7 +149,7 @@
   --popover-foreground: 222 47% 11%;
   --popover-border: 214 32% 91%;
 
-  --primary: 221 83% 53%;
+  --primary: 222 47% 11%;
   --primary-foreground: 210 40% 98%;
 
   --secondary: 210 40% 96%;
@@ -89,9 +166,9 @@
 
   --border: 214 32% 91%;
   --input: 214 32% 91%;
-  --ring: 221 83% 53%;
+  --ring: 222 47% 11%;
 
-  --chart-1: 221 83% 53%;
+  --chart-1: 222 47% 11%;
   --chart-2: 215 16% 47%;
   --chart-3: 199 89% 48%;
   --chart-4: 43 74% 66%;
@@ -100,158 +177,11 @@
   --sidebar: 210 40% 98%;
   --sidebar-foreground: 222 47% 11%;
   --sidebar-border: 214 32% 91%;
-  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary: 222 47% 11%;
   --sidebar-primary-foreground: 210 40% 98%;
   --sidebar-accent: 210 40% 96%;
   --sidebar-accent-foreground: 222 47% 11%;
-  --sidebar-ring: 221 83% 53%;
-
-  --app-font-sans: 'Plus Jakarta Sans', sans-serif;
-  --app-font-mono: 'JetBrains Mono', monospace;
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
-
-  --card: 222 47% 11%;
-  --card-foreground: 210 40% 98%;
-  --card-border: 217.2 32.6% 17.5%;
-
-  --popover: 222 47% 11%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 217.2 32.6% 17.5%;
-
-  --primary: 221 83% 53%;
-  --primary-foreground: 210 40% 98%;
-
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 221 83% 53%;
-
-  --chart-1: 221 83% 53%;
-  --chart-2: 215 20.2% 65.1%;
-  --chart-3: 199 89% 48%;
-  --chart-4: 43 74% 66%;
-  --chart-5: 0 62.8% 30.6%;
-
-  --sidebar: 222 47% 11%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 217.2 32.6% 17.5%;
-  --sidebar-primary: 221 83% 53%;
-  --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 217.2 32.6% 17.5%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 221 83% 53%;
-}
-
-[data-theme="dark"] {
-  /* Pre-design CodeInsight dark teal palette (commits b4016ff / 62fa4cd) */
-  --background: 224 53% 8%;        /* #0c1220 */
-  --foreground: 215 32% 86%;       /* #dce8f5 */
-
-  --card: 222 39% 13%;             /* #131d30 */
-  --card-foreground: 215 32% 86%;
-  --card-border: 213 41% 22%;
-
-  --popover: 222 39% 13%;
-  --popover-foreground: 215 32% 86%;
-  --popover-border: 213 41% 22%;
-
-  --primary: 176 50% 67%;          /* #85D2D0 teal */
-  --primary-foreground: 224 53% 8%;
-
-  --secondary: 218 36% 21%;        /* #1a2640 */
-  --secondary-foreground: 215 32% 86%;
-
-  --muted: 218 36% 21%;
-  --muted-foreground: 213 24% 56%; /* #6a85a8 */
-
-  --accent: 218 36% 27%;
-  --accent-foreground: 215 32% 86%;
-
-  --destructive: 0 75% 65%;        /* #f87171 */
-  --destructive-foreground: 224 53% 8%;
-
-  --border: 213 41% 22%;           /* #1e304d */
-  --input: 213 41% 22%;
-  --ring: 176 50% 67%;
-
-  --chart-1: 176 50% 67%;
-  --chart-2: 256 35% 70%;
-  --chart-3: 80 65% 65%;
-  --chart-4: 40 90% 60%;
-  --chart-5: 0 75% 65%;
-
-  --sidebar: 240 24% 9%;           /* #0f0f1a */
-  --sidebar-foreground: 215 32% 86%;
-  --sidebar-border: 240 17% 24%;   /* #2e2e4a */
-  --sidebar-primary: 176 50% 67%;
-  --sidebar-primary-foreground: 240 24% 9%;
-  --sidebar-accent: 240 17% 16%;
-  --sidebar-accent-foreground: 215 32% 86%;
-  --sidebar-ring: 176 50% 67%;
-}
-
-[data-theme="psu"] {
-  /* Pampanga State University palette: maroon primary, gold accent, white bg */
-  --background: 0 0% 100%;
-  --foreground: 350 78% 27%;       /* #7B0F1B maroon */
-
-  --card: 0 0% 100%;
-  --card-foreground: 350 78% 27%;
-  --card-border: 350 30% 80%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 350 78% 27%;
-  --popover-border: 350 30% 80%;
-
-  --primary: 350 78% 27%;          /* maroon */
-  --primary-foreground: 0 0% 100%;
-
-  --secondary: 350 30% 92%;
-  --secondary-foreground: 350 78% 27%;
-
-  --muted: 350 30% 92%;
-  --muted-foreground: 350 25% 40%;
-
-  --accent: 45 100% 59%;           /* #FFC72C gold */
-  --accent-foreground: 350 78% 27%;
-
-  --destructive: 0 75% 50%;
-  --destructive-foreground: 0 0% 100%;
-
-  --border: 350 30% 80%;
-  --input: 350 30% 80%;
-  --ring: 350 78% 27%;
-
-  --chart-1: 350 78% 27%;
-  --chart-2: 45 100% 59%;
-  --chart-3: 350 30% 50%;
-  --chart-4: 45 80% 50%;
-  --chart-5: 0 75% 50%;
-
-  --sidebar: 350 78% 27%;
-  --sidebar-foreground: 0 0% 100%;
-  --sidebar-border: 350 50% 35%;
-  --sidebar-primary: 45 100% 59%;
-  --sidebar-primary-foreground: 350 78% 27%;
-  --sidebar-accent: 350 70% 35%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 45 100% 59%;
+  --sidebar-ring: 222 47% 11%;
 }
 
 @layer base {
@@ -260,7 +190,7 @@
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
@@ -275,6 +205,16 @@
   padding: 40px;
   color: hsl(var(--muted-foreground));
 }
+
+/* CDS classification utility classes (spec §6.3) */
+.cds-low { color: var(--cds-low); background: color-mix(in srgb, var(--cds-low) 15%, transparent); }
+.cds-mod { color: var(--cds-mod); background: color-mix(in srgb, var(--cds-mod) 15%, transparent); }
+.cds-high { color: var(--cds-high); background: color-mix(in srgb, var(--cds-high) 15%, transparent); }
+.cds-na { color: var(--cds-na); background: color-mix(in srgb, var(--cds-na) 15%, transparent); }
+
+.trend-up { color: var(--trend-up); }
+.trend-down { color: var(--trend-down); }
+.trend-flat { color: var(--trend-flat); }
 
 .error {
   background: hsl(0 84% 60% / 0.1);
