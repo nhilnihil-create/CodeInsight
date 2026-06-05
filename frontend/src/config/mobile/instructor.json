@@ -1,0 +1,54 @@
+{
+  "role": "instructor",
+  "mode": "mobile",
+  "chrome": {
+    "appBar": { "title": "CodeInsight", "rightSlot": "menu" },
+    "bottomNav": {
+      "items": [
+        { "key": "command",  "label": "Command",  "icon": "alert",  "route": "/instructor/command" },
+        { "key": "students", "label": "Students", "icon": "users",  "route": "/instructor/students" },
+        { "key": "concepts", "label": "Concepts", "icon": "diamond", "route": "/instructor/concepts" },
+        { "key": "integrity","label": "Integrity","icon": "flag",   "route": "/instructor/integrity" },
+        { "key": "sections", "label": "Sections", "icon": "grid",   "route": "/instructor/sections" }
+      ]
+    }
+  },
+  "screens": {
+    "/instructor/command": {
+      "primary":   { "widget": "InstructorPriorityInsight", "endpoint": "/api/analytics/instructor/priority-insight" },
+      "secondary": [
+        { "widget": "AtRiskQueue",       "endpoint": "/api/analytics/instructor/at-risk-queue",       "showIf": "data.length > 0" },
+        { "widget": "InterventionQueue", "endpoint": "/api/analytics/instructor/intervention-queue", "showIf": "data.length > 0" }
+      ],
+      "tertiary": [
+        { "widget": "TopStrugglingConcepts", "endpoint": "/api/analytics/instructor/concepts/top?k=N", "collapsed": true },
+        { "widget": "IntegrityFlagCount",    "endpoint": "/api/analytics/instructor/integrity/count",  "collapsed": true },
+        { "widget": "ClassProfileRadar",     "endpoint": "/api/analytics/instructor/concepts/profile", "collapsed": true, "render": "summary" },
+        { "widget": "WeeklyTeachingInsight", "endpoint": "/api/analytics/instructor/weekly-insight",   "collapsed": true }
+      ]
+    },
+    "/instructor/students": {
+      "primary":   { "widget": "AtRiskRoster", "endpoint": "/api/analytics/instructor/students?sort=risk" },
+      "secondary": [],
+      "tertiary":  []
+    },
+    "/instructor/concepts": {
+      "primary":   { "widget": "TopStrugglingConcepts", "endpoint": "/api/analytics/instructor/concepts/top?k=N" },
+      "secondary": [],
+      "tertiary":  []
+    },
+    "/instructor/integrity": {
+      "primary":   { "widget": "IntegrityFlagCount",  "endpoint": "/api/analytics/instructor/integrity/count" },
+      "secondary": [
+        { "widget": "IntegrityFlagList", "endpoint": "/api/analytics/instructor/integrity/recent?limit=3", "showIf": "data.length > 0" },
+        { "widget": "IntegrityDrillNotice", "static": true, "copy": "Flag review requires tablet or desktop." }
+      ],
+      "tertiary":  []
+    },
+    "/instructor/sections": {
+      "primary":   { "widget": "SectionList", "endpoint": "/api/sections?instructor=me" },
+      "secondary": [],
+      "tertiary":  []
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "role": "student",
+  "mode": "mobile",
+  "chrome": {
+    "appBar": { "title": "CodeInsight", "rightSlot": "avatar" },
+    "bottomNav": {
+      "items": [
+        { "key": "today",     "label": "Today",     "icon": "sun",     "route": "/student/today" },
+        { "key": "exercises", "label": "Exercises", "icon": "diamond", "route": "/student/exercises" },
+        { "key": "progress",  "label": "Progress",  "icon": "chart",   "route": "/student/progress" },
+        { "key": "integrity", "label": "Integrity", "icon": "flag",    "route": "/student/integrity" },
+        { "key": "sections",  "label": "Sections",  "icon": "grid",    "route": "/student/sections" }
+      ]
+    }
+  },
+  "screens": {
+    "/student/today": {
+      "primary":   { "widget": "StudentTodayFocus", "endpoint": "/api/analytics/student/today-focus" },
+      "secondary": [
+        { "widget": "WeakestConceptBar", "endpoint": "/api/analytics/student/concepts/weakest", "showIf": "data && data.length > 0" },
+        { "widget": "ActionStack",       "endpoint": "/api/analytics/student/actions/next",    "showIf": "data.length > 0" }
+      ],
+      "tertiary": [
+        { "widget": "WeeklyProgress",        "endpoint": "/api/analytics/student/progress/week",     "collapsed": true },
+        { "widget": "ConceptMasteryBarSet",  "endpoint": "/api/analytics/student/concepts/all",       "collapsed": true, "render": "summary" },
+        { "widget": "IntegrityFlagCount",    "endpoint": "/api/analytics/student/integrity/count",    "collapsed": true }
+      ]
+    },
+    "/student/exercises": {
+      "primary":   { "widget": "ExerciseCardList", "endpoint": "/api/exercises?student=me" },
+      "secondary": [],
+      "tertiary":  []
+    },
+    "/student/exercises/:id": {
+      "primary":   { "widget": "CodePreviewSurface", "endpoint": "/api/exercises/:id" },
+      "secondary": [
+        { "widget": "TestResultList", "endpoint": "/api/submissions/:id/results", "showIf": "data && data.length > 0" },
+        { "widget": "OpenFullEditorHint", "static": true, "copy": "↗ Open in full editor (tablet+)" }
+      ],
+      "tertiary":  [],
+      "codeBlock": { "engine": "pre", "monaco": false, "horizontalScroll": true }
+    },
+    "/student/progress": {
+      "primary":   { "widget": "ConceptMasteryBarSet", "endpoint": "/api/analytics/student/concepts/all", "render": "summary" },
+      "secondary": [
+        { "widget": "WeeklyProgress", "endpoint": "/api/analytics/student/progress/week" }
+      ],
+      "tertiary":  []
+    },
+    "/student/integrity": {
+      "primary":   { "widget": "IntegrityFlagCount",   "endpoint": "/api/analytics/student/integrity/count" },
+      "secondary": [
+        { "widget": "IntegrityFlagHistory", "endpoint": "/api/analytics/student/integrity/history", "showIf": "data.length > 0" }
+      ],
+      "tertiary":  []
+    },
+    "/student/sections": {
+      "primary":   { "widget": "SectionList", "endpoint": "/api/sections?student=me" },
+      "secondary": [],
+      "tertiary":  []
+    }
+  }
+}
