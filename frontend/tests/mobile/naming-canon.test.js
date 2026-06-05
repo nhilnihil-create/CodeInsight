@@ -13,6 +13,7 @@ const CANON = new Set([
   'IntegrityFlagCount', 'IntegrityFlagList', 'IntegrityFlagHistory', 'IntegrityDrillNotice',
   'StudentTodayFocus', 'WeakestConceptBar', 'ConceptMasteryBarSet', 'ActionStack', 'WeeklyProgress',
   'ExerciseCardList', 'CodePreviewSurface', 'TestResultList', 'OpenFullEditorHint',
+  'PullToRefresh',
   'SnapshotMetrics', 'EvaluationProgress', 'Iso25010Instrument', 'AuditLog',
   'DesktopOnlyNotice', 'SectionList',
   'RiskBadge', 'CDSPillDelta',
