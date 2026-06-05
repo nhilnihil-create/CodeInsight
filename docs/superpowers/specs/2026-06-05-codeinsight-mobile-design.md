@@ -4,6 +4,7 @@
 **Status:** Design approved; ready for implementation planning
 **Companion visual mockups:** `.superpowers/brainstorm/102506-1780640635/content/section-{1,2,3,4}-*.html`
 **Companion desktop spec:** `docs/superpowers/specs/2026-06-05-codeinsight-redesign-design.md` (681 lines, approved earlier)
+**Implementation plan:** `docs/superpowers/plans/2026-06-05-codeinsight-mobile.md`
 
 ---
 
