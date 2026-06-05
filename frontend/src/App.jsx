@@ -28,7 +28,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import NotFound from './pages/NotFound';
 import { useMode } from './hooks/use-mobile.js';
-import { MobileChrome } from './components/mobile/MobileChrome.jsx';
+import { MobileChrome } from './components/MobileChrome.jsx';
 
 // Mobile page imports (14 total)
 import MobileInstructorCommand from './pages/mobile/instructor/Command.jsx';
