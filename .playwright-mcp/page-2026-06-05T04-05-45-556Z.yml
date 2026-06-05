@@ -1,0 +1,120 @@
+- generic [ref=e2]:
+  - generic [ref=e31]:
+    - complementary [ref=e32]:
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e35]: CodeInsight
+          - generic [ref=e36]: Instructor
+        - button "Close sidebar" [ref=e37]:
+          - img [ref=e38]
+      - navigation [ref=e41]:
+        - link "Dashboard" [ref=e43] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e44]
+          - generic [ref=e49]: Dashboard
+        - link "Heatmap" [ref=e51] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e52]
+          - generic [ref=e57]: Heatmap
+        - link "Students" [ref=e59] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e60]
+          - generic [ref=e65]: Students
+        - link "My Sections" [ref=e67] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e68]
+          - generic [ref=e71]: My Sections
+        - link "Exercises" [ref=e73] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e74]
+          - generic [ref=e76]: Exercises
+        - link "Warnings" [ref=e78] [cursor=pointer]:
+          - /url: /instructor/warnings
+          - img [ref=e79]
+          - generic [ref=e82]: Warnings
+        - link "Reports" [ref=e84] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e85]
+          - generic [ref=e88]: Reports
+        - link "Violations" [ref=e90] [cursor=pointer]:
+          - /url: /instructor/violations
+          - img [ref=e91]
+          - generic [ref=e93]: Violations
+        - link "Integrity" [ref=e95] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e96]
+          - generic [ref=e98]: Integrity
+        - link "Developer" [ref=e100] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e101]
+          - generic [ref=e104]: Developer
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - generic [ref=e108]: JD
+          - generic [ref=e109]:
+            - generic [ref=e110]: Juan Dela Cruz
+            - generic [ref=e111]: instructor@psu.edu
+        - button "Logout" [ref=e112]:
+          - img [ref=e113]
+          - text: Logout
+    - main [ref=e116]:
+      - generic [ref=e118]:
+        - generic [ref=e119]:
+          - generic [ref=e120]:
+            - heading "Instructor Dashboard" [level=1] [ref=e121]
+            - paragraph [ref=e122]: Class overview and active alerts.
+          - generic [ref=e123]:
+            - generic [ref=e124]: Section
+            - combobox [ref=e125]:
+              - generic: All Sections
+              - img [ref=e126]
+        - generic [ref=e128]:
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - heading "Total Students" [level=3] [ref=e131]
+              - img [ref=e132]
+            - generic [ref=e138]: "45"
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - heading "Active Exercises" [level=3] [ref=e141]
+              - img [ref=e142]
+            - generic [ref=e147]: "0"
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - heading "Critical Alerts" [level=3] [ref=e150]
+              - img [ref=e151]
+            - generic [ref=e153]:
+              - generic [ref=e154]: "0"
+              - link "View all warnings" [ref=e155] [cursor=pointer]:
+                - /url: /instructor/warnings
+          - generic [ref=e156]:
+            - generic [ref=e157]:
+              - heading "Avg Class CDS" [level=3] [ref=e158]
+              - img [ref=e159]
+            - generic [ref=e161]:
+              - generic [ref=e162]: "0"
+              - paragraph [ref=e163]: Low Difficulty
+        - generic [ref=e164]:
+          - generic [ref=e165]:
+            - heading "Class Concept Averages" [level=3] [ref=e167]
+            - generic [ref=e170]: No concept data yet for this selection.
+          - generic [ref=e171]:
+            - heading "Recent Activity" [level=3] [ref=e173]
+            - generic [ref=e176]: No recent activity.
+        - heading "Class Misconceptions" [level=3] [ref=e179]
+        - generic [ref=e181]:
+          - img [ref=e183]
+          - generic [ref=e186]:
+            - heading "Academic integrity" [level=4] [ref=e187]
+            - paragraph [ref=e188]: No suspicious submissions detected in this window.
+          - link "Open the full integrity review page" [ref=e190] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - text: Open review
+            - img [ref=e191]
+    - generic "Theme toggle" [ref=e193]:
+      - group "Theme selector" [ref=e194]:
+        - 'button "Theme: Light" [pressed] [ref=e195]':
+          - img [ref=e196]
+        - 'button "Theme: Dark teal" [ref=e202]':
+          - img [ref=e203]
+  - region "Notifications alt+T"

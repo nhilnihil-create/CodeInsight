@@ -1,0 +1,195 @@
+<h2>Section 3 — Per-role mobile screen blueprints</h2>
+<p class="subtitle">The exact widget stack for each top-level mobile route. Three actors, three IA lenses, one <code>&lt;Layout mode="mobile"&gt;</code> wrapping each. Each screen has exactly 1 primary widget, 0–2 secondary widgets, and any number of tertiary collapsed widgets. The N inside each widget is adaptive by viewport height.</p>
+
+<div class="section">
+  <h3>👨‍🏫 Instructor screens (5 mobile routes)</h3>
+
+  <div class="mockup">
+    <div class="mockup-header">/instructor/command (mobile) — the headline instructor screen, compressed</div>
+    <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#0F172A;color:#F8FAFC;padding:10px;border-radius:4px">
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">PRIMARY (1 of 1)</div>
+      <div style="background:#7C2D12;border-left:3px solid #EF4444;padding:10px;border-radius:4px;margin-bottom:10px">
+        <div style="font-size:9px;opacity:0.6">PRIORITY INSIGHT</div>
+        <div style="font-weight:600;font-size:13px">Loops are the hardest concept this week</div>
+        <div style="font-size:10px;opacity:0.8;margin-top:2px">CDS 0.62 ▲ +0.08 · 14 of 47 students in High</div>
+        <div style="margin-top:6px"><span style="background:#EF4444;color:#450A0A;padding:2px 8px;border-radius:3px">View concept →</span></div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">SECONDARY (0–2)</div>
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:6px">
+        <div style="font-size:9px;opacity:0.6">AT-RISK QUEUE · TOP <span style="color:#F8FAFC">N</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #334155">John Dela Cruz <span style="color:#EF4444">●✕ Critical</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #334155">Maria Santos <span style="color:#FB923C">●⚠ High</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #334155">Pedro Reyes <span style="color:#FB923C">●⚠ High</span></div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0">Liza Cruz <span style="color:#FACC15">●◐ Medium</span></div>
+        <div style="font-size:9px;opacity:0.5;margin-top:4px">+ 3 more · tap queue to expand</div>
+      </div>
+
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:10px">
+        <div style="font-size:9px;opacity:0.6">INTERVENTION QUEUE · CRITICAL ONLY</div>
+        <div style="padding:6px 0;border-bottom:1px solid #334155">
+          <div style="font-weight:600">John Dela Cruz</div>
+          <div style="font-size:10px;opacity:0.7">Loops 0.71 · 3 fails · 24m avg</div>
+          <div style="margin-top:4px"><span style="background:#22C55E;color:#022C22;padding:3px 10px;border-radius:3px">Assign Set B</span> <span style="background:#1E293B;border:1px solid #334155;padding:3px 10px;border-radius:3px;margin-left:4px">1:1</span></div>
+        </div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">TERTIARY (collapsed by default)</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;margin-bottom:4px;opacity:0.7">▸ Top struggling concepts (3) — tap to expand</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;margin-bottom:4px;opacity:0.7">▸ 3 integrity flags require review</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;margin-bottom:4px;opacity:0.7">▸ Class concept profile (radar) — drill for full chart</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;opacity:0.7">▸ Weekly teaching insight — drill for full</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">/instructor/students (mobile) — at-risk roster with action affordances</div>
+    <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#0F172A;color:#F8FAFC;padding:10px;border-radius:4px">
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:6px"><b>Filter:</b> All sections ▾  ·  Risk: All ▾  ·  Sort: Risk ↓</div>
+      <div style="background:#7C2D12;padding:8px;border-radius:4px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between"><b>John Dela Cruz</b><span style="color:#EF4444">●✕</span></div>
+        <div style="font-size:9px;opacity:0.7">BSIT-1A · LP 0.71 ▲+0.12 · 3 fails</div>
+        <div style="margin-top:4px"><span style="background:#1E293B;border:1px solid #334155;padding:2px 8px;border-radius:3px">View</span> <span style="background:#1E293B;border:1px solid #334155;padding:2px 8px;border-radius:3px">Message</span> <span style="background:#22C55E;color:#022C22;padding:2px 8px;border-radius:3px">Intervene</span></div>
+      </div>
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between"><b>Maria Santos</b><span style="color:#FB923C">●⚠</span></div>
+        <div style="font-size:9px;opacity:0.7">BSIT-1A · FN 0.55 · 1 flag</div>
+      </div>
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between"><b>Pedro Reyes</b><span style="color:#FB923C">●⚠</span></div>
+        <div style="font-size:9px;opacity:0.7">BSIT-1B · LP 0.58</div>
+      </div>
+      <div style="font-size:9px;opacity:0.5;text-align:center;margin-top:8px">swipe ◀ dismiss  ·  swipe ▶ flag  ·  long-press history</div>
+    </div>
+  </div>
+
+  <p style="font-size:11px;margin-top:10px">Other instructor mobile routes (concise):</p>
+  <ul style="font-size:11px">
+    <li><b>/instructor/concepts</b> — top-K concepts list (K adaptive), each row tap → /concepts/:id (full chart on tablet+).</li>
+    <li><b>/instructor/integrity</b> — flag count summary + 3 most recent critical flags + "View all" drill. <b>No flag review on phone</b> — the review UI is desktop/tablet-only (code diff needs horizontal space).</li>
+    <li><b>/instructor/sections</b> — section list (one card per section, max 4 visible), tap → /sections/:id hub (full layout).</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>👨‍🎓 Student screens (5 mobile routes)</h3>
+
+  <div class="mockup">
+    <div class="mockup-header">/student/today (mobile) — the headline student screen</div>
+    <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#0F172A;color:#F8FAFC;padding:10px;border-radius:4px">
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">PRIMARY (1 of 1)</div>
+      <div style="background:#064E3B;border-left:3px solid #22C55E;padding:12px;border-radius:4px;margin-bottom:12px">
+        <div style="font-size:9px;opacity:0.6">TODAY'S FOCUS</div>
+        <div style="font-weight:600;font-size:14px">Ex-3: Nested Loops</div>
+        <div style="font-size:10px;opacity:0.8;margin-top:2px"><b>Why:</b> Loops are your weakest concept (CDS 0.71 ▲ +0.04)</div>
+        <div style="font-size:10px;opacity:0.8"><b>Estimated time:</b> 25 min</div>
+        <div style="margin-top:8px;text-align:center"><span style="background:#22C55E;color:#022C22;padding:6px 18px;border-radius:4px;font-weight:600">▶ Start exercise</span></div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">SECONDARY (0–2)</div>
+      <div style="background:#1E293B;padding:10px;border-radius:4px;margin-bottom:8px">
+        <div style="font-size:9px;opacity:0.6">YOUR WEAKEST CONCEPT</div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">Loops <span style="background:#FACC15;color:#422006;padding:1px 6px;border-radius:3px">0.71</span></div>
+        <div style="background:#334155;height:8px;border-radius:3px;margin-top:4px"><div style="background:#FACC15;height:8px;border-radius:3px;width:71%"></div></div>
+        <div style="font-size:9px;opacity:0.7;margin-top:4px">3 of 5 exercises passed</div>
+      </div>
+      <div style="background:#1E293B;padding:10px;border-radius:4px;margin-bottom:10px">
+        <div style="font-size:9px;opacity:0.6">NEXT ACTIONS</div>
+        <div style="padding:4px 0">▶ Finish Ex-3 (in progress, 12 min left)</div>
+        <div style="padding:4px 0;opacity:0.7">▸ Optional: Review loop notes (collapsible)</div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">TERTIARY (collapsed)</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;margin-bottom:4px;opacity:0.7">▸ This week's progress — drill for full</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;margin-bottom:4px;opacity:0.7">▸ Concept mastery radar — drill for full</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;opacity:0.7">▸ 0 integrity flags on your record</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">/student/exercises/:id (mobile, &lt;640px) — read-only phone editor</div>
+    <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#0F172A;color:#F8FAFC;padding:10px;border-radius:4px">
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:6px">
+        <div style="font-weight:600">Ex-3: Nested Loops</div>
+        <div style="font-size:9px;opacity:0.7">CDS-predicted difficulty: 0.62 (High) · Concepts: LP</div>
+      </div>
+      <div style="background:#000;padding:8px;border-radius:4px;font-size:9px;line-height:1.5;margin-bottom:6px">
+        <div style="opacity:0.5">// Read-only on phone. Switch to tablet/desktop to edit.</div>
+        <div><span style="color:#7C3AED">#include</span> &lt;iostream&gt;</div>
+        <div><span style="color:#7C3AED">using namespace</span> std;</div>
+        <div><span style="color:#22C55E">int</span> main() {</div>
+        <div>&nbsp;&nbsp;<span style="color:#7C3AED">for</span> (<span style="color:#22C55E">int</span> i = 0; i &lt; n; i++) {</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#7C3AED">for</span> (<span style="color:#22C55E">int</span> j = 0; j &lt; m; j++) {</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cout &lt;&lt; i &lt;&lt; j;</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;}</div>
+        <div>&nbsp;&nbsp;}</div>
+        <div>}</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <span style="background:#22C55E;color:#022C22;padding:6px 14px;border-radius:4px;flex:1;text-align:center;font-weight:600">▶ Run</span>
+        <span style="background:#1E293B;border:1px solid #334155;padding:6px 14px;border-radius:4px;flex:1;text-align:center">Submit</span>
+      </div>
+      <div style="background:#1E293B;padding:8px;border-radius:4px;font-size:9px">
+        <div style="opacity:0.5">OUTPUT (run 2 of 5)</div>
+        <div style="color:#22C55E">✓ Test 1 passed</div>
+        <div style="color:#22C55E">✓ Test 2 passed</div>
+        <div style="color:#EF4444">✗ Test 3 failed — expected '00\n01\n02' got '0 1 2'</div>
+      </div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;margin-top:6px;text-align:center;opacity:0.8;font-size:9px">↗ Open in full editor (tablet+)</div>
+    </div>
+  </div>
+
+  <p style="font-size:11px;margin-top:10px">Other student mobile routes (concise):</p>
+  <ul style="font-size:11px">
+    <li><b>/student/exercises</b> — list of available exercises, each is an ExerciseCard (compact). Tap → /student/exercises/:id (read-only editor above).</li>
+    <li><b>/student/progress</b> — your 7 concept bars (one per concept), no radar (drill for radar). Sticky header with overall mastery %.</li>
+    <li><b>/student/integrity</b> — student sees their own flag history (limited to what the privacy boundary allows). Read-only on phone.</li>
+    <li><b>/student/sections</b> — section hub (one card per enrolled section) with purple chip identical to instructor's.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>🏛 Admin screens (3 mobile routes)</h3>
+  <div class="mockup">
+    <div class="mockup-header">/admin/overview (mobile) — minimal oversight, one action path</div>
+    <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#0F172A;color:#F8FAFC;padding:10px;border-radius:4px">
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">PRIMARY (1 of 1)</div>
+      <div style="background:#1E293B;border-left:3px solid #7C3AED;padding:12px;border-radius:4px;margin-bottom:10px">
+        <div style="font-size:9px;opacity:0.6">SYSTEM SNAPSHOT</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+          <div><div style="font-size:16px;font-weight:600">127</div><div style="font-size:9px;opacity:0.6">users</div></div>
+          <div><div style="font-size:16px;font-weight:600">6</div><div style="font-size:9px;opacity:0.6">sections</div></div>
+          <div><div style="font-size:16px;font-weight:600">23</div><div style="font-size:9px;opacity:0.6">eval pending</div></div>
+          <div><div style="font-size:16px;font-weight:600">3</div><div style="font-size:9px;opacity:0.6">flags open</div></div>
+        </div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">PRIMARY ACTION (1 of 1)</div>
+      <div style="background:#7C3AED;padding:12px;border-radius:4px;margin-bottom:10px;text-align:center">
+        <div style="font-weight:600">▶ Review pending evaluations (23)</div>
+        <div style="font-size:9px;opacity:0.7;margin-top:2px">ISO/IEC 25010 instrument</div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">SECONDARY</div>
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between"><b>Audit log</b><span style="opacity:0.5">recent activity →</span></div>
+        <div style="font-size:9px;opacity:0.7;margin-top:4px">3 sections created this week · 17 students joined</div>
+      </div>
+      <div style="background:#1E293B;padding:8px;border-radius:4px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between"><b>Sections at a glance</b><span style="opacity:0.5">▸</span></div>
+        <div style="font-size:9px;opacity:0.7;margin-top:4px">6 active · 0 archived</div>
+      </div>
+
+      <div style="opacity:0.5;font-size:9px;letter-spacing:0.18em;margin-bottom:6px">TERTIARY (info only — desktop recommended)</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;opacity:0.7">▸ Bulk export (desktop only)</div>
+      <div style="background:#1E293B;padding:6px 8px;border-radius:4px;opacity:0.7;margin-top:4px">▸ User management (desktop only)</div>
+    </div>
+  </div>
+  <p style="font-size:11px;margin-top:10px">Other admin mobile routes (concise):</p>
+  <ul style="font-size:11px">
+    <li><b>/admin/evaluation</b> — the ISO/IEC 25010 instrument, optimized for phone. 4-point Likert, one question per screen (better than a long form on phone), progress bar at top. Submit on the last question.</li>
+    <li><b>/admin/audit</b> — recent audit log entries (last 50). Tap row → detail. No filters on phone (desktop only).</li>
+  </ul>
+</div>
+
+<p class="subtitle">Section 4 will be: <b>API contracts, layout-config schema, and acceptance criteria</b> — the concrete data shapes that make all of this real, plus the cut list and success metrics.</p>

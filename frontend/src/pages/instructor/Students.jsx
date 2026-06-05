@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,40 +6,83 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search } from 'lucide-react';
 import { MOCK_USERS, MOCK_STUDENT_STATS } from '@/data/mockData';
+import SectionFilter from '@/components/SectionFilter';
+import api from '@/services/api';
 
 /**
  * Students list — see spec §3 row 3.
- * Reads MOCK_USERS for the table rows and MOCK_STUDENT_STATS for the
- * per-student summary columns. Replaces the design's Math.random() with
- * a deterministic lookup so screenshots are stable.
+ *
+ * Now respects the section filter (All / per-section). When a section is
+ * chosen, the table is sourced from /api/sections/:id/students-with-scores;
+ * "All Sections" falls back to the design MOCK_USERS rows.
  */
 export default function InstructorStudents() {
   const [search, setSearch] = useState('');
-  const students = MOCK_USERS.filter(
-    (u) =>
-      u.role === 'student' &&
-      (u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.studentId?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const [sectionId, setSectionId] = useState('all');
+  const [realStudents, setRealStudents] = useState(null);
+
+  useEffect(() => {
+    if (sectionId === 'all') {
+      setRealStudents(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get(`/api/sections/${sectionId}/students-with-scores`);
+        if (!cancelled) setRealStudents(Array.isArray(res.data) ? res.data : []);
+      } catch {
+        if (!cancelled) setRealStudents([]);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [sectionId]);
+
+  const students = (() => {
+    if (realStudents !== null) {
+      return realStudents
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          studentId: s.studentId || s.student_id || '—',
+          email: s.email || '',
+        }))
+        .filter((u) => {
+          if (!search) return true;
+          const q = search.toLowerCase();
+          return u.name.toLowerCase().includes(q) || (u.studentId || '').toLowerCase().includes(q);
+        });
+    }
+    return MOCK_USERS.filter(
+      (u) =>
+        u.role === 'student' &&
+        (u.name.toLowerCase().includes(search.toLowerCase()) ||
+          u.studentId?.toLowerCase().includes(search.toLowerCase()))
+    );
+  })();
 
   const statsById = Object.fromEntries(MOCK_STUDENT_STATS.map((s) => [s.studentId, s]));
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Students</h1>
           <p className="text-muted-foreground">Manage and monitor student progress.</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search by name or ID..."
-            className="pl-8"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <SectionFilter value={sectionId} onChange={setSectionId} />
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search by name or ID..."
+              className="pl-8"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -65,7 +108,7 @@ export default function InstructorStudents() {
                 </TableRow>
               ) : (
                 students.map((s) => {
-                  const stats = statsById[s.id] || { avgCds: 0, highestConcept: '—', lastActiveDays: 0, hasAlert: false };
+                  const stats = statsById[s.id] || statsById[s.studentId] || { avgCds: '—', highestConcept: '—', lastActiveDays: 0, hasAlert: false };
                   return (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">

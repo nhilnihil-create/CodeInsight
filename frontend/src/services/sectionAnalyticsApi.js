@@ -23,8 +23,10 @@ export const sectionAnalyticsApi = {
     return api.get(`/api/analytics/sections/${sectionId}/class-insights`);
   },
 
-  getClassInsightsByExercise: async (sectionId, exerciseId) => {
-    return api.get(`/api/analytics/sections/${sectionId}/class-insights/${exerciseId}`);
+  getClassInsightsByExercise: async (sectionId, exerciseId, { refreshCds = true } = {}) => {
+    return api.get(`/api/analytics/sections/${sectionId}/class-insights/${exerciseId}`, {
+      params: { refresh: refreshCds ? 'true' : 'false' }
+    });
   },
 
   // Longitudinal Progress Tracking

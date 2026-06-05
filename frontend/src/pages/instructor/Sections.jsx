@@ -1,36 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, Users, BarChart3, AlertTriangle, CheckCircle2, Copy, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import CDSPillDelta from '@/components/CDSPillDelta';
+import { cn } from '@/lib/utils';
+
+const POLICY_COLORS = {
+  code: 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30',
+  request: 'text-[#FACC15] bg-[#FACC15]/10 border-[#FACC15]/30',
+  closed: 'text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/30',
+};
 
 export default function InstructorSections() {
   const [sections, setSections] = useState([]);
-  const [activityData, setActivityData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', course_code: '', school_year: '', semester: 'Sem 1' });
 
-  useEffect(() => {
-    fetchSections();
-  }, []);
+  useEffect(() => { fetchSections(); }, []);
 
   const fetchSections = async () => {
     try {
       const res = await api.get('/api/sections');
       setSections(res.data || []);
-
-      // Fetch activity for each section
-      if (res.data && res.data.length > 0) {
-        const activ = [];
-        for (const sec of res.data) {
-          try {
-            const actRes = await api.get(`/api/analytics/activity/${sec.id}`);
-            activ.push(...actRes.data);
-          } catch (e) {
-            console.error('Error fetching activity:', e);
-          }
-        }
-        setActivityData(activ.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5));
-      }
     } catch (err) {
       console.error('Error fetching sections:', err);
     } finally {
@@ -50,448 +46,130 @@ export default function InstructorSections() {
     }
   };
 
-  const formatCDS = (value) => {
-    if (value === null || value === undefined) return '-';
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return isNaN(num) ? '-' : num.toFixed(2);
-  };
-
-  const getDifficultyColor = (cds) => {
-    if (cds === null || cds === undefined) return '#8884a0';
-    if (cds <= 0.33) return '#4ade80';
-    if (cds <= 0.66) return '#fbbf24';
-    return '#f87171';
-  };
-
-  const getTotalStudents = () => {
-    return sections.reduce((sum, s) => sum + (s.student_count || 0), 0);
-  };
-
-  const getTotalAlerts = () => {
-    return sections.reduce((sum, s) => sum + (s.alert_count || 0), 0);
-  };
-
-  const formatTime = (timestamp) => {
-    if (!timestamp) return 'just now';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
-    return `${diffDays}d ago`;
-  };
-
-  if (loading) {
-    return <div style={{ padding: '40px', color: '#8884a0' }}>Loading sections...</div>;
-  }
+  if (loading) return <div className="text-muted-foreground">Loading sections...</div>;
 
   return (
-    <div style={{ 
-      padding: '28px 28px 28px 16px',
-      width: '100%',
-      boxSizing: 'border-box',
-      background: '#0c1220',
-      minHeight: '100%'
-    }}>
-      {/* Top Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', gap: '16px' }}>
-        <div>
-          <div style={{ fontSize: '17px', fontWeight: 700, color: '#e8e6f0', marginBottom: '2px' }}>
-            My Sections
-          </div>
-          <div style={{ fontSize: '11px', color: '#8884a0' }}>
-            AY 2025–2026 · {sections.length} active sections · {getTotalStudents()} total students
-          </div>
-        </div>
-        <button 
-          onClick={() => setShowForm(!showForm)}
-          style={{
-            padding: '8px 16px',
-            background: '#85D2D0',
-            border: 'none',
-            borderRadius: '8px',
-            color: '#0f0f1a',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontSize: '12px',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={(e) => e.target.style.opacity = '0.9'}
-          onMouseLeave={(e) => e.target.style.opacity = '1'}
-        >
-          + New Section
-        </button>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          AY 2025–2026 · {sections.length} active sections
+        </p>
+        <Button onClick={() => setShowForm(!showForm)} size="sm">
+          <Plus className="mr-1 h-3.5 w-3.5" /> New Section
+        </Button>
       </div>
 
-      {/* Create Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} style={{
-          background: '#1a1a2e',
-          border: '1px solid #2e2e4a',
-          borderRadius: '12px',
-          padding: '20px',
-          marginBottom: '28px'
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8884a0', marginBottom: '6px' }}>
-                Section Name
-              </label>
-              <input 
-                type="text"
-                required 
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., CS101 - Section A"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: '#0f0f1a',
-                  border: '1px solid #2e2e4a',
-                  borderRadius: '8px',
-                  color: '#e8e6f0',
-                  fontSize: '12px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8884a0', marginBottom: '6px' }}>
-                Course Code
-              </label>
-              <input 
-                type="text"
-                required 
-                value={formData.course_code}
-                onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
-                placeholder="e.g., CS101"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: '#0f0f1a',
-                  border: '1px solid #2e2e4a',
-                  borderRadius: '8px',
-                  color: '#e8e6f0',
-                  fontSize: '12px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8884a0', marginBottom: '6px' }}>
-                School Year
-              </label>
-              <input 
-                type="text"
-                value={formData.school_year}
-                onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
-                placeholder="e.g., AY 2025-2026"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: '#0f0f1a',
-                  border: '1px solid #2e2e4a',
-                  borderRadius: '8px',
-                  color: '#e8e6f0',
-                  fontSize: '12px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#8884a0', marginBottom: '6px' }}>
-                Semester
-              </label>
-              <select 
-                value={formData.semester}
-                onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  background: '#0f0f1a',
-                  border: '1px solid #2e2e4a',
-                  borderRadius: '8px',
-                  color: '#e8e6f0',
-                  fontSize: '12px',
-                  boxSizing: 'border-box'
-                }}
-              >
-                <option value="Sem 1">Sem 1</option>
-                <option value="Sem 2">Sem 2</option>
-                <option value="Summer">Summer</option>
-              </select>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button 
-              type="submit"
-              style={{
-                padding: '8px 16px',
-                background: '#85D2D0',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#0f0f1a',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Create Section
-            </button>
-            <button 
-              type="button"
-              onClick={() => setShowForm(false)}
-              style={{
-                padding: '8px 16px',
-                background: '#2e2e4a',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#8884a0',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Sections Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '18px', marginBottom: '28px' }}>
-        {sections.map(section => {
-          const bannerGradients = [
-            'linear-gradient(135deg, #1e3a5f, #2d5a8e)',
-            'linear-gradient(135deg, #3a1e5f, #6b2d8e)',
-            'linear-gradient(135deg, #1e4a3a, #2d8e6b)',
-            'linear-gradient(135deg, #4a3a1e, #8e6b2d)'
-          ];
-          const gradientIndex = (section.id || 0) % bannerGradients.length;
-          const avgCDS = section.avg_cds ? parseFloat(section.avg_cds) : null;
-          const totalScores = section.difficulty_distribution ? 
-            (section.difficulty_distribution.low + section.difficulty_distribution.moderate + section.difficulty_distribution.high) : 1;
-
-          return (
-            <Link
-              key={section.id}
-              to={`/instructor/sections/${section.id}`}
-              style={{ textDecoration: 'none' }}
-            >
-              <div style={{
-                background: '#131d30',
-                border: '1px solid #1e304d',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#85D2D0';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#2e2e4a';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-              >
-                {/* Banner */}
-                <div style={{
-                  background: bannerGradients[gradientIndex],
-                  height: '80px',
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  padding: '14px 18px',
-                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)'
-                }}>
-                  <div>
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '18px', fontWeight: 700, color: 'white', lineHeight: 1.2 }}>
-                      {section.course_code}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-                      {section.name}
-                    </div>
-                  </div>
+        <Card>
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground">Section Name</label>
+                  <Input required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., CS101 - Section A" />
                 </div>
-
-                {/* Card Body */}
-                <div style={{ padding: '16px 18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ fontSize: '10px', color: '#8884a0', marginBottom: '12px', fontWeight: 500 }}>
-                    {section.school_year || 'AY 2025–2026'} · {section.semester || 'Sem 1'}
-                  </div>
-
-                  {/* Stats */}
-                  <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '17px', fontWeight: 700, color: '#e8e6f0' }}>
-                        {section.student_count || 0}
-                      </div>
-                      <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#8884a0', marginTop: '2px' }}>
-                        Students
-                      </div>
-                    </div>
-                    <div style={{ width: '1px', background: '#2e2e4a', alignSelf: 'stretch' }}></div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '17px', fontWeight: 700, color: '#e8e6f0' }}>
-                        {section.concept_count || 0}
-                      </div>
-                      <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#8884a0', marginTop: '2px' }}>
-                        Concepts
-                      </div>
-                    </div>
-                    <div style={{ width: '1px', background: '#2e2e4a', alignSelf: 'stretch' }}></div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: '17px', fontWeight: 700, color: section.alert_count > 0 ? '#f87171' : '#e8e6f0' }}>
-                        {section.alert_count || 0}
-                      </div>
-                      <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#8884a0', marginTop: '2px' }}>
-                        Alerts
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Difficulty Bar */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '10px', color: '#8884a0', marginBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Class Difficulty</span>
-                      <span>Avg CDS: {formatCDS(avgCDS)}</span>
-                    </div>
-                    <div style={{ height: '6px', borderRadius: '4px', background: '#22223a', overflow: 'hidden', display: 'flex' }}>
-                      {section.difficulty_distribution && totalScores > 0 ? (
-                        <>
-                          <div style={{
-                            background: '#4ade80',
-                            width: `${(section.difficulty_distribution.low / totalScores) * 100}%`,
-                            height: '100%'
-                          }}></div>
-                          <div style={{
-                            background: '#fbbf24',
-                            width: `${(section.difficulty_distribution.moderate / totalScores) * 100}%`,
-                            height: '100%'
-                          }}></div>
-                          <div style={{
-                            background: '#f87171',
-                            width: `${(section.difficulty_distribution.high / totalScores) * 100}%`,
-                            height: '100%'
-                          }}></div>
-                        </>
-                      ) : (
-                        <div style={{ width: '100%', height: '100%', background: '#22223a' }}></div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #2e2e4a', marginTop: 'auto' }}>
-                    <div style={{ fontSize: '11px', color: '#8884a0' }}>
-                      {section.exercise_count || 0} exercises assigned
-                    </div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: section.alert_count > 0 ? '#f87171' : '#4ade80' }}>
-                      {section.alert_count > 0 ? `⚠ ${section.alert_count} need intervention` : '✓ All on track'}
-                    </div>
-                  </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground">Course Code</label>
+                  <Input required value={formData.course_code} onChange={(e) => setFormData({ ...formData, course_code: e.target.value })} placeholder="e.g., CS101" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground">School Year</label>
+                  <Input value={formData.school_year} onChange={(e) => setFormData({ ...formData, school_year: e.target.value })} placeholder="e.g., AY 2025-2026" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground">Semester</label>
+                  <select value={formData.semester} onChange={(e) => setFormData({ ...formData, semester: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <option value="Sem 1">Sem 1</option>
+                    <option value="Sem 2">Sem 2</option>
+                    <option value="Summer">Summer</option>
+                  </select>
                 </div>
               </div>
-            </Link>
+              <div className="flex gap-2">
+                <Button type="submit" size="sm">Create Section</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Section Cards — spec §11.9A */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {sections.map(section => {
+          const avgCDS = section.avg_cds ? parseFloat(section.avg_cds) : null;
+          return (
+            <Card key={section.id} className="flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+              <CardContent className="flex flex-1 flex-col p-4">
+                {/* Header: name + term */}
+                <div className="mb-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-sm">{section.name}</h3>
+                    <span className="text-[10px] font-mono text-muted-foreground">{section.course_code}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span className="font-mono tracking-wider text-foreground/70">{section.code || '—'}</span>
+                    <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0', POLICY_COLORS[section.join_policy] || '')}>
+                      {section.join_policy || 'code'}
+                    </Badge>
+                    <span>{section.school_year || 'AY 2025–2026'} · {section.semester || 'Sem 1'}</span>
+                  </div>
+                </div>
+
+                {/* 3 KPIs */}
+                <div className="grid grid-cols-3 gap-2 my-3 py-3 border-y border-border/50">
+                  <div className="text-center">
+                    <div className="font-mono text-lg font-bold text-foreground">{section.student_count || 0}</div>
+                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Students</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-mono text-lg font-bold text-foreground">
+                      {avgCDS != null ? avgCDS.toFixed(2) : '—'}
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Avg CDS</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={cn('font-mono text-lg font-bold', section.alert_count > 0 ? 'text-destructive' : 'text-foreground')}>
+                      {section.alert_count || 0}
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">At Risk</div>
+                  </div>
+                </div>
+
+                {/* Top-line insight */}
+                <p className="text-[10px] text-muted-foreground mb-3 line-clamp-2">
+                  {section.topInsight || `${section.exercise_count || 0} exercises assigned`}
+                </p>
+
+                {/* 3 action buttons */}
+                <div className="mt-auto flex gap-2">
+                  <Button asChild variant="default" size="sm" className="flex-1 h-7 text-[10px]">
+                    <Link to={`/instructor/sections/${section.id}`}>Open hub</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="h-7 text-[10px]">
+                    <Link to={`/instructor/sections/${section.id}?tab=roster`}>Roster</Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="h-7 text-[10px] w-7 p-0">
+                    <Link to={`/instructor/sections/${section.id}?tab=codes`}><Copy className="h-3 w-3" /></Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           );
         })}
 
         {/* New Section Card */}
         <button
           onClick={() => setShowForm(!showForm)}
-          style={{
-            background: 'transparent',
-            border: '2px dashed #2e2e4a',
-            borderRadius: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '220px',
-            gap: '10px',
-            padding: '20px'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#85D2D0';
-            e.currentTarget.style.background = 'rgba(133,210,208,0.03)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#2e2e4a';
-            e.currentTarget.style.background = 'transparent';
-          }}
+          className="group flex min-h-[240px] flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-border bg-transparent p-5 transition-colors hover:border-primary/50 hover:bg-primary/5"
         >
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            border: '2px dashed #8884a0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            color: '#8884a0',
-            transition: 'all 0.2s'
-          }}>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground text-xl text-muted-foreground transition-colors group-hover:border-primary group-hover:text-primary">
             +
           </div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#8884a0', transition: 'all 0.2s' }}>
+          <div className="text-xs font-semibold text-muted-foreground transition-colors group-hover:text-primary">
             Create New Section
           </div>
         </button>
-      </div>
-
-      {/* Recent Activity */}
-      <div>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#e8e6f0', marginBottom: '14px' }}>
-          Recent Activity — All Sections
-        </div>
-        <div style={{ background: '#1a1a2e', border: '1px solid #2e2e4a', borderRadius: '12px', overflow: 'hidden' }}>
-          {activityData && activityData.length > 0 ? (
-            activityData.map((activity, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 18px', borderBottom: idx < activityData.length - 1 ? '1px solid rgba(46,46,74,0.5)' : 'none' }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  background: activity.difficulty === 'High' ? '#f87171' : activity.difficulty === 'Moderate' ? '#fbbf24' : '#4ade80'
-                }}></div>
-                <div style={{ fontSize: '12px', color: '#e8e6f0', flex: 1 }}>
-                  <span style={{ color: '#85D2D0', fontWeight: 600 }}>{activity.student_name}</span>
-                  {' triggered '} 
-                  <span style={{ color: getDifficultyColor(parseFloat(activity.cds)) }}>
-                    {activity.difficulty} difficulty
-                  </span>
-                  {' alert on '}
-                  <span style={{ color: '#85D2D0', fontWeight: 600 }}>{activity.concept_name}</span>
-                </div>
-                <div style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: '#22223a', color: '#8884a0', border: '1px solid #2e2e4a' }}>
-                  {activity.exercise_title?.substring(0, 15)}...
-                </div>
-                <div style={{ fontSize: '10px', color: '#8884a0', whiteSpace: 'nowrap' }}>
-                  {formatTime(activity.created_at)}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#8884a0', fontSize: '12px' }}>
-              No recent activity
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

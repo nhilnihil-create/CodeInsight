@@ -1,0 +1,90 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: MR
+          - generic [ref=e35]:
+            - generic [ref=e36]: Maria Reyes
+            - generic [ref=e37]: maria@student.psu.edu
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e44]:
+        - heading "Code Editor" [level=1] [ref=e45]
+        - group "Theme selector" [ref=e46]:
+          - 'button "Theme: Light" [pressed] [ref=e47]':
+            - img [ref=e48]
+          - 'button "Theme: Dark teal" [ref=e54]':
+            - img [ref=e55]
+          - 'button "Theme: PSU" [ref=e57]':
+            - img [ref=e58]
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - link "Back to exercises" [ref=e64] [cursor=pointer]:
+              - /url: /student/exercises
+              - img [ref=e65]
+              - text: Back to exercises
+            - heading "Basic Loops" [level=1] [ref=e67]
+            - generic [ref=e68]:
+              - generic [ref=e69]: Beginner
+              - generic [ref=e70]: Loops
+              - generic [ref=e71]: Variables
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - img [ref=e74]
+              - text: 0 errors
+            - generic [ref=e76]:
+              - img [ref=e77]
+              - text: 0 submits
+        - generic [ref=e82]:
+          - generic [ref=e85]:
+            - heading "Description" [level=2] [ref=e86]
+            - paragraph [ref=e87]: Write a program that prints numbers from 1 to N.
+            - heading "Visible Test Case" [level=3] [ref=e88]
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - generic [ref=e91]: "Input:"
+                - generic [ref=e92]: "5"
+              - generic [ref=e93]:
+                - generic [ref=e94]: "Expected Output:"
+                - generic [ref=e95]: 1 2 3 4 5
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e98]: main.cpp
+              - generic [ref=e100]: Loading...
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - generic [ref=e103]:
+                  - button "Output" [ref=e104]
+                  - button "Compiler Log" [ref=e105]
+                - generic [ref=e106]:
+                  - button "Run" [ref=e107]:
+                    - img [ref=e108]
+                    - text: Run
+                  - button "Submit" [ref=e110]:
+                    - img [ref=e111]
+                    - text: Submit
+              - generic [ref=e114]: Run your code to see output here.
+  - region "Notifications alt+T"

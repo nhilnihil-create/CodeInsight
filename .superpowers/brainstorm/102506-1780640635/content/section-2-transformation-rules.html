@@ -1,0 +1,105 @@
+<h2>Section 2 — Component transformation rules (desktop → mobile collapse)</h2>
+<p class="subtitle">The single most important section. Defines the deterministic transformation from each desktop component to its mobile counterpart. The rule is: <b>one component, two render modes, switched by CSS or by the <code>useIsMobile()</code> hook for chart-heavy components only.</b> Tablet (640–1024px) and desktop share the same render path; only phone (&lt;640px) gets the transformation.</p>
+
+<div class="section">
+  <h3>Rule 0 — The transformation table</h3>
+  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.6">
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1E293B;color:#F8FAFC"><th style="text-align:left;padding:6px">Desktop component</th><th style="text-align:left;padding:6px">Phone (&lt;640px) renders</th><th style="text-align:left;padding:6px">Switch mechanism</th></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>CdsHeatmap</code> (D3 SVG, students × concepts)</td><td style="padding:6px">Top-K list of struggling concepts (K=3). Each row: concept code + CDSPill + Δ + dominant misconception. Tap row → /concepts/:id full page.</td><td style="padding:6px"><code>useIsMobile()</code> + render swap</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>ConceptMasteryRadar</code> (7-axis D3)</td><td style="padding:6px">Single-axis summary: weakest concept highlighted, single bar showing mastery %, "view full radar" drill button.</td><td style="padding:6px"><code>useIsMobile()</code> + render swap</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>CDSPill</code> (full label + classification)</td><td style="padding:6px">Compact badge (numeric only, no label). Color stays.</td><td style="padding:6px">CSS class swap</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>CDSPillDelta</code> (0.62 ▲ +0.08)</td><td style="padding:6px">Tiny pill (no Δ) + small arrow only (▲/▼/▬). Tap → tooltip shows full delta.</td><td style="padding:6px">CSS class swap</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>RiskBadge</code> (Low/Medium/High/Critical label + color)</td><td style="padding:6px">Color dot only (no text). Tap → tooltip shows level.</td><td style="padding:6px">CSS class swap</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>InsightCard</code> (insight + chart + drill)</td><td style="padding:6px">Insight only (1 sentence). Chart hidden. Drill button remains.</td><td style="padding:6px">CSS visibility + chart slot</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>InterventionCard</code> (4-slot: Student/Problem/Evidence/Action)</td><td style="padding:6px">1-card layout: header (name + risk), 1-line problem, 1-line evidence, primary action button. Stacks vertically. No collapsible — the whole card is the action surface.</td><td style="padding:6px">CSS layout switch (grid 4-col → grid 1-col)</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>TimelineRail</code> (vertical submission history)</td><td style="padding:6px">Horizontal scrollable strip (touch-friendly). Same data, smaller footprint. Snap to first/last.</td><td style="padding:6px">CSS direction swap</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>FlagEvidence</code> (integrity review card)</td><td style="padding:6px">Header (flag type) + 1-line evidence summary + actions. Code diff hidden behind "View evidence" expand.</td><td style="padding:6px">CSS + Collapsible</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>ExerciseCard</code> (student-facing)</td><td style="padding:6px">Same content, smaller padding. Difficulty estimate visible. Tap → /exercises/:id.</td><td style="padding:6px">CSS only</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>ConceptRow</code> (one concept in /concepts list)</td><td style="padding:6px">Condensed row: code + CDSPill + Δ. Top misconception hidden behind tap.</td><td style="padding:6px">CSS only</td></tr>
+      <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><code>CDSGauge</code> (radial gauge)</td><td style="padding:6px">Renders identically. Radial gauge is phone-friendly.</td><td style="padding:6px">No change</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Rule 1 — Chart degradation</h3>
+  <ul>
+    <li><b>Phone</b> never instantiates a D3 SVG larger than 200×200px. Heatmap / radar / multi-series → summary widget or sparkline.</li>
+    <li><b>Sparklines</b> are pre-aggregated server-side (we already do this for KPI deltas) — the client renders them with a tiny inline SVG, no D3 dependency.</li>
+    <li><b>D3 fallback strategy</b>: <code>if (useIsMobile()) return &lt;SummaryView /&gt;; else return &lt;D3Chart /&gt;;</code> at the top of each chart component. The D3 import is dynamically loaded and skipped on phone (no D3 in the phone bundle for those components).</li>
+    <li><b>Drill to full chart</b>: every summary widget ships with a "View full analysis →" link that opens the desktop-rendered chart at its full route (e.g., <code>/concepts/:id</code>). The user accepts the page is optimized for tablet+ here.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Rule 2 — Chart collapse decisions (phone only)</h3>
+  <div class="cards">
+    <div class="card" data-choice="heatmap" onclick="toggleSelect(this)">
+      <div class="card-image" style="background:#0F172A;padding:8px;color:#F8FAFC;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:4px">
+        <div style="opacity:0.5">CdsHeatmap (desktop)</div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin:4px 0">
+          <div style="background:#EF4444;height:14px"></div><div style="background:#FACC15;height:14px"></div><div style="background:#22C55E;height:14px"></div><div style="background:#EF4444;height:14px"></div><div style="background:#FACC15;height:14px"></div><div style="background:#22C55E;height:14px"></div><div style="background:#22C55E;height:14px"></div>
+          <div style="background:#FB923C;height:14px"></div><div style="background:#EF4444;height:14px"></div><div style="background:#22C55E;height:14px"></div><div style="background:#FACC15;height:14px"></div><div style="background:#EF4444;height:14px"></div><div style="background:#22C55E;height:14px"></div><div style="background:#22C55E;height:14px"></div>
+        </div>
+        <div style="opacity:0.5">→</div>
+        <div style="background:#7C2D12;padding:4px;border-radius:3px">Top 3: LP 0.62 ▲ · FN 0.55 ▲ · CD 0.48 ▼</div>
+      </div>
+      <div class="card-body">
+        <h3>Heatmap → Top-K list</h3>
+        <p>K=3 by default; K=5 if viewport height ≥ 700px. Each row: concept code + CDSPillDelta + dominant misconception (1 line).</p>
+      </div>
+    </div>
+    <div class="card" data-choice="radar" onclick="toggleSelect(this)">
+      <div class="card-image" style="background:#0F172A;padding:8px;color:#F8FAFC;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:4px">
+        <div style="opacity:0.5">ConceptMasteryRadar (desktop)</div>
+        <div style="text-align:center;font-size:20px">⬡</div>
+        <div style="opacity:0.5">→</div>
+        <div style="background:#7C2D12;padding:4px;border-radius:3px">Weakest: Loops · 0.71 (▲ to focus)</div>
+      </div>
+      <div class="card-body">
+        <h3>Radar → single-axis summary</h3>
+        <p>One concept highlighted (weakest), mastery bar, "View full radar" drill. Saves ~80% of vertical space.</p>
+      </div>
+    </div>
+    <div class="card" data-choice="intervention" onclick="toggleSelect(this)">
+      <div class="card-image" style="background:#0F172A;padding:8px;color:#F8FAFC;font-family:'JetBrains Mono',monospace;font-size:10px;border-radius:4px">
+        <div style="opacity:0.5">InterventionCard (desktop, 4 slots)</div>
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 1fr;gap:2px;font-size:9px">
+          <div style="background:#1E293B;padding:2px">Student</div><div style="background:#1E293B;padding:2px">Problem</div><div style="background:#1E293B;padding:2px">Evidence</div><div style="background:#1E293B;padding:2px">Action</div>
+        </div>
+        <div style="opacity:0.5">→</div>
+        <div style="background:#7C2D12;padding:4px;border-radius:3px">John D. · Loops 0.71 · 3 fails · [Assign Set B]</div>
+      </div>
+      <div class="card-body">
+        <h3>InterventionCard → 1-card stacked</h3>
+        <p>Header → 1-line problem → 1-line evidence → primary action button. No collapsible — the card IS the action.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Rule 3 — Touch &amp; gesture surface (phone only)</h3>
+  <ul>
+    <li><b>Tap targets ≥ 44×44</b>. Buttons get 12px vertical padding minimum; list rows get 56px height minimum.</li>
+    <li><b>Swipe gestures</b>: swipe-left on a queue row = "snooze" or "dismiss" (with undo toast). Swipe-right on an integrity flag = "approve / clear". Both undoable.</li>
+    <li><b>Long-press</b>: long-press on a CDSPill shows the trend sparkline + Wilson CI. Long-press on a ConceptRow shows the 4-week history sparkline.</li>
+    <li><b>Pull-to-refresh</b>: only on top-level role pages (Command, Today, Overview). Implemented with a 60px threshold. No library — 20 lines of pointer-event handlers.</li>
+    <li><b>No hover-only affordances</b>: any desktop hover state (e.g., "hover to see tooltip") gets a tap-equivalent on phone. Tooltip on long-press is the canonical pattern.</li>
+    <li><b>Safe-area-inset</b>: bottom tab bar respects <code>env(safe-area-inset-bottom)</code> for iOS home indicator. Top app bar respects notch on landscape.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Rule 4 — Performance budget (phone only)</h3>
+  <ul>
+    <li><b>Initial JS bundle (phone route)</b>: ≤ 200KB gzipped. Monaco is lazy-loaded only on /student/exercises/:id and never on the initial bundle.</li>
+    <li><b>D3 imports</b>: dynamic <code>import('d3')</code> on chart components, behind a viewport check. Phone never loads D3 for components that render as summary.</li>
+    <li><b>No full-page re-renders</b>: route changes use <code>React.lazy</code> + <code>Suspense</code> with route-level code splitting. The mobile entry bundle is the role-resolved layout + the role's primary widget.</li>
+    <li><b>Image / chart lazy-load</b>: charts off-screen get <code>loading="lazy"</code> equivalent via IntersectionObserver. Tap-to-load for embedded heavy D3 grids.</li>
+    <li><b>CSS containment</b>: <code>contain: layout</code> on cards to limit reflow when RiskBadge or CDSPill changes.</li>
+  </ul>
+</div>
+
+<p class="subtitle">If this transformation table feels right, Section 3 is the <b>per-role mobile screens</b> (instructor triage stack, student guided flow, admin snapshot — full IA + content blocks for each top-level mobile route).</p>

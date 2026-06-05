@@ -1,14 +1,13 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 const STORAGE_KEY = 'codeinsight:theme';
-const VALID_THEMES = ['light', 'dark', 'psu'];
+const VALID_THEMES = ['light', 'dark'];
 const DEFAULT_THEME = 'light';
 
 /**
  * Theme system — see spec §2.4.
  *
- * - 3 themes: 'light' (default, Frontend-Design blue), 'dark' (pre-design dark teal),
- *   'psu' (PSU maroon + gold + white).
+ * - 2 themes: 'light' (default, Frontend-Design blue), 'dark' (pre-design dark teal).
  * - localStorage key: 'codeinsight:theme'
  * - Mirrors the active theme to <html data-theme="..."> on mount + on change.
  * - On first load with no localStorage value, no data-theme attribute is set:

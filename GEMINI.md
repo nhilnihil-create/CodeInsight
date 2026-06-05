@@ -1,5 +1,13 @@
 # CodeInsight — Gemini Code Assist Implementation Authority
 
+# Gemini Code Assist Rules
+
+## Code Preservation & Continuity
+- Never truncate, replace with comments, or omit existing logic blocks when modifying files.
+- Always preserve baseline database schemas and test suites exactly as they are written.
+- Before declaring a feature complete, verify that you haven't introduced any syntax mismatches.
+
+
 ## 🎯 Research Objectives Alignment (Chapters 1-3)
 This document tracks the implementation of the remaining components required to satisfy the research methodology and theoretical pillars (Pillars 1-10).
 

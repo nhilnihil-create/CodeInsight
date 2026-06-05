@@ -10,11 +10,14 @@ import { cn } from '@/lib/utils';
  *   - {children} API — App.jsx <ProtectedRoute> wrapper does not change
  *   - SidebarContext contract: { isOpen } still drives the main margin
  *
- * REPLACED:
- *   - Added a thin top bar that uses design tokens (border-border / bg-card)
- *     so the page picks up the design's typographic rhythm
- *   - Renders the page title from <title> via the optional `pageTitle` prop
- *   - Children flow in a max-width content area
+ * CHANGED (per user directive 2026-06-05):
+ *   - Removed the sticky page-title header bar. The sidebar already gives
+ *     every protected route navigation context, and each page owns its
+ *     own internal h1 styling, so the duplicate chrome was unnecessary.
+ *     The `pageTitle` prop is accepted (still passed by ProtectedRoute)
+ *     for backwards compatibility but is no longer rendered.
+ *   - ThemeToggle moved to a fixed top-right corner control so light/dark
+ *     teal switching stays one click away on every page.
  */
 export default function Layout({ children, pageTitle }) {
   const { isOpen } = useSidebar();
@@ -28,18 +31,15 @@ export default function Layout({ children, pageTitle }) {
           isOpen ? 'ml-[220px]' : 'ml-[70px]'
         )}
       >
-        {pageTitle && (
-          <header className="sticky top-0 z-30 border-b border-border bg-card/80 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-            <div className="flex items-center justify-between gap-4">
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                {pageTitle}
-              </h1>
-              <ThemeToggle />
-            </div>
-          </header>
-        )}
         <div className="w-full max-w-7xl mx-auto p-6 lg:p-8">{children}</div>
       </main>
+      <div
+        className="fixed right-4 top-4 z-50"
+        aria-label="Theme toggle"
+        data-page-title={pageTitle}
+      >
+        <ThemeToggle />
+      </div>
     </div>
   );
 }

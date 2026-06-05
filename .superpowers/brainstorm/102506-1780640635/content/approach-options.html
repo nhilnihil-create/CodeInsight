@@ -1,0 +1,26 @@
+<h2>Three approaches to the mobile design surface</h2>
+<p class="subtitle">The structural question: how do we organize the mobile experience? All three approaches honor the 6 decisions you've already made (daily-driver students, read-only phone editor, three nav layouts by breakpoint, summary-on-phone charts, CSS-first, no new endpoints). The difference is in the IA pattern that ties them together.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Triage + Guide shells (role-keyed IA)</h3>
+      <p>Two reusable mobile shells: <code>MobileInstructorShell</code> (triage cards, top-down) and <code>MobileStudentShell</code> (today focus + action stack, bottom-up). Every page picks the shell for its role. Simple mental model, fast to implement, but the instructor and student mental models are different — you'll see "two CodeInsights" on mobile. Defensible for defense: each role's mobile flow maps 1:1 to the thesis objective it serves.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Single shell, role-aware widgets (Recommended)</h3>
+      <p>One <code>MobileShell</code> with role-aware widgets. The same shell renders for both roles — bottom nav, app bar, content area — but the content area composes from role-specific widgets (PriorityInsightCard for instructor, TodayFocusCard for student). The mobile <em>shell</em> is one product; the <em>contents</em> differ. Matches the desktop spec's "three actors, one mental model, three lenses" stance. Same code path, more shared infrastructure. (Recommended — the most consistent with the existing design system.)</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Three separate mobile apps (instructor / student / admin)</h3>
+      <p>Three completely separate mobile experiences with their own routes, their own nav, their own design language — instructor gets a triage app, student gets a learning app, admin gets an oversight app. Most clarity per audience, most code to maintain. Risks scope creep and inconsistent tokens. Not recommended for a thesis-defense v1.</p>
+    </div>
+  </div>
+</div>

@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import api from '../../services/api';
 import ClassMisconceptionReport from './ClassMisconceptionReport';
 import LiveCDSPanel from '../LiveCDSPanel';
-import './ExerciseAccordion.css';
+import IntegrityFlagDropdown from './IntegrityFlagDropdown';
 
+/**
+ * ExerciseAccordion — see spec §3 row 5.
+ *
+ * Ported from hard-coded dark teal hexes to the shadcn semantic token system.
+ * Card chrome, action buttons, distribution bar, and difficulty colors all
+ * resolve through Tailwind utilities that respect the active theme.
+ */
 function ExerciseAccordion({
   sectionId,
   exercises: exercisesProp,
@@ -32,6 +40,7 @@ function ExerciseAccordion({
   const [loadingReports, setLoadingReports] = useState({});
   const [reportErrors, setReportErrors] = useState({});
   const [expandedExercise, setExpandedExercise] = useState(null);
+  const [integrityFlagsExerciseId, setIntegrityFlagsExerciseId] = useState(null);
 
   const exercises = exercisesProp ?? exercisesLocal;
   const loading = loadingProp ?? loadingLocal;
@@ -116,33 +125,64 @@ function ExerciseAccordion({
     }
   };
 
-  const cdsColorClass = (difficulty, isHighAvg) => {
-    if (isHighAvg) return 'stat-cds-high';
-    if (difficulty === 'moderate') return 'stat-cds-moderate';
-    if (difficulty === 'low') return 'stat-cds-low';
-    return '';
+  const handleLiveCDSToggle = (exerciseId) => {
+    setIntegrityFlagsExerciseId((openId) =>
+      openId === exerciseId ? null : openId
+    );
+    onLiveCDSToggle?.(exerciseId);
+  };
+
+  const handleIntegrityToggle = (exerciseId) => {
+    setIntegrityFlagsExerciseId((prev) => {
+      const next = prev === exerciseId ? null : exerciseId;
+      if (next !== null && liveCDSExerciseId === exerciseId) {
+        onLiveCDSToggle?.(null);
+      }
+      return next;
+    });
+  };
+
+  // Tailwind tones that adapt to light + dark via the dark: variant.
+  const CDS_TONE = {
+    low:      'text-emerald-600 dark:text-emerald-400',
+    moderate: 'text-amber-600 dark:text-amber-400',
+    high:     'text-red-600 dark:text-red-400',
+  };
+
+  const CDS_BAR = {
+    low:      'bg-emerald-500',
+    moderate: 'bg-amber-500',
+    high:     'bg-red-500',
   };
 
   if (loading) {
-    return <div className="exercise-accordion-state">Loading exercises...</div>;
+    return (
+      <div className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground">
+        Loading exercises...
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="exercise-accordion-state is-error">{error}</div>;
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-5 text-center text-sm text-destructive">
+        {error}
+      </div>
+    );
   }
 
   if (!exercises.length) {
     return (
-      <div className="exercise-accordion-state">
+      <div className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground">
         No exercises assigned to this section yet.
       </div>
     );
   }
 
   return (
-    <div className="exercise-accordion-list">
+    <div className="flex flex-col gap-3">
       {showManagement && (
-        <p className="exercise-accordion-hint">
+        <p className="mb-1 text-xs text-muted-foreground">
           Use the arrow on each card to run an automated CDS check and view the class misconception report.
         </p>
       )}
@@ -166,215 +206,274 @@ function ExerciseAccordion({
           showDeleteConfirm && selectedExerciseId === exercise.id;
 
         return (
-          <article key={exercise.id} className="exercise-accordion-item">
-            <div
-              className={[
-                'exercise-accordion-shell',
-                isExpanded ? 'is-expanded' : '',
-                isHighAvg ? 'is-high-avg' : ''
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              <div className="exercise-accordion-body">
-                <div className="exercise-accordion-top">
-                  <div className="exercise-accordion-title-block">
-                    <h3 className="exercise-accordion-title">{exercise.title}</h3>
-                    {description && (
-                      <p className="exercise-accordion-description">
-                        {description.length > 100
-                          ? `${description.substring(0, 100)}...`
-                          : description}
-                      </p>
-                    )}
-                  </div>
-                  {exercise.concept_name && (
-                    <span className="exercise-accordion-concept">
-                      {exercise.concept_name}
-                    </span>
+          <article
+            key={exercise.id}
+            className={cn(
+              'rounded-lg border bg-card overflow-hidden transition-colors',
+              isHighAvg ? 'border-red-300 dark:border-red-900/60' : 'border-border',
+              isExpanded && 'ring-1 ring-primary/30'
+            )}
+          >
+            <div className="px-4 pt-4">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="mb-1 text-sm font-bold leading-tight text-foreground">
+                    {exercise.title}
+                  </h3>
+                  {description && (
+                    <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+                      {description.length > 100
+                        ? `${description.substring(0, 100)}...`
+                        : description}
+                    </p>
                   )}
                 </div>
+                {exercise.concept_name && (
+                  <span className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                    {exercise.concept_name}
+                  </span>
+                )}
+              </div>
 
-                <div className="exercise-accordion-stats">
-                  <div>
-                    Submitted:{' '}
-                    <strong style={{ color: '#e8e6f0' }}>
-                      {exercise.submitted_count || 0}/{exercise.total_students || 0}
-                    </strong>
-                  </div>
-                  <div>
-                    Avg CDS:{' '}
-                    <strong className={cdsColorClass(difficulty, isHighAvg)}>
-                      {formatCDS(avgCdsNum)}
-                    </strong>
-                  </div>
-                  <div>
-                    Status:{' '}
-                    <strong
-                      className={
-                        exercise.closed_at
-                          ? 'stat-status-closed'
-                          : 'stat-status-active'
-                      }
-                    >
-                      {exercise.closed_at ? 'Closed' : 'Active'}
-                    </strong>
-                  </div>
-                </div>
-
+              <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-muted-foreground">
                 <div>
-                  <div
-                    className={`exercise-accordion-distribution-label${
-                      isHighAvg ? ' dist-high' : ''
-                    }`}
-                  >
-                    <span>Difficulty Distribution</span>
-                    <span className={isHighAvg ? 'dist-high' : ''}>
-                      Low {exercise.low_count || 0} · Mod{' '}
-                      {exercise.moderate_count || 0} · High {exercise.high_count || 0}
-                    </span>
-                  </div>
-                  <div className="exercise-accordion-distribution-bar">
-                    {totalScores > 0 && (
-                      <>
-                        <div
-                          className="exercise-accordion-bar-low"
-                          style={{
-                            width: `${((exercise.low_count || 0) / totalScores) * 100}%`
-                          }}
-                        />
-                        <div
-                          className="exercise-accordion-bar-moderate"
-                          style={{
-                            width: `${((exercise.moderate_count || 0) / totalScores) * 100}%`
-                          }}
-                        />
-                        <div
-                          className="exercise-accordion-bar-high"
-                          style={{
-                            width: `${((exercise.high_count || 0) / totalScores) * 100}%`
-                          }}
-                        />
-                      </>
+                  Submitted:{' '}
+                  <strong className="font-mono font-semibold text-foreground">
+                    {exercise.submitted_count || 0}/{exercise.total_students || 0}
+                  </strong>
+                </div>
+                <div>
+                  Avg CDS:{' '}
+                  <strong className={cn('font-mono font-semibold', CDS_TONE[difficulty])}>
+                    {formatCDS(avgCdsNum)}
+                  </strong>
+                </div>
+                <div>
+                  Status:{' '}
+                  <strong
+                    className={cn(
+                      'font-semibold',
+                      exercise.closed_at
+                        ? 'text-muted-foreground'
+                        : 'text-emerald-600 dark:text-emerald-400'
                     )}
-                  </div>
+                  >
+                    {exercise.closed_at ? 'Closed' : 'Active'}
+                  </strong>
                 </div>
               </div>
 
-              {showManagement && (
-                <div className="exercise-accordion-footer">
-                  <div className="exercise-accordion-actions">
-                    <button
-                      type="button"
-                      className="exercise-accordion-action-btn exercise-accordion-action-btn--primary"
-                      onClick={() => onEditExercise?.(exercise)}
-                    >
-                      ✎ Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="exercise-accordion-action-btn exercise-accordion-action-btn--primary"
-                      onClick={() => onLiveCDSToggle?.(exercise.id)}
-                    >
-                      📊 Live CDS
-                    </button>
-                    <button
-                      type="button"
-                      className={`exercise-accordion-action-btn ${
-                        exercise.closed_at
-                          ? 'exercise-accordion-action-btn--success'
-                          : 'exercise-accordion-action-btn--danger'
-                      }`}
-                      onClick={() => onToggleExerciseStatus?.(exercise)}
-                    >
-                      {exercise.closed_at ? '↻ Reopen' : '⊗ Close'}
-                    </button>
-                    <button
-                      type="button"
-                      className={`exercise-accordion-action-btn exercise-accordion-action-btn--danger${
-                        isDeleteConfirm ? ' exercise-accordion-action-btn--danger-confirm' : ''
-                      }`}
-                      onClick={() => onDeleteExercise?.(exercise)}
-                    >
-                      {isDeleteConfirm ? '⚠ Confirm Delete' : '🗑 Delete'}
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`exercise-accordion-toggle${isExpanded ? ' is-expanded' : ''}`}
-                    onClick={() => handleToggle(exercise.id)}
-                    aria-expanded={isExpanded}
-                    aria-controls={panelId}
-                    aria-label={
-                      isExpanded
-                        ? `Collapse class insights for ${exercise.title}`
-                        : `Expand class insights for ${exercise.title}`
-                    }
-                  >
-                    <span className="exercise-accordion-chevron" aria-hidden="true">
-                      ▼
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {!showManagement && (
-                <div className="exercise-accordion-footer">
-                  <span style={{ fontSize: '11px', color: '#8884a0', flex: 1 }}>
-                    Class misconception report
+              <div>
+                <div
+                  className={cn(
+                    'mb-1 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground',
+                    isHighAvg && 'text-red-600 dark:text-red-400'
+                  )}
+                >
+                  <span>Difficulty Distribution</span>
+                  <span>
+                    Low {exercise.low_count || 0} · Mod {exercise.moderate_count || 0} · High{' '}
+                    {exercise.high_count || 0}
                   </span>
+                </div>
+                <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-muted">
+                  {totalScores > 0 && (
+                    <>
+                      <div
+                        className={cn('h-full', CDS_BAR.low)}
+                        style={{
+                          width: `${((exercise.low_count || 0) / totalScores) * 100}%`
+                        }}
+                      />
+                      <div
+                        className={cn('h-full', CDS_BAR.moderate)}
+                        style={{
+                          width: `${((exercise.moderate_count || 0) / totalScores) * 100}%`
+                        }}
+                      />
+                      <div
+                        className={cn('h-full', CDS_BAR.high)}
+                        style={{
+                          width: `${((exercise.high_count || 0) / totalScores) * 100}%`
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {showManagement && (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+                <div className="flex flex-1 flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    className={`exercise-accordion-toggle${isExpanded ? ' is-expanded' : ''}`}
-                    onClick={() => handleToggle(exercise.id)}
-                    aria-expanded={isExpanded}
-                    aria-controls={panelId}
-                    aria-label={
-                      isExpanded
-                        ? `Collapse details for ${exercise.title}`
-                        : `Expand details for ${exercise.title}`
-                    }
+                    className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
+                    onClick={() => onEditExercise?.(exercise)}
                   >
-                    <span className="exercise-accordion-chevron" aria-hidden="true">
-                      ▼
-                    </span>
+                    ✎ Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
+                    onClick={() => handleLiveCDSToggle(exercise.id)}
+                  >
+                    📊 Live CDS
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                      integrityFlagsExerciseId === exercise.id
+                        ? 'border border-primary/40 bg-primary/15 text-primary'
+                        : 'text-primary hover:bg-primary/10'
+                    )}
+                    onClick={() => handleIntegrityToggle(exercise.id)}
+                  >
+                    🛡 Integrity Flags
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                      exercise.closed_at
+                        ? 'text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400'
+                        : 'text-red-600 hover:bg-red-500/10 dark:text-red-400'
+                    )}
+                    onClick={() => onToggleExerciseStatus?.(exercise)}
+                  >
+                    {exercise.closed_at ? '↻ Reopen' : '⊗ Close'}
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                      isDeleteConfirm
+                        ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                        : 'text-red-600 hover:bg-red-500/10 dark:text-red-400'
+                    )}
+                    onClick={() => onDeleteExercise?.(exercise)}
+                  >
+                    {isDeleteConfirm ? '⚠ Confirm Delete' : '🗑 Delete'}
                   </button>
                 </div>
-              )}
+                <button
+                  type="button"
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs transition-colors',
+                    isExpanded
+                      ? 'border-primary/40 bg-primary/15 text-primary'
+                      : 'border-border bg-muted text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                  )}
+                  onClick={() => handleToggle(exercise.id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                  aria-label={
+                    isExpanded
+                      ? `Collapse class insights for ${exercise.title}`
+                      : `Expand class insights for ${exercise.title}`
+                  }
+                >
+                  <span
+                    className={cn(
+                      'inline-block transition-transform duration-200',
+                      isExpanded && 'rotate-180'
+                    )}
+                  >
+                    ▼
+                  </span>
+                </button>
+              </div>
+            )}
 
-              {showManagement && liveCDSExerciseId === exercise.id && (
-                <div className="exercise-accordion-live-panel">
-                  <LiveCDSPanel
-                    exerciseId={exercise.id}
-                    onClose={() => onLiveCDSToggle?.(null)}
-                  />
-                </div>
-              )}
+            {!showManagement && (
+              <div className="mt-2 flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                    integrityFlagsExerciseId === exercise.id
+                      ? 'border border-primary/40 bg-primary/15 text-primary'
+                      : 'text-primary hover:bg-primary/10'
+                  )}
+                  onClick={() => handleIntegrityToggle(exercise.id)}
+                >
+                  🛡 Integrity Flags
+                </button>
+                <span className="flex-1 text-[11px] text-muted-foreground">
+                  Class misconception report
+                </span>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs transition-colors',
+                    isExpanded
+                      ? 'border-primary/40 bg-primary/15 text-primary'
+                      : 'border-border bg-muted text-muted-foreground hover:border-foreground/30 hover:text-foreground'
+                  )}
+                  onClick={() => handleToggle(exercise.id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={panelId}
+                  aria-label={
+                    isExpanded
+                      ? `Collapse details for ${exercise.title}`
+                      : `Expand details for ${exercise.title}`
+                  }
+                >
+                  <span
+                    className={cn(
+                      'inline-block transition-transform duration-200',
+                      isExpanded && 'rotate-180'
+                    )}
+                  >
+                    ▼
+                  </span>
+                </button>
+              </div>
+            )}
 
-              <div
-                id={panelId}
-                className={`exercise-accordion-panel${isExpanded ? ' is-open' : ''}`}
-                role="region"
-                aria-hidden={!isExpanded}
-              >
-                <div className="exercise-accordion-panel-inner">
-                  {isExpanded && isReportLoading && (
-                    <div className="exercise-accordion-panel-body is-loading">
-                      Running CDS check and loading report...
-                    </div>
-                  )}
-                  {isExpanded && !isReportLoading && report && (
-                    <div className="exercise-accordion-panel-body">
-                      <ClassMisconceptionReport report={report} embedded />
-                    </div>
-                  )}
-                  {isExpanded && !isReportLoading && !report && (
-                    <div className="exercise-accordion-panel-body is-error">
-                      {reportError || 'No report available for this exercise'}
-                    </div>
-                  )}
-                </div>
+            {liveCDSExerciseId === exercise.id && (
+              <div className="border-t border-border px-4 py-3">
+                <LiveCDSPanel
+                  exerciseId={exercise.id}
+                  onClose={() => onLiveCDSToggle?.(null)}
+                />
+              </div>
+            )}
+
+            {integrityFlagsExerciseId === exercise.id && (
+              <IntegrityFlagDropdown
+                sectionId={sectionId}
+                exerciseId={exercise.id}
+                isOpen
+              />
+            )}
+
+            <div
+              id={panelId}
+              className={cn(
+                'grid border-t border-transparent transition-[grid-template-rows] duration-300',
+                isExpanded ? 'grid-rows-[1fr] border-border' : 'grid-rows-[0fr]'
+              )}
+              role="region"
+              aria-hidden={!isExpanded}
+            >
+              <div className="overflow-hidden">
+                {isExpanded && isReportLoading && (
+                  <div className="px-4 py-5 text-center text-sm text-muted-foreground">
+                    Running CDS check and loading report...
+                  </div>
+                )}
+                {isExpanded && !isReportLoading && report && (
+                  <div className="px-4 py-4">
+                    <ClassMisconceptionReport report={report} embedded />
+                  </div>
+                )}
+                {isExpanded && !isReportLoading && !report && (
+                  <div className="px-4 py-5 text-center text-sm text-destructive">
+                    {reportError || 'No report available for this exercise'}
+                  </div>
+                )}
               </div>
             </div>
           </article>

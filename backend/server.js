@@ -32,6 +32,7 @@ app.use('/api/student',     require('./routes/student'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/analytics',   require('./routes/analytics'));
 app.use('/api/analytics',   require('./routes/integrity')); // Academic Integrity routes
+app.use('/api/evaluation',  require('./routes/evaluation')); // ISO/IEC 25010 (spec §14)
 
 const PORT = process.env.PORT || 5000;
 

@@ -142,12 +142,22 @@ async function checkBehavioralAnomaly(studentId, exerciseId, submission, cdsEngi
       return null;
     }
 
-    // Current submission's CDS (if not available, calculate it)
+    // Current submission's CDS (if not available, calculate it using cdsEngine)
     let currentCds = submission.cds;
     if (currentCds === undefined || currentCds === null) {
-      // We'd need to calculate CDS, but for behavioral anomaly we primarily care about speed
-      // For now, we'll use a placeholder approach - in reality this would come from submission
-      currentCds = 0.5; // Neutral value if CDS not available
+      // Calculate CDS for this submission if not provided
+      try {
+        const cdsResult = await cdsEngine.calculateLiveCDS(studentId, exerciseId, db);
+        if (cdsResult && cdsResult.cds !== null) {
+          currentCds = cdsResult.cds;
+        } else {
+          // If we cannot calculate CDS, skip behavioral anomaly check
+          return null;
+        }
+      } catch (cdsErr) {
+        console.warn('Could not calculate CDS for behavioral anomaly check:', cdsErr.message);
+        return null;
+      }
     }
 
     // Calculate z-score: how many standard deviations from the mean

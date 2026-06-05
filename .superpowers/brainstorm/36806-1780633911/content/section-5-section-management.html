@@ -1,0 +1,603 @@
+<h2>Section 5 — Section Management <span style="font-size:11px;opacity:0.6">(v2)</span></h2>
+<p class="subtitle">A section is the <b>provenance layer</b> for everything else in CodeInsight. Section 3's "12 students are struggling" is meaningless until you can answer <i>which 12, in whose class, who's responsible for them, and when did they enroll?</i> This section is the answer to attribution. v2 fixes from v1 review: kill or constrain open-join policy, make "leave" require acknowledgment, drop merge/split + waitlist from v1, add CSV validation semantics, name the race-condition policy, differentiate the section hub from the Command Center visually.</p>
+
+<!-- =================== THE LEAD (was buried, now up top) =================== -->
+<div style="background:linear-gradient(90deg,rgba(124,58,237,0.20),rgba(34,197,94,0.15));border:1px solid #7C3AED;color:#F8FAFC;padding:16px 18px;border-radius:8px;margin-bottom:18px;margin-top:8px">
+  <div style="font-size:11px;letter-spacing:0.18em;opacity:0.75;margin-bottom:8px">DESIGN PRINCIPLE 03 — PROVENANCE &amp; ATTRIBUTION</div>
+  <div style="font-size:15px;line-height:1.55">
+    <b>Section management is the only place in the system that is operational rather than analytical.</b> Every analytics claim — "Functions is the hardest concept this week," "7 students are at risk," "3 integrity flags are open" — implicitly depends on knowing <i>which roster, in which section, under which instructor, in which term</i>. Without a defensible answer to "who is in this section and why did they get there," every other insight in the system becomes ungrounded. <b>The audit log is not a feature — it is the system's evidence that it is fair.</b>
+  </div>
+</div>
+
+<!-- =================== ACTORS (revised: no "open" for students, no merge/split, no waitlist in v1) =================== -->
+<div style="background:#1E293B;color:#F8FAFC;padding:14px 18px;border-radius:8px;margin-bottom:18px;margin-top:8px">
+  <div style="font-size:11px;letter-spacing:0.18em;opacity:0.6;margin-bottom:8px">THE THREE ACTORS &amp; THEIR JOBS</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;font-size:12px;line-height:1.6">
+    <div><b>Instructor</b><br>· Create / archive their sections<br>· Generate &amp; rotate join codes<br>· Approve or decline join requests<br>· Drop students (with audit trail)<br>· Assign roles (TA / co-instructor)<br>· See the section landing hub (mini command center)</div>
+    <div><b>Student</b><br>· Join via 6-character code<br>· Request to join (if code-protected)<br>· See which sections they're in<br>· Request to leave (requires instructor ack)<br>· Never see another section's roster</div>
+    <div><b>Admin</b><br>· See <i>all</i> sections in the department<br>· Assign / re-assign instructors to sections<br>· Archive sections (no merge/split in v1)<br>· Bulk-import sections from CSV at semester start<br>· Department-wide audit log export</div>
+  </div>
+  <div style="margin-top:10px;font-size:11px;background:rgba(0,0,0,0.20);padding:8px 10px;border-radius:4px;line-height:1.5">
+    <b>v1 cut list (defensibility discipline):</b>
+    &nbsp; <b>Merge / split sections</b> — deferred to post-thesis; the data-model questions (which CDS pool wins, do flags carry over, what happens to the loser's audit log) are not worth answering in the v1 spec.
+    &nbsp; <b>Waitlist</b> — deferred to v2; the spec ships without it. Capacity is a hard "section is full" message.
+    &nbsp; <b>Co-instructor / TA screens</b> — represented in the data model and the audit log, but the management UI is a thin tab inside the section hub (not a separate surface).
+  </div>
+</div>
+
+<!-- =================== JOIN POLICY: REVISED (the open-policy footgun) =================== -->
+<div style="background:#0F172A;color:#F8FAFC;padding:14px 18px;border-radius:8px;margin-bottom:18px;border:1px solid #1E293B">
+  <div style="font-size:11px;letter-spacing:0.18em;opacity:0.6;margin-bottom:8px">JOIN POLICY — REVISED (v2)</div>
+  <div style="font-size:12px;line-height:1.7">
+    <div><b>Three policies, down from four. <code>'open'</code> is killed in its v1 form.</b></div>
+    <div style="display:grid;grid-template-columns:120px 1fr;gap:6px 14px;margin-top:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">
+      <div style="color:#22C55E"><b>code</b> <span style="opacity:0.6">(default)</span></div>
+      <div>Students need the 6-character code shared by the instructor. Anyone with the code can join. The audit log records <i>who joined, when, and which code they used</i>.</div>
+      <div style="color:#FACC15"><b>request</b></div>
+      <div>Students submit a one-paragraph note; instructor approves or declines. Both outcomes are audited. Used when the instructor wants to gate enrollment (e.g., a section capped by equipment).</div>
+      <div style="color:#EF4444"><b>closed</b></div>
+      <div>No new joins. Used during finals week or after the add/drop deadline. Existing members retain access. To re-open, the instructor flips the policy back to <code>code</code> or <code>request</code>.</div>
+    </div>
+    <div style="margin-top:10px;background:rgba(239,68,68,0.10);border-left:3px solid #EF4444;padding:8px 10px;border-radius:3px;font-size:11px">
+      <b>Why no "open" policy in v2:</b> "Anyone with the link can join" in a grade-bearing academic system is a footgun. It contradicts the audit-log thesis — you can't defend "who is in this section and why" if the answer is "whoever clicked a link." If a use case for open enrollment surfaces (e.g., a public review section), the right answer is an auth-gated variant: "anyone with a valid <code>@psu.edu.ph</code> account can join," which is auditable. v1 of the system ships with only the three policies above.
+    </div>
+  </div>
+</div>
+
+<!-- =================== LEAVE / DROP: REVISED (asymmetric, registrar-style) =================== -->
+<div style="background:#0F172A;color:#F8FAFC;padding:14px 18px;border-radius:8px;margin-bottom:18px;border:1px solid #1E293B">
+  <div style="font-size:11px;letter-spacing:0.18em;opacity:0.6;margin-bottom:8px">LEAVE vs DROP — REVISED (v2 ASYMMETRY)</div>
+  <div style="font-size:12px;line-height:1.7">
+    <div style="display:grid;grid-template-columns:180px 1fr 1fr;gap:10px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">
+      <div style="opacity:0.6">OPERATION</div>
+      <div style="opacity:0.6">INSTRUCTOR ("drop")</div>
+      <div style="opacity:0.6">STUDENT ("leave")</div>
+      <div style="color:#EF4444">Actor</div>
+      <div>Instructor clicks "Drop" on a roster row</div>
+      <div>Student clicks "Request to leave"</div>
+      <div style="color:#EF4444">Reason required?</div>
+      <div><b>Yes</b> — short note (e.g., "transferred to BSIT-1B per registrar")</div>
+      <div><b>Yes</b> — short note (e.g., "schedule conflict")</div>
+      <div style="color:#EF4444">Effective when?</div>
+      <div>Immediately &nbsp;<span style="opacity:0.6">(or scheduled end-of-term)</span></div>
+      <div><b>Pending instructor acknowledgment</b> &nbsp;<span style="opacity:0.6">(default 7-day grace)</span></div>
+      <div style="color:#EF4444">What happens to data?</div>
+      <div>Submissions, CDS, flags preserved (soft delete)</div>
+      <div>Same — soft delete, restoreable</div>
+      <div style="color:#EF4444">Audit log entry</div>
+      <div><code>student_dropped</code> with reason</div>
+      <div><code>student_leave_requested</code> → <code>student_left</code> (when acked)</div>
+    </div>
+    <div style="margin-top:10px;background:rgba(250,204,21,0.08);border-left:3px solid #FACC15;padding:8px 10px;border-radius:3px;font-size:11px">
+      <b>Why "leave" requires instructor acknowledgment in v2:</b> In most real programs, students cannot unilaterally leave a section mid-term — the registrar controls enrollment. Allowing it would let a student dodge a bad grade by leaving before a flagged submission is reviewed. The 7-day grace is the default; instructors can shorten it (e.g., to 1 day) for late-term requests or lengthen it. <b>The instructor can also decline a leave request</b> — the student is notified, the audit log records the decline reason, and the student's status reverts to <code>active</code>.
+    </div>
+  </div>
+</div>
+
+<!-- =================== DATA MODEL =================== -->
+<div style="background:#0F172A;color:#F8FAFC;padding:14px 18px;border-radius:8px;margin-bottom:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.7;border:1px solid #1E293B">
+  <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin-bottom:8px">DATA MODEL — section lifecycle</div>
+  <pre style="margin:0;color:#F8FAFC">sections
+  id (uuid)
+  code          text  -- 6-char join code, e.g. "K7P-3QX"  (rotates on instructor demand)
+  name          text  -- "BSIT-1A · Morning"
+  term          text  -- "2026-1"
+  instructor_id uuid  -- primary instructor
+  status        enum  -- 'active' | 'archived'   (v1; 'pending_approval' dropped)
+  join_policy   enum  -- 'code' | 'request' | 'closed'  (v2; 'open' removed)
+  max_size      int   -- hard cap, default 60. No waitlist in v1.
+  created_at    timestamptz
+
+section_memberships
+  id (uuid)
+  section_id    uuid
+  user_id       uuid
+  role          enum  -- 'student' | 'ta' | 'co_instructor'
+  status        enum  -- 'active' | 'pending' | 'denied' | 'dropped' | 'left_requested' | 'left'
+  joined_at     timestamptz
+  dropped_at    timestamptz  -- soft delete for audit
+  drop_reason   text         -- required for drops and leaves; short free-text
+  unique(section_id, user_id)  -- one membership row per (section, user)
+
+section_audit_log
+  id (uuid)
+  section_id    uuid
+  actor_id      uuid
+  action        text  -- see enumeration below
+  meta          jsonb -- who/what/when/why
+  created_at    timestamptz</pre>
+  <div style="margin-top:10px;opacity:0.75">Endpoints: <code>POST /sections</code>, <code>POST /sections/:id/rotate-code</code>, <code>POST /sections/join</code>, <code>POST /sections/:id/memberships</code> (instructor add), <code>PATCH /sections/:id/memberships/:mid</code> (drop, leave-request, leave-ack, leave-decline, restore), <code>POST /sections/bulk-import</code> (admin CSV), <code>GET /sections/:id/audit</code>, <code>GET /sections/audit?term=...</code> (admin, department-wide). <b>Every mutating action writes to <code>section_audit_log</code>.</b> The audit log table is append-only at the DB level (no <code>UPDATE</code> or <code>DELETE</code> granted to the application role).</div>
+  <div style="margin-top:8px;opacity:0.75"><b>Audit action enumeration (final):</b> <code>section_created</code>, <code>code_rotated</code>, <code>student_joined</code> (via code), <code>student_requested_to_join</code>, <code>student_join_approved</code>, <code>student_join_denied</code>, <code>student_dropped</code>, <code>student_leave_requested</code>, <code>student_leave_acknowledged</code>, <code>student_leave_declined</code>, <code>instructor_assigned</code>, <code>instructor_reassigned</code>, <code>ta_added</code>, <code>ta_removed</code>, <code>policy_changed</code>, <code>section_archived</code>, <code>bulk_import_run</code>.</div>
+</div>
+
+<!-- =================== INSTRUCTOR INDEX (unchanged structure, minor copy) =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">A — /instructor/sections (the index)</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; /instructor/sections &gt; &nbsp; 3 active &nbsp;·&nbsp; <button style="margin-left:auto;background:#22C55E;color:#022C22;border:0;padding:3px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer;font-weight:600">+ New section</button>
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:14px;border-left:3px solid #7C3AED">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:600">BSIT-1A · Morning</div>
+          <span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:600">active</span>
+        </div>
+        <div style="font-size:10px;opacity:0.6;margin-bottom:10px">2026-1 · code <b style="font-family:'JetBrains Mono';color:#FACC15">K7P-3QX</b> · policy <span style="color:#22C55E">code</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:10px;margin-bottom:10px">
+          <div><div style="opacity:0.5">STUDENTS</div><div style="font-size:14px;font-weight:600">47 / 60</div></div>
+          <div><div style="opacity:0.5">AVG CDS</div><div style="font-size:14px;font-weight:600;color:#FACC15">0.41</div></div>
+          <div><div style="opacity:0.5">AT RISK</div><div style="font-size:14px;font-weight:600;color:#EF4444">7</div></div>
+        </div>
+        <div style="font-size:10px;opacity:0.7;margin-bottom:10px">Functions is the hardest concept this week &nbsp;·&nbsp; 3 flags open</div>
+        <div style="display:flex;gap:6px">
+          <button style="background:#1E293B;color:#F8FAFC;border:1px solid #334155;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Open hub →</button>
+          <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Roster</button>
+          <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Code</button>
+        </div>
+      </div>
+
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:14px;border-left:3px solid #7C3AED">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:600">BSIT-1B · Afternoon</div>
+          <span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:3px;font-size:8px;font-weight:600">active</span>
+        </div>
+        <div style="font-size:10px;opacity:0.6;margin-bottom:10px">2026-1 · code <b style="font-family:'JetBrains Mono';color:#FACC15">R2N-9VC</b> · policy <span style="color:#FACC15">request</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:10px;margin-bottom:10px">
+          <div><div style="opacity:0.5">STUDENTS</div><div style="font-size:14px;font-weight:600">42 / 60</div></div>
+          <div><div style="opacity:0.5">AVG CDS</div><div style="font-size:14px;font-weight:600;color:#FACC15">0.38</div></div>
+          <div><div style="opacity:0.5">AT RISK</div><div style="font-size:14px;font-weight:600;color:#EF4444">5</div></div>
+        </div>
+        <div style="font-size:10px;opacity:0.7;margin-bottom:10px">Loops cluster on Ex-3 &nbsp;·&nbsp; 1 flag open &nbsp;·&nbsp; 3 pending requests</div>
+        <div style="display:flex;gap:6px">
+          <button style="background:#1E293B;color:#F8FAFC;border:1px solid #334155;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Open hub →</button>
+          <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Roster</button>
+          <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:4px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Code</button>
+        </div>
+      </div>
+
+      <div style="background:#0F172A;border:1px dashed #334155;border-radius:6px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:180px">
+        <div style="font-size:24px;opacity:0.4;margin-bottom:6px">＋</div>
+        <div style="font-size:12px;opacity:0.7;margin-bottom:10px;text-align:center">New section<br><span style="font-size:10px;opacity:0.6">Name, term, join policy, max size</span></div>
+        <button style="background:#22C55E;color:#022C22;border:0;padding:6px 14px;border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer;font-weight:600">+ New section</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- =================== SECTION HUB — REVISED (visual differentiation from Command Center) =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">B — /instructor/sections/:id (the section hub — scoped to one section)</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; <span style="color:#94A3B8">/instructor/sections</span> &nbsp;›&nbsp; <b style="color:#7C3AED">BSIT-1A</b> &gt; &nbsp; Morning &nbsp;·&nbsp; code <b style="color:#FACC15">K7P-3QX</b> &nbsp;·&nbsp; 47 / 60 students
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <!-- SECTION-COLOR CHIP — the visual differentiator from the Command Center -->
+    <div style="background:linear-gradient(90deg,rgba(124,58,237,0.18),rgba(34,197,94,0.12));border:1px solid #7C3AED;border-left:5px solid #7C3AED;border-radius:6px;padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.75;margin-bottom:4px">SECTION HUB &nbsp;·&nbsp; <span style="color:#C4B5FD">scoped to BSIT-1A · 2026-1</span> &nbsp;·&nbsp; <i style="opacity:0.7">(the Command Center is "across all my sections")</i></div>
+        <div style="font-size:14px;font-weight:600;color:#F8FAFC">This page is the section's provenance: who is in it, how they got here, what's happening to them.</div>
+      </div>
+    </div>
+
+    <!-- Top: join code + share controls -->
+    <div style="background:linear-gradient(90deg,rgba(34,197,94,0.12),rgba(250,204,21,0.12));border:1px solid #22C55E;border-radius:6px;padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.6;margin-bottom:4px">JOIN CODE &nbsp;·&nbsp; <i style="opacity:0.7">share with your students</i></div>
+        <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:22px;font-weight:600;letter-spacing:0.15em;color:#FACC15">K7P-3QX</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-direction:column">
+        <button style="background:#1E293B;color:#F8FAFC;border:1px solid #334155;padding:5px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">📋 Copy</button>
+        <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:5px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">↻ Rotate code</button>
+        <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:5px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">QR</button>
+      </div>
+    </div>
+
+    <!-- Tabs: Hub | Roster | Join requests | Codes & policy | TAs | Audit log -->
+    <div style="border-bottom:1px solid #1E293B;margin-bottom:14px;display:flex;gap:14px;font-size:11px">
+      <div style="padding:6px 0;border-bottom:2px solid #7C3AED;color:#C4B5FD;font-weight:600">Hub</div>
+      <div style="padding:6px 0;color:#94A3B8;cursor:pointer">Roster (47)</div>
+      <div style="padding:6px 0;color:#94A3B8;cursor:pointer">Join requests (3) <span style="background:#FACC15;color:#422006;padding:0 4px;border-radius:2px;font-size:8px">3</span></div>
+      <div style="padding:6px 0;color:#94A3B8;cursor:pointer">Codes &amp; policy</div>
+      <div style="padding:6px 0;color:#94A3B8;cursor:pointer">TAs (1)</div>
+      <div style="padding:6px 0;color:#94A3B8;cursor:pointer">Audit log</div>
+    </div>
+
+    <!-- The 4-question summary — now explicitly section-scoped -->
+    <div style="background:rgba(124,58,237,0.10);border-left:3px solid #7C3AED;padding:10px 12px;margin-bottom:14px;font-size:11px;border-radius:4px">
+      <div style="font-size:10px;letter-spacing:0.18em;opacity:0.75;margin-bottom:4px">SECTION SUMMARY &nbsp;·&nbsp; <span style="color:#C4B5FD">scoped to BSIT-1A</span></div>
+      <div><b>① What is happening in this section?</b> &nbsp;Functions is the hardest concept this week (CDS 0.62, 14 of 47 students in High).</div>
+      <div><b>② Why?</b> &nbsp;12 of those 14 fail on the same test case — pass-by-reference is the dominant misconception in <i>this</i> section.</div>
+      <div><b>③ Who, in this section?</b> &nbsp;7 students on the at-risk roster; 3 moved from Low → High in the last 7 days. Names: Dela Cruz, Reyes M., Santos P., ...</div>
+      <div><b>④ What action?</b> &nbsp;Assign <i>Function-Args-Warmup</i> to BSIT-1A before Wed's class. <button style="background:#22C55E;color:#022C22;border:0;padding:2px 8px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer;margin-left:6px">Open in Command Center →</button></div>
+    </div>
+
+    <!-- Mini command grid: 3 cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:12px">
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin-bottom:4px">CONCEPT RANKING (BSIT-1A)</div>
+        <div style="font-size:11px;line-height:1.7">
+          <div>Loops &nbsp;<b style="color:#EF4444">0.62</b></div>
+          <div>Functions &nbsp;<b style="color:#FACC15">0.51</b></div>
+          <div>Arrays &nbsp;<b style="color:#FACC15">0.44</b></div>
+          <div>Conditionals &nbsp;<b style="color:#22C55E">0.21</b></div>
+        </div>
+      </div>
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:12px">
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin-bottom:4px">RECENT MEMBERSHIP ACTIVITY</div>
+        <div style="font-size:11px;line-height:1.7">
+          <div>3 students joined (via code) &nbsp;<span style="opacity:0.5">2h ago</span></div>
+          <div>1 leave request pending &nbsp;<span style="opacity:0.5">5h ago</span></div>
+          <div>M. Santos dropped &nbsp;<span style="opacity:0.5">yesterday</span></div>
+        </div>
+      </div>
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:12px">
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin-bottom:4px">POLICY &amp; LIMITS</div>
+        <div style="font-size:11px;line-height:1.7">
+          <div>Join: <b style="color:#22C55E">code</b> &nbsp;·&nbsp; max 60</div>
+          <div>47 / 60 enrolled &nbsp;·&nbsp; 3 pending</div>
+          <div><a style="color:#7C3AED;cursor:pointer">Change policy →</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== STUDENT JOIN (unchanged structure) =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">C — /student/sections (the student's section list + join flow)</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; /student/sections &gt; &nbsp; 2 active sections &nbsp;·&nbsp; <button style="margin-left:auto;background:#22C55E;color:#022C22;border:0;padding:3px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer;font-weight:600">+ Join with code</button>
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:14px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">BSIT-1A · Morning</div>
+      <div style="font-size:10px;opacity:0.7;margin-bottom:8px">Instructor: Prof. Reyes &nbsp;·&nbsp; 47 students</div>
+      <div style="font-size:10px;opacity:0.7;margin-bottom:10px">Your status: <span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:3px;font-size:9px">active</span> &nbsp;·&nbsp; joined 2026-01-12 &nbsp;·&nbsp; via code</div>
+      <div style="display:flex;gap:6px">
+        <button style="background:#1E293B;color:#F8FAFC;border:1px solid #334155;padding:4px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Open today →</button>
+        <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:4px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Request to leave…</button>
+      </div>
+    </div>
+
+    <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">BSIT-1B · Afternoon</div>
+      <div style="font-size:10px;opacity:0.7;margin-bottom:10px">Instructor: Prof. Reyes &nbsp;·&nbsp; 42 students</div>
+      <div style="font-size:10px;opacity:0.7;margin-bottom:10px">Your status: <span style="background:#FACC15;color:#422006;padding:1px 5px;border-radius:3px;font-size:9px">pending</span> &nbsp;·&nbsp; request sent 2h ago &nbsp;·&nbsp; reason: "section swap approved by registrar"</div>
+      <button style="background:transparent;border:1px solid #334155;color:#94A3B8;padding:4px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Cancel request</button>
+    </div>
+
+    <!-- Join code entry -->
+    <div style="background:linear-gradient(90deg,rgba(34,197,94,0.12),rgba(124,58,237,0.12));border:1px solid #22C55E;border-radius:6px;padding:14px;margin-bottom:8px">
+      <div style="font-size:11px;letter-spacing:0.18em;opacity:0.7;margin-bottom:8px">JOIN ANOTHER SECTION</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input placeholder="K7P-3QX" style="background:#0F172A;border:1px solid #334155;color:#F8FAFC;padding:8px 12px;border-radius:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:16px;letter-spacing:0.2em;width:140px;text-align:center" />
+        <button style="background:#22C55E;color:#022C22;border:0;padding:8px 18px;border-radius:4px;font-family:inherit;font-size:12px;cursor:pointer;font-weight:600">Join →</button>
+      </div>
+      <div style="font-size:10px;opacity:0.6">Codes are 6 characters, letters and numbers, case-insensitive. A dash is optional. <b>If the section's policy is "request,"</b> your code submits a request rather than joining immediately — you'll be notified when the instructor decides.</div>
+    </div>
+
+    <!-- What if the join fails -->
+    <div style="background:rgba(239,68,68,0.08);border-left:3px solid #EF4444;padding:10px 12px;font-size:10px;border-radius:4px;margin-bottom:6px">
+      <b>Code not working?</b> Most common reasons: the code was rotated (ask your instructor for a new one), the section is at capacity, the section is closed, or the section is archived. There's no penalty for trying a wrong code.
+    </div>
+  </div>
+</div>
+
+<!-- =================== ROSTER (mostly unchanged, drop modal re-emphasizes required reason) =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">D — Roster tab (the operational view)</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; /instructor/sections/BSIT-1A · Roster &gt; &nbsp; 47 active &nbsp;·&nbsp; 3 pending &nbsp;·&nbsp; search by name
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+      <input placeholder="🔍 search name or id" style="background:#0F172A;border:1px solid #334155;color:#F8FAFC;padding:5px 10px;border-radius:3px;font-family:inherit;font-size:11px;flex:1" />
+      <select style="background:#0F172A;border:1px solid #334155;color:#F8FAFC;padding:5px 10px;border-radius:3px;font-family:inherit;font-size:11px">
+        <option>All (47)</option><option>At risk (7)</option><option>Pending (3)</option><option>Leave requested (1)</option><option>Dropped this term (2)</option>
+      </select>
+      <select style="background:#0F172A;border:1px solid #334155;color:#F8FAFC;padding:5px 10px;border-radius:3px;font-family:inherit;font-size:11px">
+        <option>Sort: Risk ↓</option><option>Sort: Name A→Z</option><option>Sort: Joined ↑</option><option>Sort: Avg CDS ↑</option>
+      </select>
+    </div>
+
+    <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:6px">
+      <div style="display:grid;grid-template-columns:30px 1fr 80px 80px 90px 80px;gap:8px;padding:6px 8px;font-size:9px;letter-spacing:0.1em;color:#64748B;border-bottom:1px solid #1E293B">
+        <div></div><div>STUDENT</div><div>JOINED</div><div>STATUS</div><div>RISK</div><div>ACTIONS</div>
+      </div>
+      <div style="display:grid;grid-template-columns:30px 1fr 80px 80px 90px 80px;gap:8px;padding:8px;align-items:center;border-bottom:1px solid #1E293B">
+        <div style="width:20px;height:20px;background:#1E293B;border-radius:50%;color:#F8FAFC;display:flex;align-items:center;justify-content:center;font-size:9px">JD</div>
+        <div>Dela Cruz, John</div>
+        <div style="opacity:0.7">2026-01-12</div>
+        <div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">active</span></div>
+        <div><span style="background:#EF4444;color:#450A0A;padding:1px 5px;border-radius:2px;font-size:9px">High</span></div>
+        <div><a style="color:#7C3AED;cursor:pointer;font-size:10px">Drop</a></div>
+      </div>
+      <div style="display:grid;grid-template-columns:30px 1fr 80px 80px 90px 80px;gap:8px;padding:8px;align-items:center;border-bottom:1px solid #1E293B">
+        <div style="width:20px;height:20px;background:#1E293B;border-radius:50%;color:#F8FAFC;display:flex;align-items:center;justify-content:center;font-size:9px">MR</div>
+        <div>Reyes, Maria</div>
+        <div style="opacity:0.7">2026-01-12</div>
+        <div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">active</span></div>
+        <div><span style="background:#FACC15;color:#422006;padding:1px 5px;border-radius:2px;font-size:9px">Med</span></div>
+        <div><a style="color:#7C3AED;cursor:pointer;font-size:10px">Drop</a></div>
+      </div>
+      <div style="display:grid;grid-template-columns:30px 1fr 80px 80px 90px 80px;gap:8px;padding:8px;align-items:center;border-bottom:1px solid #1E293B;background:rgba(250,204,21,0.04)">
+        <div style="width:20px;height:20px;background:#1E293B;border-radius:50%;color:#F8FAFC;display:flex;align-items:center;justify-content:center;font-size:9px">??</div>
+        <div>Santos, Pedro</div>
+        <div style="opacity:0.7">—</div>
+        <div><span style="background:#FACC15;color:#422006;padding:1px 5px;border-radius:2px;font-size:9px">pending</span></div>
+        <div><span style="background:#1E293B;color:#64748B;padding:1px 5px;border-radius:2px;font-size:9px">—</span></div>
+        <div>
+          <button style="background:#22C55E;color:#022C22;border:0;padding:2px 6px;border-radius:2px;font-family:inherit;font-size:9px;cursor:pointer;margin-right:4px">Approve</button>
+          <button style="background:transparent;border:1px solid #EF4444;color:#EF4444;padding:2px 6px;border-radius:2px;font-family:inherit;font-size:9px;cursor:pointer">Decline</button>
+        </div>
+      </div>
+      <!-- New: leave-requested row, with Acknowledge / Decline affordances -->
+      <div style="display:grid;grid-template-columns:30px 1fr 80px 80px 90px 80px;gap:8px;padding:8px;align-items:center;border-bottom:1px solid #1E293B;background:rgba(124,58,237,0.05)">
+        <div style="width:20px;height:20px;background:#1E293B;border-radius:50%;color:#F8FAFC;display:flex;align-items:center;justify-content:center;font-size:9px">LM</div>
+        <div>Mendoza, Luis &nbsp;<span style="opacity:0.6;font-size:9px">— "schedule conflict, taking night section"</span></div>
+        <div style="opacity:0.7">2026-01-12</div>
+        <div><span style="background:#7C3AED;color:#F5F3FF;padding:1px 5px;border-radius:2px;font-size:9px">leave req</span></div>
+        <div><span style="background:#1E293B;color:#64748B;padding:1px 5px;border-radius:2px;font-size:9px">—</span></div>
+        <div>
+          <button style="background:#22C55E;color:#022C22;border:0;padding:2px 6px;border-radius:2px;font-family:inherit;font-size:9px;cursor:pointer;margin-right:4px">Acknowledge</button>
+          <button style="background:transparent;border:1px solid #EF4444;color:#EF4444;padding:2px 6px;border-radius:2px;font-family:inherit;font-size:9px;cursor:pointer">Decline</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:30px 1fr 80px 80px 90px 80px;gap:8px;padding:8px;align-items:center">
+        <div style="width:20px;height:20px;background:#1E293B;border-radius:50%;color:#F8FAFC;display:flex;align-items:center;justify-content:center;font-size:9px">CR</div>
+        <div>Cruz, Anna</div>
+        <div style="opacity:0.7">2026-02-01</div>
+        <div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">active</span></div>
+        <div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">Low</span></div>
+        <div><a style="color:#7C3AED;cursor:pointer;font-size:10px">Drop</a></div>
+      </div>
+    </div>
+
+    <!-- Drop confirmation dialog -->
+    <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin:14px 0 6px">▼ DROP STUDENT — CONFIRMATION DIALOG (MODAL)</div>
+    <div style="background:#0F172A;border:1px solid #EF4444;border-radius:6px;padding:14px;max-width:460px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">Drop Dela Cruz, John from BSIT-1A?</div>
+      <div style="font-size:11px;opacity:0.85;margin-bottom:10px">The student will be marked as <b>dropped</b> and lose access to this section's exercises. Their <b>submission history, CDS, and flags are preserved</b> for audit. They can be re-added with one click.</div>
+      <div style="font-size:10px;margin-bottom:6px"><b>Reason (required — written to the audit log):</b></div>
+      <textarea style="width:100%;background:#0B1120;border:1px solid #334155;color:#F8FAFC;padding:6px 8px;border-radius:3px;font-family:inherit;font-size:11px;min-height:50px;margin-bottom:6px" placeholder="e.g. Transferred to BSIT-1B per registrar's request #128"></textarea>
+      <div style="font-size:10px;color:#94A3B8;margin-bottom:10px">The reason is shown to the student in their membership history and to admins in the audit log. Keep it factual.</div>
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button style="background:transparent;color:#94A3B8;border:0;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">Cancel</button>
+        <button style="background:#EF4444;color:#450A0A;border:0;padding:5px 12px;border-radius:3px;font-family:inherit;font-size:11px;cursor:pointer;font-weight:600">Drop student</button>
+      </div>
+    </div>
+
+    <!-- Acknowledge leave dialog -->
+    <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin:14px 0 6px">▼ ACKNOWLEDGE LEAVE REQUEST — CONFIRMATION DIALOG</div>
+    <div style="background:#0F172A;border:1px solid #7C3AED;border-radius:6px;padding:14px;max-width:460px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">Acknowledge Mendoza, Luis's leave request?</div>
+      <div style="font-size:11px;opacity:0.85;margin-bottom:10px">Their stated reason: <i>"schedule conflict, taking night section."</i> Acknowledging marks them as <b>left</b>, preserves their CDS and flags, and frees the roster slot.</div>
+      <div style="font-size:10px;margin-bottom:6px"><b>Optional note to the student (shown in their history):</b></div>
+      <input style="width:100%;background:#0B1120;border:1px solid #334155;color:#F8FAFC;padding:6px 8px;border-radius:3px;font-family:inherit;font-size:11px;margin-bottom:10px" placeholder="e.g. Acknowledged — good luck in the night section." />
+      <div style="display:flex;gap:6px;justify-content:flex-end">
+        <button style="background:transparent;color:#94A3B8;border:0;padding:5px 12px;font-family:inherit;font-size:11px;cursor:pointer">Cancel</button>
+        <button style="background:transparent;border:1px solid #EF4444;color:#EF4444;padding:5px 12px;border-radius:3px;font-family:inherit;font-size:11px;cursor:pointer">Decline request</button>
+        <button style="background:#22C55E;color:#022C22;border:0;padding:5px 12px;border-radius:3px;font-family:inherit;font-size:11px;cursor:pointer;font-weight:600">Acknowledge leave</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== POLICY (revised: no 'open') =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">E — Codes &amp; policy tab</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; /instructor/sections/BSIT-1A · Codes &amp; policy &gt;
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:14px">
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin-bottom:8px">JOIN POLICY &nbsp;·&nbsp; <span style="opacity:0.7">(3 options; 'open' removed in v2)</span></div>
+        <div style="font-size:11px;line-height:1.8">
+          <div>● <b style="color:#22C55E">code</b> &nbsp;<span style="opacity:0.6">— students need the 6-char code (current)</span></div>
+          <div>○ <b>request</b> &nbsp;<span style="opacity:0.6">— students send a note; you approve each</span></div>
+          <div>○ <b style="color:#EF4444">closed</b> &nbsp;<span style="opacity:0.6">— no new joins (use during finals week)</span></div>
+        </div>
+      </div>
+      <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:14px">
+        <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin-bottom:8px">CAPACITY &nbsp;·&nbsp; <span style="opacity:0.7">(no waitlist in v1)</span></div>
+        <div style="font-size:11px;line-height:1.8">
+          <div>Enrolled &nbsp; <b>47 / 60</b> &nbsp;<span style="opacity:0.6">(hard cap)</span></div>
+          <div>Pending &nbsp; <b>3</b></div>
+          <div>At cap? &nbsp; <span style="opacity:0.6">joiners see "Section is full" — no waitlist toggle in v1</span></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button style="background:#1E293B;color:#F8FAFC;border:1px solid #334155;padding:4px 10px;border-radius:3px;font-family:inherit;font-size:10px;cursor:pointer">Change cap</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:10px;letter-spacing:0.18em;opacity:0.5;margin:14px 0 6px">▼ CODE HISTORY</div>
+    <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:10px">
+      <div style="font-size:10px;line-height:1.7">
+        <div><b style="color:#22C55E">K7P-3QX</b> &nbsp;current &nbsp;·&nbsp; created 2026-01-15, rotated 2026-02-03</div>
+        <div style="opacity:0.6">M4X-9ZN &nbsp;rotated 2026-02-03 &nbsp;·&nbsp; used 47 times</div>
+        <div style="opacity:0.6">Q2B-7HP &nbsp;rotated 2026-01-22 &nbsp;·&nbsp; used 12 times</div>
+        <div style="opacity:0.6">J8K-1RD &nbsp;initial &nbsp;·&nbsp; used 35 times</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== AUDIT LOG =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">F — Audit log tab (thesis-defense artifact)</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; /instructor/sections/BSIT-1A · Audit log &gt; &nbsp; append-only &nbsp;·&nbsp; exportable as CSV
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <div style="background:rgba(124,58,237,0.10);border-left:3px solid #7C3AED;padding:8px 10px;margin-bottom:10px;font-size:10px;border-radius:3px">
+      <b>Why this matters at defense:</b> every row below is the system's evidence that a roster change was intentional and traceable. The <code>section_audit_log</code> table is <b>append-only at the DB level</b> — the application role has <code>INSERT</code> and <code>SELECT</code>, but not <code>UPDATE</code> or <code>DELETE</code>.
+    </div>
+
+    <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:6px">
+      <div style="display:grid;grid-template-columns:140px 1fr 140px 140px;gap:10px;padding:6px 8px;font-size:9px;letter-spacing:0.1em;color:#64748B;border-bottom:1px solid #1E293B">
+        <div>WHEN</div><div>WHAT</div><div>WHO</div><div>WHY</div>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr 140px 140px;gap:10px;padding:8px;border-bottom:1px solid #1E293B;align-items:start">
+        <div style="opacity:0.7">2026-02-03 14:22</div>
+        <div>Code rotated: <b>K7P-3QX</b> ← <s>M4X-9ZN</s></div>
+        <div>Prof. Reyes</div>
+        <div style="opacity:0.7">routine rotation</div>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr 140px 140px;gap:10px;padding:8px;border-bottom:1px solid #1E293B;align-items:start">
+        <div style="opacity:0.7">2026-02-02 09:14</div>
+        <div>Student dropped: <b>Santos, M.</b> (status: dropped)</div>
+        <div>Prof. Reyes</div>
+        <div>"transferred to BSIT-1B per registrar"</div>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr 140px 140px;gap:10px;padding:8px;border-bottom:1px solid #1E293B;align-items:start">
+        <div style="opacity:0.7">2026-02-01 16:30</div>
+        <div>Leave acknowledged: <b>Mendoza, L.</b> (status: left)</div>
+        <div>Prof. Reyes</div>
+        <div>student reason: "schedule conflict"</div>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr 140px 140px;gap:10px;padding:8px;border-bottom:1px solid #1E293B;align-items:start">
+        <div style="opacity:0.7">2026-02-01 11:40</div>
+        <div>Student joined: <b>Cruz, A.</b> (via code)</div>
+        <div>Cruz, A.</div>
+        <div style="opacity:0.7">—</div>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr 140px 140px;gap:10px;padding:8px;align-items:start">
+        <div style="opacity:0.7">2026-01-12 08:00</div>
+        <div>Section created</div>
+        <div>Prof. Reyes</div>
+        <div style="opacity:0.7">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== ADMIN (revised: no merge/split, explicit CSV validation semantics) =================== -->
+<div style="font-size:13px;letter-spacing:0.1em;opacity:0.85;margin-bottom:8px;margin-top:8px">G — /admin/sections (department-level overview + CSV import)</div>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header" style="background:#0B1120;color:#F8FAFC;font-family:'JetBrains Mono',ui-monospace,monospace">
+    &lt; /admin/sections &gt; &nbsp; 11 sections this term &nbsp;·&nbsp; bulk-import from CSV
+  </div>
+  <div class="mockup-body" style="background:#0B1120;color:#F8FAFC;padding:18px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;line-height:1.5;border-radius:0 0 6px 6px">
+
+    <div style="background:#0F172A;border:1px solid #1E293B;border-radius:6px;padding:6px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 100px 90px 100px 80px 100px;gap:8px;padding:6px 8px;font-size:9px;letter-spacing:0.1em;color:#64748B;border-bottom:1px solid #1E293B">
+        <div>SECTION</div><div>INSTRUCTOR</div><div>STUDENTS</div><div>AVG CDS</div><div>FLAGS</div><div>STATUS</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 100px 90px 100px 80px 100px;gap:8px;padding:8px;border-bottom:1px solid #1E293B;align-items:center">
+        <div>BSIT-1A · Morning</div><div>Reyes</div><div>47 / 60</div><div style="color:#FACC15">0.41</div><div style="color:#EF4444">3</div><div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">active</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 100px 90px 100px 80px 100px;gap:8px;padding:8px;border-bottom:1px solid #1E293B;align-items:center">
+        <div>BSIT-1B · Afternoon</div><div>Reyes</div><div>42 / 60</div><div style="color:#FACC15">0.38</div><div style="color:#FACC15">1</div><div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">active</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 100px 90px 100px 80px 100px;gap:8px;padding:8px;border-bottom:1px solid #1E293B;align-items:center">
+        <div>BSIT-1C · Evening</div><div>Cruz</div><div>38 / 50</div><div style="color:#22C55E">0.28</div><div>0</div><div><span style="background:#22C55E;color:#022C22;padding:1px 5px;border-radius:2px;font-size:9px">active</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 100px 90px 100px 80px 100px;gap:8px;padding:8px;align-items:center">
+        <div>BSIT-1D · (2025-2)</div><div style="opacity:0.5">Reyes</div><div>51</div><div style="opacity:0.5">0.32</div><div style="opacity:0.5">—</div><div><span style="background:#1E293B;color:#94A3B8;padding:1px 5px;border-radius:2px;font-size:9px">archived</span></div>
+      </div>
+    </div>
+
+    <!-- CSV import — with validation semantics -->
+    <div style="background:rgba(124,58,237,0.08);border-left:3px solid #7C3AED;padding:10px 12px;margin-bottom:10px;font-size:11px;border-radius:4px">
+      <div style="font-size:10px;letter-spacing:0.18em;opacity:0.75;margin-bottom:6px">BULK CSV IMPORT — VALIDATION SEMANTICS</div>
+      <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;line-height:1.7;background:#0B1120;padding:8px;border-radius:3px;margin-bottom:8px">
+        # columns: section_name, term, instructor_email, join_policy, max_size
+        BSIT-1A · Morning, 2026-1, reyes@psu.edu.ph, code, 60
+        BSIT-1B · Afternoon, 2026-1, reyes@psu.edu.ph, request, 60
+        BSIT-1C · Evening, 2026-1, cruz@psu.edu.ph, code, 50
+      </div>
+      <div style="font-size:11px;line-height:1.7">
+        <b>Validation rules (all checked before any row is created):</b>
+        <ul style="margin:4px 0 0 0;padding-left:18px">
+          <li><b>All-or-nothing.</b> If any row fails validation, no rows are created. The whole import is rolled back. The CSV file is returned with line numbers and reasons annotated.</li>
+          <li><b>Duplicate (section_name, term)</b> → row rejected, import fails. "A section with this name already exists for this term."</li>
+          <li><b>Bad instructor email</b> → row rejected, import fails. "No instructor account matches that email."</li>
+          <li><b>Invalid join_policy / max_size</b> → row rejected, import fails.</li>
+          <li><b>Empty file / header-only / missing columns</b> → import fails with a clear message, not a stack trace.</li>
+        </ul>
+        <div style="margin-top:6px">On success: each new section writes a <code>section_created</code> + <code>instructor_assigned</code> row in <code>section_audit_log</code> with actor = the admin who ran the import. A <code>bulk_import_run</code> row groups them. The admin is shown a summary: <i>"Created 11 sections across 4 instructors. Codes generated and emailed."</i></div>
+      </div>
+    </div>
+
+    <div style="font-size:10px;opacity:0.6">Admin can re-assign an instructor, archive a section, or export a department-wide audit log. <b>All of those write to <code>section_audit_log</code> with actor = admin. Merge / split is not in v1.</b></div>
+  </div>
+</div>
+
+<!-- =================== RACE CONDITION (new — explicit policy) =================== -->
+<div style="background:#0F172A;color:#F8FAFC;padding:14px 18px;border-radius:8px;margin-bottom:18px;border:1px solid #1E293B">
+  <div style="font-size:11px;letter-spacing:0.18em;opacity:0.6;margin-bottom:8px">CONCURRENCY &amp; RACE CONDITIONS — STATED POLICIES</div>
+  <div style="font-size:12px;line-height:1.7">
+    <div style="display:grid;grid-template-columns:240px 1fr;gap:8px 14px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px">
+      <div style="color:#94A3B8">Two students race-join with the same code at the same time</div>
+      <div>Both succeed if the section is below <code>max_size</code>. Each gets a distinct <code>section_memberships.id</code>; the <code>unique(section_id, user_id)</code> constraint prevents the same user from getting two rows. The audit log records both inserts.</div>
+
+      <div style="color:#94A3B8">Instructor A and Instructor B both try to add the same student</div>
+      <div><b>Last-writer-wins on add,</b> but the audit log captures both attempts. In practice, each section has one primary instructor, so this is rare. The losing attempt is <b>not</b> a no-op — it writes a <code>student_added</code> row with the actor's id and the section's id, so the trail is intact.</div>
+
+      <div style="color:#94A3B8">Instructor rotates the code while a student is mid-typing</div>
+      <div>The student's submit fails with "Code changed — try again with the new one from your instructor." No data is created. The audit log records the rotation but not the failed attempt (a failed attempt is not a membership event).</div>
+
+      <div style="color:#94A3B8">Section is at <code>max_size</code>; two students race-join</div>
+      <div>Atomic check + insert via <code>SELECT ... FOR UPDATE</code> on the section row. The first wins; the second sees the post-increment count and is rejected with "Section is full."</div>
+
+      <div style="color:#94A3B8">Bulk CSV import is interrupted mid-write</div>
+      <div>Wrapped in a single transaction. If any row fails, the whole import rolls back. Partial imports are impossible.</div>
+    </div>
+    <div style="margin-top:10px;background:rgba(124,58,237,0.10);border-left:3px solid #7C3AED;padding:8px 10px;border-radius:3px;font-size:11px">
+      <b>Defense-ready phrasing:</b> "The section lifecycle is governed by an append-only audit log and a <code>unique(section_id, user_id)</code> constraint on the membership table. Race conditions on capacity are resolved by a <code>SELECT ... FOR UPDATE</code> on the section row inside the join transaction. Last-writer-wins on duplicate adds is a <b>chosen</b> policy, not an oversight: the audit log preserves the trace."
+    </div>
+  </div>
+</div>
+
+<!-- =================== EDGE CASES (revised: no waitlist, no merge/split, no open) =================== -->
+<div class="section" style="margin-top:24px">
+  <h3>Edge cases the spec must cover (v2 — reduced)</h3>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr style="border-bottom:1px solid #1E293B;text-align:left">
+      <th style="padding:6px 8px">Case</th><th>Behavior</th>
+    </tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Student tries a code for an archived section</td><td>"This section is no longer active. Ask your instructor."</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Section is at <code>max_size</code></td><td>Hard "Section is full." No waitlist in v1.</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Student joins a section they're already in</td><td>Idempotent: "You're already in this section."</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Instructor rotates code while a student is mid-typing</td><td>Submit fails gracefully; UI says "Code changed — try again with the new one."</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">A student is dropped mid-term</td><td>Submissions, CDS, flags preserved. Re-add is one click, no data loss. Drop reason is required and shown to the student.</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Student requests to leave</td><td>Status <code>left_requested</code>. Instructor must acknowledge (default 7-day grace). Decline reverts to <code>active</code>; both outcomes are audited.</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Instructor declines a leave request</td><td>Student notified, audit log records decline reason, status reverts to <code>active</code>.</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Two students race-join with the same code</td><td>Both succeed if below cap; audit log captures both. Above cap, <code>SELECT ... FOR UPDATE</code> serializes.</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Bulk CSV import hits an invalid row</td><td>All-or-nothing rollback. The annotated CSV is returned; no partial import is possible.</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:8px">Instructor tries to use the <code>'open'</code> policy (no longer in enum)</td><td>UI doesn't offer it. DB enum doesn't accept it. Defense artifact: <i>"We deliberately removed 'open' in v2 to keep the audit log defensible."</i></td></tr>
+    <tr><td style="padding:8px">Merge / split requested</td><td>"Not supported in v1. Open a department-level ticket." (Defense: "deferred to v2; the data-model questions are non-trivial.")</td></tr>
+  </table>
+</div>
+
+<!-- =================== WHY THIS IS THE PROVENANCE LAYER (closing — frames the whole section) =================== -->
+<div class="section">
+  <h3>Why section management is the provenance layer (not just roster management)</h3>
+  <ul>
+    <li><b>It's the entry point of the system.</b> Before any analytics can run, students must be in a section. Before any instructor can intervene, they must own a section. The join flow is the first thing a real user touches.</li>
+    <li><b>Every analytics claim depends on it.</b> "Functions is the hardest concept this week" is a section-scoped claim. "7 students are at risk" is a roster-scoped claim. "3 integrity flags are open" is a roster-scoped claim. None of them exist without the provenance this section provides.</li>
+    <li><b>Three actors share one mental model, with asymmetric powers.</b> Instructor creates → student joins → admin oversees. The screens above are the same model, three lenses. Drop is instructor-initiated, leave is student-initiated and instructor-acknowledged — the asymmetry is the registrar pattern, not a UX whim.</li>
+    <li><b>It is the only place where the system is operational rather than analytical.</b> Every other screen assumes the section already exists, the roster is already set, and the audit log is already trustworthy. <b>This section is where those assumptions are made defensible.</b></li>
+    <li><b>The audit log is the system's evidence that it is fair.</b> The append-only constraint is not over-engineering; it is the answer to "how do you prevent the instructor from quietly removing a flagged student?" The <code>drop_reason</code> field is the answer to "why was this student removed?" The <code>bulk_import_run</code> row is the answer to "who created the roster and when?" Each design decision in this section is a defense decision.</li>
+  </ul>
+</div>
+
+<p class="subtitle">v2 is the defensible version. Cuts: <b>open policy, merge/split, waitlist, pending_approval status</b>. Tightens: <b>leave requires ack, last-writer-wins is named, CSV is all-or-nothing, audit log is append-only at the DB level</b>. Differentiates: <b>section hub has a purple chip, distinct from the green Command Center band</b>. If v2 looks right, the next step is the consolidated design doc at <code>docs/superpowers/specs/2026-06-05-codeinsight-redesign-design.md</code>, then self-review, your review, then writing-plans.</p>

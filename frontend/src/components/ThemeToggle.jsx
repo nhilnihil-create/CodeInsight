@@ -1,18 +1,17 @@
-import { Sun, Moon, Shield } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme, VALID_THEMES } from '@/lib/theme.jsx';
 
 /**
- * 3-button segmented theme toggle — see spec §5.5.
+ * 2-button segmented theme toggle.
  *
  * Reads useTheme(); clicking a button calls setTheme(key). Renders in the sticky
- * top bar of Layout. The 3 icons (Sun = light, Moon = dark, Shield = PSU) are
- * 1.5x4 lucide icons inside 8x8 buttons. The active theme gets a primary ring.
+ * top bar of Layout. The 2 icons (Sun = light, Moon = dark teal) are 4×4 lucide
+ * icons inside 7×7 buttons. The active theme gets a primary ring.
  */
 const OPTIONS = [
   { key: 'light', label: 'Light', icon: Sun },
   { key: 'dark', label: 'Dark teal', icon: Moon },
-  { key: 'psu', label: 'PSU', icon: Shield },
 ];
 
 export default function ThemeToggle() {
