@@ -1,4 +1,5 @@
 // frontend/src/state/useStateDerivation.js
+import { useMemo } from 'react';
 import { STATE_COPY } from './stateCopy.js';
 
 /**
@@ -33,4 +34,27 @@ export function deriveState({ submissionsPerStudent = 0, sectionAgeDays = 0, stu
 /** Look up role-specific copy for a state. */
 export function copyFor(role, state) {
   return STATE_COPY[state]?.[role] ?? null;
+}
+
+/**
+ * Hook wrapper for deriveState. Accepts the API wire-format `data` object
+ * (any shape — see individual widget specs) plus optional derivation inputs.
+ * Returns the same { state, progressText } contract as deriveState.
+ *
+ * If derivation inputs are not supplied on the data payload, defaults of 0
+ * are used which yields state='NoData' — StateAwareShell then handles the
+ * empty-data branch.
+ */
+export function useStateDerivation(data, inputs = {}) {
+  return useMemo(() => {
+    if (!data) {
+      return deriveState({});
+    }
+    const { submissionsPerStudent, sectionAgeDays, students } = data || {};
+    return deriveState({
+      submissionsPerStudent: inputs.submissionsPerStudent ?? submissionsPerStudent ?? 0,
+      sectionAgeDays: inputs.sectionAgeDays ?? sectionAgeDays ?? 0,
+      students: inputs.students ?? students ?? 0,
+    });
+  }, [data, inputs.submissionsPerStudent, inputs.sectionAgeDays, inputs.students]);
 }
