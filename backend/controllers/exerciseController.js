@@ -11,6 +11,7 @@ const getExerciseDetails = async (id) => {
   }
 };
 const cdsEngine = require('../services/cdsEngine');
+const cdsJobQueue = require('../services/cdsJobQueue');
 
 exports.getConcepts = async (req, res) => {
   try {

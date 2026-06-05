@@ -1,8 +1,104 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ChevronLeft,
+  ShieldAlert,
+  Filter,
+  XCircle,
+  Loader2,
+} from 'lucide-react';
 import api from '../../services/api';
 import IntegrityFlagBadge from '../../components/IntegrityFlagBadge';
-import CodeComparisonModal from '../../components/CodeComparisonModal';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+
+/**
+ * Academic Integrity Flags
+ *
+ * PRESERVED FUNCTIONALITY (do not regress):
+ *   - GET /api/analytics/sections/:sectionId/integrity-flags
+ *     query: flag_type, student_id, exercise_id, page, limit
+ *   - PUT /api/analytics/integrity-flags/:id/review
+ *     body: { status, instructor_note }
+ *   - Filters: flag_type (HARD_CODING | BLANK_TEMPLATE | BEHAVIORAL_ANOMALY |
+ *             CODE_GROWTH_ANOMALY | PASSIVE_BEHAVIOR_LOG), student_id, exercise_id
+ *   - Pagination: page, limit, total, totalPages
+ *   - Status: FLAGGED, REVIEWED, DISMISSED
+ *   - Severity: HIGH, MEDIUM, LOW
+ *   - Local IntegrityNoteModal with Status select + Instructor Note textarea
+ *   - Review → open modal, Dismiss → open modal pre-set to DISMISSED
+ *   - Clear Filters resets all 3 filter inputs and returns to page 1
+ *   - "Back to Section" navigates to /instructor/sections/:sectionId
+ *
+ * REPLACED (visual layer only):
+ *   - Legacy `btn-secondary` / `btn-outline` / dark-hex inline styles →
+ *     shadcn Button, Card, Badge, Skeleton, Input, Dialog, Select, Table
+ *   - Raw <select> for filter dropdown → Radix Select
+ *   - Local "modal" wrapper → Radix Dialog
+ *   - Inline tailwind severity colors → shadcn Badge variants
+ *     (HIGH → destructive, MEDIUM → warning, LOW → success)
+ *   - Status badge colors → Badge variants
+ *     (FLAGGED → warning, REVIEWED → success, DISMISSED → secondary)
+ */
+
+const FLAG_TYPES = [
+  { value: 'HARD_CODING', label: 'Hardcoding Detection' },
+  { value: 'BLANK_TEMPLATE', label: 'Blank/Template-only Submission' },
+  { value: 'BEHAVIORAL_ANOMALY', label: 'Behavioral Anomaly' },
+  { value: 'CODE_GROWTH_ANOMALY', label: 'Code Growth Anomaly' },
+  { value: 'PASSIVE_BEHAVIOR_LOG', label: 'Passive Behavior Logging' },
+];
+
+const SEVERITY_VARIANT = {
+  HIGH: 'destructive',
+  MEDIUM: 'warning',
+  LOW: 'success',
+};
+
+const STATUS_VARIANT = {
+  FLAGGED: 'warning',
+  REVIEWED: 'success',
+  DISMISSED: 'secondary',
+};
+
+const STATUS_LABEL = {
+  FLAGGED: 'Flagged',
+  REVIEWED: 'Reviewed',
+  DISMISSED: 'Dismissed',
+};
 
 const AcademicIntegrityFlags = () => {
   const { sectionId } = useParams();
@@ -14,21 +110,16 @@ const AcademicIntegrityFlags = () => {
   const [filters, setFilters] = useState({
     flag_type: '',
     student_id: '',
-    exercise_id: ''
+    exercise_id: '',
   });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
     total: 0,
-    totalPages: 0
+    totalPages: 0,
   });
   const [selectedFlag, setSelectedFlag] = useState(null);
   const [showNoteModal, setShowNoteModal] = useState(false);
-  const [showComparisonModal, setShowComparisonModal] = useState(false);
-  const [comparisonData, setComparisonData] = useState(null);
-
-  // Fetch flag types for filter dropdown
-  const [flagTypes, setFlagTypes] = useState([]);
 
   useEffect(() => {
     const loadFlags = async () => {
@@ -41,7 +132,9 @@ const AcademicIntegrityFlags = () => {
         params.append('page', pagination.page);
         params.append('limit', pagination.limit);
 
-        const response = await api.get(`/api/analytics/sections/${sectionId}/integrity-flags?${params.toString()}`);
+        const response = await api.get(
+          `/api/analytics/sections/${sectionId}/integrity-flags?${params.toString()}`,
+        );
         setFlags(response.data.flags);
         setPagination(response.data.pagination);
         setLoading(false);
@@ -51,40 +144,24 @@ const AcademicIntegrityFlags = () => {
       }
     };
 
-    const loadFlagTypes = async () => {
-      try {
-        // In a real implementation, we might fetch this from an API endpoint
-        // For now, we'll use the known flag types from our integrity engine
-        setFlagTypes([
-          { value: 'HARD_CODING', label: 'Hardcoding Detection' },
-          { value: 'BLANK_TEMPLATE', label: 'Blank/Template-only Submission' },
-          { value: 'BEHAVIORAL_ANOMALY', label: 'Behavioral Anomaly' },
-          { value: 'CODE_GROWTH_ANOMALY', label: 'Code Growth Anomaly' },
-          { value: 'PASSIVE_BEHAVIOR_LOG', label: 'Passive Behavior Logging' }
-        ]);
-      } catch (err) {
-        console.warn('Could not load flag types:', err);
-      }
-    };
-
     if (sectionId) {
       loadFlags();
-      loadFlagTypes();
     }
   }, [sectionId, filters, pagination.page, pagination.limit]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Reset to first page when filters change
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setFilters((prev) => ({ ...prev, [name]: value }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleFilterSelectChange = (value) => {
+    setFilters((prev) => ({ ...prev, flag_type: value === '__all__' ? '' : value }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handlePageChange = (page) => {
-    setPagination(prev => ({ ...prev, page }));
+    setPagination((prev) => ({ ...prev, page }));
   };
 
   const handleReviewFlag = (flag) => {
@@ -101,270 +178,299 @@ const AcademicIntegrityFlags = () => {
     try {
       await api.put(`/api/analytics/integrity-flags/${updatedFlag.id}/review`, {
         status: updatedFlag.status,
-        instructor_note: updatedFlag.instructor_note
+        instructor_note: updatedFlag.instructor_note,
       });
-
-      // Update the flags list
-      setFlags(prevFlags =>
-        prevFlags.map(flag =>
-          flag.id === updatedFlag.id ? updatedFlag : flag
-        )
+      setFlags((prevFlags) =>
+        prevFlags.map((flag) => (flag.id === updatedFlag.id ? updatedFlag : flag)),
       );
-
       setShowNoteModal(false);
       setSelectedFlag(null);
     } catch (err) {
       console.error('Failed to update integrity flag:', err);
-      // In a real app, we would show an error message to the user
     }
   };
 
+  // Loading state
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Academic Integrity Flags</h1>
-          <button
+      <div className="space-y-6 p-6 lg:p-10">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate(`/instructor/sections/${sectionId}`)}
-            className="btn-secondary"
+            aria-label="Back to section"
           >
-            Back to Section
-          </button>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Academic Integrity Flags</h1>
+            <p className="text-sm text-muted-foreground">
+              Monitoring submissions for potential academic integrity concerns
+            </p>
+          </div>
         </div>
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full border-4 border-primary border-t-transparent h-12 w-12 mx-auto"></div>
-          <p className="mt-4 text-gray-500">Loading integrity flags...</p>
-        </div>
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Academic Integrity Flags</h1>
-          <button
+      <div className="space-y-6 p-6 lg:p-10">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate(`/instructor/sections/${sectionId}`)}
-            className="btn-secondary"
+            aria-label="Back to section"
           >
-            Back to Section
-          </button>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-3xl font-bold tracking-tight">Academic Integrity Flags</h1>
         </div>
-        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4">
-          {error}
-        </div>
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="flex items-center gap-3 p-4 text-sm text-destructive">
+            <XCircle className="h-5 w-5" />
+            {error}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
+  const totalShown =
+    pagination.total > 0
+      ? `${(pagination.page - 1) * pagination.limit + 1}–${Math.min(
+          pagination.page * pagination.limit,
+          pagination.total,
+        )} of ${pagination.total}`
+      : '0 of 0';
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Academic Integrity Flags</h1>
-          <p className="text-gray-600">
-            Monitoring submissions for potential academic integrity concerns
-          </p>
-        </div>
-        <div className="flex items-end gap-3">
-          <button
+    <div className="space-y-6 p-6 lg:p-10">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate(`/instructor/sections/${sectionId}`)}
-            className="btn-secondary"
+            aria-label="Back to section"
           >
-            Back to Section
-          </button>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+              <ShieldAlert className="h-6 w-6 text-destructive" />
+              Academic Integrity Flags
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Monitoring submissions for potential academic integrity concerns
+            </p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => navigate(`/instructor/sections/${sectionId}`)}
+        >
+          Back to Section
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Flag Type
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={filters.flag_type}
-              onChange={handleFilterChange}
-              name="flag_type"
-            >
-              <option value="">All Flag Types</option>
-              {flagTypes.map(type => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Student ID
-            </label>
-            <input
-              type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={filters.student_id || ''}
-              onChange={handleFilterChange}
-              name="student_id"
-              placeholder="Filter by student ID"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Exercise ID
-            </label>
-            <input
-              type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={filters.exercise_id || ''}
-              onChange={handleFilterChange}
-              name="exercise_id"
-              placeholder="Filter by exercise ID"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <button
-            onClick={() => {
-              setFilters({ flag_type: '', student_id: '', exercise_id: '' });
-              setPagination(prev => ({ ...prev, page: 1 }));
-            }}
-            className="btn-outline"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      {/* Flags Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Student
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Exercise
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Flag Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Severity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Evidence
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {flags.length === 0 ? (
-                <tr>
-                  <td className="px-6 py-4 text-center text-gray-500" colSpan="7">
-                    No integrity flags found matching the current filters.
-                  </td>
-                </tr>
-              ) : (
-                flags.map(flag => (
-                  <tr key={flag.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {flag.student_name || 'Unknown Student'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {flag.exercise_title || 'Unknown Exercise'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <IntegrityFlagBadge flagType={flag.flag_type} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full
-                          ${flag.severity === 'HIGH' ? 'bg-red-100 text-red-800' :
-                                flag.severity === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'}`}
-                      >
-                        {flag.severity}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 max-w-xs">
-                      {flag.evidence ? JSON.stringify(flag.evidence).substring(0, 50) + '...' : 'No evidence'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full
-                          ${flag.status === 'FLAGGED' ? 'bg-yellow-100 text-yellow-800' :
-                                flag.status === 'REVIEWED' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'}`}
-                      >
-                        {flag.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-2">
-                      <button
-                        onClick={() => handleReviewFlag(flag)}
-                        className="btn-outline btn-sm"
-                        disabled={flag.status === 'REVIEWED' || flag.status === 'DISMISSED'}
-                      >
-                        {flag.status === 'FLAGGED' ? 'Review' : 'View'}
-                      </button>
-                      {flag.status === 'FLAGGED' && (
-                        <button
-                          onClick={() => {
-                            // In a real implementation, we would have a dismiss function
-                            // For now, we'll just treat dismiss as setting status to dismissed
-                            handleReviewFlag({ ...flag, status: 'DISMISSED' });
-                          }}
-                          className="btn-outline btn-sm text-red-600 hover:text-red-800"
-                        >
-                          Dismiss
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {pagination.total > pagination.limit && (
-          <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center text-sm">
-            <span className="text-gray-500">
-              Showing {(pagination.page - 1) * pagination.limit + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} flags
-            </span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
-                disabled={pagination.page === 1}
-                className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Filter className="h-4 w-4" /> Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="flag_type" className="text-xs font-semibold uppercase tracking-wider">
+                Flag Type
+              </Label>
+              <Select
+                value={filters.flag_type || '__all__'}
+                onValueChange={handleFilterSelectChange}
               >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(Math.min(pagination.totalPages, pagination.page + 1))}
-                disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Next
-              </button>
+                <SelectTrigger id="flag_type">
+                  <SelectValue placeholder="All Flag Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All Flag Types</SelectItem>
+                  {FLAG_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="student_id" className="text-xs font-semibold uppercase tracking-wider">
+                Student ID
+              </Label>
+              <Input
+                id="student_id"
+                type="number"
+                name="student_id"
+                value={filters.student_id || ''}
+                onChange={handleFilterChange}
+                placeholder="Filter by student ID"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="exercise_id" className="text-xs font-semibold uppercase tracking-wider">
+                Exercise ID
+              </Label>
+              <Input
+                id="exercise_id"
+                type="number"
+                name="exercise_id"
+                value={filters.exercise_id || ''}
+                onChange={handleFilterChange}
+                placeholder="Filter by exercise ID"
+              />
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setFilters({ flag_type: '', student_id: '', exercise_id: '' });
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+            >
+              Clear Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Flags table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Flags</CardTitle>
+          <CardDescription>
+            {flags.length} {flags.length === 1 ? 'flag' : 'flags'} on this page
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Exercise</TableHead>
+                  <TableHead>Flag Type</TableHead>
+                  <TableHead>Severity</TableHead>
+                  <TableHead>Evidence</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {flags.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                      No integrity flags found matching the current filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  flags.map((flag) => {
+                    const severityVariant = SEVERITY_VARIANT[flag.severity] || 'outline';
+                    const statusVariant = STATUS_VARIANT[flag.status] || 'outline';
+                    const evidenceText = flag.evidence
+                      ? JSON.stringify(flag.evidence).substring(0, 50) + '...'
+                      : 'No evidence';
+                    return (
+                      <TableRow key={flag.id} className="hover:bg-muted/30">
+                        <TableCell className="font-medium text-foreground">
+                          {flag.student_name || 'Unknown Student'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {flag.exercise_title || 'Unknown Exercise'}
+                        </TableCell>
+                        <TableCell>
+                          <IntegrityFlagBadge flagType={flag.flag_type} />
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={severityVariant}>{flag.severity}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                          {evidenceText}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant}>
+                            {STATUS_LABEL[flag.status] || flag.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleReviewFlag(flag)}
+                              disabled={flag.status === 'REVIEWED' || flag.status === 'DISMISSED'}
+                            >
+                              {flag.status === 'FLAGGED' ? 'Review' : 'View'}
+                            </Button>
+                            {flag.status === 'FLAGGED' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() =>
+                                  handleReviewFlag({ ...flag, status: 'DISMISSED' })
+                                }
+                              >
+                                Dismiss
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {pagination.total > pagination.limit && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+              <span>Showing {totalShown} flags</span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
+                  disabled={pagination.page === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    handlePageChange(Math.min(pagination.totalPages, pagination.page + 1))
+                  }
+                  disabled={pagination.page === pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {showNoteModal && selectedFlag && (
         <IntegrityNoteModal
@@ -377,80 +483,85 @@ const AcademicIntegrityFlags = () => {
   );
 };
 
-// Modal for instructor notes (local — no separate component file yet)
+// Modal for instructor notes — uses Radix Dialog (shadcn-styled) but
+// preserves the local-React-component contract that the rest of the file
+// relies on (controlled by showNoteModal/selectedFlag in the parent).
 const IntegrityNoteModal = ({ flag, onClose, onSubmit }) => {
   const [note, setNote] = useState(flag.instructor_note || '');
   const [status, setStatus] = useState(flag.status || 'FLAGGED');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit({
-      ...flag,
-      instructor_note: note,
-      status
-    });
+    setSubmitting(true);
+    try {
+      await onSubmit({ ...flag, instructor_note: note, status });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
             {flag.status === 'FLAGGED' ? 'Review Integrity Flag' : 'View Integrity Flag'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="float-right text-gray-500 hover:text-gray-700"
-          >
-            ×
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          </DialogTitle>
+          <DialogDescription>
+            Add a note and update the review status. Notes are visible to other instructors.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="status" className="text-xs font-semibold uppercase tracking-wider">
               Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="FLAGGED">Flagged</option>
-              <option value="REVIEWED">Reviewed</option>
-              <option value="DISMISSED">Dismissed</option>
-            </select>
+            </Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger id="status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="FLAGGED">Flagged</SelectItem>
+                <SelectItem value="REVIEWED">Reviewed</SelectItem>
+                <SelectItem value="DISMISSED">Dismissed</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="note" className="text-xs font-semibold uppercase tracking-wider">
               Instructor Note
-            </label>
+            </Label>
             <textarea
+              id="note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus-ring-primary h-24"
+              rows={5}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               placeholder="Add notes about your review or actions taken..."
             />
           </div>
 
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
-            >
-              {flag.status === 'FLAGGED' ? 'Save Review' : 'Update'}
-            </button>
-          </div>
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
+                </>
+              ) : flag.status === 'FLAGGED' ? (
+                'Save Review'
+              ) : (
+                'Update'
+              )}
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

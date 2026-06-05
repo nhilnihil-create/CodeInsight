@@ -1,8 +1,34 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Loader2, LogIn, AlertCircle, Info, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
+/**
+ * Login page.
+ *
+ * PRESERVED from the previous implementation:
+ *   - Calls api.post('/api/auth/login', { email, password })
+ *   - Calls login(token, user) from AuthContext
+ *   - Navigates to /instructor or /student based on role, with replace:true
+ *   - Error message: err.response?.data?.message || 'Login failed'
+ *   - Same demo accounts (instructor@psu.edu / maria@student.psu.edu)
+ *
+ * REPLACED:
+ *   - Hand-built card → shadcn Card primitives (matches Frontend-Design)
+ *   - Adds a "Back to landing" link and centers content using bg-muted/30
+ */
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,12 +41,12 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const res = await api.post('/api/auth/login', { email, password });
       login(res.data.token, res.data.user);
-      
-      const dest = res.data.user.role === 'instructor' ? '/instructor' : '/student';
+
+      const dest = res.data.user.role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
       navigate(dest, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -30,134 +56,98 @@ export default function Login() {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: '#0d1117', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      padding: '20px'
-    }}>
-      <div style={{ width: '100%', maxWidth: '380px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ 
-            fontFamily: 'DM Mono, monospace', 
-            fontSize: '24px', 
-            fontWeight: 700,
-            color: '#85D2D0', 
-            marginBottom: '6px' 
-          }}>
-            Code<span style={{ color: '#a99dd4' }}>Insight</span>
-          </div>
-          <div style={{ fontSize: '11px', color: '#8b949e' }}>
-            Pampanga State University · CCS
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-8 text-foreground">
+      <div className="w-full max-w-md space-y-4">
+        <div className="flex items-center justify-center">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Back to home
+          </Link>
         </div>
 
-        {/* Card */}
-        <div style={{ 
-          background: '#161b22', 
-          border: '1px solid #30363d',
-          borderRadius: '12px', 
-          padding: '28px 24px' 
-        }}>
-          <div style={{ 
-            fontSize: '16px', 
-            fontWeight: 700, 
-            color: '#e6edf3',
-            marginBottom: '20px' 
-          }}>Sign in to CodeInsight</div>
-
-          {error && (
-            <div style={{ 
-              background: 'rgba(248, 113, 113, 0.1)', 
-              border: '1px solid rgba(248, 113, 113, 0.3)',
-              borderRadius: '7px', 
-              padding: '10px 13px', 
-              color: '#f87171',
-              fontSize: '12.5px', 
-              marginBottom: '14px' 
-            }}>{error}</div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ 
-                fontSize: '11px', 
-                fontWeight: 600, 
-                color: '#8b949e',
-                letterSpacing: '0.5px', 
-                display: 'block', 
-                marginBottom: '5px' 
-              }}>
-                EMAIL
-              </label>
-              <input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com" 
-                required 
-                style={{ width: '100%' }}
-              />
+        <Card className="border-border/50 shadow-xl">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mx-auto mb-2 font-mono text-2xl font-bold text-primary">
+              Code<span className="text-secondary-foreground">Insight</span>
             </div>
+            <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
+            <CardDescription>
+              Sign in to continue to CodeInsight · Pampanga State University · CCS
+            </CardDescription>
+          </CardHeader>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ 
-                fontSize: '11px', 
-                fontWeight: 600, 
-                color: '#8b949e',
-                letterSpacing: '0.5px', 
-                display: 'block', 
-                marginBottom: '5px' 
-              }}>
-                PASSWORD
-              </label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••" 
-                required 
-                style={{ width: '100%' }}
-              />
+          <CardContent className="space-y-4">
+            {error && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-[12.5px] text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">EMAIL</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password">PASSWORD</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-11 w-full text-[13px] font-bold"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Sign In
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-3 border-t p-6">
+            <div className="w-full rounded-md bg-muted px-3 py-2.5 text-[11px] text-muted-foreground">
+              <div className="mb-1 flex items-center gap-1.5 font-semibold text-secondary-foreground">
+                <Info className="h-3 w-3" />
+                Demo accounts (password: password123)
+              </div>
+              <div>Instructor: instructor@psu.edu</div>
+              <div>Student: maria@student.psu.edu</div>
             </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              style={{
-                width: '100%', 
-                padding: '11px', 
-                background: loading ? '#4a9997' : '#85D2D0',
-                border: 'none', 
-                borderRadius: '8px', 
-                color: '#0a1a1a',
-                fontSize: '13px', 
-                fontWeight: 700, 
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          <div style={{ 
-            marginTop: '16px', 
-            padding: '12px', 
-            background: '#21262d',
-            borderRadius: '7px', 
-            fontSize: '11px', 
-            color: '#8b949e' 
-          }}>
-            <div style={{ fontWeight: 600, color: '#a99dd4', marginBottom: '4px' }}>
-              Demo accounts (password: password123)
-            </div>
-            <div>Instructor: instructor@psu.edu</div>
-            <div>Student: maria@student.psu.edu</div>
-          </div>
-        </div>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );

@@ -6,22 +6,23 @@
 import React from 'react';
 import './ClassMisconceptionReport.css';
 
-function ClassMisconceptionReport({ report, onClose }) {
+function ClassMisconceptionReport({ report, onClose, embedded = false }) {
   if (!report) {
     return null;
   }
 
   const emptyState = !report.mostCommonIssue || report.totalStudents === 0;
 
-  return (
-    <div className="class-misconception-modal-overlay">
-      <div className="class-misconception-modal">
+  const content = (
+      <div className={embedded ? 'class-misconception-embedded' : 'class-misconception-modal'}>
         <div className="modal-header">
           <div>
             <h2 className="modal-title">Class-Wide Misconception Report</h2>
             <p className="modal-subtitle">{report.exerciseTitle || 'Exercise Analysis'}</p>
           </div>
-          <button className="btn-close" onClick={onClose}>&times;</button>
+          {!embedded && onClose && (
+            <button className="btn-close" onClick={onClose}>&times;</button>
+          )}
         </div>
 
         <div className="modal-content">
@@ -111,12 +112,23 @@ function ClassMisconceptionReport({ report, onClose }) {
           )}
         </div>
 
-        <div className="modal-footer">
-          <button className="btn-close-action" onClick={onClose}>
-            Close Report
-          </button>
-        </div>
+        {!embedded && onClose && (
+          <div className="modal-footer">
+            <button className="btn-close-action" onClick={onClose}>
+              Close Report
+            </button>
+          </div>
+        )}
       </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="class-misconception-modal-overlay">
+      {content}
     </div>
   );
 }

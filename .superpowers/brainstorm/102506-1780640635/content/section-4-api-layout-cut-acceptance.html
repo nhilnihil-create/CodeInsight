@@ -1,0 +1,226 @@
+<h2>Section 4 — API contracts, layout-config schema, cut list, acceptance criteria</h2>
+<p class="subtitle">The "make it real" section. Section 1–3 defined what the screens look like; Section 4 defines what data they consume, what the shell's role-resolved config looks like, what we explicitly do <em>not</em> ship, and the metrics that decide if v1 is successful. Everything here is consistent with the prior sections and the existing 50+ endpoints.</p>
+
+<div class="section">
+  <h3>1. The role-resolved layout config (the shell's contract)</h3>
+  <p style="font-size:12px">The mobile shell does not branch on <code>user.role</code> inside React. Instead, a single <code>useLayoutConfig(role, viewport)</code> hook returns one of three config objects. The shell renders exactly what's in the config — no conditional components, no role-specific JSX. Tablet+ uses a different config object; the shell switches at the root via the <code>mode</code> prop and never re-queries.</p>
+
+  <div class="mockup">
+    <div class="mockup-header">Instructor config (mobile, mode='mobile')</div>
+    <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#0F172A;color:#F8FAFC;padding:12px;border-radius:4px;line-height:1.55">
+<pre style="margin:0;white-space:pre-wrap">
+{
+  "role": "instructor",
+  "mode": "mobile",
+  "chrome": {
+    "appBar": { "title": "CodeInsight", "rightSlot": "avatar" },
+    "bottomNav": {
+      "items": [
+        { "key": "command",  "label": "Command",  "icon": "home",      "route": "/instructor/command" },
+        { "key": "students", "label": "Students", "icon": "users",     "route": "/instructor/students" },
+        { "key": "concepts", "label": "Concepts", "icon": "grid",      "route": "/instructor/concepts" },
+        { "key": "integrity","label": "Integrity","icon": "shield",    "route": "/instructor/integrity" },
+        { "key": "sections", "label": "Sections", "icon": "layers",    "route": "/instructor/sections" }
+      ]
+    }
+  },
+  "screens": {
+    "/instructor/command": {
+      "primary":   { "widget": "InstructorPriorityInsight",  "endpoint": "GET /api/analytics/instructor/priority-insight" },
+      "secondary": [
+        { "widget": "AtRiskQueue",                          "endpoint": "GET /api/analytics/instructor/at-risk-queue",        "showIf": "data.length > 0" },
+        { "widget": "InterventionQueue",                    "endpoint": "GET /api/analytics/instructor/intervention-queue",  "showIf": "data.length > 0" }
+      ],
+      "tertiary": [
+        { "widget": "TopStrugglingConcepts", "endpoint": "GET /api/analytics/instructor/concepts/top?k=3", "collapsed": true },
+        { "widget": "IntegrityFlagCount",    "endpoint": "GET /api/analytics/instructor/integrity/count",   "collapsed": true, "showIf": "data.criticalCount > 0" },
+        { "widget": "ClassProfileRadar",     "endpoint": "GET /api/analytics/instructor/concepts/profile",   "collapsed": true, "render": "summary" },
+        { "widget": "WeeklyTeachingInsight", "endpoint": "GET /api/analytics/instructor/weekly-insight",   "collapsed": true }
+      ]
+    },
+    "/instructor/students": {
+      "primary":   { "widget": "AtRiskRoster", "endpoint": "GET /api/analytics/instructor/students?sort=risk" },
+      "secondary": [],
+      "tertiary":  []
+    },
+    "/instructor/concepts": {
+      "primary":   { "widget": "TopStrugglingConcepts", "endpoint": "GET /api/analytics/instructor/concepts/top?k=10" },
+      "secondary": [],
+      "tertiary":  []
+    },
+    "/instructor/integrity": {
+      "primary":   { "widget": "IntegrityFlagCount",    "endpoint": "GET /api/analytics/instructor/integrity/count" },
+      "secondary": [
+        { "widget": "IntegrityFlagList", "endpoint": "GET /api/analytics/instructor/integrity/recent?limit=3", "showIf": "data.length > 0" }
+      ],
+      "tertiary":  [
+        { "widget": "IntegrityDrillNotice", "static": true, "copy": "Flag review requires tablet or desktop." }
+      ]
+    },
+    "/instructor/sections": {
+      "primary":   { "widget": "SectionList", "endpoint": "GET /api/sections?instructor=me" },
+      "secondary": [],
+      "tertiary":  []
+    }
+  }
+}
+</pre>
+    </div>
+  </div>
+
+  <p style="font-size:11px;margin-top:10px;opacity:0.7">All five secondary/tertiary widgets have an explicit <code>showIf</code> predicate. The config is data, not code. Tablet mode replaces this with a 2-column config; desktop mode replaces it with a 3-column config; the field names are identical, only the column counts and the <code>render</code> mode change.</p>
+</div>
+
+<div class="section">
+  <h3>2. Student &amp; Admin config shapes (abbreviated)</h3>
+  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.6;background:#0F172A;color:#F8FAFC;padding:12px;border-radius:4px">
+<pre style="margin:0;white-space:pre-wrap">
+// STUDENT (mobile) — naming locked to ActionStack, WeeklyProgress, ConceptMasteryBar
+{
+  "screens": {
+    "/student/today": {
+      "primary":   { "widget": "StudentTodayFocus",      "endpoint": "GET /api/analytics/student/today-focus" },
+      "secondary": [
+        { "widget": "WeakestConceptBar",   "endpoint": "GET /api/analytics/student/concepts/weakest", "showIf": "data.cds != null" },
+        { "widget": "ActionStack",         "endpoint": "GET /api/analytics/student/actions/next",    "showIf": "data.length > 0" }
+      ],
+      "tertiary": [
+        { "widget": "WeeklyProgress",      "endpoint": "GET /api/analytics/student/progress/week", "collapsed": true },
+        { "widget": "ConceptMasteryBarSet","endpoint": "GET /api/analytics/student/concepts/all",   "collapsed": true, "render": "summary" },
+        { "widget": "IntegrityFlagCount",  "endpoint": "GET /api/analytics/student/integrity/count","collapsed": true, "showIf": "data.count > 0" }
+      ]
+    },
+    "/student/exercises":       { "primary": { "widget": "ExerciseCardList", "endpoint": "GET /api/exercises?student=me" } },
+    "/student/exercises/:id":  {
+      "primary":   { "widget": "CodePreviewSurface", "endpoint": "GET /api/exercises/:id" },
+      "secondary": [{ "widget": "TestResultList",    "endpoint": "GET /api/submissions/:id/results" }],
+      "tertiary":  [{ "widget": "OpenFullEditorHint","static": true, "copy": "Open full editor →", "route": "/student/exercises/:id?mode=full" }],
+      "codeBlock": { "engine": "pre", "monaco": false, "horizontalScroll": true }
+    },
+    "/student/progress":       { "primary": { "widget": "ConceptMasteryBarSet", "endpoint": "GET /api/analytics/student/concepts/all" } },
+    "/student/integrity":      { "primary": { "widget": "IntegrityFlagHistory",  "endpoint": "GET /api/analytics/student/integrity/history" } },
+    "/student/sections":       { "primary": { "widget": "SectionList",           "endpoint": "GET /api/sections?student=me" } }
+  }
+}
+
+// ADMIN (mobile) — naming locked to SnapshotMetrics, EvaluationProgress, AuditLog
+{
+  "screens": {
+    "/admin/overview": {
+      "primary":   { "widget": "SnapshotMetrics",    "endpoint": "GET /api/admin/snapshot" },
+      "primaryAction": { "widget": "EvaluationProgress", "endpoint": "GET /api/admin/evaluations/pending", "route": "/admin/evaluation" },
+      "secondary": [
+        { "widget": "AuditLog",         "endpoint": "GET /api/admin/audit?limit=20", "showIf": "data.length > 0" },
+        { "widget": "SectionList",      "endpoint": "GET /api/sections",             "showIf": "data.length > 0" }
+      ],
+      "tertiary": [
+        { "widget": "DesktopOnlyNotice","static": true, "copy": "Bulk export · Desktop only" },
+        { "widget": "DesktopOnlyNotice","static": true, "copy": "User management · Desktop only" }
+      ]
+    },
+    "/admin/evaluation": { "primary": { "widget": "Iso25010Instrument", "endpoint": "GET /api/admin/evaluations/instrument" } },
+    "/admin/audit":      { "primary": { "widget": "AuditLog",           "endpoint": "GET /api/admin/audit?limit=50" } }
+  }
+}
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. Endpoint inventory (mobile touchpoints only, no new endpoints)</h3>
+  <p style="font-size:12px">Every widget endpoint below <b>already exists</b> in the existing 50+ endpoint catalog. Mobile reuses the same JSON; it filters/renders client-side. The constraint "no new endpoints" is satisfied by construction — not a single new route, not a single new query param.</p>
+  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;background:#F8FAFC;border:1px solid #E2E8F0;padding:10px;border-radius:4px">
+<div><b>Instructor (5):</b></div>
+<div>· <code>GET /api/analytics/instructor/priority-insight</code>   → PriorityInsight</div>
+<div>· <code>GET /api/analytics/instructor/at-risk-queue</code>      → AtRiskQueue</div>
+<div>· <code>GET /api/analytics/instructor/intervention-queue</code> → InterventionQueue</div>
+<div>· <code>GET /api/analytics/instructor/concepts/top?k=N</code>   → TopStrugglingConcepts</div>
+<div>· <code>GET /api/analytics/instructor/concepts/profile</code>   → ClassProfileRadar</div>
+<div>· <code>GET /api/analytics/instructor/integrity/count</code>    → IntegrityFlagCount</div>
+<div>· <code>GET /api/analytics/instructor/integrity/recent</code>   → IntegrityFlagList</div>
+<div>· <code>GET /api/analytics/instructor/weekly-insight</code>    → WeeklyTeachingInsight</div>
+<div>· <code>GET /api/analytics/instructor/students?sort=risk</code> → AtRiskRoster</div>
+<div>· <code>GET /api/sections?instructor=me</code>                 → SectionList</div>
+<div style="margin-top:6px"><b>Student (8):</b></div>
+<div>· <code>GET /api/analytics/student/today-focus</code>           → StudentTodayFocus</div>
+<div>· <code>GET /api/analytics/student/concepts/weakest</code>      → WeakestConceptBar</div>
+<div>· <code>GET /api/analytics/student/concepts/all</code>          → ConceptMasteryBarSet</div>
+<div>· <code>GET /api/analytics/student/actions/next</code>          → ActionStack</div>
+<div>· <code>GET /api/analytics/student/progress/week</code>        → WeeklyProgress</div>
+<div>· <code>GET /api/analytics/student/integrity/count</code>      → IntegrityFlagCount (student view)</div>
+<div>· <code>GET /api/analytics/student/integrity/history</code>     → IntegrityFlagHistory</div>
+<div>· <code>GET /api/exercises?student=me</code>                    → ExerciseCardList</div>
+<div>· <code>GET /api/exercises/:id</code>                           → CodePreviewSurface data</div>
+<div>· <code>GET /api/submissions/:id/results</code>                → TestResultList</div>
+<div>· <code>GET /api/sections?student=me</code>                     → SectionList</div>
+<div style="margin-top:6px"><b>Admin (4):</b></div>
+<div>· <code>GET /api/admin/snapshot</code>                          → SnapshotMetrics</div>
+<div>· <code>GET /api/admin/evaluations/pending</code>               → EvaluationProgress</div>
+<div>· <code>GET /api/admin/evaluations/instrument</code>           → Iso25010Instrument (4-point Likert)</div>
+<div>· <code>GET /api/admin/audit?limit=N</code>                     → AuditLog</div>
+<div>· <code>GET /api/sections</code>                               → SectionList (admin scope)</div>
+  </div>
+  <p style="font-size:11px;margin-top:8px;opacity:0.7">All 5 widget count check ✓. Total mobile-touchpoint endpoints: <b>24</b> (out of 50+ existing). No new endpoint introduced. The 3 admin endpoints all exist.</p>
+</div>
+
+<div class="section">
+  <h3>4. State taxonomy (NoData / LowConfidence / Healthy) — folded in from feedback</h3>
+  <p style="font-size:12px">Three explicit data-states, attached to the <code>PriorityInsight</code> widget (the primary). State is computed from <code>submissions_per_student</code> and <code>section_age_days</code> on the client; server data is unchanged.</p>
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="background:#1E293B;color:#F8FAFC"><th style="text-align:left;padding:6px">State</th><th style="text-align:left;padding:6px">Trigger</th><th style="text-align:left;padding:6px">Phone copy</th><th style="text-align:left;padding:6px">Visual</th></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>NoData</b></td><td style="padding:6px">0 submissions, or section &lt; 24h old</td><td style="padding:6px">"No exercise activity yet. Once students submit, you'll see risk signals here."</td><td style="padding:6px">Dotted outline card · single primary CTA ("Open exercises →")</td></tr>
+    <tr style="border-bottom:1px solid #1px solid #1E293B"><td style="padding:6px"><b>LowConfidence</b></td><td style="padding:6px">1–2 submissions/student, or section &lt; 14d old</td><td style="padding:6px">"Early signal. Insights sharpen as data arrives." + progress: "n of 50 submissions to full confidence"</td><td style="padding:6px">Standard card with "Limited" badge · progress bar · secondary widgets show dotted placeholders</td></tr>
+    <tr><td style="padding:6px"><b>Healthy</b></td><td style="padding:6px">≥ 3 submissions/student AND section ≥ 14d old</td><td style="padding:6px">Full insight copy (the existing PriorityInsight widget)</td><td style="padding:6px">Standard layout as designed in Section 3</td></tr>
+  </table>
+  <p style="font-size:11px;margin-top:8px">Each secondary/tertiary widget also has its own state. If a single widget receives 0 rows in its data (e.g., no integrity flags), it's hidden — not rendered with empty state. That avoids the visual "lots of empty cards" anti-pattern.</p>
+</div>
+
+<div class="section">
+  <h3>5. The cut list (explicit YAGNI for v1)</h3>
+  <p style="font-size:12px">Things we <b>do not ship</b> in v1, listed so the defense committee and the reviewer can see the boundary. Everything on this list is a v2 candidate, not a v1 omission.</p>
+  <ul style="font-size:12px;line-height:1.7">
+    <li>❌ <b>Native mobile apps</b> (iOS / Android). Web responsive only. (Existing spec line 645.)</li>
+    <li>❌ <b>Real-time push / websockets</b>. Mobile reads on-demand; pull-to-refresh is the only real-time affordance. (Existing spec.)</li>
+    <li>❌ <b>Mobile flag review UI</b> for instructors. Phone shows the count + 3 most recent; review requires tablet/desktop. Honest about cost of false positives on a 5-inch screen.</li>
+    <li>❌ <b>Mobile code editing</b>. Phone shows the code; tablet+ opens the editor. We refuse to ship a worse-than-useless phone code experience.</li>
+    <li>❌ <b>Voice input / camera OCR</b> for code. Not in scope.</li>
+    <li>❌ <b>Offline-first / service worker</b>. Responsive web only — PWA was rejected in clarifying questions. Mobile requires connectivity.</li>
+    <li>❌ <b>Mobile bulk export</b> (admin). Desktop only. Honest about the workflow cost.</li>
+    <li>❌ <b>Mobile user management</b> (admin). Desktop only.</li>
+    <li>❌ <b>Custom widget reordering</b>. The role-resolved config is the order. No drag-to-reorder on phone.</li>
+    <li>❌ <b>Theme toggle on phone</b>. Auto by default; exposed via app-bar menu. (Existing spec.)</li>
+    <li>❌ <b>Mobile-only KPI definitions or scoring overrides</b>. Mobile reads the same CDS thresholds as desktop; v1 has no "mobile mode" of CDS.</li>
+    <li>❌ <b>Instructor writing intervention notes on phone</b>. Phone can <i>trigger</i> the intervention (assign Set B, message 1:1); the note-taking surface is tablet/desktop.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>6. Acceptance criteria (the metrics that decide "v1 shipped")</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="background:#1E293B;color:#F8FAFC"><th style="text-align:left;padding:6px">Criterion</th><th style="text-align:left;padding:6px">Target</th><th style="text-align:left;padding:6px">Measurement</th></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Instructor triage latency</b></td><td style="padding:6px">Top-3 at-risk students identified in &lt; 10 s from app open</td><td style="padding:6px">User test, n=10, timed task</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Student "what next" latency</b></td><td style="padding:6px">Next action visible in &lt; 3 s from app open</td><td style="padding:6px">User test, n=10, timed task</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>No horizontal scroll on any chart</b></td><td style="padding:6px">0 charts require horizontal scrolling on phone (&lt; 640px)</td><td style="padding:6px">Visual audit on 12 phone mockups</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Phone initial JS bundle</b></td><td style="padding:6px">≤ 200 KB gzipped for /instructor/command, /student/today, /admin/overview</td><td style="padding:6px"><code>next build --analyze</code> / Vite build report</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>No D3 in phone bundle for summary-mode widgets</b></td><td style="padding:6px">D3 not in initial phone bundle for any route where the chart renders as summary</td><td style="padding:6px">Bundle analyzer · grep <code>d3</code></td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Cold-start first insight</b></td><td style="padding:6px">PriorityInsight widget shows <i>LowConfidence</i> state within 24 h of first submission; <i>Healthy</i> state by submission #3/student</td><td style="padding:6px">State machine test + integration test</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Layout-config driven</b></td><td style="padding:6px">100% of phone screens render from the config object; zero <code>if (role === ...)</code> branches in screen components</td><td style="padding:6px">Codebase grep for role branches inside <code>/mobile</code> screens</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Existing endpoints untouched</b></td><td style="padding:6px">0 new endpoints, 0 modified responses, 0 removed endpoints</td><td style="padding:6px">API diff vs pre-mobile baseline</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Tab targets</b></td><td style="padding:6px">All interactive elements ≥ 44×44 px on phone</td><td style="padding:6px">Lighthouse mobile audit</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>RiskBadge accessibility</b></td><td style="padding:6px">RiskBadge on phone always shows color + label; symbol is decorative</td><td style="padding:6px">Component visual audit on 4 phone screens</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>Admin has ≥ 1 action path on phone</b></td><td style="padding:6px">/admin/overview surfaces the evaluation queue as the single primary action</td><td style="padding:6px">Visual audit on /admin/overview</td></tr>
+    <tr style="border-bottom:1px solid #1E293B"><td style="padding:6px"><b>ISO/IEC 25010 evaluation usable on phone</b></td><td style="padding:6px">4-point Likert instrument, one question per screen, progress bar; complete in &lt; 4 min from phone</td><td style="padding:6px">User test, n=5 evaluators</td></tr>
+    <tr><td style="padding:6px"><b>Safe-area-inset respected</b></td><td style="padding:6px">Bottom tab bar respects iOS home indicator; no content clipped on iPhone 14/15</td><td style="padding:6px">Visual audit on iOS simulator</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>7. Out of scope for the mobile spec, in scope for the v1 release</h3>
+  <ul style="font-size:12px;line-height:1.7">
+    <li>✅ Existing 50+ endpoints remain functional. <b>No</b> deprecation, <b>no</b> removal, <b>no</b> modification of response shape.</li>
+    <li>✅ The desktop layout (already shipped per the existing spec at <code>docs/superpowers/specs/2026-06-05-codeinsight-redesign-design.md</code>) is the source of truth for visual language. Mobile is a layout transformation of the same components — not a separate design system.</li>
+    <li>✅ The 12-molecule component library (CDSPill, CDSGauge, RiskBadge, InsightCard, etc.) is reused. New molecules: <code>CodePreviewSurface</code> (phone-only), <code>StateAwareShell</code> (wraps PriorityInsight for NoData / LowConfidence / Healthy), <code>AtRiskRoster</code> (filterable list), <code>ActionStack</code>, <code>SnapshotMetrics</code>, <code>TopStrugglingConcepts</code>, <code>ConceptMasteryBarSet</code>, <code>WeeklyProgress</code>, <code>EvaluationProgress</code>, <code>Iso25010Instrument</code>, <code>IntegrityFlagList</code>, <code>IntegrityFlagCount</code>, <code>IntegrityFlagHistory</code>, <code>OpenFullEditorHint</code>, <code>DesktopOnlyNotice</code>, <code>ClassProfileRadar</code>, <code>WeeklyTeachingInsight</code>, <code>ExerciseCardList</code>, <code>TestResultList</code>, <code>WeakestConceptBar</code>, <code>StudentTodayFocus</code>, <code>InstructorPriorityInsight</code>, <code>AuditLog</code>.</li>
+  </ul>
+</div>
+
+<p class="subtitle">If Section 4 looks right, the next step is the <b>spec self-review</b> and then <b>writing the consolidated spec to <code>docs/superpowers/specs/2026-06-05-codeinsight-mobile-design.md</code></b>. Approve Section 4 and I'll proceed.</p>

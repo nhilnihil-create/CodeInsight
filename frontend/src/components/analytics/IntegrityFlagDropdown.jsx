@@ -1,11 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import sectionAnalyticsApi from '../../services/sectionAnalyticsApi';
+import IntegrityFlagBadge from '../IntegrityFlagBadge';
+import './IntegrityFlagDropdown.css';
 
-function IntegrityFlagDropdown({ sectionId, exerciseId, isOpen, onToggle }) {
+const FLAG_TYPE_LABELS = {
+  HARDCODING: 'Hardcoding',
+  BLANK_TEMPLATE: 'Blank / template only',
+  BEHAVIORAL_ANOMALY: 'Behavioral anomaly',
+  CODE_GROWTH_ANOMALY: 'Code growth anomaly',
+  code_paste_detected: 'Code paste detected',
+  code_growth_anomaly: 'Code growth anomaly',
+  retry_storm: 'Retry storm',
+  hardcoded_output: 'Hardcoded output',
+  behavioral_anomaly: 'Behavioral anomaly'
+};
+
+function formatEvidence(evidence) {
+  if (!evidence) return null;
+  if (typeof evidence === 'string') return evidence;
+  if (typeof evidence === 'object') return evidence;
+  return String(evidence);
+}
+
+function IntegrityFlagDropdown({ sectionId, exerciseId, isOpen }) {
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [expandedFlags, setExpandedFlags] = useState(new Set());
+  const [expandedStudents, setExpandedStudents] = useState(new Set());
 
   useEffect(() => {
     if (isOpen && sectionId && exerciseId) {
@@ -13,12 +34,30 @@ function IntegrityFlagDropdown({ sectionId, exerciseId, isOpen, onToggle }) {
     }
   }, [isOpen, sectionId, exerciseId]);
 
+  const studentsWithFlags = useMemo(() => {
+    const byStudent = {};
+    for (const flag of flags) {
+      const key = flag.student_id;
+      if (!byStudent[key]) {
+        byStudent[key] = {
+          studentId: key,
+          studentName: flag.student_name || 'Unknown student',
+          flags: []
+        };
+      }
+      byStudent[key].flags.push(flag);
+    }
+    return Object.values(byStudent).sort((a, b) =>
+      a.studentName.localeCompare(b.studentName)
+    );
+  }, [flags]);
+
   const fetchIntegrityFlags = async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await sectionAnalyticsApi.getIntegrityFlagsByExercise(sectionId, exerciseId);
-      setFlags(res.data || []);
+      setFlags(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching integrity flags:', err);
       setError('Failed to load integrity flags');
@@ -28,15 +67,12 @@ function IntegrityFlagDropdown({ sectionId, exerciseId, isOpen, onToggle }) {
     }
   };
 
-  const toggleFlagDetails = (flagId) => {
-    setExpandedFlags(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(flagId)) {
-        newSet.delete(flagId);
-      } else {
-        newSet.add(flagId);
-      }
-      return newSet;
+  const toggleStudent = (studentId) => {
+    setExpandedStudents((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
     });
   };
 
@@ -44,259 +80,105 @@ function IntegrityFlagDropdown({ sectionId, exerciseId, isOpen, onToggle }) {
     e.stopPropagation();
     try {
       await sectionAnalyticsApi.markIntegrityFlagReviewed(flagId);
-      setFlags(prev => prev.map(f => f.id === flagId ? { ...f, status: 'reviewed' } : f));
+      setFlags((prev) =>
+        prev.map((f) => (f.id === flagId ? { ...f, status: 'reviewed' } : f))
+      );
     } catch (err) {
       console.error('Error marking flag reviewed:', err);
     }
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case 'high':
-        return { bg: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' };
-      case 'medium':
-        return { bg: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' };
-      case 'low':
-      default:
-        return { bg: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.3)' };
-    }
-  };
-
-  const getFlagTypeLabel = (flagType) => {
-    const labels = {
-      'code_paste': '📋 Code Paste Detected',
-      'code_growth_anomaly': '📈 Code Growth Anomaly',
-      'retry_storm': '🔄 Retry Storm',
-      'time_anomaly': '⏱️ Time Anomaly',
-      'hardcoded_output': '💾 Hardcoded Output',
-      'behavioral_anomaly': '👁️ Behavioral Anomaly'
-    };
-    return labels[flagType] || flagType;
-  };
-
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
-    <div style={{
-      background: '#131d30',
-      borderTop: '1px solid #2e2e4a',
-      padding: '16px',
-      margin: 0
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '12px'
-      }}>
-        <div style={{
-          fontSize: '12px',
-          fontWeight: 700,
-          color: '#e8e6f0',
-          textTransform: 'uppercase',
-          letterSpacing: '0.8px'
-        }}>
-          Academic Integrity Flags
-        </div>
-        <div style={{
-          fontSize: '10px',
-          color: '#8884a0',
-          background: 'rgba(74,74,106,0.3)',
-          padding: '2px 8px',
-          borderRadius: '4px'
-        }}>
+    <div className="integrity-flag-dropdown">
+      <div className="integrity-flag-dropdown__header">
+        <span className="integrity-flag-dropdown__title">Academic integrity flags</span>
+        <span className="integrity-flag-dropdown__count">
+          {studentsWithFlags.length} student{studentsWithFlags.length !== 1 ? 's' : ''} ·{' '}
           {flags.length} flag{flags.length !== 1 ? 's' : ''}
-        </div>
+        </span>
       </div>
 
-      {loading && (
-        <div style={{
-          fontSize: '11px',
-          color: '#8884a0',
-          textAlign: 'center',
-          padding: '12px'
-        }}>
-          Loading flags...
+      {loading && <div className="integrity-flag-dropdown__message">Loading flags...</div>}
+      {error && <div className="integrity-flag-dropdown__message is-error">{error}</div>}
+
+      {!loading && !error && studentsWithFlags.length === 0 && (
+        <div className="integrity-flag-dropdown__message">
+          No integrity flags detected for this exercise.
         </div>
       )}
 
-      {error && (
-        <div style={{
-          fontSize: '11px',
-          color: '#f87171',
-          textAlign: 'center',
-          padding: '12px'
-        }}>
-          {error}
-        </div>
-      )}
-
-      {!loading && !error && flags.length === 0 && (
-        <div style={{
-          fontSize: '11px',
-          color: '#8884a0',
-          textAlign: 'center',
-          padding: '12px'
-        }}>
-          ✓ No integrity flags detected for this exercise
-        </div>
-      )}
-
-      {!loading && !error && flags.length > 0 && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          {flags.map(flag => {
-            const isExpanded = expandedFlags.has(flag.id);
-            const severityStyle = getSeverityColor(flag.severity);
-            const isReviewed = flag.status === 'reviewed';
+      {!loading && !error && studentsWithFlags.length > 0 && (
+        <div className="integrity-flag-dropdown__list">
+          {studentsWithFlags.map((student) => {
+            const isExpanded = expandedStudents.has(student.studentId);
+            const openFlags = student.flags.filter((f) => f.status !== 'reviewed').length;
 
             return (
-              <div
-                key={flag.id}
-                style={{
-                  background: '#1a1a2e',
-                  border: severityStyle.border,
-                  borderRadius: '6px',
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s'
-                }}
-                onClick={() => toggleFlagDetails(flag.id)}
-              >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  gap: '8px'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '4px'
-                    }}>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: severityStyle.color,
-                        background: severityStyle.bg,
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                      }}>
-                        {flag.severity?.toUpperCase() || 'MEDIUM'}
-                      </span>
-                      <span style={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: '#e8e6f0'
-                      }}>
-                        {getFlagTypeLabel(flag.flag_type)}
-                      </span>
-                      {isReviewed && (
-                        <span style={{
-                          fontSize: '9px',
-                          color: '#85D2D0',
-                          fontWeight: 600
-                        }}>
-                          ✓ Reviewed
-                        </span>
-                      )}
-                    </div>
-                    <div style={{
-                      fontSize: '10px',
-                      color: '#8884a0'
-                    }}>
-                      Student: <strong style={{ color: '#e8e6f0' }}>{flag.student_name || 'Unknown'}</strong>
-                    </div>
-                  </div>
+              <div key={student.studentId} className="integrity-flag-dropdown__student">
+                <button
+                  type="button"
+                  className={`integrity-flag-dropdown__student-toggle${isExpanded ? ' is-open' : ''}`}
+                  onClick={() => toggleStudent(student.studentId)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="integrity-flag-dropdown__chevron" aria-hidden="true">
+                    ▼
+                  </span>
+                  <span className="integrity-flag-dropdown__student-name">{student.studentName}</span>
+                  <span className="integrity-flag-dropdown__student-meta">
+                    {student.flags.length} flag{student.flags.length !== 1 ? 's' : ''}
+                    {openFlags > 0 ? ` · ${openFlags} open` : ''}
+                  </span>
+                  <span className="integrity-flag-dropdown__badges">
+                    {[...new Set(student.flags.map((f) => f.flag_type))].map((type) => (
+                      <IntegrityFlagBadge key={type} flagType={type} />
+                    ))}
+                  </span>
+                </button>
 
-                  <div style={{
-                    display: 'flex',
-                    gap: '6px',
-                    alignItems: 'center'
-                  }}>
-                    {!isReviewed && (
-                      <button
-                        onClick={(e) => markFlagReviewed(flag.id, e)}
-                        style={{
-                          padding: '4px 8px',
-                          fontSize: '9px',
-                          fontWeight: 600,
-                          border: '1px solid rgba(133,210,208,0.3)',
-                          background: 'rgba(133,210,208,0.1)',
-                          color: '#85D2D0',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.background = 'rgba(133,210,208,0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.background = 'rgba(133,210,208,0.1)';
-                        }}
-                      >
-                        Mark Reviewed
-                      </button>
-                    )}
-                    <span style={{
-                      fontSize: '10px',
-                      color: '#8884a0',
-                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s'
-                    }}>
-                      ▼
-                    </span>
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
                 {isExpanded && (
-                  <div style={{
-                    marginTop: '10px',
-                    paddingTop: '10px',
-                    borderTop: '1px solid #2e2e4a',
-                    fontSize: '10px',
-                    color: '#8884a0',
-                    lineHeight: '1.5'
-                  }}>
-                    {flag.evidence && Object.keys(flag.evidence).length > 0 && (
-                      <div style={{ marginBottom: '8px' }}>
-                        <div style={{ fontWeight: 600, color: '#e8e6f0', marginBottom: '4px' }}>Evidence:</div>
-                        <div style={{ paddingLeft: '8px', borderLeft: '2px solid rgba(133,210,208,0.2)' }}>
-                          {Object.entries(flag.evidence).map(([key, value]) => (
-                            <div key={key} style={{ marginBottom: '2px' }}>
-                              <strong>{key}:</strong> {String(value)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                  <div className="integrity-flag-dropdown__student-panel">
+                    {student.flags.map((flag) => {
+                      const evidence = formatEvidence(flag.evidence);
+                      const label =
+                        FLAG_TYPE_LABELS[flag.flag_type] || flag.flag_type?.replace(/_/g, ' ');
 
-                    {flag.context_behaviors && flag.context_behaviors.length > 0 && (
-                      <div>
-                        <div style={{ fontWeight: 600, color: '#e8e6f0', marginBottom: '4px' }}>Behaviors:</div>
-                        <div style={{ paddingLeft: '8px' }}>
-                          {flag.context_behaviors.map((behavior, idx) => (
-                            <div key={idx} style={{ marginBottom: '2px' }}>
-                              • {behavior}
+                      return (
+                        <div key={flag.id} className="integrity-flag-dropdown__flag-row">
+                          <div className="integrity-flag-dropdown__flag-top">
+                            <IntegrityFlagBadge flagType={flag.flag_type} />
+                            <span className="integrity-flag-dropdown__flag-label">{label}</span>
+                            <span className={`integrity-flag-dropdown__severity severity-${(flag.severity || 'medium').toLowerCase()}`}>
+                              {(flag.severity || 'medium').toUpperCase()}
+                            </span>
+                            {flag.status === 'reviewed' && (
+                              <span className="integrity-flag-dropdown__reviewed">Reviewed</span>
+                            )}
+                            {flag.status !== 'reviewed' && (
+                              <button
+                                type="button"
+                                className="integrity-flag-dropdown__review-btn"
+                                onClick={(e) => markFlagReviewed(flag.id, e)}
+                              >
+                                Mark reviewed
+                              </button>
+                            )}
+                          </div>
+                          <p className="integrity-flag-dropdown__evidence">
+                            {typeof evidence === 'string'
+                              ? evidence
+                              : evidence?.message || JSON.stringify(evidence)}
+                          </p>
+                          {flag.created_at && (
+                            <div className="integrity-flag-dropdown__when">
+                              Detected {new Date(flag.created_at).toLocaleString()}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      </div>
-                    )}
-
-                    {flag.created_at && (
-                      <div style={{ marginTop: '8px', fontSize: '9px', color: '#8884a0' }}>
-                        Detected: {new Date(flag.created_at).toLocaleDateString()} {new Date(flag.created_at).toLocaleTimeString()}
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
                 )}
               </div>

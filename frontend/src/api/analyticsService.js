@@ -9,19 +9,28 @@ const analyticsService = {
   /**
    * Get micro-concept alerts for a section
    * @param {number} sectionId
-   * @returns {Promise<Array>} Array of alerts with micro-concept feedback
+   * @param {Object} filters - Optional filters (classification, concept)
+   * @returns {Promise<Object>} Array of alerts
    */
-  getAlerts: (sectionId) => {
-    return api.get(`/analytics/alerts/${sectionId}`);
+  getAlerts: (sectionId, filters = {}) => {
+    const params = new URLSearchParams(filters);
+    return api.get(`/api/analytics/sections/${sectionId}/micro-concept-alerts?${params.toString()}`);
   },
 
   /**
-   * Get class-wide misconception report for an exercise
+   * Get class-wide misconception report for an exercise in a section
+   * @param {number} sectionId
    * @param {number} exerciseId
    * @returns {Promise<Object>} Report with aggregated patterns
    */
-  getClassMisconceptionReport: (exerciseId) => {
-    return api.get(`/analytics/report/${exerciseId}`);
+  /**
+   * Automated CDS check + class misconception report for one exercise.
+   * @param {boolean} refreshCds - When true (default), recomputes batch CDS before the report.
+   */
+  getClassMisconceptionReport: (sectionId, exerciseId, { refreshCds = true } = {}) => {
+    return api.get(`/api/analytics/sections/${sectionId}/class-insights/${exerciseId}`, {
+      params: { refresh: refreshCds ? 'true' : 'false' }
+    });
   },
 
   /**
@@ -32,23 +41,45 @@ const analyticsService = {
    * @returns {Promise<Object>} Mastery timeline and progress metrics
    */
   getLongitudinalProgress: (studentId, conceptId, sectionId) => {
-    let url = `/analytics/longitudinal/${studentId}`;
-    if (conceptId) url += `/${conceptId}`;
+    let url = `/api/analytics/longitudinal/${studentId}`;
+    if (conceptId) {
+      url += `/${conceptId}`;
+    }
     
-    const params = {};
-    if (sectionId) params.sectionId = sectionId;
-    
-    return api.get(url, { params });
+    if (sectionId) {
+      url += `?sectionId=${sectionId}`;
+    }
+
+    return api.get(url);
   },
 
   /**
-   * Get integrity monitoring flags (hardcoding + anomalies)
-   * @param {number} exerciseId - Optional exercise filter
-   * @returns {Promise<Object>} Flagged submissions with confidence scores
+   * Get class-wide longitudinal progress (every student's CDS timeline)
+   * for a section. The frontend aggregates this into a class-average line
+   * per concept.
+   * @param {number} sectionId
+   * @returns {Promise<{sectionId:number, students:Array<{studentId, studentName, progression:Array<{cds, classification, computed_at, exercise_title, exercise_id, concept_id, concept_name}>, masteryVelocity}>}>}
    */
-  getIntegrityMonitoring: (exerciseId) => {
-    const params = exerciseId ? { exerciseId } : {};
-    return api.get('/analytics/integrity', { params });
+  getSectionLongitudinal: (sectionId) => {
+    return api.get(`/api/analytics/sections/${sectionId}/longitudinal`);
+  },
+
+  /**
+   * Get integrity flags for a section or exercise
+   * @param {number} sectionId - Optional section ID
+   * @param {number} exerciseId - Optional exercise ID
+   * @returns {Promise<Object>} Object containing flags array and pagination
+   */
+  getIntegrityMonitoring: (sectionId, exerciseId) => {
+    let url = '/api/analytics/integrity-flags';
+    if (sectionId && exerciseId) {
+      url = `/api/analytics/sections/${sectionId}/integrity-flags/${exerciseId}`;
+    } else if (sectionId) {
+      url = `/api/analytics/sections/${sectionId}/integrity-flags`;
+    } else if (exerciseId) {
+      url = `/api/analytics/integrity-flags/exercise/${exerciseId}`;
+    }
+    return api.get(url);
   },
 
   /**
@@ -57,16 +88,34 @@ const analyticsService = {
    * @returns {Promise<Object>} Student x concept grid with CDS scores
    */
   getHeatmap: (sectionId) => {
-    return api.get(`/analytics/heatmap/${sectionId}`);
+    return api.get(`/api/analytics/heatmap/${sectionId}`);
   },
 
   /**
-   * Get live CDS rankings for an exercise
+   * Get live CDS rankings for an exercise (Instructor View)
    * @param {number} exerciseId
-   * @returns {Promise<Object>} Live peer ranking with preliminary badge
+   * @returns {Promise<Object>} Detailed live ranking with class metrics
    */
   getLiveCDS: (exerciseId) => {
-    return api.get(`/analytics/live-cds/${exerciseId}`);
+    return api.get(`/api/analytics/live-cds/${exerciseId}`);
+  },
+
+  /**
+   * Get live peer rankings for an exercise (Student View)
+   * @param {number} exerciseId
+   * @returns {Promise<Object>} Anonymous peer ranking
+   */
+  getLivePeerRanking: (exerciseId) => {
+    return api.get(`/api/analytics/live/${exerciseId}`);
+  },
+  
+  /**
+   * Mark an integrity flag as reviewed
+   * @param {number} flagId
+   * @param {Object} data - { status, instructorNote }
+   */
+  reviewIntegrityFlag: (flagId, data) => {
+    return api.put(`/api/analytics/integrity-flags/${flagId}/review`, data);
   }
 };
 

@@ -1,0 +1,71 @@
+<h2>Section 1 — Architecture &amp; Routes</h2>
+<p class="subtitle">Approach B: Hub + Drill. CDS is the connective tissue across every detail page. <b>Every analytics surface must answer an educational question.</b></p>
+
+<div class="section" style="background:#1E293B;color:#F8FAFC;padding:14px 18px;border-radius:8px;margin-bottom:20px">
+  <div style="font-size:11px;letter-spacing:0.18em;opacity:0.6;margin-bottom:8px">DESIGN PRINCIPLE 01 — INSIGHT-FIRST ANALYTICS</div>
+  <div style="font-size:14px;line-height:1.5">Every chart, graph, heatmap, and table in CodeInsight must answer one of four educational questions. If it doesn't, it doesn't ship.</div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;font-size:12px">
+    <div><b>1. What is happening?</b> &nbsp;Descriptive</div>
+    <div><b>2. Why is it happening?</b> &nbsp;Diagnostic</div>
+    <div><b>3. Who needs help?</b> &nbsp;Prioritization</div>
+    <div><b>4. What action should be taken?</b> &nbsp;Prescription</div>
+  </div>
+</div>
+
+<div class="mockup" style="margin-bottom:16px">
+  <div class="mockup-header">Route map (React Router v6)</div>
+  <div class="mockup-body" style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;line-height:1.6;color:#0F172A">
+<pre style="margin:0;background:transparent;white-space:pre-wrap">
+/login                                       → Auth (3 roles)
+
+/student
+  ├─ /today                                  → Hub: today's exercise + CDS trend
+  ├─ /exercises                              → List (filtered by section)
+  ├─ /exercises/:id                          → Editor (Monaco, Run vs Submit)
+  ├─ /exercises/:id/result                   → Submission result + AST feedback
+  ├─ /progress                               → Concept mastery, CDS history, recommendations
+  └─ /integrity                              → My own flags (transparent, read-only)
+
+/instructor
+  ├─ /command                                → Hub: KPIs, top alerts, concept difficulty ranking
+  ├─ /heatmap                                → Section × Concept CDS heatmap (D3)
+  ├─ /concepts                               → Concept deep-dive (class distribution + misconceptions)
+  ├─ /concepts/:id                           → Per-concept: rules, misconception patterns, exercises
+  ├─ /students                               → Roster sortable by CDS
+  ├─ /students/:id                           → Student detail (timeline, CDS per concept, flags)
+  ├─ /integrity                              → Flag queue (Possible: hardcoded, anomaly, growth)
+  ├─ /integrity/:id                          → Single flag review (evidence + actions)
+  └─ /reports                                → Section report + longitudinal export
+
+/admin
+  ├─ /                                       → System overview
+  ├─ /users                                  → CRUD users, assign roles/sections
+  ├─ /sections                               → CRUD sections, assign instructors/students
+  ├─ /concepts                               → CRUD concept taxonomy
+  ├─ /exercises                              → CRUD exercises (test cases, starter_code)
+  └─ /evaluation                             → ISO/IEC 25010 instrument + results
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Architectural shape</h3>
+  <ul>
+    <li><b>Frontend</b>: React 18 + Vite + React Router v6. Existing services (Monaco, AuthContext) preserved. New design tokens + component library layered on top.</li>
+    <li><b>Backend</b>: Node.js + Express. All 50+ endpoints stay. <b>One new endpoint</b>: <code>GET /api/analytics/section/:id/hub</code> aggregates the instructor command-center payload in a single round trip (avoids waterfall).</li>
+    <li><b>Database</b>: 12 tables unchanged. Add 1 table: <code>evaluation_responses</code> (ISO/IEC 25010 instrument storage).</li>
+    <li><b>Auth</b>: JWT, role-gated routes via a single <code>&lt;RoleGuard roles={['instructor']}&gt;</code> wrapper.</li>
+    <li><b>Visualization</b>: D3.js for the heatmap (custom SVG, ~5KB), Chart.js for distribution/trend lines, vanilla CSS for everything else. No Recharts (per thesis).</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>How insight-first is enforced in the architecture</h3>
+  <ul>
+    <li>Every analytics endpoint returns a <code>summary</code> field alongside raw data — a one-sentence plain-English conclusion generated server-side from the data (e.g. <code>"Functions has the highest avg CDS (0.62); 14 of 47 students are in High difficulty"</code>). The client renders this summary as a chart caption by default.</li>
+    <li>Every chart component takes a required <code>insight</code> prop. If absent, the component renders in "raw mode" with a console warning (dev) and a visible "Interpretation missing" badge (prod) — fails the principle's check.</li>
+    <li>The instructor command hub displays 4 prioritized cards, one per insight question, before any raw chart. "What is happening → Why → Who → Action" is the page's reading order.</li>
+  </ul>
+</div>
+
+<p class="subtitle">Does the route map, architectural shape, and the insight-first enforcement look right? If yes, I'll move to Section 2 (Component Library &amp; Design Tokens).</p>

@@ -2,6 +2,8 @@ const db        = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
 const classMisconceptionReport = require('../services/classMisconceptionReport');
 const longitudinalReportEngine = require('../services/longitudinalReportEngine');
+const { wilsonScore, confidenceLevel } = require('../lib/wilsonScore');
+const { evaluateRules } = require('../lib/insightTemplates');
 
 const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
 
@@ -146,50 +148,79 @@ exports.liveCDS = async (req, res) => {
       ORDER BY cs.cds DESC
     `, [exerciseId]);
     
-    // Calculate class metrics
-    const cdsValues = scores.rows.map(s => parseFloat(s.cds || 0));
-    const classAvg = cdsValues.length > 0 ? cdsValues.reduce((a,b)=>a+b,0) / cdsValues.length : 0;
-    const classMin = cdsValues.length > 0 ? Math.min(...cdsValues) : 0;
-    const classMax = cdsValues.length > 0 ? Math.max(...cdsValues) : 0;
-    
-    // Classify class average
-    const classAvgClassification = classAvg <= 0.33 ? 'Low' : classAvg <= 0.66 ? 'Moderate' : 'High';
-    
-    // Determine reliability
-    const studentCount = scores.rows.length;
-    const submissionCount = await db.query(
-      'SELECT COUNT(*) as count FROM submissions WHERE exercise_id=$1',
+    const MIN_CLASS_SIZE = 3;
+    const submitterRes = await db.query(
+      `SELECT COUNT(DISTINCT student_id) AS count FROM submissions WHERE exercise_id = $1`,
       [exerciseId]
     );
-    const isPreliminary = studentCount < 3;
-    const reliability = isPreliminary ? 'Preliminary' : 'Accurate';
-    
-    res.json({
-      exercise: { id: exercise.id, title: exercise.title, timeLimitMinutes: exercise.time_limit_minutes },
-      studentCount,
-      submissionCount: submissionCount.rows[0].count,
-      preliminary: isPreliminary,
-      reliability,
-      classAverage: {
-        ner: scores.rows.length > 0 ? (scores.rows.reduce((a,s)=>a + parseFloat(s.ner || 0), 0) / scores.rows.length) : 0,
-        nrs: scores.rows.length > 0 ? (scores.rows.reduce((a,s)=>a + parseFloat(s.nrs || 0), 0) / scores.rows.length) : 0,
-        nts: scores.rows.length > 0 ? (scores.rows.reduce((a,s)=>a + parseFloat(s.nts || 0), 0) / scores.rows.length) : 0,
-        cds: classAvg,
-        classification: classAvgClassification,
-        min: classMin,
-        max: classMax
-      },
-      rankings: scores.rows.map(s => ({
+    const enrolledRes = await db.query(
+      `SELECT COUNT(*) AS count FROM enrollments WHERE section_id = $1`,
+      [exercise.section_id]
+    );
+    const submissionCountRes = await db.query(
+      'SELECT COUNT(*) AS count FROM submissions WHERE exercise_id = $1',
+      [exerciseId]
+    );
+
+    const submitterCount = parseInt(submitterRes.rows[0].count, 10) || 0;
+    const enrolledCount = parseInt(enrolledRes.rows[0].count, 10) || 0;
+    const submissionCount = parseInt(submissionCountRes.rows[0].count, 10) || 0;
+
+    // Preliminary when too few distinct submitters or incomplete class participation
+    const isPreliminary =
+      submitterCount < MIN_CLASS_SIZE ||
+      enrolledCount < MIN_CLASS_SIZE ||
+      (enrolledCount > 0 && submitterCount < enrolledCount);
+
+    let reliability = 'Accurate';
+    if (isPreliminary) {
+      reliability =
+        submitterCount < MIN_CLASS_SIZE
+          ? 'Preliminary'
+          : 'Preliminary (incomplete participation)';
+    }
+
+    // Only rank students who have submitted on this exercise
+    const rankings = scores.rows
+      .filter(s => parseInt(s.total_attempts, 10) > 0)
+      .map(s => ({
         studentId: s.student_id,
         name: s.name,
-        totalAttempts: s.total_attempts,
-        failedAttempts: s.failed_attempts,
+        totalAttempts: parseInt(s.total_attempts, 10) || 0,
+        failedAttempts: parseInt(s.failed_attempts, 10) || 0,
         ner: parseFloat(s.ner || 0),
         nrs: parseFloat(s.nrs || 0),
         nts: parseFloat(s.nts || 0),
         cds: parseFloat(s.cds || 0),
         classification: s.classification
-      }))
+      }));
+
+    const rankedCds = rankings.map(r => r.cds);
+    const classAvgFromSubmitters =
+      rankedCds.length > 0 ? rankedCds.reduce((a, b) => a + b, 0) / rankedCds.length : 0;
+    const classMinFromSubmitters = rankedCds.length > 0 ? Math.min(...rankedCds) : 0;
+    const classMaxFromSubmitters = rankedCds.length > 0 ? Math.max(...rankedCds) : 0;
+    const classAvgClassification =
+      classAvgFromSubmitters <= 0.33 ? 'Low' : classAvgFromSubmitters <= 0.66 ? 'Moderate' : 'High';
+
+    res.json({
+      exercise: { id: exercise.id, title: exercise.title, timeLimitMinutes: exercise.time_limit_minutes },
+      studentCount: submitterCount,
+      enrolledCount,
+      submitterCount,
+      submissionCount,
+      preliminary: isPreliminary,
+      reliability,
+      classAverage: {
+        ner: rankings.length > 0 ? (rankings.reduce((a, s) => a + s.ner, 0) / rankings.length) : 0,
+        nrs: rankings.length > 0 ? (rankings.reduce((a, s) => a + s.nrs, 0) / rankings.length) : 0,
+        nts: rankings.length > 0 ? (rankings.reduce((a, s) => a + s.nts, 0) / rankings.length) : 0,
+        cds: classAvgFromSubmitters,
+        classification: classAvgClassification,
+        min: classMinFromSubmitters,
+        max: classMaxFromSubmitters
+      },
+      rankings
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -561,5 +592,43 @@ exports.getIntegrityFlagsByExercise = async (req, res) => {
   } catch (err) {
     console.error('Error fetching exercise integrity flags:', err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /api/analytics/section/:id/hub — Aggregated Command Center payload (spec §12).
+ */
+exports.getSectionHub = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const section = await db.query('SELECT * FROM sections WHERE id = $1', [id]);
+    if (section.rows.length === 0) {
+      return res.status(404).json({ error: 'Section not found' });
+    }
+
+    const [cdsResult, submissionsResult, masteryResult, atRiskResult, flagsResult, membersResult] = await Promise.all([
+      db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id = $1`, [id]),
+      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id WHERE m.section_id = $1`, [id]),
+      db.query(`SELECT c.name, COALESCE(AVG(cm.cds), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.50) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN concepts c ON ex.concept_id = c.id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
+      db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments m JOIN users u ON m.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id = $1 WHERE m.section_id = $1 GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.50 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, [id]),
+      db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id = $1 AND status = 'open'`, [id]),
+      db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id = $1`, [id]),
+    ]);
+
+    const avgCds = parseFloat(cdsResult.rows[0].avg_cds) || 0;
+    const totalStudents = parseInt(membersResult.rows[0].count) || 0;
+    const conceptRows = masteryResult.rows.map(r => ({ concept: r.name, cds: parseFloat(r.cds) || 0, atRiskCount: parseInt(r.at_risk_count) || 0 }));
+
+    res.json({
+      summary: `Section analytics. ${totalStudents} active students, avg CDS ${avgCds.toFixed(2)}.`,
+      confidence: confidenceLevel(avgCds, parseInt(cdsResult.rows[0].n) || 0, 18),
+      weeklyInsight: evaluateRules({ conceptData: conceptRows, totalStudents, currentFlags: parseInt(flagsResult.rows[0].open_count) || 0, priorWeekFlags: 0 })[0] || null,
+      conceptBars: conceptRows,
+      atRiskRoster: atRiskResult.rows.map(r => ({ id: r.id, name: r.name, avgCds: parseFloat(r.avg_cds) || 0, flagCount: parseInt(r.flag_count) || 0 })),
+      integrityFlags: { count: parseInt(flagsResult.rows[0].open_count) || 0, sections: parseInt(flagsResult.rows[0].section_count) || 0 },
+    });
+  } catch (err) {
+    console.error('getSectionHub error:', err);
+    res.status(500).json({ error: 'Failed to load section analytics' });
   }
 };

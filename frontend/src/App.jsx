@@ -48,6 +48,12 @@ import MobileStudentExerciseDetail from './pages/mobile/student/ExerciseDetail.j
 import MobileStudentProgress from './pages/mobile/student/Progress.jsx';
 import MobileStudentIntegrity from './pages/mobile/student/Integrity.jsx';
 import MobileStudentSections from './pages/mobile/student/Sections.jsx';
+import AdminOverview from './pages/admin/Overview';
+import AdminUsers from './pages/admin/Users';
+import AdminSectionsOverview from './pages/admin/Sections';
+import AdminConcepts from './pages/admin/Concepts';
+import AdminExercises from './pages/admin/Exercises';
+import AdminEvaluation from './pages/admin/Evaluation';
 import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
 import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
 import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
@@ -256,10 +262,35 @@ function AppContent() {
           </ProtectedRoute>
         } />
 
-        {/* Admin routes — desktop side is a placeholder (no admin desktop pages exist yet) */}
+        {/* Admin routes */}
+        <Route path="/admin" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Overview">
+            <ModeSwitch mobile={<MobileAdminOverview />} desktop={<AdminOverview />} />
+          </ProtectedRoute>
+        } />
         <Route path="/admin/overview" element={
           <ProtectedRoute requiredRole="admin" pageTitle="Overview">
-            <ModeSwitch mobile={<MobileAdminOverview />} desktop={<div style={{padding: 24}}>Admin desktop view (TODO)</div>} />
+            <ModeSwitch mobile={<MobileAdminOverview />} desktop={<AdminOverview />} />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/users" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Users">
+            <AdminUsers />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/sections" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Sections">
+            <AdminSectionsOverview />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/concepts" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Concepts">
+            <AdminConcepts />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/exercises" element={
+          <ProtectedRoute requiredRole="admin" pageTitle="Exercises">
+            <AdminExercises />
           </ProtectedRoute>
         } />
         <Route path="/admin/evaluation" element={
@@ -269,7 +300,7 @@ function AppContent() {
         } />
         <Route path="/admin/audit" element={
           <ProtectedRoute requiredRole="admin" pageTitle="Audit">
-            <ModeSwitch mobile={<MobileAdminAudit />} desktop={<div style={{padding: 24}}>Admin desktop view (TODO)</div>} />
+            <ModeSwitch mobile={<MobileAdminAudit />} desktop={<div style={{padding: 24}}>Admin audit view (TODO)</div>} />
           </ProtectedRoute>
         } />
 

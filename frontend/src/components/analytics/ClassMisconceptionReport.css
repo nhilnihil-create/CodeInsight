@@ -1,26 +1,39 @@
+/* Class-Wide Misconception Report
+ * Uses shadcn semantic tokens so the card respects the active theme
+ * (light = Frontend-Design blue/white, dark = teal palette). */
+
 .class-misconception-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: var(--app-font-sans);
 }
 
-.class-misconception-modal {
-  background: #131d30;
+.class-misconception-modal,
+.class-misconception-embedded {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
   border-radius: 12px;
   max-width: 700px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.5);
-  border: 1px solid #1e304d;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.18);
+  border: 1px solid hsl(var(--border));
+}
+
+.class-misconception-embedded {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  box-shadow: none;
 }
 
 .modal-header {
@@ -28,20 +41,25 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 24px;
-  border-bottom: 1px solid #1e304d;
-  background: linear-gradient(135deg, #1a2640 0%, #131d30 100%);
+  border-bottom: 1px solid hsl(var(--border));
+  background: linear-gradient(
+    135deg,
+    hsl(var(--secondary)) 0%,
+    hsl(var(--card)) 100%
+  );
 }
 
 .modal-title {
   margin: 0 0 4px 0;
-  color: #dce8f5;
+  color: hsl(var(--card-foreground));
   font-size: 20px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .modal-subtitle {
   margin: 0;
-  color: #a1aebd;
+  color: hsl(var(--muted-foreground));
   font-size: 14px;
 }
 
@@ -49,7 +67,7 @@
   background: transparent;
   border: none;
   font-size: 28px;
-  color: #6a85a8;
+  color: hsl(var(--muted-foreground));
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -62,8 +80,8 @@
 }
 
 .btn-close:hover {
-  background: #1e304d;
-  color: #dce8f5;
+  background: hsl(var(--secondary));
+  color: hsl(var(--card-foreground));
 }
 
 .modal-content {
@@ -76,7 +94,7 @@
 }
 
 .empty-message {
-  color: #a1aebd;
+  color: hsl(var(--muted-foreground));
   font-size: 16px;
   margin: 0;
 }
@@ -89,23 +107,24 @@
 }
 
 .metric-card {
-  background: #1a2640;
+  background: hsl(var(--secondary));
   padding: 16px;
   border-radius: 8px;
   text-align: center;
-  border: 1px solid #1e304d;
+  border: 1px solid hsl(var(--border));
 }
 
 .metric-value {
   font-size: 28px;
   font-weight: 700;
-  color: #fbbf24;
+  color: hsl(var(--primary));
   margin-bottom: 4px;
+  font-family: var(--app-font-mono);
 }
 
 .metric-label {
   font-size: 12px;
-  color: #6a85a8;
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -117,7 +136,7 @@
 
 .section-heading {
   margin: 0 0 12px 0;
-  color: #dce8f5;
+  color: hsl(var(--card-foreground));
   font-size: 16px;
   font-weight: 600;
 }
@@ -128,18 +147,18 @@
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 12px;
-  border-left: 4px solid #1e304d;
-  background: #0c1220;
+  border-left: 4px solid hsl(var(--border));
+  background: hsl(var(--secondary));
 }
 
 .issue-card.primary {
-  background: rgba(251, 191, 36, 0.05);
-  border-left-color: #fbbf24;
+  background: hsl(var(--chart-4) / 0.08);
+  border-left-color: hsl(var(--chart-4));
 }
 
 .issue-card.secondary {
-  background: rgba(16, 185, 129, 0.05);
-  border-left-color: #10b981;
+  background: hsl(var(--chart-2) / 0.08);
+  border-left-color: hsl(var(--chart-2));
 }
 
 .issue-rank {
@@ -148,16 +167,17 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #1a2640;
+  background: hsl(var(--card));
   border-radius: 50%;
   font-weight: 700;
   font-size: 16px;
-  color: #fbbf24;
+  color: hsl(var(--chart-4));
   flex-shrink: 0;
+  border: 1px solid hsl(var(--border));
 }
 
 .issue-card.secondary .issue-rank {
-  color: #10b981;
+  color: hsl(var(--chart-2));
 }
 
 .issue-content {
@@ -166,7 +186,7 @@
 
 .issue-name {
   margin: 0 0 6px 0;
-  color: #dce8f5;
+  color: hsl(var(--card-foreground));
   font-size: 14px;
   font-weight: 600;
 }
@@ -177,7 +197,7 @@
 }
 
 .stat {
-  color: #a1aebd;
+  color: hsl(var(--muted-foreground));
   font-size: 13px;
 }
 
@@ -188,34 +208,34 @@
 }
 
 .insight-card {
-  background: #1a2640;
+  background: hsl(var(--secondary));
   padding: 14px;
   border-radius: 8px;
-  border: 1px solid #1e304d;
+  border: 1px solid hsl(var(--border));
 }
 
 .insight-card.recommendation {
-  background: rgba(16, 185, 129, 0.05);
-  border-color: rgba(16, 185, 129, 0.2);
+  background: hsl(var(--chart-2) / 0.08);
+  border-color: hsl(var(--chart-2) / 0.25);
 }
 
 .insight-title {
   margin: 0 0 8px 0;
-  color: #dce8f5;
+  color: hsl(var(--card-foreground));
   font-size: 14px;
   font-weight: 600;
 }
 
 .insight-text {
   margin: 0;
-  color: #a1aebd;
+  color: hsl(var(--muted-foreground));
   font-size: 13px;
   line-height: 1.6;
 }
 
 .modal-footer {
   padding: 16px 24px;
-  border-top: 1px solid #1e304d;
+  border-top: 1px solid hsl(var(--border));
   display: flex;
   justify-content: flex-end;
   gap: 12px;
@@ -223,8 +243,8 @@
 
 .btn-close-action {
   padding: 10px 18px;
-  background: #85D2D0;
-  color: #0c1220;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
   border-radius: 6px;
   font-weight: 600;
@@ -234,9 +254,9 @@
 }
 
 .btn-close-action:hover {
-  background: #6dbdb9;
+  background: hsl(var(--primary) / 0.9);
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.12);
 }
 
 @media (max-width: 640px) {
