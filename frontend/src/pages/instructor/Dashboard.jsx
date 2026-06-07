@@ -1,232 +1,318 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Code2, AlertTriangle, Activity } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import ClassMisconceptionReport from "@/components/analytics/ClassMisconceptionReport";
-import IntegrityMonitoringBanner from "@/components/analytics/IntegrityMonitoringBanner";
-import SectionFilter from "@/components/SectionFilter";
-import api from "@/services/api";
+import {
+  Download,
+  ArrowRight,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+} from "recharts";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import InsightHeader from "@/components/ui/insight-header";
+import EvidenceRow from "@/components/ui/evidence-row";
+import PageBreadcrumb from "@/components/ui/page-breadcrumb";
+import PeriodSelector from "@/components/ui/period-selector";
+import RiskBadge from "@/components/ui/risk-badge";
 
-/**
- * Instructor Dashboard
- * Now respects the section filter (All / per-section) per user directive
- * 2026-06-04. Top stat cards refetch on filter change. Subcomponent cards
- * (ClassMisconceptionReport, IntegrityMonitoringBanner) continue to render
- * with their own data sources; the filter is a client-side control on this
- * page so the headline numbers react to the selected section.
- */
+const TREND_DATA = [
+  { date: "Mon", cds: 0.48, mastery: 60, engagement: 72 },
+  { date: "Tue", cds: 0.47, mastery: 61, engagement: 75 },
+  { date: "Wed", cds: 0.45, mastery: 61, engagement: 71 },
+  { date: "Thu", cds: 0.46, mastery: 62, engagement: 78 },
+  { date: "Fri", cds: 0.44, mastery: 63, engagement: 76 },
+  { date: "Sat", cds: 0.43, mastery: 63, engagement: 68 },
+  { date: "Sun", cds: 0.42, mastery: 64, engagement: 70 },
+];
+
+const STRUGGLING_CONCEPTS = [
+  { name: "Recursion", cds: 78 },
+  { name: "Dynamic Programming", cds: 72 },
+  { name: "Graphs", cds: 65 },
+  { name: "Hashing", cds: 58 },
+  { name: "Trees", cds: 52 },
+];
+
+const RECENT_FLAGS = [
+  { id: 1, title: "A. Khan", subtitle: "Hardcode detected", meta: "Ex.4 · 2h", level: "high" },
+  { id: 2, title: "B. Reyes", subtitle: "Paste from URL", meta: "Ex.7 · 5h", level: "high" },
+  { id: 3, title: "C. Park", subtitle: "Behavioral anomaly", meta: "Ex.3 · 1d", level: "moderate" },
+  { id: 4, title: "D. Lopez", subtitle: "Blank template", meta: "Ex.5 · 1d", level: "moderate" },
+  { id: 5, title: "E. Chen", subtitle: "Hardcode detected", meta: "Ex.2 · 2d", level: "low" },
+];
+
+const TOOLTIP_STYLE = {
+  backgroundColor: "hsl(var(--popover))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "6px",
+  fontSize: "12px",
+  color: "hsl(var(--popover-foreground))",
+};
+
 export default function InstructorDashboard() {
-  const [sectionId, setSectionId] = useState("all");
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    activeExercises: 0,
-    criticalAlerts: 0,
-    avgCds: 0,
-  });
-  const [conceptAverages, setConceptAverages] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        if (sectionId === "all") {
-          // Aggregate from the list endpoint when "All Sections" is chosen.
-          const res = await api.get("/api/sections");
-          const sections = Array.isArray(res.data) ? res.data : [];
-          if (cancelled) return;
-          const totalStudents = sections.reduce(
-            (a, s) => a + (parseInt(s.student_count || 0, 10) || 0),
-            0
-          );
-          setStats((prev) => ({ ...prev, totalStudents }));
-          setConceptAverages([]);
-          setRecentActivity([]);
-          return;
-        }
-        const [secRes, exRes, alertRes, heatRes, actRes] = await Promise.all([
-          api.get(`/api/sections/${sectionId}`),
-          api.get(`/api/sections/${sectionId}/exercises`),
-          api.get(`/api/analytics/alerts/${sectionId}`),
-          api.get(`/api/analytics/heatmap/${sectionId}`),
-          api.get(`/api/analytics/activity/${sectionId}`),
-        ]);
-        if (cancelled) return;
-        const exercises = Array.isArray(exRes.data) ? exRes.data : [];
-        const activeExercises = exercises.filter(
-          (e) => !e.closed_at
-        ).length;
-        const alerts = Array.isArray(alertRes.data) ? alertRes.data : [];
-        const criticalAlerts = alerts.length;
-        const scores = heatRes.data?.scores || {};
-        const cdsValues = [];
-        const perConcept = {};
-        for (const studentId in scores) {
-          for (const concept in scores[studentId]) {
-            const cds = scores[studentId][concept]?.cds;
-            const num = typeof cds === "string" ? parseFloat(cds) : cds;
-            if (typeof num === "number" && !isNaN(num)) {
-              cdsValues.push(num);
-              perConcept[concept] = perConcept[concept] || { sum: 0, n: 0 };
-              perConcept[concept].sum += num;
-              perConcept[concept].n += 1;
-            }
-          }
-        }
-        const avgCds =
-          cdsValues.length > 0
-            ? cdsValues.reduce((a, b) => a + b, 0) / cdsValues.length
-            : 0;
-        const conceptRows = Object.keys(perConcept).map((name) => ({
-          name,
-          cds: Math.round((perConcept[name].sum / perConcept[name].n) * 100),
-        }));
-        setStats({
-          totalStudents: parseInt(secRes.data?.student_count || 0, 10) || 0,
-          activeExercises,
-          criticalAlerts,
-          avgCds,
-        });
-        setConceptAverages(conceptRows);
-        setRecentActivity(Array.isArray(actRes.data) ? actRes.data : []);
-      } catch (err) {
-        if (!cancelled) {
-          setStats({ totalStudents: 0, activeExercises: 0, criticalAlerts: 0, avgCds: 0 });
-          setConceptAverages([]);
-          setRecentActivity([]);
-        }
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [sectionId]);
-
-  const avgCdsPct = Math.round(stats.avgCds * 100);
-  const avgTone =
-    avgCdsPct <= 33
-      ? "text-green-500"
-      : avgCdsPct <= 66
-      ? "text-blue-500"
-      : "text-destructive";
+  const [period, setPeriod] = useState("7d");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8">
+      {/* ---------- PageHeader ---------- */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Instructor Dashboard</h1>
-          <p className="text-muted-foreground">Class overview and active alerts.</p>
-        </div>
-        <SectionFilter value={sectionId} onChange={setSectionId} />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStudents}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Exercises</CardTitle>
-            <Code2 className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeExercises}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-destructive/5 border-destructive/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-destructive">Critical Alerts</CardTitle>
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{stats.criticalAlerts}</div>
-            <Link to="/instructor/warnings" className="text-xs text-destructive hover:underline mt-1 inline-block">View all warnings</Link>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Class CDS</CardTitle>
-            <Activity className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${avgTone}`}>{avgCdsPct}</div>
-            <p className="text-xs text-muted-foreground">
-              {avgCdsPct <= 33 ? "Low Difficulty" : avgCdsPct <= 66 ? "Medium Difficulty" : "High Difficulty"}
+        <div className="min-w-0 space-y-2">
+          <PageBreadcrumb crumbs={[{ label: "Class Status" }]} />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Class Status</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Aggregated metrics for all sections, updated live.
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <PeriodSelector value={period} onChange={setPeriod} />
+          <Button variant="ghost" size="sm" className="font-medium">
+            <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+            Export
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Class Concept Averages</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {conceptAverages.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No concept data yet for this selection.</div>
-              ) : (
-                conceptAverages.map((concept) => (
-                  <div key={concept.name} className="flex items-center">
-                    <div className="w-24 text-sm font-medium">{concept.name}</div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${concept.cds > 75 ? 'bg-destructive' : concept.cds > 50 ? 'bg-orange-500' : concept.cds > 25 ? 'bg-blue-500' : 'bg-green-500'}`}
-                          style={{ width: `${concept.cds}%` }}
-                        />
-                      </div>
-                      <div className="w-8 text-right text-xs text-muted-foreground font-mono">{concept.cds}</div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {/* ---------- Insight ---------- */}
+      <InsightHeader
+        insight="3 students are at high risk of failing this week."
+        action={
+          <Button asChild size="sm" className="font-medium">
+            <Link to="/instructor/integrity">
+              Open intervention queue
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
+            </Link>
+          </Button>
+        }
+      />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No recent activity.</div>
-              ) : (
-                recentActivity.slice(0, 6).map((item, i) => (
-                  <div key={item.id || i} className="flex flex-col gap-1 pb-3 border-b last:border-0 last:pb-0">
-                    <div className="text-sm font-medium">{item.user_name || item.user || "System"}</div>
-                    <div className="text-xs text-muted-foreground">{item.action || item.message || ""}</div>
-                    <div className="text-[10px] text-muted-foreground/70">
-                      {item.time_ago || (item.created_at ? new Date(item.created_at).toLocaleString() : "")}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* ---------- Evidence ---------- */}
+      <EvidenceRow
+        chips={[
+          {
+            label: "At risk",
+            value: 3,
+            delta: 2,
+            series: [1, 1, 2, 2, 2, 3, 3],
+            comparison: "vs. last week",
+          },
+          {
+            label: "Avg CDS",
+            value: "0.42",
+            delta: -0.06,
+            series: [0.48, 0.47, 0.45, 0.46, 0.44, 0.43, 0.42],
+            comparison: "improving",
+          },
+          {
+            label: "Mastery",
+            value: "64%",
+            delta: 2,
+            series: [60, 61, 61, 62, 63, 63, 64],
+            comparison: "this week",
+          },
+          {
+            label: "Flags",
+            value: 7,
+            delta: 3,
+            series: [4, 4, 5, 5, 6, 6, 7],
+            comparison: "last 24h",
+          },
+        ]}
+      />
 
+      {/* ---------- Class trend ---------- */}
       <Card>
-        <CardHeader>
-          <CardTitle>Class Misconceptions</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
+          <div className="space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Details
+            </p>
+            <CardTitle className="text-sm font-semibold">Class trend</CardTitle>
+          </div>
+          <PeriodSelector
+            value={period}
+            onChange={setPeriod}
+            options={["7d", "30d", "90d"]}
+          />
         </CardHeader>
-        <CardContent>
-          <ClassMisconceptionReport embedded />
+        <CardContent className="pt-4">
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={TREND_DATA}
+                margin={{ top: 8, right: 12, bottom: 0, left: -8 }}
+              >
+                <CartesianGrid
+                  stroke="hsl(var(--border))"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
+                />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--muted))" }} />
+                <Legend
+                  wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                  iconType="circle"
+                  iconSize={8}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cds"
+                  name="CDS"
+                  stroke="hsl(var(--destructive))"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="mastery"
+                  name="Mastery"
+                  stroke="hsl(var(--success))"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="engagement"
+                  name="Engagement"
+                  stroke="hsl(var(--info))"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
 
-      <IntegrityMonitoringBanner />
+      {/* ---------- Details grid ---------- */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3 border-b border-border">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Details
+              </p>
+              <CardTitle className="text-sm font-semibold">
+                Top struggling concepts
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={STRUGGLING_CONCEPTS}
+                  layout="vertical"
+                  margin={{ top: 4, right: 16, bottom: 0, left: 0 }}
+                  barCategoryGap={6}
+                >
+                  <CartesianGrid
+                    stroke="hsl(var(--border))"
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={130}
+                  />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
+                  <Bar
+                    dataKey="cds"
+                    name="CDS"
+                    fill="hsl(var(--destructive))"
+                    radius={[0, 4, 4, 0]}
+                    isAnimationActive={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Details
+              </p>
+              <CardTitle className="text-sm font-semibold">
+                Recent integrity flags
+              </CardTitle>
+            </div>
+            <Button asChild variant="ghost" size="sm" className="text-xs font-medium">
+              <Link to="/instructor/integrity">
+                View all
+                <ArrowRight className="ml-1 h-3 w-3" strokeWidth={2} />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ul className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
+              {RECENT_FLAGS.map((flag, i) => (
+                <li
+                  key={flag.id}
+                  className="flex items-center gap-3 px-4 h-16 transition-colors cursor-pointer hover:bg-muted/40"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {flag.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {flag.subtitle}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground font-mono tabular-nums">
+                      {flag.meta}
+                    </span>
+                    <RiskBadge level={flag.level} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

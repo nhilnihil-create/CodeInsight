@@ -1,1028 +1,157 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
-import api from '../../services/api';
-import { useTheme, DEFAULT_THEME } from '../../lib/theme';
-import { MONACO_THEMES, registerMonacoThemes } from '../../lib/monacoThemes';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import api from "@/services/api";
+import { useBehavioralTracking } from "@/hooks/useBehavioralTracking";
+import EditorHeader from "./editor/EditorHeader";
+import ResizableWorkbench from "./editor/ResizableWorkbench";
+import MobileEditorTabs from "./editor/MobileEditorTabs";
+import EditorActionBar from "./editor/EditorActionBar";
+import {
+  EXERCISE,
+  INITIAL_CODE,
+  INITIAL_TEST_RESULTS,
+  SUBMISSIONS,
+  HISTORY,
+  LANGUAGE_OPTIONS,
+} from "./editor/mockData";
 
 /**
- * Student Code Editor — legacy 3-column layout (restored from commit 62fa4cd).
+ * CodeEditor — orchestrator. All panel rendering lives in
+ *   ./editor/{EditorHeader,ResizableWorkbench,ProblemPanel,
+ *             CodeEditorSurface,SubmissionsPanel,OutputPanel,
+ *             InstructionsPanel,TestOutputPanel,MobileEditorTabs,
+ *             EditorActionBar}.jsx
  *
- * Layout: top nav (48px) + 3 columns
- *   - Left  (340px)  Problem Statement, Input/Output format, Sample Cases
- *   - Center (flex)  Monaco editor + 160px Output/Compiler Log tab strip
- *   - Right (200px)  Attempts list
+ * Layout (matches the redesign spec)
  *
- * The dark teal palette is preserved per user directive ("use the legacy
- * Monaco editor of the legacy front end"). The Monaco theme itself
- * still responds to the app's light/dark theme toggle (ci-light / ci-dark-teal).
+ *   ┌─────────────────────────────────────────────────────────────┐
+ *   │ EditorHeader (sticky)  Back · Title · N/M · Timer · Run/Submit · Lang · Theme
+ *   ├──────────┬──────────────────────────────┬──────────────────┤
+ *   │  INSTR.  │            Editor             │  Submissions    │
+ *   │  + Tests │  ┌──────────────────────┐     │   History       │
+ *   │          │  │  Monaco              │     │                  │
+ *   │          │  ├──────────────────────┤     │                  │
+ *   │          │  │  Terminal (3 tabs)   │     │                  │
+ *   │          │  └──────────────────────┘     │                  │
+ *   └──────────┴──────────────────────────────┴──────────────────┘
+ *
+ *   Mobile (< lg)  3-tab switcher (Code · Output · Problem) + action bar
+ *
+ * State  code, language, testResults, activeTab (mobile), timerSeconds,
+ *        isRunning. The bottom terminal is always visible — no toggle.
  */
 
-const COLORS = {
-  bg: '#0c1220',
-  surface: '#131d30',
-  surface2: '#1a2640',
-  border: '#1e304d',
-  editorBg: '#0a1018',
-  teal: '#85D2D0',
-  purple: '#a99dd4',
-  text: '#dce8f5',
-  muted: '#6a85a8',
-  success: '#4ade80',
-  warning: '#fbbf24',
-  error: '#f87171'
-};
+const TAB_DEFAULT = "code";
 
 export default function StudentCodeEditor() {
-  const { exerciseId } = useParams();
-  const { theme } = useTheme();
-  const [exercise, setExercise] = useState(null);
-  const [code, setCode] = useState('');
-  const [testResults, setTestResults] = useState(null);
-  const [attempts, setAttempts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('output');
-  const [timeRemaining, setTimeRemaining] = useState(null);
-  const [abortController, setAbortController] = useState(null);
-  const [highlightedLine, setHighlightedLine] = useState(null);
-  const exerciseStartTimeRef = useRef(null);
+  const navigate = useNavigate();
+  const { id: exerciseId } = useParams();
+  const [code, setCode] = useState(INITIAL_CODE);
+  const [language, setLanguage] = useState(EXERCISE.language);
+  const [testResults, setTestResults] = useState(INITIAL_TEST_RESULTS);
+  const [activeTab, setActiveTab] = useState(TAB_DEFAULT);
+  const [timerSeconds, setTimerSeconds] = useState(35 * 60);
+  const [isRunning, setIsRunning] = useState(false);
   const editorRef = useRef(null);
-  const monacoRef = useRef(null);
+  const { eventsRef } = useBehavioralTracking({ idleMs: 30_000 });
 
   useEffect(() => {
-    fetchExercise();
-  }, [exerciseId]);
+    if (timerSeconds <= 0) return undefined;
+    const id = setTimeout(() => setTimerSeconds((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [timerSeconds]);
 
-  useEffect(() => {
-    if (timeRemaining && timeRemaining > 0) {
-      const timer = setTimeout(() => setTimeRemaining(timeRemaining - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [timeRemaining]);
-
-  // Apply the active app theme to Monaco whenever it changes
-  useEffect(() => {
-    if (monacoRef.current) {
-      const monacoTheme = MONACO_THEMES[theme] || MONACO_THEMES[DEFAULT_THEME];
-      monacoRef.current.editor.setTheme(monacoTheme);
-    }
-  }, [theme]);
-
-  const fetchExercise = async () => {
-    try {
-      const res = await api.get(`/api/student/exercises/${exerciseId}`);
-      let exerciseData = res.data;
-      if (exerciseData.test_cases && typeof exerciseData.test_cases === 'string') {
-        exerciseData.test_cases = JSON.parse(exerciseData.test_cases);
-      }
-      setExercise(exerciseData);
-      setCode(
-        exerciseData.starter_code ||
-          '#include <iostream>\nusing namespace std;\n\nint main() {\n  // Write code here\n  return 0;\n}'
-      );
-
-      if (exerciseData.deadline) {
-        const now = new Date();
-        const deadline = new Date(exerciseData.deadline);
-        const diffMs = deadline - now;
-        if (diffMs > 0) setTimeRemaining(Math.floor(diffMs / 1000));
-      }
-
-      exerciseStartTimeRef.current = Date.now();
-      fetchAttempts(exerciseId);
-    } catch (err) {
-      console.error('Error fetching exercise:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAttempts = async (exId) => {
-    try {
-      const res = await api.get(`/api/student/exercises/${exId}/attempts`);
-      setAttempts(res.data || []);
-    } catch (err) {
-      console.error('Error fetching attempts:', err);
-      setAttempts([]);
-    }
-  };
-
-  const handleRun = async () => {
-    setRunning(true);
-    const controller = new AbortController();
-    setAbortController(controller);
-    try {
-      const res = await api.post(
-        `/api/student/exercises/${exerciseId}/run`,
-        { code },
-        { signal: controller.signal }
-      );
-      setTestResults(res.data);
-
-      // Auto-switch to Compiler Log tab if there's a compiler error
-      const hasCompilerError =
-        res.data.testResults?.[0]?.error || res.data.error || res.data.compilation_log;
-      setActiveTab(hasCompilerError ? 'compiler-log' : 'output');
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        setTestResults({
-          passed: false,
-          testResults: [],
-          error: err.response?.data?.message || err.message
-        });
-        setActiveTab('compiler-log');
-      }
-    } finally {
-      setRunning(false);
-      setAbortController(null);
-    }
-  };
-
-  const handleStop = () => {
-    if (abortController) {
-      abortController.abort();
-      setAbortController(null);
-      setRunning(false);
-    }
+  const handleRun = () => {
+    setIsRunning(true);
+    setTimeout(() => setIsRunning(false), 600);
   };
 
   const handleSubmit = async () => {
-    setSubmitting(true);
+    if (!exerciseId) {
+      toast.error("No exercise in URL — open an exercise to submit.");
+      return;
+    }
+    setIsRunning(true);
     try {
-      const elapsedSeconds = exerciseStartTimeRef.current
-        ? Math.floor((Date.now() - exerciseStartTimeRef.current) / 1000)
-        : 0;
-
-      const res = await api.post(`/api/student/exercises/${exerciseId}/submit`, {
+      const r = await api.post(`/api/student/exercises/${exerciseId}/submit`, {
         code,
-        timeSpentSeconds: elapsedSeconds
+        timeSpentSeconds: Math.max(0, 35 * 60 - timerSeconds),
+        behavioralEvents: eventsRef.current,
       });
-      setTestResults(res.data);
-      setAttempts((prev) => [res.data, ...prev]);
-      setActiveTab('output');
+      const hidden = r.data?.hiddenTestCount ?? 0;
+      const cds = r.data?.liveCDS?.cds ?? r.data?.liveCDS;
+      toast.success(
+        cds != null
+          ? `Submitted · ${hidden} hidden test${hidden === 1 ? "" : "s"} · live CDS ${(cds * 100).toFixed(0)}%`
+          : `Submitted · ${hidden} hidden test${hidden === 1 ? "" : "s"}`
+      );
     } catch (err) {
-      setTestResults({
-        passed: false,
-        testResults: [],
-        error: err.response?.data?.message || err.message
-      });
+      toast.error(err.response?.data?.message || err.message || "Submission failed");
     } finally {
-      setSubmitting(false);
+      setIsRunning(false);
     }
   };
 
-  const handleEditorMount = (editor, monaco) => {
+  const handleMount = (editor) => {
     editorRef.current = editor;
-    monacoRef.current = monaco;
-    registerMonacoThemes(monaco);
-    monaco.editor.setTheme(MONACO_THEMES[theme] || MONACO_THEMES[DEFAULT_THEME]);
   };
 
-  const formatTime = (seconds) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const handleBack = useCallback(() => {
+    navigate("/student/exercises");
+  }, [navigate]);
 
-  // Parse error blocks from compiler output
-  const parseErrorBlock = (errorText) => {
-    if (!errorText) return [];
-    const blocks = [];
-    const lines = errorText.split('\n');
-    let i = 0;
-
-    while (i < lines.length) {
-      const line = lines[i];
-      // Match patterns like: [Line 5:10] ERROR: message or Line 5: error: message
-      const headerMatch = line.match(
-        /(?:\[Line\s+(\d+):(\d+)\]|^.*?:(\d+):(?:\d+):)\s*(ERROR|WARNING|error|warning):\s*(.+)/i
-      );
-
-      if (headerMatch) {
-        const lineNum = parseInt(headerMatch[1] || headerMatch[3]);
-        const col = parseInt(headerMatch[2] || 0) || 1;
-        const type = headerMatch[4];
-        const msg = headerMatch[5];
-
-        // Collect code line and pointer
-        let codeLine = '';
-        let pointer = '';
-        if (i + 1 < lines.length && (lines[i + 1].startsWith('    ') || /^\s+/.test(lines[i + 1]))) {
-          codeLine = lines[i + 1].trim();
-          i++;
-        }
-        if (i + 1 < lines.length && lines[i + 1].includes('^')) {
-          pointer = lines[i + 1].trim();
-          i++;
-        }
-
-        blocks.push({
-          type: 'error',
-          lineNum,
-          col,
-          errorType: type,
-          message: msg,
-          codeLine,
-          pointer
-        });
-      } else if (line.trim()) {
-        blocks.push({
-          type: 'text',
-          content: line
-        });
-      }
-      i++;
-    }
-
-    return blocks;
-  };
-
-  // Go to error line in editor
-  const goToErrorLine = (lineNumber) => {
-    if (editorRef.current && lineNumber) {
-      const editor = editorRef.current;
-      setHighlightedLine(lineNumber);
-      editor.revealLineInCenter(lineNumber);
-      editor.setPosition({ lineNumber, column: 1 });
-    }
-  };
-
-  // Render error block with code context (IDE-style terminal)
-  const renderErrorBlock = (block, idx) => {
-    if (block.type === 'error') {
-      return (
-        <div
-          key={idx}
-          onClick={() => goToErrorLine(block.lineNum)}
-          style={{
-            cursor: 'pointer',
-            marginBottom: '8px',
-            padding: '8px',
-            backgroundColor:
-              highlightedLine === block.lineNum
-                ? 'rgba(248,113,113,0.3)'
-                : 'rgba(248,113,113,0.15)',
-            border: `1px solid ${highlightedLine === block.lineNum ? '#ff6b6b' : COLORS.error}`,
-            borderRadius: '4px',
-            transition: 'all 0.2s'
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '4px',
-              fontWeight: '600'
-            }}
-          >
-            <span style={{ color: COLORS.error }}>●</span>
-            <span style={{ color: COLORS.error }}>
-              [Line {block.lineNum}:{block.col}] {block.errorType}
-            </span>
-          </div>
-          <div
-            style={{
-              marginLeft: '20px',
-              color: COLORS.warning,
-              marginBottom: '4px',
-              fontSize: '11px'
-            }}
-          >
-            {block.message}
-          </div>
-          {block.codeLine && (
-            <div
-              style={{
-                fontFamily: "'Space Mono', monospace",
-                fontSize: '10px',
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                padding: '6px 8px',
-                borderRadius: '4px',
-                marginBottom: '2px',
-                overflow: 'auto',
-                border: `1px solid ${COLORS.border}`
-              }}
-            >
-              <div
-                style={{
-                  color: COLORS.text,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all'
-                }}
-              >
-                {block.codeLine}
-              </div>
-              {pointer && (
-                <div style={{ color: '#ff9999', fontWeight: 'bold', marginTop: '2px' }}>
-                  {block.pointer}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div
-        key={idx}
-        style={{
-          marginBottom: '4px',
-          color: COLORS.text,
-          fontSize: '11px',
-          fontFamily: "'Space Mono', monospace"
-        }}
-      >
-        {block.content}
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div style={{ padding: '40px', color: COLORS.muted, background: COLORS.bg, height: '100vh' }}>
-        Loading...
-      </div>
-    );
-  }
-
-  if (!exercise) {
-    return (
-      <div
-        style={{ padding: '40px', color: COLORS.error, background: COLORS.bg, height: '100vh' }}
-      >
-        Exercise not found
-      </div>
-    );
-  }
+  const handleClearTerminal = useCallback(() => {
+    setTestResults((prev) => (prev ? { ...prev, programOutput: "" } : prev));
+  }, []);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: 'calc(100vh - 64px)',
-        marginTop: '-1.5rem',
-        marginLeft: '-1.5rem',
-        marginRight: '-1.5rem',
-        marginBottom: '-1.5rem',
-        background: COLORS.bg,
-        color: COLORS.text,
-        fontFamily: "'DM Sans', sans-serif",
-        overflow: 'hidden'
-      }}
-    >
-      <nav
-        style={{
-          height: '48px',
-          background: COLORS.surface,
-          borderBottom: `1px solid ${COLORS.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 20px',
-          gap: '16px',
-          flexShrink: 0
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "'Space Mono', monospace",
-            fontSize: '13px',
-            fontWeight: 700,
-            color: COLORS.teal
-          }}
-        >
-          Code<span style={{ color: COLORS.purple }}>Insight</span>
-        </div>
-        <div
-          style={{
-            fontSize: '11px',
-            color: COLORS.muted,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span>
-            Exercises ›{' '}
-            <strong style={{ color: COLORS.text, fontWeight: 600 }}>{exercise.title}</strong>
-          </span>
-        </div>
-        <div
-          style={{
-            marginLeft: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}
-        >
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.8px',
-              padding: '4px 12px',
-              borderRadius: '12px',
-              background: 'rgba(136,123,176,0.15)',
-              color: COLORS.purple,
-              border: '1px solid rgba(136,123,176,0.3)'
-            }}
-          >
-            {exercise.concept_name}
-          </span>
-          {timeRemaining && (
-            <div
-              style={{
-                fontFamily: "'Space Mono', monospace",
-                fontSize: '12px',
-                fontWeight: 700,
-                color: timeRemaining < 300 ? COLORS.error : COLORS.warning,
-                background: 'rgba(251,191,36,0.08)',
-                padding: '4px 12px',
-                borderRadius: '8px',
-                border: '1px solid rgba(251,191,36,0.2)'
-              }}
-            >
-              ⏱ {formatTime(timeRemaining)}
-            </div>
-          )}
-        </div>
-      </nav>
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <EditorHeader
+        title={EXERCISE.title}
+        concepts={EXERCISE.concepts}
+        testResults={testResults}
+        timerSeconds={timerSeconds}
+        isRunning={isRunning}
+        onRun={handleRun}
+        onSubmit={handleSubmit}
+        onBack={handleBack}
+        language={language}
+        languageOptions={LANGUAGE_OPTIONS}
+        onLanguageChange={setLanguage}
+      />
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Left column: Problem Statement */}
-        <div
-          style={{
-            width: '340px',
-            minWidth: '340px',
-            background: COLORS.surface,
-            borderRight: `1px solid ${COLORS.border}`,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-        >
-          <div
-            style={{
-              padding: '14px 18px',
-              borderBottom: `1px solid ${COLORS.border}`,
-              background: COLORS.surface2,
-              flexShrink: 0
-            }}
-          >
-            <div style={{ fontSize: '13px', fontWeight: 700, color: COLORS.text }}>
-              Problem Statement
-            </div>
-            <div
-              style={{
-                fontSize: '10px',
-                color: COLORS.muted,
-                marginTop: '4px',
-                display: 'flex',
-                gap: '12px'
-              }}
-            >
-              <span>⏱ {exercise.time_limit_minutes}m</span>
-              <span>
-                📅{' '}
-                {exercise.deadline
-                  ? new Date(exercise.deadline).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric'
-                    })
-                  : 'No deadline'}
-              </span>
-              <span>C++</span>
-            </div>
-          </div>
-          <div style={{ padding: '16px 18px', overflowY: 'auto', flex: 1 }}>
-            <div
-              style={{
-                fontSize: '9px',
-                fontWeight: 700,
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                color: COLORS.muted,
-                marginBottom: '8px'
-              }}
-            >
-              Description
-            </div>
-            <div
-              style={{
-                fontSize: '12px',
-                lineHeight: '1.7',
-                color: COLORS.text,
-                marginBottom: '18px'
-              }}
-            >
-              {exercise.description}
-            </div>
+      <div className="hidden lg:flex flex-1 min-h-0">
+        <ResizableWorkbench
+          exercise={EXERCISE}
+          code={code}
+          onCodeChange={setCode}
+          testResults={testResults}
+          onMount={handleMount}
+          language={language}
+          languageOptions={LANGUAGE_OPTIONS}
+          onLanguageChange={setLanguage}
+          submissions={SUBMISSIONS}
+          history={HISTORY}
+          programOutput={testResults?.programOutput ?? ""}
+          compilationLog={testResults?.compilationLog ?? ""}
+          onClearTerminal={handleClearTerminal}
+        />
+      </div>
 
-            <div
-              style={{
-                background: COLORS.editorBg,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '12px'
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  letterSpacing: '1.5px',
-                  textTransform: 'uppercase',
-                  color: COLORS.muted,
-                  marginBottom: '6px'
-                }}
-              >
-                Input
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: '11px',
-                  color: COLORS.text,
-                  lineHeight: '1.6'
-                }}
-              >
-                {exercise.input_format || 'Standard input'}
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: COLORS.editorBg,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: '8px',
-                padding: '12px'
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  letterSpacing: '1.5px',
-                  textTransform: 'uppercase',
-                  color: COLORS.muted,
-                  marginBottom: '6px'
-                }}
-              >
-                Output
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Space Mono', monospace",
-                  fontSize: '11px',
-                  color: COLORS.text,
-                  lineHeight: '1.6'
-                }}
-              >
-                {exercise.output_format || 'Standard output'}
-              </div>
-            </div>
-
-            {exercise.test_cases &&
-              Array.isArray(exercise.test_cases) &&
-              exercise.test_cases.length > 0 && (
-                <div style={{ marginTop: '18px' }}>
-                  <div
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      letterSpacing: '2px',
-                      textTransform: 'uppercase',
-                      color: COLORS.muted,
-                      marginBottom: '8px'
-                    }}
-                  >
-                    Sample Cases
-                  </div>
-                  {exercise.test_cases.slice(0, 2).map((tc, idx) => {
-                    const result = testResults?.testResults?.[idx];
-                    const statusColor =
-                      result?.passed === true
-                        ? COLORS.success
-                        : result?.passed === false
-                          ? COLORS.error
-                          : COLORS.muted;
-                    const statusText =
-                      result?.passed === true ? '✓' : result?.passed === false ? '✗' : '—';
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          background: COLORS.editorBg,
-                          border: `1px solid ${COLORS.border}`,
-                          borderRadius: '8px',
-                          marginBottom: '8px',
-                          overflow: 'hidden'
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: '8px 12px',
-                            background: COLORS.surface2,
-                            borderBottom: `1px solid ${COLORS.border}`,
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            letterSpacing: '1px',
-                            textTransform: 'uppercase',
-                            color: COLORS.muted,
-                            display: 'flex',
-                            justifyContent: 'space-between'
-                          }}
-                        >
-                          <span>Test {idx + 1}</span>
-                          <span style={{ color: statusColor }}>{statusText}</span>
-                        </div>
-                        <div
-                          style={{
-                            padding: '10px 12px',
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: '10px'
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontSize: '9px', color: COLORS.muted, marginBottom: '4px' }}>
-                              In
-                            </div>
-                            <div
-                              style={{
-                                fontFamily: "'Space Mono', monospace",
-                                fontSize: '9px',
-                                color: COLORS.text,
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-all'
-                              }}
-                            >
-                              {(tc.input || tc.stdin || '').slice(0, 30)}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '9px', color: COLORS.muted, marginBottom: '4px' }}>
-                              Out
-                            </div>
-                            <div
-                              style={{
-                                fontFamily: "'Space Mono', monospace",
-                                fontSize: '9px',
-                                color: COLORS.text,
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-all'
-                              }}
-                            >
-                              {(tc.expected_output || tc.expected || '').slice(0, 30)}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-          </div>
-        </div>
-
-        {/* Center column: Editor + Output */}
-        <div
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-        >
-          <div
-            style={{
-              padding: '8px 14px',
-              background: COLORS.surface2,
-              borderBottom: `1px solid ${COLORS.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexShrink: 0
-            }}
-          >
-            <div
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: COLORS.teal,
-                background: 'rgba(133,210,208,0.1)',
-                padding: '3px 10px',
-                borderRadius: '6px',
-                fontFamily: "'Space Mono', monospace"
-              }}
-            >
-              C++ • GCC 9.2
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {!running ? (
-                <button
-                  onClick={handleRun}
-                  disabled={running}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '7px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    border: '1px solid #2a5a4a',
-                    background: '#1a4d3a',
-                    color: COLORS.success,
-                    fontFamily: "'DM Sans', sans-serif"
-                  }}
-                >
-                  ▶ Run
-                </button>
-              ) : (
-                <button
-                  onClick={handleStop}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '7px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    border: '1px solid #d97757',
-                    background: '#d97757',
-                    color: '#fff',
-                    fontFamily: "'DM Sans', sans-serif"
-                  }}
-                >
-                  ⏹ Stop
-                </button>
-              )}
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '7px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: 'none',
-                  background: COLORS.teal,
-                  color: '#091a1a',
-                  fontFamily: "'DM Sans', sans-serif",
-                  opacity: submitting ? 0.6 : 1
-                }}
-              >
-                {submitting ? '⏳' : '✓ Submit'}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ flex: 1, minHeight: 0, background: COLORS.editorBg }}>
-            <Editor
-              height="100%"
-              defaultLanguage="cpp"
-              value={code}
-              onChange={(val) => setCode(val || '')}
-              onMount={handleEditorMount}
-              theme={MONACO_THEMES[theme] || MONACO_THEMES[DEFAULT_THEME]}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                fontFamily: "'Space Mono', monospace",
-                lineNumbers: 'on',
-                wordWrap: 'on',
-                automaticLayout: true,
-                padding: { top: 16, bottom: 16 },
-                scrollBeyondLastLine: false
-              }}
-            />
-          </div>
-
-          <div
-            style={{
-              height: '160px',
-              background: COLORS.surface,
-              borderTop: `1px solid ${COLORS.border}`,
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                borderBottom: `1px solid ${COLORS.border}`,
-                background: COLORS.surface2
-              }}
-            >
-              {['output', 'log'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: activeTab === tab ? COLORS.teal : COLORS.muted,
-                    cursor: 'pointer',
-                    border: 'none',
-                    background: 'transparent',
-                    borderBottom:
-                      activeTab === tab ? `2px solid ${COLORS.teal}` : '2px solid transparent',
-                    fontFamily: "'DM Sans', sans-serif"
-                  }}
-                >
-                  {tab === 'output' ? 'Output' : 'Compiler Log'}
-                </button>
-              ))}
-            </div>
-            <div
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                fontFamily: "'Space Mono', monospace",
-                fontSize: '11px',
-                overflowY: 'auto',
-                color: COLORS.text
-              }}
-            >
-              {activeTab === 'output' ? (
-                testResults ? (
-                  <>
-                    {!testResults.passed && testResults.testResults?.length > 0 && (
-                      <div
-                        style={{ color: COLORS.error, marginBottom: '8px', fontWeight: 700 }}
-                      >
-                        ✗ Wrong Answer
-                      </div>
-                    )}
-                    {testResults.testResults?.map((result, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          marginBottom: '6px',
-                          padding: '6px',
-                          background: COLORS.surface2,
-                          borderRadius: '4px'
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: result.passed ? COLORS.success : COLORS.error,
-                            fontWeight: 700
-                          }}
-                        >
-                          Test {idx + 1}: {result.passed ? '✓' : '✗'}
-                        </span>
-                        {(result.input || result.expected || result.actual) && (
-                          <div
-                            style={{
-                              fontSize: '10px',
-                              marginTop: '2px',
-                              color: COLORS.muted
-                            }}
-                          >
-                            I: {result.input} | E: {result.expected} | G: {result.actual}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    <div
-                      style={{
-                        marginTop: '12px',
-                        padding: '8px',
-                        background: COLORS.surface2,
-                        borderRadius: '4px',
-                        borderLeft: `3px solid ${
-                          testResults.cds <= 0.33
-                            ? COLORS.success
-                            : testResults.cds <= 0.66
-                              ? COLORS.warning
-                              : COLORS.error
-                        }`
-                      }}
-                    >
-                      <div style={{ fontSize: '10px', color: COLORS.muted, marginBottom: '3px' }}>
-                        CDS Score:
-                      </div>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          fontSize: '12px',
-                          color:
-                            testResults.cds <= 0.33
-                              ? COLORS.success
-                              : testResults.cds <= 0.66
-                                ? COLORS.warning
-                                : COLORS.error
-                        }}
-                      >
-                        {testResults.cds?.toFixed(2) || '—'} ({testResults.classification || 'Unscored'})
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ color: COLORS.muted }}>(No output)</div>
-                )
-              ) : testResults ? (
-                <>
-                  {testResults.testResults?.length > 0 && testResults.testResults[0]?.error && (
-                    <>
-                      {parseErrorBlock(testResults.testResults[0].error).map((block, idx) =>
-                        renderErrorBlock(block, idx)
-                      )}
-                    </>
-                  )}
-                  {testResults.error &&
-                    parseErrorBlock(testResults.error).map((block, idx) =>
-                      renderErrorBlock(block, idx)
-                    )}
-                  {testResults.compilation_log &&
-                    parseErrorBlock(testResults.compilation_log).map((block, idx) =>
-                      renderErrorBlock(block, idx)
-                    )}
-                  {!testResults.testResults?.[0]?.error &&
-                    !testResults.error &&
-                    !testResults.compilation_log && (
-                      <div style={{ color: COLORS.muted }}>(No compiler output)</div>
-                    )}
-                </>
-              ) : (
-                <div style={{ color: COLORS.muted }}>(No log)</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right column: Attempts */}
-        <div
-          style={{
-            width: '200px',
-            background: COLORS.surface,
-            borderLeft: `1px solid ${COLORS.border}`,
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          <div
-            style={{
-              padding: '12px 14px',
-              borderBottom: `1px solid ${COLORS.border}`,
-              background: COLORS.surface2
-            }}
-          >
-            <div style={{ fontSize: '11px', fontWeight: 700, color: COLORS.text }}>
-              Attempts ({attempts.length})
-            </div>
-          </div>
-          <div style={{ padding: '12px', overflowY: 'auto', flex: 1 }}>
-            {attempts.length === 0 ? (
-              <div
-                style={{
-                  fontSize: '10px',
-                  color: COLORS.muted,
-                  textAlign: 'center',
-                  marginTop: '16px'
-                }}
-              >
-                No attempts
-              </div>
-            ) : (
-              attempts.map((attempt, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: COLORS.surface2,
-                    border: `1px solid ${attempt.passed ? COLORS.success : COLORS.error}`,
-                    borderLeft: `3px solid ${attempt.passed ? COLORS.success : COLORS.error}`,
-                    borderRadius: '6px',
-                    padding: '8px',
-                    marginBottom: '6px'
-                  }}
-                >
-                  <div style={{ fontSize: '9px', fontWeight: 700, color: COLORS.muted, marginBottom: '2px' }}>
-                    #{idx + 1}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      color: attempt.passed ? COLORS.success : COLORS.error
-                    }}
-                  >
-                    {attempt.passed ? '✓' : '✗'}
-                  </div>
-                  <div style={{ fontSize: '8px', color: COLORS.muted }}>
-                    {new Date(attempt.submitted_at).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+      <div className="flex lg:hidden flex-1 min-h-0 flex-col">
+        <MobileEditorTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          exercise={EXERCISE}
+          code={code}
+          onCodeChange={setCode}
+          testResults={testResults}
+          onMount={handleMount}
+          submissions={SUBMISSIONS}
+          history={HISTORY}
+        />
+        <EditorActionBar onRun={handleRun} onSubmit={handleSubmit} isRunning={isRunning} />
       </div>
     </div>
   );

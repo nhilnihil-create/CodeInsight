@@ -10,9 +10,7 @@ import InstructorStudents from './pages/instructor/Students';
 import InstructorStudentDetail from './pages/instructor/StudentDetail';
 import InstructorExercises from './pages/instructor/Exercises';
 import InstructorExerciseForm from './pages/instructor/ExerciseForm';
-import InstructorWarnings from './pages/instructor/Warnings';
 import InstructorReports from './pages/instructor/Reports';
-import InstructorViolations from './pages/instructor/Violations';
 import InstructorIntegrity from './pages/instructor/Integrity';
 // Section management — preserved per user directive 2026-06-04
 import InstructorSections from './pages/instructor/Sections';
@@ -58,7 +56,7 @@ import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
 import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
 import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
 
-function ProtectedRoute({ children, requiredRole, pageTitle }) {
+function ProtectedRoute({ children, requiredRole }) {
   const { isLoggedIn, user } = useAuth();
 
   if (!isLoggedIn) return <Navigate to="/login" replace />;
@@ -66,7 +64,7 @@ function ProtectedRoute({ children, requiredRole, pageTitle }) {
     const home = user?.role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
     return <Navigate to={home} replace />;
   }
-  return <Layout pageTitle={pageTitle}>{children}</Layout>;
+  return <Layout>{children}</Layout>;
 }
 
 function ModeSwitch({ mobile, desktop }) {
@@ -87,150 +85,145 @@ function AppContent() {
         
         {/* Instructor Routes — design paths canonical */}
         <Route path="/instructor/command" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Command Center">
+          <ProtectedRoute requiredRole="instructor">
             <ModeSwitch mobile={<MobileInstructorCommand />} desktop={<InstructorCommand />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/dashboard" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Dashboard">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorDashboard />
           </ProtectedRoute>
         } />
         <Route path="/instructor/heatmap" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Class Heatmap">
+          <ProtectedRoute requiredRole="instructor">
             <ModeSwitch mobile={<MobileInstructorCommand />} desktop={<InstructorHeatmap />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/students" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Students">
+          <ProtectedRoute requiredRole="instructor">
             <ModeSwitch mobile={<MobileInstructorStudents />} desktop={<InstructorStudents />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/students/:id" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Student Detail">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorStudentDetail />
           </ProtectedRoute>
         } />
         <Route path="/instructor/exercises" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Exercises">
+          <ProtectedRoute requiredRole="instructor">
             <ModeSwitch mobile={<MobileInstructorConcepts />} desktop={<InstructorExercises />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/exercises/new" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="New Exercise">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorExerciseForm />
           </ProtectedRoute>
         } />
         <Route path="/instructor/exercises/:id/edit" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Edit Exercise">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorExerciseForm />
           </ProtectedRoute>
         } />
         <Route path="/instructor/warnings" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Early Warnings">
-            <InstructorWarnings />
-          </ProtectedRoute>
+          <Navigate to="/instructor/integrity" replace />
         } />
         <Route path="/instructor/reports" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Reports">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorReports />
           </ProtectedRoute>
         } />
         <Route path="/instructor/violations" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Structure Violations">
-            <InstructorViolations />
-          </ProtectedRoute>
+          <Navigate to="/instructor/integrity" replace />
         } />
         <Route path="/instructor/integrity" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Academic Integrity">
+          <ProtectedRoute requiredRole="instructor">
             <ModeSwitch mobile={<MobileInstructorIntegrity />} desktop={<InstructorIntegrity />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/integrity/:id" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Flag Detail">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorIntegrityDetail />
           </ProtectedRoute>
         } />
         <Route path="/instructor/developer" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Developer">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorDeveloper />
           </ProtectedRoute>
         } />
 
         {/* Instructor alias routes (CodeInsight paths kept working) */}
         <Route path="/instructor" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Dashboard">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorDashboard />
           </ProtectedRoute>
         } />
-        {/* /instructor/create-exercise and /instructor/alerts are aliases for the design forms */}
+        {/* /instructor/create-exercise is an alias for the design form; /instructor/alerts and
+            /instructor/{warnings,violations} now redirect to the unified /integrity page. */}
         <Route path="/instructor/create-exercise" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="New Exercise">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorExerciseForm />
           </ProtectedRoute>
         } />
         <Route path="/instructor/alerts" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Early Warnings">
-            <InstructorWarnings />
-          </ProtectedRoute>
+          <Navigate to="/instructor/integrity" replace />
         } />
         {/* Section management routes — PRESERVED per user directive 2026-06-04.
             /instructor/my-sections and /instructor/sections stay on the legacy
             Sections.jsx / SectionDetail.jsx / AcademicIntegrityFlags.jsx files. */}
         <Route path="/instructor/sections" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Sections">
+          <ProtectedRoute requiredRole="instructor">
             <ModeSwitch mobile={<MobileInstructorSections />} desktop={<InstructorSections />} />
           </ProtectedRoute>
         } />
         <Route path="/instructor/sections/:sectionId" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Section Detail">
+          <ProtectedRoute requiredRole="instructor">
             <SectionDetail />
           </ProtectedRoute>
         } />
         <Route path="/instructor/sections/:sectionId/academic-integrity" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Academic Integrity">
+          <ProtectedRoute requiredRole="instructor">
             <AcademicIntegrityFlags />
           </ProtectedRoute>
         } />
         <Route path="/instructor/my-sections" element={
-          <ProtectedRoute requiredRole="instructor" pageTitle="Sections">
+          <ProtectedRoute requiredRole="instructor">
             <InstructorSections />
           </ProtectedRoute>
         } />
 
         {/* Student Routes */}
         <Route path="/student/today" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Today's Plan">
+          <ProtectedRoute requiredRole="student">
             <ModeSwitch mobile={<MobileStudentToday />} desktop={<StudentToday />} />
           </ProtectedRoute>
         } />
         <Route path="/student/sections" element={
-          <ProtectedRoute requiredRole="student" pageTitle="My Sections">
+          <ProtectedRoute requiredRole="student">
             <ModeSwitch mobile={<MobileStudentSections />} desktop={<StudentSections />} />
           </ProtectedRoute>
         } />
         <Route path="/student/integrity" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Learning Dashboard">
+          <ProtectedRoute requiredRole="student">
             <StudentIntegrityView />
           </ProtectedRoute>
         } />
         <Route path="/student/recommendations" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Recommendations">
+          <ProtectedRoute requiredRole="student">
             <StudentRecommendations />
           </ProtectedRoute>
         } />
         <Route path="/student" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Dashboard">
+          <ProtectedRoute requiredRole="student">
             <StudentDashboard />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Exercises">
+          <ProtectedRoute requiredRole="student">
             <ModeSwitch mobile={<MobileStudentExercises />} desktop={<StudentExerciseList />} />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises/:exerciseId" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
+          <ProtectedRoute requiredRole="student">
             <ModeSwitch mobile={<MobileStudentExerciseDetail />} desktop={<StudentCodeEditor />} />
           </ProtectedRoute>
         } />
@@ -242,17 +235,17 @@ function AppContent() {
 
         {/* Design-aligned URL paths (new aliases for design nav parity) */}
         <Route path="/student/dashboard" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Dashboard">
+          <ProtectedRoute requiredRole="student">
             <ModeSwitch mobile={<MobileStudentToday />} desktop={<StudentDashboard />} />
           </ProtectedRoute>
         } />
         <Route path="/student/code-editor" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
+          <ProtectedRoute requiredRole="student">
             <StudentCodeEditor />
           </ProtectedRoute>
         } />
         <Route path="/student/code-editor/:exerciseId" element={
-          <ProtectedRoute requiredRole="student" pageTitle="Code Editor">
+          <ProtectedRoute requiredRole="student">
             <ModeSwitch mobile={<MobileStudentExerciseDetail />} desktop={<StudentCodeEditor />} />
           </ProtectedRoute>
         } />
@@ -264,42 +257,42 @@ function AppContent() {
 
         {/* Admin routes */}
         <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Overview">
+          <ProtectedRoute requiredRole="admin">
             <ModeSwitch mobile={<MobileAdminOverview />} desktop={<AdminOverview />} />
           </ProtectedRoute>
         } />
         <Route path="/admin/overview" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Overview">
+          <ProtectedRoute requiredRole="admin">
             <ModeSwitch mobile={<MobileAdminOverview />} desktop={<AdminOverview />} />
           </ProtectedRoute>
         } />
         <Route path="/admin/users" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Users">
+          <ProtectedRoute requiredRole="admin">
             <AdminUsers />
           </ProtectedRoute>
         } />
         <Route path="/admin/sections" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Sections">
+          <ProtectedRoute requiredRole="admin">
             <AdminSectionsOverview />
           </ProtectedRoute>
         } />
         <Route path="/admin/concepts" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Concepts">
+          <ProtectedRoute requiredRole="admin">
             <AdminConcepts />
           </ProtectedRoute>
         } />
         <Route path="/admin/exercises" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Exercises">
+          <ProtectedRoute requiredRole="admin">
             <AdminExercises />
           </ProtectedRoute>
         } />
         <Route path="/admin/evaluation" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Evaluation">
+          <ProtectedRoute requiredRole="admin">
             <AdminEvaluation />
           </ProtectedRoute>
         } />
         <Route path="/admin/audit" element={
-          <ProtectedRoute requiredRole="admin" pageTitle="Audit">
+          <ProtectedRoute requiredRole="admin">
             <ModeSwitch mobile={<MobileAdminAudit />} desktop={<div style={{padding: 24}}>Admin audit view (TODO)</div>} />
           </ProtectedRoute>
         } />

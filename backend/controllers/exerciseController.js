@@ -1,57 +1,51 @@
 const db = require('../config/db');
+const { AppError, codes } = require('../lib/AppError');
+const cdsEngine = require('../services/cdsEngine');
+const cdsJobQueue = require('../services/cdsJobQueue');
 
-// Helper function to get exercise details
 const getExerciseDetails = async (id) => {
   try {
     const result = await db.query('SELECT closed_at FROM exercises WHERE id = $1', [id]);
     return result.rows[0];
   } catch (err) {
-    console.error('Error getting exercise details:', err);
     return null;
   }
 };
-const cdsEngine = require('../services/cdsEngine');
-const cdsJobQueue = require('../services/cdsJobQueue');
 
-exports.getConcepts = async (req, res) => {
+exports.getConcepts = async (_req, res, next) => {
   try {
     const r = await db.query('SELECT * FROM concepts ORDER BY id');
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.create = async (req, res) => {
-  const { title, description, concept_name, section_id,
-          time_limit_minutes, test_cases, deadline, is_draft,
-          track_ner, track_nrs, track_nts, auto_alert } = req.body;
-  
-  if (!title || !description || !concept_name || !section_id || !test_cases)
-    return res.status(400).json({ message: 'Missing required fields' });
-  if (!Array.isArray(test_cases) || test_cases.length < 2)
-    return res.status(400).json({ message: 'At least 2 test cases required' });
-  
+exports.create = async (req, res, next) => {
   try {
-    // Get concept_id from concept_name
+    const { title, description, concept_name, section_id,
+            time_limit_minutes, test_cases, deadline, is_draft,
+            track_ner, track_nrs, track_nts, auto_alert,
+            starter_code, reference_solution } = req.body;
+
     const cRes = await db.query('SELECT id FROM concepts WHERE name=$1', [concept_name]);
-    if (!cRes.rows.length)
-      return res.status(400).json({ message: 'Concept not found' });
+    if (!cRes.rows.length) throw new AppError('Concept not found', 400, codes.VALIDATION, { field: 'concept_name' });
     const concept_id = cRes.rows[0].id;
 
     const r = await db.query(
       `INSERT INTO exercises
        (title, description, concept_id, section_id, created_by, time_limit_minutes,
-        test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert)
-       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+        test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
+        starter_code, reference_solution)
+       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [title, description, concept_id, section_id, req.user.id,
-       time_limit_minutes || 45, JSON.stringify(test_cases), deadline || null,
-       is_draft || false, track_ner !== false, track_nrs !== false, 
-       track_nts !== false, auto_alert !== false]
+       time_limit_minutes, JSON.stringify(test_cases), deadline || null,
+       is_draft, track_ner, track_nrs, track_nts, auto_alert,
+       starter_code || null, reference_solution || null]
     );
     res.status(201).json(r.rows[0]);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.list = async (req, res) => {
+exports.list = async (req, res, next) => {
   try {
     let r;
     if (req.user.role === 'instructor') {
@@ -73,10 +67,10 @@ exports.list = async (req, res) => {
       );
     }
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.getOne = async (req, res) => {
+exports.getOne = async (req, res, next) => {
   try {
     const r = await db.query(
       `SELECT ex.*, c.name AS concept_name
@@ -84,85 +78,94 @@ exports.getOne = async (req, res) => {
        WHERE ex.id=$1`,
       [req.params.id]
     );
-    if (!r.rows.length) return res.status(404).json({ message: 'Exercise not found' });
+    if (!r.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
     const ex = r.rows[0];
     if (req.user.role === 'student') {
-      ex.test_cases = ex.test_cases.filter(tc => !tc.hidden);
+      ex.test_cases = (ex.test_cases || []).filter(tc => !tc.hidden);
     }
     res.json(ex);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.update = async (req, res) => {
-  const { title, description, time_limit_minutes, test_cases, deadline,
-          is_draft, track_ner, track_nrs, track_nts, auto_alert } = req.body;
+exports.update = async (req, res, next) => {
   try {
+    const { title, description, time_limit_minutes, test_cases, deadline,
+            is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code } = req.body;
+
+    // Build dynamic update
+    const sets = [];
+    const params = [];
+    const addSet = (col, val) => {
+      if (val === undefined) return;
+      params.push(val);
+      sets.push(`${col} = $${params.length}`);
+    };
+    addSet('title', title);
+    addSet('description', description);
+    addSet('time_limit_minutes', time_limit_minutes);
+    if (test_cases !== undefined) {
+      params.push(JSON.stringify(test_cases));
+      sets.push(`test_cases = $${params.length}`);
+    }
+    addSet('deadline', deadline);
+    addSet('is_draft', is_draft);
+    addSet('track_ner', track_ner);
+    addSet('track_nrs', track_nrs);
+    addSet('track_nts', track_nts);
+    addSet('auto_alert', auto_alert);
+    addSet('starter_code', starter_code);
+    if (sets.length === 0) {
+      throw new AppError('No fields to update', 400, codes.VALIDATION);
+    }
+    params.push(req.params.id);
+    params.push(req.user.id);
     const r = await db.query(
-      `UPDATE exercises SET
-       title=$1, description=$2, time_limit_minutes=$3,
-       test_cases=$4, deadline=$5, is_draft=$6, 
-       track_ner=$7, track_nrs=$8, track_nts=$9, auto_alert=$10
-       WHERE id=$11 AND created_by=$12 RETURNING *`,
-      [title, description, time_limit_minutes,
-       JSON.stringify(test_cases), deadline, is_draft || false,
-       track_ner !== false, track_nrs !== false, track_nts !== false, 
-       auto_alert !== false, req.params.id, req.user.id]
+      `UPDATE exercises SET ${sets.join(', ')}
+       WHERE id=$${params.length - 1} AND created_by=$${params.length}
+       RETURNING *`,
+      params
     );
-    if (!r.rows.length)
-      return res.status(404).json({ message: 'Exercise not found or not authorized' });
+    if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
     res.json(r.rows[0]);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.close = async (req, res) => {
+exports.close = async (req, res, next) => {
   try {
     const exercise = await getExerciseDetails(req.params.id);
+    if (!exercise) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
     if (exercise.closed_at) {
-      return res.status(400).json({
-        message: 'Exercise already closed'
-      });
+      throw new AppError('Exercise already closed', 400, codes.VALIDATION);
     }
     const r = await db.query(
       'UPDATE exercises SET closed_at=NOW() WHERE id=$1 AND created_by=$2 RETURNING *',
       [req.params.id, req.user.id]
     );
-    if (!r.rows.length)
-      return res.status(404).json({ message: 'Exercise not found or not authorized' });
+    if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
     // Trigger batch CDS computation
     await cdsJobQueue.enqueueCdsComputation(req.params.id);
     res.json({ message: 'Exercise closed. CDS computed for all students.', exercise: r.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
+  } catch (err) { next(err); }
 };
 
-exports.reopen = async (req, res) => {
+exports.reopen = async (req, res, next) => {
   try {
     const r = await db.query(
       'UPDATE exercises SET closed_at=NULL WHERE id=$1 AND created_by=$2 RETURNING *',
       [req.params.id, req.user.id]
     );
-    if (!r.rows.length)
-      return res.status(404).json({ message: 'Exercise not found or not authorized' });
+    if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
     res.json({ message: 'Exercise reopened.', exercise: r.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
+  } catch (err) { next(err); }
 };
 
-exports.remove = async (req, res) => {
+exports.remove = async (req, res, next) => {
   try {
     const r = await db.query(
       'DELETE FROM exercises WHERE id=$1 AND created_by=$2 RETURNING *',
       [req.params.id, req.user.id]
     );
-    if (!r.rows.length)
-      return res.status(404).json({ message: 'Exercise not found or not authorized' });
+    if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
     res.json({ message: 'Exercise deleted successfully', exercise: r.rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
+  } catch (err) { next(err); }
 };

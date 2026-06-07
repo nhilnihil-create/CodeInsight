@@ -1,176 +1,234 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Users, BarChart3, AlertTriangle, CheckCircle2, Copy, ArrowRight } from 'lucide-react';
-import api from '../../services/api';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import CDSPillDelta from '@/components/CDSPillDelta';
-import { cn } from '@/lib/utils';
+import { useState, useMemo } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Plus, Search, ArrowRight, Flag } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import InsightHeader from "@/components/ui/insight-header";
+import DecisionList from "@/components/ui/decision-list";
+import PageBreadcrumb from "@/components/ui/page-breadcrumb";
+import RiskBadge from "@/components/ui/risk-badge";
+import CDSPillDelta from "@/components/ui/cds-pill-delta";
 
-const POLICY_COLORS = {
-  code: 'text-[#22C55E] bg-[#22C55E]/10 border-[#22C55E]/30',
-  request: 'text-[#FACC15] bg-[#FACC15]/10 border-[#FACC15]/30',
-  closed: 'text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/30',
-};
+const SECTIONS = [
+  {
+    id: 4,
+    name: "Section 04",
+    course: "CS101",
+    term: "Sem 1 · AY 2025–2026",
+    students: 22,
+    atRisk: 6,
+    avgCds: 0.71,
+    cdsDelta: 0.04,
+    flags: 2,
+    level: "high",
+  },
+  {
+    id: 3,
+    name: "Section 03",
+    course: "CS101",
+    term: "Sem 1 · AY 2025–2026",
+    students: 19,
+    atRisk: 1,
+    avgCds: 0.38,
+    cdsDelta: -0.02,
+    flags: 0,
+    level: "moderate",
+  },
+  {
+    id: 2,
+    name: "Section 02",
+    course: "CS201",
+    term: "Sem 1 · AY 2025–2026",
+    students: 24,
+    atRisk: 3,
+    avgCds: 0.55,
+    cdsDelta: 0.01,
+    flags: 1,
+    level: "moderate",
+  },
+  {
+    id: 1,
+    name: "Section 01",
+    course: "CS201",
+    term: "Sem 1 · AY 2025–2026",
+    students: 18,
+    atRisk: 0,
+    avgCds: 0.22,
+    cdsDelta: -0.05,
+    flags: 0,
+    level: "low",
+  },
+  {
+    id: 5,
+    name: "Section 05",
+    course: "CS301",
+    term: "Sem 2 · AY 2025–2026",
+    students: 15,
+    atRisk: 2,
+    avgCds: 0.48,
+    cdsDelta: 0.0,
+    flags: 1,
+    level: "moderate",
+  },
+];
+
+const COURSES = ["all", "CS101", "CS201", "CS301"];
 
 export default function InstructorSections() {
-  const [sections, setSections] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', course_code: '', school_year: '', semester: 'Sem 1' });
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("at-risk");
+  const [course, setCourse] = useState("all");
 
-  useEffect(() => { fetchSections(); }, []);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let rows = SECTIONS.filter((s) => {
+      const matchesCourse = course === "all" || s.course === course;
+      const matchesQuery =
+        !q ||
+        s.name.toLowerCase().includes(q) ||
+        s.course.toLowerCase().includes(q);
+      return matchesCourse && matchesQuery;
+    });
+    rows = [...rows].sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "cds") return b.avgCds - a.avgCds;
+      return b.atRisk - a.atRisk;
+    });
+    return rows;
+  }, [query, sort, course]);
 
-  const fetchSections = async () => {
-    try {
-      const res = await api.get('/api/sections');
-      setSections(res.data || []);
-    } catch (err) {
-      console.error('Error fetching sections:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/api/sections', formData);
-      setFormData({ name: '', course_code: '', school_year: '', semester: 'Sem 1' });
-      setShowForm(false);
-      await fetchSections();
-    } catch (err) {
-      console.error('Error creating section:', err);
-    }
-  };
-
-  if (loading) return <div className="text-muted-foreground">Loading sections...</div>;
+  const items = filtered.map((s) => ({
+    id: s.id,
+    title: s.name,
+    subtitle: `${s.course} · ${s.term}`,
+    meta: `${s.students} students`,
+    badge: (
+      <div className="flex items-center gap-2">
+        <RiskBadge level={s.level} />
+        <CDSPillDelta
+          value={s.avgCds}
+          delta={s.cdsDelta}
+          showDelta={s.cdsDelta !== 0}
+        />
+        <span
+          className="inline-flex items-center gap-1 text-xs font-mono tabular-nums text-muted-foreground"
+          aria-label={`${s.flags} integrity ${s.flags === 1 ? "flag" : "flags"}`}
+        >
+          <Flag className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+          {s.flags}
+        </span>
+      </div>
+    ),
+  }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          AY 2025–2026 · {sections.length} active sections
-        </p>
-        <Button onClick={() => setShowForm(!showForm)} size="sm">
-          <Plus className="mr-1 h-3.5 w-3.5" /> New Section
+    <div className="space-y-6 sm:space-y-8">
+      {/* ---------- PageHeader ---------- */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          <PageBreadcrumb crumbs={[{ label: "Sections" }]} />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Sections</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {SECTIONS.length} active sections · AY 2025–2026
+            </p>
+          </div>
+        </div>
+        <Button asChild size="sm" className="font-medium">
+          <Link to="/instructor/sections/new">
+            <Plus className="h-3.5 w-3.5 mr-1.5" strokeWidth={2} />
+            New Section
+          </Link>
         </Button>
       </div>
 
-      {showForm && (
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-muted-foreground">Section Name</label>
-                  <Input required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., CS101 - Section A" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-muted-foreground">Course Code</label>
-                  <Input required value={formData.course_code} onChange={(e) => setFormData({ ...formData, course_code: e.target.value })} placeholder="e.g., CS101" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-muted-foreground">School Year</label>
-                  <Input value={formData.school_year} onChange={(e) => setFormData({ ...formData, school_year: e.target.value })} placeholder="e.g., AY 2025-2026" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-muted-foreground">Semester</label>
-                  <select value={formData.semester} onChange={(e) => setFormData({ ...formData, semester: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    <option value="Sem 1">Sem 1</option>
-                    <option value="Sem 2">Sem 2</option>
-                    <option value="Summer">Summer</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" size="sm">Create Section</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      {/* ---------- Insight ---------- */}
+      <InsightHeader
+        insight="Section 04 has the highest at-risk density (6 of 22 students)."
+        action={
+          <Button asChild size="sm" className="font-medium">
+            <Link to="/instructor/sections/4">
+              View Section 04
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
+            </Link>
+          </Button>
+        }
+      />
 
-      {/* Section Cards — spec §11.9A */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sections.map(section => {
-          const avgCDS = section.avg_cds ? parseFloat(section.avg_cds) : null;
-          return (
-            <Card key={section.id} className="flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-              <CardContent className="flex flex-1 flex-col p-4">
-                {/* Header: name + term */}
-                <div className="mb-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-sm">{section.name}</h3>
-                    <span className="text-[10px] font-mono text-muted-foreground">{section.course_code}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span className="font-mono tracking-wider text-foreground/70">{section.code || '—'}</span>
-                    <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0', POLICY_COLORS[section.join_policy] || '')}>
-                      {section.join_policy || 'code'}
-                    </Badge>
-                    <span>{section.school_year || 'AY 2025–2026'} · {section.semester || 'Sem 1'}</span>
-                  </div>
-                </div>
+      {/* ---------- Filter row ---------- */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:max-w-sm">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search sections…"
+            className="pl-9 h-9"
+            aria-label="Search sections"
+          />
+        </div>
 
-                {/* 3 KPIs */}
-                <div className="grid grid-cols-3 gap-2 my-3 py-3 border-y border-border/50">
-                  <div className="text-center">
-                    <div className="font-mono text-lg font-bold text-foreground">{section.student_count || 0}</div>
-                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Students</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-mono text-lg font-bold text-foreground">
-                      {avgCDS != null ? avgCDS.toFixed(2) : '—'}
-                    </div>
-                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Avg CDS</div>
-                  </div>
-                  <div className="text-center">
-                    <div className={cn('font-mono text-lg font-bold', section.alert_count > 0 ? 'text-destructive' : 'text-foreground')}>
-                      {section.alert_count || 0}
-                    </div>
-                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground">At Risk</div>
-                  </div>
-                </div>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden sm:inline">
+            Sort
+          </span>
+          <Select value={sort} onValueChange={setSort}>
+            <SelectTrigger className="h-9 w-[140px]" aria-label="Sort sections">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="at-risk">At-risk</SelectItem>
+              <SelectItem value="cds">CDS</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+            </SelectContent>
+          </Select>
 
-                {/* Top-line insight */}
-                <p className="text-[10px] text-muted-foreground mb-3 line-clamp-2">
-                  {section.topInsight || `${section.exercise_count || 0} exercises assigned`}
-                </p>
-
-                {/* 3 action buttons */}
-                <div className="mt-auto flex gap-2">
-                  <Button asChild variant="default" size="sm" className="flex-1 h-7 text-[10px]">
-                    <Link to={`/instructor/sections/${section.id}`}>Open hub</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm" className="h-7 text-[10px]">
-                    <Link to={`/instructor/sections/${section.id}?tab=roster`}>Roster</Link>
-                  </Button>
-                  <Button asChild variant="ghost" size="sm" className="h-7 text-[10px] w-7 p-0">
-                    <Link to={`/instructor/sections/${section.id}?tab=codes`}><Copy className="h-3 w-3" /></Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {/* New Section Card */}
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="group flex min-h-[240px] flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-border bg-transparent p-5 transition-colors hover:border-primary/50 hover:bg-primary/5"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground text-xl text-muted-foreground transition-colors group-hover:border-primary group-hover:text-primary">
-            +
-          </div>
-          <div className="text-xs font-semibold text-muted-foreground transition-colors group-hover:text-primary">
-            Create New Section
-          </div>
-        </button>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hidden sm:inline">
+            Course
+          </span>
+          <Select value={course} onValueChange={setCourse}>
+            <SelectTrigger className="h-9 w-[120px]" aria-label="Filter by course">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              {COURSES.filter((c) => c !== "all").map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {/* ---------- Decision list ---------- */}
+      {items.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center">
+          <p className="text-sm font-semibold text-foreground">No sections match</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Try adjusting the search or course filter.
+          </p>
+        </div>
+      ) : (
+        <DecisionList
+          items={items}
+          highlightIndex={0}
+          onAction={(item) => navigate(`/instructor/sections/${item.id}`)}
+        />
+      )}
     </div>
   );
 }

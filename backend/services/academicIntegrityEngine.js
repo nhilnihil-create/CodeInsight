@@ -236,9 +236,10 @@ async function checkCodeGrowthAnomaly(studentId, exerciseId, code) {
     const lineDelta = currentLineCount - firstLineCount;
     const growthPercent = (lineDelta / firstLineCount) * 100;
 
-    // Flag if line count has grown significantly (> 100% increase from first submission)
-    // This suggests copying/pasting large blocks without understanding
-    if (growthPercent > 100 && lineDelta > 10) { // At least 10 lines added and doubled in size
+  // Flag if line count has grown significantly (> 30% increase from first submission).
+  // Spec §R1.16 / Ch.1:382-384: "Sudden growth spike of more than 30% in a single attempt
+  // indicates bulk code insertion rather than incremental debugging."
+  if (growthPercent > 30) {
       return {
         type: 'CODE_GROWTH_ANOMALY',
         severity: 'LOW',

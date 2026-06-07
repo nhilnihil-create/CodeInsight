@@ -59,9 +59,9 @@ exports.list = async (req, res) => {
       for (let section of r.rows) {
         const diffQuery = `
           SELECT 
-            COUNT(CASE WHEN cs.cds <= 0.33 THEN 1 END) AS low_count,
-            COUNT(CASE WHEN cs.cds > 0.33 AND cs.cds <= 0.66 THEN 1 END) AS moderate_count,
-            COUNT(CASE WHEN cs.cds > 0.66 THEN 1 END) AS high_count
+            COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END) AS low_count,
+            COUNT(CASE WHEN cs.cds > 0.31 AND cs.cds <= 0.50 THEN 1 END) AS moderate_count,
+            COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END) AS high_count
           FROM cds_scores cs WHERE cs.section_id=$1
         `;
         const diffRes = await db.query(diffQuery, [section.id]);
@@ -177,11 +177,11 @@ exports.getSectionExercises = async (req, res) => {
            (SELECT student_id FROM enrollments WHERE section_id=$1)) AS submitted_count,
         (SELECT AVG(cs.cds) FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS avg_cds,
-        (SELECT COUNT(CASE WHEN cs.cds <= 0.33 THEN 1 END)::INTEGER FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS low_count,
-        (SELECT COUNT(CASE WHEN cs.cds > 0.33 AND cs.cds <= 0.66 THEN 1 END)::INTEGER FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds > 0.31 AND cs.cds <= 0.50 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS moderate_count,
-        (SELECT COUNT(CASE WHEN cs.cds > 0.66 THEN 1 END)::INTEGER FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS high_count
        FROM exercises ex
        JOIN concepts c ON c.id=ex.concept_id
@@ -210,24 +210,67 @@ exports.joinSection = async (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ error: 'Code required' });
   try {
-    const sec = await db.query('SELECT * FROM sections WHERE code=$1', [code.toUpperCase()]);
-    if (!sec.rows.length) return res.status(404).json({ error: 'Invalid code' });
+    // Spec §11.8: race conditions on capacity are resolved by SELECT ... FOR UPDATE
+    // on the section row inside the join transaction. This serializes concurrent
+    // joins at the max_size boundary; the first wins, the second sees the
+    // post-increment count and is rejected with "Section is full."
+    await db.query('BEGIN');
+    const sec = await db.query(
+      'SELECT * FROM sections WHERE code=$1 FOR UPDATE',
+      [code.toUpperCase()]
+    );
+    if (!sec.rows.length) {
+      await db.query('ROLLBACK');
+      return res.status(404).json({ error: 'Invalid code' });
+    }
     const section = sec.rows[0];
-    if (section.join_policy === 'closed') return res.status(403).json({ error: 'Section is closed to new join requests' });
+    if (section.join_policy === 'closed') {
+      await db.query('ROLLBACK');
+      return res.status(403).json({ error: 'Section is closed to new join requests' });
+    }
 
-    const existing = await db.query('SELECT * FROM enrollments WHERE student_id=$1 AND section_id=$2', [req.user.id, section.id]);
-    if (existing.rows.length) return res.status(409).json({ error: 'Already enrolled' });
+    // Re-check max_size under the lock (defense: race-join at the cap).
+    if (section.max_size) {
+      const cnt = await db.query(
+        'SELECT COUNT(*)::int AS n FROM enrollments WHERE section_id=$1',
+        [section.id]
+      );
+      if (cnt.rows[0].n >= section.max_size) {
+        await db.query('ROLLBACK');
+        return res.status(403).json({ error: 'Section is full' });
+      }
+    }
+
+    const existing = await db.query(
+      'SELECT * FROM enrollments WHERE student_id=$1 AND section_id=$2',
+      [req.user.id, section.id]
+    );
+    if (existing.rows.length) {
+      await db.query('ROLLBACK');
+      return res.status(409).json({ error: 'Already enrolled' });
+    }
 
     if (section.join_policy === 'code') {
-      await db.query('INSERT INTO enrollments(student_id,section_id) VALUES($1,$2)', [req.user.id, section.id]);
+      await db.query(
+        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2)',
+        [req.user.id, section.id]
+      );
       await writeAuditLog(section.id, req.user.id, 'student_joined', { code });
+      await db.query('COMMIT');
       return res.json({ message: 'Joined section', section });
     }
 
-    await db.query('INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [req.user.id, section.id]);
+    await db.query(
+      'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+      [req.user.id, section.id]
+    );
     await writeAuditLog(section.id, req.user.id, 'student_requested_to_join', { code });
+    await db.query('COMMIT');
     res.json({ message: 'Join request submitted' });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch (_) {}
+    res.status(500).json({ message: err.message });
+  }
 };
 
 exports.addMembership = async (req, res) => {
@@ -248,8 +291,15 @@ exports.updateMembership = async (req, res) => {
   const { status, dropReason } = req.body;
   try {
     if (status === 'dropped') {
+      // Spec §11.4: "Reason required? Yes — short note (e.g., 'transferred to BSIT-1B
+      // per registrar')." Defense artifact: the drop reason is written to the audit
+      // log so the trail is intact.
+      const reason = (dropReason || '').trim();
+      if (!reason) {
+        return res.status(400).json({ error: 'dropReason is required to drop a student' });
+      }
       await db.query('DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2', [mid, id]);
-      await writeAuditLog(id, req.user.id, 'student_dropped', { studentId: mid, reason: dropReason || '' });
+      await writeAuditLog(id, req.user.id, 'student_dropped', { studentId: mid, reason });
       return res.json({ message: 'Student dropped' });
     }
     res.json({ message: 'Membership updated' });

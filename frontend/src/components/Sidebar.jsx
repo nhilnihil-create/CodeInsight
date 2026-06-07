@@ -4,7 +4,6 @@ import {
   LayoutGrid,
   ListChecks,
   PlusSquare,
-  Bell,
   Settings,
   Terminal,
   TrendingUp,
@@ -13,7 +12,6 @@ import {
   PanelLeftOpen,
   LogOut,
   ShieldAlert,
-  AlertOctagon,
   Users,
   User,
 } from 'lucide-react';
@@ -61,9 +59,7 @@ export default function Sidebar() {
     { to: '/instructor/students',   label: 'Students',    icon: Users,           end: true },
     { to: '/instructor/my-sections',label: 'My Sections', icon: ListChecks },
     { to: '/instructor/exercises',  label: 'Exercises',   icon: PlusSquare },
-    { to: '/instructor/warnings',   label: 'Warnings',    icon: Bell },
     { to: '/instructor/reports',    label: 'Reports',     icon: FileBarChart2 },
-    { to: '/instructor/violations', label: 'Violations',  icon: AlertOctagon },
     { to: '/instructor/integrity',  label: 'Integrity',   icon: ShieldAlert },
     { to: '/instructor/developer',  label: 'Developer',   icon: Settings },
   ];

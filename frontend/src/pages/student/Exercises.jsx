@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import StudentDashboardShell from '@/components/student-dashboard-shell';
 import { MOCK_EXERCISES } from '../../data/mockData';
 
 const difficultyVariant = {
@@ -18,12 +19,13 @@ const difficultyVariant = {
 
 export default function StudentExercises() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Exercises</h1>
-        <p className="text-muted-foreground">Practice and improve your programming skills.</p>
-      </div>
-
+    <StudentDashboardShell
+      breadcrumb={[
+        { label: 'Student', href: '/student/dashboard' },
+        { label: 'Exercises' },
+      ]}
+      subtitle="Practice and improve your programming skills."
+    >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {MOCK_EXERCISES.map((ex) => (
           <Card key={ex.id} className="flex flex-col h-full">
@@ -39,7 +41,9 @@ export default function StudentExercises() {
               <CardTitle className="text-xl">{ex.title}</CardTitle>
             </CardHeader>
             <CardContent className="flex-1">
-              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{ex.description}</p>
+              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                {ex.description}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {ex.conceptTags.map((tag) => (
                   <Badge key={tag} variant="outline">
@@ -56,6 +60,6 @@ export default function StudentExercises() {
           </Card>
         ))}
       </div>
-    </div>
+    </StudentDashboardShell>
   );
 }

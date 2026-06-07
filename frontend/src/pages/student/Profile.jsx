@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import StudentDashboardShell from '@/components/student-dashboard-shell';
 import api from '../../services/api';
 
 /**
@@ -103,15 +104,13 @@ export default function StudentProfile() {
   const radarData = aggregateByConcept(scores);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">My Concept Profile</h1>
-        <p className="text-muted-foreground">
-          Understanding your Concept Difficulty Score (CDS) across different
-          programming topics.
-        </p>
-      </div>
-
+    <StudentDashboardShell
+      breadcrumb={[
+        { label: 'Student', href: '/student/dashboard' },
+        { label: 'My Concept Profile' },
+      ]}
+      subtitle="Understanding your Concept Difficulty Score (CDS) across different programming topics."
+    >
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-1">
           <CardHeader>
@@ -227,6 +226,6 @@ export default function StudentProfile() {
           ))}
         </div>
       )}
-    </div>
+    </StudentDashboardShell>
   );
 }

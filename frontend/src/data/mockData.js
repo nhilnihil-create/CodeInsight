@@ -95,7 +95,7 @@ export const MOCK_INTEGRITY_FLAGS = [
   { id: 4, student: 'John Doe',     exercise: 'Array Reversal',      type: 'Code Growth Spike',    confidence: 92, desc: 'Code size increased by 500% in a single second. Possible copy-paste.',                            time: '3 days ago'  },
 ];
 
-// Structure violations rendered on the InstructorViolations page.
+// Structure violations — consumed by the unified /instructor/integrity page.
 export const MOCK_STRUCTURE_VIOLATIONS = [
   { id: 1, student: 'Alex Santos',  exercise: 'Array Reversal',  concept: 'Arrays', type: 'Output Mismatch', message: 'Expected "5 4 3 2 1" but got "1 2 3 4 5"',     severity: 'high',   time: '5 hours ago' },
   { id: 2, student: 'John Doe',     exercise: 'Function Calculator', concept: 'Functions', type: 'Missing Return',  message: 'Function declares int return type but returns nothing.', severity: 'medium', time: '1 day ago'  },
