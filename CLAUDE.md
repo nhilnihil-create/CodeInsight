@@ -1,7 +1,7 @@
 # CodeInsight - CLAUDE.md
 
-**Project Status**: 98% Complete (Title defense PASSED)
-**Last Updated**: June 4, 2026
+**Project Status**: 99% Complete (Title defense PASSED, pre-defense audit fixes applied)
+**Last Updated**: June 6, 2026
 **Critical Issues Remaining**: 0 (All critical issues resolved)
 
 ## 🎯 QUICK STATUS
@@ -35,6 +35,11 @@
    - Fix: Implemented email/push notification service with configuration checking
    - Effort: Completed
    - Status: ✅ RESOLVED - Sends emails when configured, falls back to console/logging
+
+4. **Pre-defense audit fixes** - Applied June 6, 2026 after 9-phase capstone audit
+   - See `DEFENSE_CUT_LIST.md` for deferred gaps and rationale
+   - Fixed (5): CDS threshold mismatch (5 files), audit log REVOKE, FOR UPDATE on join, code growth threshold 30%, mandatory drop reason
+   - 117/117 backend tests still pass after fixes
 
 ## 🔧 VERIFICATION TASKS
 

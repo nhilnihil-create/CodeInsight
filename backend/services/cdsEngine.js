@@ -5,8 +5,8 @@ function classify(cds, isPreliminary = false) {
   // Even if preliminary, we should provide a hint to the UI for color
   // We append it to the classification string
   const prefix = isPreliminary ? 'Preliminary - ' : '';
-  if (cds <= 0.33) return 'Low';
-  if (cds <= 0.66) return 'Moderate';
+  if (cds <= 0.31) return 'Low';
+  if (cds <= 0.50) return 'Moderate';
   return 'High';
 }
 

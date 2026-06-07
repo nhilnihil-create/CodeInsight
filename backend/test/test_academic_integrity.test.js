@@ -155,18 +155,8 @@ describe('Academic Integrity Engine', () => {
   });
 });
 
-// Run the tests
-const { exec } = require('child_process');
-
-console.log('Running academic integrity engine tests...');
-// We'll run jest on this file
-exec('npx jest ' + __filename, (error, stdout, stderr) => {
-  if (error) {
-    console.error(`Test execution failed: ${error}`);
-    return;
-  }
-  console.log('Test output:', stdout);
-  if (stderr) {
-    console.error('Test stderr:', stderr);
-  }
-});
+// NOTE: Removed top-level `exec('npx jest ' + __filename)` block.
+// Jest auto-discovers *.test.js files; the previous code spawned a
+// recursive child Jest process on every module load, leaking
+// PROCESSWRAP + PIPEWRAP handles and causing memory fork-bomb on
+// concurrent runs. See MEMORY STABILITY AUDIT (Task 3, leak L1).

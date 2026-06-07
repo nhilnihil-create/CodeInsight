@@ -1,110 +1,120 @@
 import { useState, useEffect } from 'react';
-import { Users, BookOpen, AlertTriangle, BarChart3, Layers, Activity } from 'lucide-react';
 import api from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import PageBreadcrumb from '@/components/ui/page-breadcrumb';
 import { cn } from '@/lib/utils';
 
+const TONE_BG = {
+  success: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  destructive: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
+  warning: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  muted: 'bg-muted text-muted-foreground border-border',
+};
+
 export default function AdminOverview() {
-  const [stats, setStats] = useState({ users: 0, instructors: 0, students: 0, sections: 0, exercises: 0, flags: 0 });
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [uRes, sRes, eRes, fRes] = await Promise.all([
-          api.get('/api/admin/stats/users').catch(() => null),
-          api.get('/api/admin/stats/sections').catch(() => null),
-          api.get('/api/admin/stats/exercises').catch(() => null),
-          api.get('/api/admin/stats/flags').catch(() => null),
-        ]);
-        setStats({
-          users: uRes?.data?.total || 0,
-          instructors: uRes?.data?.instructors || 0,
-          students: uRes?.data?.students || 0,
-          sections: sRes?.data?.count || 0,
-          exercises: eRes?.data?.count || 0,
-          flags: fRes?.data?.count || 0,
-        });
+        const res = await api.get('/api/admin/overview');
+        setData(res.data);
       } catch (err) {
-        console.error('Admin stats load failed, using mock:', err);
-        setStats({ users: 12, instructors: 3, students: 9, sections: 5, exercises: 24, flags: 3 });
-      } finally {
-        setLoading(false);
+        setError(err.response?.data?.message || err.message);
       }
     };
     load();
   }, []);
 
-  const tiles = [
-    { label: 'Total Users', value: stats.users, icon: Users, color: 'text-blue-500 bg-blue-500/10' },
-    { label: 'Instructors', value: stats.instructors, icon: BarChart3, color: 'text-purple-500 bg-purple-500/10' },
-    { label: 'Students', value: stats.students, icon: Users, color: 'text-emerald-500 bg-emerald-500/10' },
-    { label: 'Sections', value: stats.sections, icon: Layers, color: 'text-amber-500 bg-amber-500/10' },
-    { label: 'Exercises', value: stats.exercises, icon: BookOpen, color: 'text-cyan-500 bg-cyan-500/10' },
-    { label: 'Open Flags', value: stats.flags, icon: AlertTriangle, color: 'text-red-500 bg-red-500/10' },
-  ];
+  if (error) return <p className="text-destructive text-sm">Failed to load: {error}</p>;
+  if (!data) return <p className="text-muted-foreground text-sm">Loading overview…</p>;
 
-  if (loading) return <div className="text-muted-foreground">Loading overview...</div>;
+  const { totals = {}, counts = {}, flagged = [] } = data;
+  const totalUsers = (totals.students || 0) + (totals.instructors || 0) + (totals.admins || 0);
+  const flaggedCount = flagged.reduce((s, f) => s + (f.count || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">Department Overview</h2>
-        <p className="text-sm text-muted-foreground">System-wide metrics for CodeInsight deployment.</p>
+    <div className="space-y-6 sm:space-y-8">
+      <div className="space-y-2">
+        <PageBreadcrumb crumbs={[{ label: 'Admin' }, { label: 'System Overview' }]} />
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">System Overview</h1>
+          <p className="text-sm text-muted-foreground">Live deployment snapshot.</p>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {tiles.map(t => (
-          <Card key={t.label}>
-            <CardContent className="pt-4 text-center">
-              <div className={cn('mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-lg', t.color)}>
-                <t.icon className="h-4 w-4" />
-              </div>
-              <div className="font-mono text-xl font-bold text-foreground">{t.value}</div>
-              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{t.label}</div>
-            </CardContent>
-          </Card>
-        ))}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatTile label="Total users" value={totalUsers} sub={`${totals.students || 0} students · ${totals.instructors || 0} instructors · ${totals.admins || 0} admins`} />
+        <StatTile label="Sections" value={counts.sections || 0} sub="active" />
+        <StatTile label="Exercises" value={counts.exercises || 0} sub={`${counts.submissions || 0} submissions`} />
+        <StatTile label="Open flags" value={counts.openFlags || 0} sub={`${flaggedCount} flagged CDS`} tone={flaggedCount > 0 ? 'destructive' : 'success'} />
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle className="text-xs font-bold">System Health</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: 'API Status', value: 'Operational', ok: true },
-              { label: 'Database', value: 'Connected', ok: true },
-              { label: 'CDS Engine', value: 'Idle', ok: true },
-              { label: 'Auto-Close Service', value: 'Running', ok: true },
-              { label: 'Integrity Engine', value: 'Active', ok: true },
-            ].map(s => (
-              <div key={s.label} className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{s.label}</span>
-                <span className={cn('flex items-center gap-1 font-semibold', s.ok ? 'text-emerald-500' : 'text-red-500')}>
-                  <span className={cn('h-1.5 w-1.5 rounded-full', s.ok ? 'bg-emerald-500' : 'bg-red-500')} />
-                  {s.value}
-                </span>
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-sm">Users by role</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-2">
+            <RoleBar label="Students"    value={totals.students    || 0} max={totalUsers} />
+            <RoleBar label="Instructors" value={totals.instructors || 0} max={totalUsers} />
+            <RoleBar label="Admins"      value={totals.admins      || 0} max={totalUsers} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-sm">Flagged CDS</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-2">
+            {flagged.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No flagged CDS in window.</p>
+            ) : flagged.map(f => (
+              <div key={f.classification} className="flex items-center justify-between text-xs">
+                <span className="font-medium">{f.classification}</span>
+                <span className="font-mono">{f.count}</span>
               </div>
             ))}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-xs font-bold">Recent Activity</CardTitle></CardHeader>
-          <CardContent>
-            <div className="divide-y divide-border text-xs">
-              {[
-                { action: 'BSIT-1A auto-closed', ts: '2 min ago' },
-                { action: 'Batch CDS computed for Ex-5', ts: '15 min ago' },
-                { action: 'Maria Reyes enrolled in BSCS-1A', ts: '1h ago' },
-                { action: 'Integrity flag reviewed', ts: '2h ago' },
-                { action: 'New exercise created: Array Sort', ts: '3h ago' },
-              ].map((a, i) => (
-                <div key={i} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                  <span className="text-foreground">{a.action}</span>
-                  <span className="text-muted-foreground">{a.ts}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3 border-b border-border">
+          <CardTitle className="text-sm">Evaluation</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <p className="text-xs text-muted-foreground">
+            {counts.evaluations || 0} ISO/IEC 25010 evaluation responses recorded.
+            {' '}
+            <a className="text-primary underline" href="/admin/evaluation">View / export →</a>
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StatTile({ label, value, sub, tone }) {
+  return (
+    <div className={cn('bg-card border border-border rounded-lg shadow-sm p-5 flex flex-col gap-2', tone && TONE_BG[tone])}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{label}</p>
+      <p className="text-2xl font-semibold font-mono tabular-nums tracking-tight">{value}</p>
+      <p className="text-xs opacity-80">{sub}</p>
+    </div>
+  );
+}
+
+function RoleBar({ label, value, max }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium">{label}</span>
+        <span className="font-mono">{value}</span>
+      </div>
+      <div className="mt-1 h-1.5 w-full bg-muted rounded">
+        <div className="h-full bg-primary rounded transition-all" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

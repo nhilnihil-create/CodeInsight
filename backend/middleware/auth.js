@@ -1,26 +1,33 @@
 const jwt = require('jsonwebtoken');
+const { AppError, codes } = require('../lib/AppError');
 
-const verifyToken = (req, res, next) => {
+const verifyToken = (req, _res, next) => {
   const header = req.headers['authorization'];
-  if (!header) return res.status(401).json({ message: 'No token provided' });
+  if (!header) return next(new AppError('No token provided', 401, codes.UNAUTHORIZED));
 
   const token = header.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Token missing' });
+  if (!token) return next(new AppError('Token missing', 401, codes.UNAUTHORIZED));
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return next(new AppError('Invalid or expired token', 401, codes.UNAUTHORIZED));
   }
 };
 
-const requireRole = (role) => (req, res, next) => {
+const requireRole = (role) => (req, _res, next) => {
   if (req.user.role !== role) {
-    return res.status(403).json({ message: 'Access denied: insufficient role' });
+    return next(new AppError('Access denied: insufficient role', 403, codes.FORBIDDEN));
   }
   next();
 };
 
-module.exports = { verifyToken, requireRole };
+const requireAnyRole = (...roles) => (req, _res, next) => {
+  if (!roles.includes(req.user.role)) {
+    return next(new AppError('Access denied: insufficient role', 403, codes.FORBIDDEN));
+  }
+  next();
+};
+
+module.exports = { verifyToken, requireRole, requireAnyRole };

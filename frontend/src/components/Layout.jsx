@@ -1,45 +1,64 @@
-import Sidebar from './Sidebar';
-import ThemeToggle from './ThemeToggle';
-import { useSidebar } from '../context/SidebarContext';
-import { cn } from '@/lib/utils';
+import Sidebar from "./Sidebar";
+import ThemeToggle from "./ThemeToggle";
+import { useSidebar } from "../context/SidebarContext";
+import { useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 /**
  * App shell.
  *
- * PRESERVED:
- *   - {children} API — App.jsx <ProtectedRoute> wrapper does not change
- *   - SidebarContext contract: { isOpen } still drives the main margin
+ * - Sidebar: fixed h-screen, drives the main margin via SidebarContext.
+ * - Main:    h-screen, flex column, overflow-hidden, ml-[220|70] for sidebar.
+ * - Content: flex column, overflow-auto, with the standard
+ *            max-w-7xl mx-auto p-6 lg:p-8 gutter.
  *
- * CHANGED (per user directive 2026-06-05):
- *   - Removed the sticky page-title header bar. The sidebar already gives
- *     every protected route navigation context, and each page owns its
- *     own internal h1 styling, so the duplicate chrome was unnecessary.
- *     The `pageTitle` prop is accepted (still passed by ProtectedRoute)
- *     for backwards compatibility but is no longer rendered.
- *   - ThemeToggle moved to a fixed top-right corner control so light/dark
- *     teal switching stays one click away on every page.
+ * Code editor exception: the Monaco editor is edge-to-edge and the
+ * theme toggle is hidden on it. The code editor paths are:
+ *   - /student/code-editor
+ *   - /student/code-editor/:exerciseId
+ *   - /student/exercises/:exerciseId  (the exercise detail IS the editor)
+ * The bare /student/exercises list page is NOT a code editor and keeps
+ * the standard gutter.
+ *
+ * `pageTitle` was removed (2026-06-06): it was never rendered — Layout
+ * just dropped it on the floor. Page-level headers now live in
+ * <StudentDashboardShell> instead.
  */
-export default function Layout({ children, pageTitle }) {
+const CODE_EDITOR_EXACT = new Set(["/student/code-editor"]);
+const CODE_EDITOR_EXERCISE_RE = /^\/student\/exercises\/[^/]+/;
+
+export default function Layout({ children }) {
   const { isOpen } = useSidebar();
+  const { pathname } = useLocation();
+
+  const isCodeEditor =
+    CODE_EDITOR_EXACT.has(pathname) ||
+    pathname.startsWith("/student/code-editor/") ||
+    CODE_EDITOR_EXERCISE_RE.test(pathname);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
       <main
         className={cn(
-          'min-h-screen overflow-auto bg-background transition-[margin] duration-300 ease-in-out',
-          isOpen ? 'ml-[220px]' : 'ml-[70px]'
+          "flex h-screen w-full flex-1 flex-col overflow-hidden bg-background transition-[margin] duration-300 ease-in-out",
+          isOpen ? "ml-[220px]" : "ml-[70px]"
         )}
       >
-        <div className="w-full max-w-7xl mx-auto p-6 lg:p-8">{children}</div>
+        <div
+          className={cn(
+            "flex w-full flex-1 flex-col overflow-auto",
+            isCodeEditor ? "max-w-none p-0" : "max-w-7xl mx-auto p-6 lg:p-8"
+          )}
+        >
+          {children}
+        </div>
       </main>
-      <div
-        className="fixed right-4 top-4 z-50"
-        aria-label="Theme toggle"
-        data-page-title={pageTitle}
-      >
-        <ThemeToggle />
-      </div>
+      {!isCodeEditor ? (
+        <div className="fixed right-4 top-4 z-50" aria-label="Theme toggle">
+          <ThemeToggle />
+        </div>
+      ) : null}
     </div>
   );
 }
