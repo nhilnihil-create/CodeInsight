@@ -166,10 +166,11 @@ async function checkBehavioralAnomaly(studentId, exerciseId, submission, cdsEngi
     // Check anomaly conditions:
     // 1. Very fast submission (< 30 seconds) - indicates potential plagiarism or prior knowledge
     // 2. First attempt correct (submission.is_correct = true, from test_results)
-    // 3. Statistically significant positive deviation (z-score > 2.0 - performing much better than usual)
+    // 3. Statistically significant deviation (z-score < -2.0 — performing MUCH BETTER than historical average)
+    //    Lower CDS = better performance, so cheating shows as sudden improvement (negative z-score).
     const isVeryFast = submission.time_spent_seconds && submission.time_spent_seconds < 30;
     const isFirstAttemptCorrect = submission.is_correct === true;
-    const isSignificantlyBetter = zScore > 2.0; // Performing much better than historical average
+    const isSignificantlyBetter = zScore < -2.0; // Much better than historical (CDS dropped significantly)
 
     if (isVeryFast && isFirstAttemptCorrect && isSignificantlyBetter) {
       return {

@@ -1,20 +1,62 @@
 const alertEngine = require('./alertEngine');
 
+// ── Utility Functions ───────────────────────────────────────────────────────
+
+/**
+ * Descriptive statistics for an array of numbers.
+ */
+function mean(arr) {
+  return arr.reduce((a, b) => a + b, 0) / Math.max(arr.length, 1);
+}
+
+function stddev(arr) {
+  if (!arr.length) return 0;
+  const m = mean(arr);
+  const v = arr.reduce((a, b) => a + Math.pow(b - m, 2), 0) / arr.length;
+  return Math.sqrt(v);
+}
+
+/**
+ * Outlier-capped normalization for CDS components.
+ *
+ * Computes the effective maximum for a class metric as:
+ *   effectiveMax = min(rawMax, mean + capFactor * stddev)
+ *
+ * Then returns the normalized ratio:
+ *   normalized = min(value / effectiveMax, 1.0)
+ *
+ * This ensures the formula NTS = min(1, T / min(T_max, T_mean + 2σ))
+ * is applied consistently across batch and live calculations.
+ *
+ * @param {number} value        - The student's raw metric value
+ * @param {number[]} allValues  - The class-wide array of raw metric values
+ * @param {number} [capFactor=2]- The sigma multiplier for outlier capping
+ * @returns {{ normalized: number, effectiveMax: number }}
+ */
+function getNormalizedValue(value, allValues, capFactor = 2) {
+  const rawMax = Math.max(...allValues, 0);
+  const m = mean(allValues);
+  const s = stddev(allValues);
+  const cappedMax = Math.max(1, Math.ceil(m + capFactor * s));
+  const effectiveMax = Math.max(1, Math.min(rawMax, cappedMax));
+  const normalized = Math.min(value / effectiveMax, 1.0);
+  return { normalized, effectiveMax };
+}
+
 function classify(cds, isPreliminary = false) {
   if (cds === null || cds === undefined) return 'Unscored';
-  // Even if preliminary, we should provide a hint to the UI for color
-  // We append it to the classification string
   const prefix = isPreliminary ? 'Preliminary - ' : '';
-  if (cds <= 0.31) return 'Low';
-  if (cds <= 0.50) return 'Moderate';
-  return 'High';
+  if (cds <= 0.33) return prefix + 'Low';
+  if (cds <= 0.66) return prefix + 'Moderate';
+  return prefix + 'High';
 }
+
+// ── Batch CDS Computation ───────────────────────────────────────────────────
 
 async function computeBatchCDS(exerciseId, db) {
   const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
   if (!exRes.rows.length) throw new Error('Exercise not found');
   const exercise = exRes.rows[0];
-  const timeLimitSeconds = exercise.time_limit_minutes * 60;
 
   const students = await db.query(
     `SELECT u.id, u.name FROM users u
@@ -23,99 +65,77 @@ async function computeBatchCDS(exerciseId, db) {
     [exercise.section_id]
   );
 
-  // Minimum class size check: if fewer than 3 students, mark as Preliminary
+  // Minimum class size check
   const MIN_CLASS_SIZE = 3;
   const isPreliminaryClass = students.rows.length < MIN_CLASS_SIZE;
 
-  // Fetch all submissions for the exercise and compute per-student counts
-  // Include flag information to track integrity flags separately
-  // Join on student_id and exercise_id to ensure ANY flag for the exercise 
-  // correctly disqualifies submissions from being cutoffs.
+  // Fetch all submissions with integrity flag info (learning mode only)
   const subsRes = await db.query(
     `SELECT s.student_id, s.attempt_number, s.is_correct, s.time_spent_seconds, s.code,
-            (SELECT id FROM integrity_flags i 
-             WHERE i.student_id = s.student_id 
-             AND i.exercise_id = s.exercise_id 
-             AND i.status = 'flagged' 
+            (SELECT id FROM integrity_flags i
+             WHERE i.student_id = s.student_id
+             AND i.exercise_id = s.exercise_id
+             AND i.status = 'flagged'
              LIMIT 1) AS flag_id
      FROM submissions s
-     WHERE s.exercise_id=$1
+     JOIN exercises e ON e.id = s.exercise_id
+     WHERE s.exercise_id=$1 AND e.mode = 'learning' AND s.is_practice IS NOT TRUE
      ORDER BY s.student_id, s.attempt_number ASC`,
     [exerciseId]
   );
 
-  // Group by student and apply post-solution cutoff: only count attempts up to first UNFLAGGED accepted
+  // Group by student, apply post-solution cutoff (first unflagged acceptance)
   const perStudent = {};
   for (const r of subsRes.rows) {
     const sid = r.student_id;
-    if (!perStudent[sid]) perStudent[sid] = { attempts: [], max_time: 0 };
+    if (!perStudent[sid]) perStudent[sid] = { attempts: [] };
     perStudent[sid].attempts.push({
       attempt_number: r.attempt_number,
       is_correct: r.is_correct,
       time_spent_seconds: r.time_spent_seconds,
       code: r.code,
-      flag_id: r.flag_id // null if not flagged, otherwise flag id
+      flag_id: r.flag_id
     });
   }
 
   const subMap = {};
-  let maxFailed = 0, maxTotal = 0;
   for (const [sid, info] of Object.entries(perStudent)) {
     const attempts = info.attempts;
-    // find first UNFLAGGED accepted attempt number
-    // Integrity flags do not allow students to remove attempts from scoring via fraudulent success
     const firstAccepted = attempts.find(a => a.is_correct === true && a.flag_id === null);
     const cutoff = firstAccepted ? firstAccepted.attempt_number : null;
-
     const counted = cutoff ? attempts.filter(a => a.attempt_number <= cutoff) : attempts;
+
     const total_attempts = counted.length;
     const failed_attempts = counted.filter(a => a.is_correct === false).length;
     const max_time = counted.reduce((m, a) => Math.max(m, a.time_spent_seconds || 0), 0);
-
-    // Check if any counted attempt has an integrity flag and count them
     const flaggedAttempts = counted.filter(a => a.flag_id !== null);
-    const hasFlaggedAttempt = flaggedAttempts.length > 0;
-    const integrityFlagCount = flaggedAttempts.length;
 
     subMap[sid] = {
       total_attempts,
       failed_attempts,
       max_time,
-      hasFlaggedAttempt,
-      integrityFlagCount
+      hasFlaggedAttempt: flaggedAttempts.length > 0,
+      integrityFlagCount: flaggedAttempts.length
     };
-
-    if (failed_attempts > maxFailed) maxFailed = failed_attempts;
-    if (total_attempts > maxTotal) maxTotal = total_attempts;
   }
 
-    // Outlier capping: cap maxima at mean + 2*stddev to avoid extreme skew
-    const failedValues = Object.values(subMap).map(s => s.failed_attempts);
-    const totalValues = Object.values(subMap).map(s => s.total_attempts);
+  // ── Outlier-capped normalization for class-wide metrics ───────────────────
+  const failedValues = Object.values(subMap).map(s => s.failed_attempts);
+  const totalValues = Object.values(subMap).map(s => s.total_attempts);
+  const timeValues = Object.values(subMap).map(s => s.max_time);
 
-    function mean(arr) { return arr.reduce((a,b)=>a+b,0) / Math.max(arr.length,1); }
-    function stddev(arr) {
-      if (!arr.length) return 0;
-      const m = mean(arr);
-      const v = arr.reduce((a,b)=>a + Math.pow(b-m,2),0) / arr.length;
-      return Math.sqrt(v);
-    }
+  const { effectiveMax: maxFailed } = getNormalizedValue(
+    Math.max(...failedValues, 0), failedValues
+  );
+  const { effectiveMax: maxTotal } = getNormalizedValue(
+    Math.max(...totalValues, 0), totalValues
+  );
+  const { effectiveMax: effectiveMaxTime } = getNormalizedValue(
+    Math.max(...timeValues, 0), timeValues
+  );
 
-    const failedMean = mean(failedValues);
-    const failedStd = stddev(failedValues);
-    const failedCap = Math.max(1, Math.ceil(failedMean + 2 * failedStd));
-    maxFailed = Math.max(1, Math.min(maxFailed, failedCap));
-
-    const totalMean = mean(totalValues);
-    const totalStd = stddev(totalValues);
-    const totalCap = Math.max(1, Math.ceil(totalMean + 2 * totalStd));
-    maxTotal = Math.max(1, Math.min(maxTotal, totalCap));
-
+  // ── Blank submission check (Pillar 1: Jadud 2006) ─────────────────────────
   const starterCode = exercise.starter_code || '';
-
-  // Blank check using starter_code comparison (Pillar 1: Jadud 2006)
-  // We consider a submission blank if it matches the starter code exactly (trimmed)
-  // or if it's empty.
   const blankRes = await db.query(
     `SELECT DISTINCT student_id FROM submissions
      WHERE exercise_id=$1
@@ -124,6 +144,7 @@ async function computeBatchCDS(exerciseId, db) {
   );
   const blankStudents = new Set(blankRes.rows.map(r => r.student_id));
 
+  // ── Write CDS scores + snapshots per student ──────────────────────────────
   for (const student of students.rows) {
     const sid = student.id;
     const subs = subMap[sid];
@@ -147,14 +168,14 @@ async function computeBatchCDS(exerciseId, db) {
       hasFlagged = subs.hasFlaggedAttempt;
       flagCount = subs.integrityFlagCount;
 
-      ner = Math.min(failed / maxFailed, 1.0);
-      nrs = Math.min(total / maxTotal, 1.0);
-      nts = Math.min(timeSec / timeLimitSeconds, 1.0);
+      // Apply getNormalizedValue for each component
+      ner = getNormalizedValue(failed, failedValues).normalized;
+      nrs = getNormalizedValue(total, totalValues).normalized;
+      nts = getNormalizedValue(timeSec, timeValues).normalized;
 
-      // NTS edge case: if student used >=90% time but had zero successes, force High
+      // NTS edge case: >=90% of effective max time with zero successes → force High
       const successCount = total - failed;
-      const ntsRatio = timeSec / timeLimitSeconds;
-      if (ntsRatio >= 0.9 && successCount === 0) {
+      if (nts >= 0.9 && successCount === 0) {
         ner = 1; nrs = 1; nts = 1; cds = 1.0;
         classification = 'High';
       } else {
@@ -164,6 +185,7 @@ async function computeBatchCDS(exerciseId, db) {
       }
     }
 
+    // Upsert current score (UI display)
     await db.query(
       `INSERT INTO cds_scores
        (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,has_flagged_attempts,integrity_flag_count,source,visible,computed_at)
@@ -173,11 +195,20 @@ async function computeBatchCDS(exerciseId, db) {
       [sid, exerciseId, exercise.section_id, ner, nrs, nts, cds, classification, hasFlagged, flagCount]
     );
 
+    // Append-only snapshot for CDS reproducibility (defense auditability)
+    await db.query(
+      `INSERT INTO cds_snapshots
+       (student_id,exercise_id,ner,nrs,nts,cds,classification,class_max_errors,class_max_attempts,effective_max_time,calculated_at)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())`,
+      [sid, exerciseId, ner, nrs, nts, cds, classification, maxFailed, maxTotal, effectiveMaxTime]
+    );
   }
 
   await alertEngine.generateAlerts(exerciseId, db);
   return { message: 'CDS computed', studentsProcessed: students.rows.length };
 }
+
+// ── Live Peer Ranking ───────────────────────────────────────────────────────
 
 async function getLivePeerRanking(exerciseId, db) {
   const subs = await db.query(
@@ -185,8 +216,10 @@ async function getLivePeerRanking(exerciseId, db) {
             COUNT(*) AS total_attempts,
             COUNT(*) FILTER (WHERE s.is_correct=false) AS failed_attempts,
             MAX(s.time_spent_seconds) AS max_time
-     FROM submissions s JOIN users u ON u.id=s.student_id
-     WHERE s.exercise_id=$1
+     FROM submissions s
+     JOIN users u ON u.id=s.student_id
+     JOIN exercises e ON e.id = s.exercise_id
+     WHERE s.exercise_id=$1 AND e.mode = 'learning' AND s.is_practice IS NOT TRUE
      GROUP BY s.student_id, u.name`,
     [exerciseId]
   );
@@ -201,75 +234,62 @@ async function getLivePeerRanking(exerciseId, db) {
     timeMinutes:  Math.round(parseInt(r.max_time || 0) / 60)
   }));
 
-  const avgErrors = rows.reduce((a,r)=>a+r.errors, 0) / rows.length;
-  const avgAttempts = rows.reduce((a,r)=>a+r.attempts, 0) / rows.length;
+  const avgErrors = rows.reduce((a, r) => a + r.errors, 0) / rows.length;
+  const avgAttempts = rows.reduce((a, r) => a + r.attempts, 0) / rows.length;
 
   return rows.map(r => {
-    const ratio = ((r.errors/(avgErrors||1)) + (r.attempts/(avgAttempts||1))) / 2;
+    const ratio = ((r.errors / (avgErrors || 1)) + (r.attempts / (avgAttempts || 1))) / 2;
     const status = ratio > 1.5 ? 'above' : ratio < 0.7 ? 'below' : 'average';
     return { ...r, relativeStatus: status };
   });
 }
 
-// Calculate CDS score from test results
+// ── Instant CDS (single-run feedback) ───────────────────────────────────────
+
 function calculateCDS(testResults, exercise) {
   if (!testResults || !Array.isArray(testResults)) {
     return { score: 0, ner: 0, nrs: 0, nts: 0, classification: 'Unscored' };
   }
 
   const totalTests = testResults.length;
-  const passedTests = testResults.filter(r => r.passed).length;
-  const failedTests = totalTests - passedTests;
+  const failedTests = totalTests - testResults.filter(r => r.passed).length;
 
-  // NER: Normalized Error Rate (failed tests / total tests)
   const ner = failedTests / Math.max(totalTests, 1);
-
-  // NRS/NTS are 0 for a single run, but we should use the official weights
-  // to keep the UI feedback consistent with the final batch calculation.
   const nrs = 0;
   const nts = 0;
 
-  // Use the 40/35/25 weighting even for instant feedback
-  // This prevents the "Score Jump" when the exercise closes.
   let cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
   cds = Math.round(cds * 10000) / 10000;
 
   return {
     score: Math.min(cds, 1),
-    ner: ner,
-    nrs: nrs,
-    nts: nts,
+    ner, nrs, nts,
     classification: classify(Math.min(cds, 1))
   };
 }
 
-// Calculate live CDS for a student after a submission
-// Uses current peer data to give preliminary CDS score
+// ── Live CDS (per-submission, class-relative) ───────────────────────────────
+
 async function calculateLiveCDS(studentId, exerciseId, db) {
   try {
-    // Get exercise
     const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
     if (!exRes.rows.length) return null;
-    const exercise = exRes.rows[0];
-    const timeLimitSeconds = exercise.time_limit_minutes * 60;
 
-    // Get all submissions for this exercise and include flag information
-    // Join on student_id and exercise_id to ensure ANY flag for the exercise 
-    // correctly disqualifies submissions from being cutoffs.
     const subsRes = await db.query(
       `SELECT s.student_id, s.attempt_number, s.is_correct, s.time_spent_seconds,
-              (SELECT id FROM integrity_flags i 
-               WHERE i.student_id = s.student_id 
-               AND i.exercise_id = s.exercise_id 
-               AND i.status = 'flagged' 
+              (SELECT id FROM integrity_flags i
+               WHERE i.student_id = s.student_id
+               AND i.exercise_id = s.exercise_id
+               AND i.status = 'flagged'
                LIMIT 1) AS flag_id
        FROM submissions s
-       WHERE s.exercise_id=$1 
+       JOIN exercises e ON e.id = s.exercise_id
+       WHERE s.exercise_id=$1 AND e.mode = 'learning' AND s.is_practice IS NOT TRUE
        ORDER BY s.student_id, s.attempt_number ASC`,
       [exerciseId]
     );
 
-    // Group by student and apply post-solution cutoff (unflagged success only)
+    // Group by student, apply post-solution cutoff
     const perStudent = {};
     for (const r of subsRes.rows) {
       const sid = r.student_id;
@@ -281,49 +301,42 @@ async function calculateLiveCDS(studentId, exerciseId, db) {
       });
     }
 
-    // Process each student to find their metrics with the cutoff
     const metricsMap = {};
-    let maxFailed = 1, maxTotal = 1;
-
     for (const [sid, info] of Object.entries(perStudent)) {
       const attempts = info.attempts;
-      // find first UNFLAGGED accepted attempt
       const firstAcceptedIdx = attempts.findIndex(a => a.is_correct === true && a.flag_id === null);
-      
-      const counted = firstAcceptedIdx !== -1 
-        ? attempts.slice(0, firstAcceptedIdx + 1) 
+      const counted = firstAcceptedIdx !== -1
+        ? attempts.slice(0, firstAcceptedIdx + 1)
         : attempts;
 
       const total = counted.length;
       const failed = counted.filter(a => a.is_correct === false).length;
       const maxTime = counted.reduce((m, a) => Math.max(m, a.time_spent_seconds || 0), 0);
-      
       const flaggedAttempts = counted.filter(a => a.flag_id !== null);
-      const hasFlaggedAttempt = flaggedAttempts.length > 0;
-      const integrityFlagCount = flaggedAttempts.length;
 
       metricsMap[sid] = {
         total,
         failed,
         maxTime,
-        hasFlaggedAttempt,
-        integrityFlagCount
+        hasFlaggedAttempt: flaggedAttempts.length > 0,
+        integrityFlagCount: flaggedAttempts.length
       };
-
-      maxFailed = Math.max(maxFailed, failed);
-      maxTotal = Math.max(maxTotal, total);
     }
 
-    // Calculate student's CDS components
+    // ── Outlier-capped normalization (same helper as batch) ─────────────────
+    const failedValues = Object.values(metricsMap).map(s => s.failed);
+    const totalValues = Object.values(metricsMap).map(s => s.total);
+    const timeValues = Object.values(metricsMap).map(s => s.maxTime);
+
     const studentData = metricsMap[studentId];
     if (!studentData) {
-      // Student hasn't submitted yet, no live CDS
       return { ner: 0, nrs: 0, nts: 0, cds: 0, classification: 'Unscored', hasFlaggedAttempt: false, integrityFlagCount: 0 };
     }
 
-    const ner = studentData.failed / Math.max(maxFailed, 1);
-    const nrs = studentData.total / Math.max(maxTotal, 1);
-    const nts = studentData.maxTime / Math.max(timeLimitSeconds, 1);
+    const ner = getNormalizedValue(studentData.failed, failedValues).normalized;
+    const nrs = getNormalizedValue(studentData.total, totalValues).normalized;
+    const nts = getNormalizedValue(studentData.maxTime, timeValues).normalized;
+
     const cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * nts));
 
     return {
