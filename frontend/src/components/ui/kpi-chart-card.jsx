@@ -20,6 +20,7 @@ export default function KPIChartCard({
   delta,
   comparison = "vs. last week",
   series = [],
+  inverted = false,
 }) {
   const hasSeries = Array.isArray(series) && series.length >= 2;
   const data = hasSeries ? series.map((v) => ({ v })) : [];
@@ -27,21 +28,27 @@ export default function KPIChartCard({
   const deltaTone =
     delta == null
       ? null
-      : delta > 0
-        ? "bg-success/10 text-success"
+      : !inverted
+        ? delta > 0
+          ? "bg-success/10 text-success"
+          : delta < 0
+            ? "bg-destructive/10 text-destructive"
+            : "bg-muted text-muted-foreground"
         : delta < 0
-          ? "bg-destructive/10 text-destructive"
-          : "bg-muted text-muted-foreground";
+          ? "bg-success/10 text-success"
+          : delta > 0
+            ? "bg-destructive/10 text-destructive"
+            : "bg-muted text-muted-foreground";
 
   const arrow = delta > 0 ? "▲" : delta < 0 ? "▼" : "■";
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-sm p-5 flex flex-col gap-3">
+    <div className="bg-card/50 border border-border/60 rounded-xl backdrop-blur-sm shadow-sm p-5 flex flex-col gap-3 transition-all duration-200 ease-out hover:bg-card/80 hover:scale-[1.01]">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
       <div className="flex items-baseline gap-2">
-        <p className="text-2xl font-semibold font-mono tabular-nums tracking-tight">
+        <p className="text-2xl font-semibold font-mono tabular-nums tracking-tight text-card-foreground">
           {value}
         </p>
         {deltaTone ? (

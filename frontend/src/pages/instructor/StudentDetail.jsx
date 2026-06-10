@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import {
   ResponsiveContainer,
   RadarChart,
@@ -17,6 +17,8 @@ import {
   Download,
   UserMinus,
   FileText,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,56 +47,7 @@ import CDSPillDelta from "@/components/ui/cds-pill-delta";
 import RiskBadge from "@/components/ui/risk-badge";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import DecisionList from "@/components/ui/decision-list";
-import { MOCK_USERS } from "@/data/mockData";
-
-const STUDENT = MOCK_USERS.find((u) => u.id === "u2") ?? MOCK_USERS[1];
-
-const CONCEPT_MASTERY = [
-  { concept: "Variables",   value: 88, level: "high" },
-  { concept: "Conditionals", value: 74, level: "high" },
-  { concept: "Loops",       value: 62, level: "moderate" },
-  { concept: "Functions",   value: 54, level: "moderate" },
-  { concept: "Arrays",      value: 41, level: "low" },
-  { concept: "Recursion",   value: 28, level: "low" },
-];
-
-const STRUGGLING = [
-  { id: "rc", title: "Recursion",   subtitle: "Mastery 28%",  meta: "▼ 18%", level: "high" },
-  { id: "ar", title: "Arrays",      subtitle: "Mastery 41%",  meta: "▼ 9%",  level: "high" },
-  { id: "fn", title: "Functions",   subtitle: "Mastery 54%",  meta: "▼ 6%",  level: "moderate" },
-];
-
-const SUBMISSIONS = [
-  { id: "s1", exercise: "Recursion I",        when: "2h ago",  status: "Late",      cds: 0.82, anomalies: ["behavioral_anomaly"] },
-  { id: "s2", exercise: "Functions Calculator", when: "1d ago", status: "Submitted", cds: 0.71, anomalies: [] },
-  { id: "s3", exercise: "Array Reversal",      when: "3d ago", status: "Submitted", cds: 0.66, anomalies: ["code_growth_spike"] },
-  { id: "s4", exercise: "Loops II",           when: "5d ago", status: "Submitted", cds: 0.58, anomalies: [] },
-  { id: "s5", exercise: "Conditionals",        when: "1w ago", status: "Submitted", cds: 0.49, anomalies: [] },
-  { id: "s6", exercise: "Basic Loops",         when: "2w ago", status: "Submitted", cds: 0.42, anomalies: [] },
-];
-
-const FLAGS = [
-  {
-    id: "f1",
-    title: "Behavioral anomaly · Recursion I",
-    subtitle: "Code grew from 5 → 85 lines in <1s",
-    meta: "2h ago",
-    level: "high",
-  },
-  {
-    id: "f2",
-    title: "Code growth spike · Array Reversal",
-    subtitle: "+220 LOC in single commit",
-    meta: "3d ago",
-    level: "moderate",
-  },
-];
-
-const INITIAL_NOTES = [
-  { id: "n1", author: "You",         when: "2 days ago", body: "Recursion workshop on Friday. Pair with H. Singh for Loops review." },
-  { id: "n2", author: "You",         when: "1 week ago", body: "Submissions up to date. Office hours Mon/Wed 2-4pm." },
-  { id: "n3", author: "Dr. E. Chen", when: "2 weeks ago", body: "Midterm concerns: needs targeted support on Functions → Recursion." },
-];
+import api from "@/services/api";
 
 function initials(name) {
   if (!name) return "??";
@@ -107,35 +60,124 @@ function initials(name) {
     .toUpperCase();
 }
 
+function timeAgo(dateStr) {
+  if (!dateStr) return "—";
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+const TOOLTIP_STYLE = {
+  backgroundColor: "hsl(var(--popover))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "6px",
+  fontSize: "12px",
+  color: "hsl(var(--popover-foreground))",
+};
+
 export default function InstructorStudentDetail() {
+  const { id } = useParams();
   const [tab, setTab] = useState("mastery");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerFlag, setDrawerFlag] = useState(null);
   const [note, setNote] = useState("");
-  const [notes, setNotes] = useState(INITIAL_NOTES);
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [profileRes, subRes] = await Promise.all([
+          api.get(`/api/analytics/student/${id}/profile`),
+          api.get(`/api/analytics/student/${id}/submissions`).catch(() => ({ data: null })),
+        ]);
+        if (!cancelled) {
+          setData({
+            profile: profileRes.data,
+            submissions: subRes.data,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.response?.data?.error || "Failed to load student data");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  const profile = data?.profile || [];
+  const student = data?.submissions?.student || { name: "Student", email: "" };
+  const submissions = data?.submissions?.submissions || [];
+  const cdsScores = data?.submissions?.cdsScores || [];
+  const integrityFlags = data?.submissions?.integrityFlags || [];
+
+  const avgCds = useMemo(() => {
+    const vals = cdsScores.map((s) => parseFloat(s.cds)).filter((v) => !isNaN(v));
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  }, [cdsScores]);
+
+  const conceptMastery = useMemo(() => {
+    const map = {};
+    cdsScores.forEach((s) => {
+      if (!s.concept_name) return;
+      const cds = parseFloat(s.cds);
+      if (isNaN(cds)) return;
+      if (!map[s.concept_name]) map[s.concept_name] = [];
+      map[s.concept_name].push(cds);
+    });
+    return Object.entries(map).map(([name, vals]) => {
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const pct = Math.round(avg * 100);
+      const level = avg <= 0.33 ? "low" : avg <= 0.66 ? "moderate" : "high";
+      return { concept: name, value: pct, level };
+    });
+  }, [cdsScores]);
 
   const radarData = useMemo(
-    () => CONCEPT_MASTERY.map((c) => ({ subject: c.concept, mastery: c.value })),
-    [],
+    () => conceptMastery.map((c) => ({ subject: c.concept, mastery: c.value })),
+    [conceptMastery],
   );
 
-  const flagItems = useMemo(
-    () =>
-      FLAGS.map((f) => ({
-        ...f,
-        badge: <RiskBadge level={f.level} />,
+  const struggling = useMemo(() =>
+    [...conceptMastery]
+      .sort((a, b) => a.value - b.value)
+      .slice(0, 3)
+      .map((c, i) => ({
+        id: String(i),
+        title: c.concept,
+        subtitle: `Mastery ${c.value}%`,
+        meta: c.level === "low" ? "needs work" : "fair",
+        level: c.level,
       })),
-    [],
-  );
+  [conceptMastery]);
 
-  if (!STUDENT) {
-    return (
-      <div className="space-y-4">
-        <PageBreadcrumb crumbs={[{ label: "Sections", href: "/instructor/sections" }]} />
-        <p className="text-sm text-muted-foreground">Student not found.</p>
-      </div>
-    );
-  }
+  const flagCount = integrityFlags.length;
+  const flagItems = useMemo(() =>
+    integrityFlags.map((f) => ({
+      id: f.id,
+      title: `${f.flag_type} · ${f.exercise_title || ""}`,
+      subtitle: f.evidence?.summary || f.flag_type,
+      meta: timeAgo(f.created_at),
+      level: f.severity,
+      badge: <RiskBadge level={f.severity} />,
+    })),
+  [integrityFlags]);
+
+  const activeFlags = integrityFlags.filter((f) => f.status !== "resolved");
 
   const handleSaveNote = () => {
     const trimmed = note.trim();
@@ -152,8 +194,50 @@ export default function InstructorStudentDetail() {
     setDrawerOpen(true);
   };
 
-  const cdsSeries = [0.72, 0.74, 0.75, 0.77, 0.79, 0.81, 0.82];
-  const masterySeries = [70, 68, 67, 66, 65, 64, 64];
+  const handleExportSubmissions = () => {
+    if (!submissions.length) return;
+    const csv = [
+      "Exercise,Attempt,Passed,Submitted",
+      ...submissions.map((s) =>
+        [s.exercise_title, s.attempt_number, s.is_correct ? "Yes" : "No", s.submitted_at].join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `student-${id}-submissions.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 sm:space-y-8">
+        <div className="rounded-lg border border-border bg-card/50 py-12 px-6 text-center">
+          <p className="text-sm font-semibold text-foreground">Loading student data…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive flex-1">{error}</p>
+          <Button size="sm" variant="outline" className="border-destructive/30 text-destructive" onClick={() => window.location.reload()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const cdsSeries = cdsScores.slice(0, 7).map((s) => parseFloat(s.cds)).reverse();
+  while (cdsSeries.length < 7) cdsSeries.unshift(avgCds);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -161,37 +245,38 @@ export default function InstructorStudentDetail() {
       <div className="space-y-2">
         <PageBreadcrumb
           crumbs={[
-            { label: "Sections", href: "/instructor/sections" },
-            { label: "Section 04", href: "/instructor/sections/4" },
-            { label: STUDENT.name },
+            { label: "Students", href: "/instructor/students" },
+            { label: student.name },
           ]}
         />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-center gap-4 min-w-0">
             <Avatar className="h-12 w-12">
               <AvatarFallback className="text-sm font-semibold text-muted-foreground">
-                {initials(STUDENT.name)}
+                {initials(student.name)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-semibold tracking-tight truncate">
-                  {STUDENT.name}
+                  {student.name}
                 </h1>
-                <RiskBadge level="high" />
+                <RiskBadge level={avgCds > 0.50 ? "high" : avgCds > 0.33 ? "moderate" : "low"} />
               </div>
               <p className="text-sm text-muted-foreground truncate">
-                {STUDENT.email} · {STUDENT.studentId} · Section 04 — Intro CS
+                {student.email}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="font-medium">
+            <Button
+              variant="outline"
+              size="sm"
+              className="font-medium"
+              onClick={() => student.email && window.open(`mailto:${student.email}`)}
+            >
               <Mail className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
               Email
-            </Button>
-            <Button size="sm" className="font-medium">
-              Schedule check-in
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -200,11 +285,7 @@ export default function InstructorStudentDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <FileText className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  View full report
-                </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportSubmissions}>
                   <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Export submissions
                 </DropdownMenuItem>
@@ -221,13 +302,16 @@ export default function InstructorStudentDetail() {
 
       {/* ---------- Insight ---------- */}
       <InsightHeader
-        eyebrow="At-risk signal"
-        insight="CDS rose 0.10 this week (0.72 → 0.82). Recursion mastery dropped 18%."
-        description="Check-in before Friday's submission deadline — the trajectory is up and to the right."
+        eyebrow={activeFlags.length > 0 ? "Flagged" : "Student status"}
+        insight={
+          activeFlags.length > 0
+            ? `${activeFlags.length} active flag${activeFlags.length === 1 ? "" : "s"}. Avg CDS ${Math.round(avgCds * 100)}%.`
+            : `Avg CDS ${Math.round(avgCds * 100)}%${cdsScores.length > 1 ? ` · trend ${cdsSeries[cdsSeries.length - 1] > cdsSeries[0] ? "up" : "down"}` : ""}.`
+        }
         action={
           <Button asChild size="sm" className="font-medium">
-            <Link to={`/instructor/students/${STUDENT.id}/check-in`}>
-              Schedule check-in
+            <Link to="/instructor/integrity">
+              View integrity dashboard
               <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
             </Link>
           </Button>
@@ -237,10 +321,10 @@ export default function InstructorStudentDetail() {
       {/* ---------- Evidence ---------- */}
       <EvidenceRow
         chips={[
-          { label: "CDS",          value: "0.82", delta: 0.10, series: cdsSeries,    comparison: "vs. last week" },
-          { label: "Mastery",      value: "64%",  delta: -6,   series: masterySeries, comparison: "vs. last week" },
-          { label: "Flags",        value: 1,      delta: 1,    series: [0, 0, 0, 0, 0, 0, 1], comparison: "this week" },
-          { label: "Last Active",  value: "2h",   delta: null, series: null,         comparison: "ago" },
+          { label: "CDS", value: `${Math.round(avgCds * 100)}%`, delta: cdsSeries.length >= 2 ? parseFloat((cdsSeries[cdsSeries.length - 1] - cdsSeries[0]).toFixed(2)) : 0, series: cdsSeries, comparison: "over time" },
+          { label: "Submissions", value: submissions.length, delta: null, comparison: "total" },
+          { label: "Flags", value: flagCount, delta: null, comparison: "total" },
+          { label: "Last Active", value: submissions.length > 0 ? timeAgo(submissions[0].submitted_at) : "—", delta: null, comparison: "" },
         ]}
       />
 
@@ -264,9 +348,11 @@ export default function InstructorStudentDetail() {
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
           >
             Integrity
-            <Badge variant="destructive" className="ml-2 h-4 min-w-4 px-1 text-[10px]">
-              {FLAGS.length}
-            </Badge>
+            {flagCount > 0 && (
+              <Badge variant="destructive" className="ml-2 h-4 min-w-4 px-1 text-[10px]">
+                {flagCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="notes"
@@ -284,114 +370,122 @@ export default function InstructorStudentDetail() {
                 <div>
                   <h3 className="text-sm font-semibold">Concept mastery</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Six tracked concepts · last 7 days
+                    {conceptMastery.length} tracked concepts
                   </p>
                 </div>
-                <RiskBadge level="moderate" />
+                <RiskBadge level={avgCds > 0.50 ? "high" : avgCds > 0.33 ? "moderate" : "low"} />
               </div>
               <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={radarData} margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
-                    <PolarGrid stroke="hsl(var(--border))" />
-                    <PolarAngleAxis
-                      dataKey="subject"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                    />
-                    <PolarRadiusAxis
-                      domain={[0, 100]}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                      stroke="hsl(var(--border))"
-                    />
-                    <Radar
-                      name="Mastery"
-                      dataKey="mastery"
-                      stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.25}
-                      strokeWidth={1.5}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
+                {radarData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData} margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+                      <PolarGrid stroke="hsl(var(--border))" />
+                      <PolarAngleAxis
+                        dataKey="subject"
+                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      />
+                      <PolarRadiusAxis
+                        domain={[0, 100]}
+                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                        stroke="hsl(var(--border))"
+                      />
+                      <Radar
+                        name="Mastery"
+                        dataKey="mastery"
+                        stroke="hsl(var(--primary))"
+                        fill="hsl(var(--primary))"
+                        fillOpacity={0.25}
+                        strokeWidth={1.5}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    No concept data available.
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="lg:col-span-2 space-y-3">
               <div>
-                <h3 className="text-sm font-semibold">Top 3 struggling concepts</h3>
+                <h3 className="text-sm font-semibold">Top struggling concepts</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Ranked by week-over-week decline
+                  Ranked by lowest mastery
                 </p>
               </div>
-              <DecisionList items={STRUGGLING} />
+              {struggling.length > 0 ? (
+                <DecisionList items={struggling} />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No concept data yet.</p>
+              )}
             </div>
           </div>
         </TabsContent>
 
         {/* ----- Submissions ----- */}
         <TabsContent value="submissions" className="mt-6">
-          <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="h-9 text-xs font-medium">Exercise</TableHead>
-                  <TableHead className="h-9 text-xs font-medium">When</TableHead>
-                  <TableHead className="h-9 text-xs font-medium">Status</TableHead>
-                  <TableHead className="h-9 text-xs font-medium text-right">CDS</TableHead>
-                  <TableHead className="h-9 text-xs font-medium">Anomalies</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {SUBMISSIONS.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.exercise}</TableCell>
-                    <TableCell className="text-muted-foreground">{s.when}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={s.status === "Late" ? "warning" : "secondary"}
-                        className="font-medium"
-                      >
-                        {s.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <CDSPillDelta value={s.cds} showDelta={false} />
-                    </TableCell>
-                    <TableCell>
-                      {s.anomalies.length > 0 ? (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {s.anomalies.map((a) => (
-                            <Badge
-                              key={a}
-                              variant="destructive"
-                              className="font-medium text-[10px] uppercase tracking-wide"
-                            >
-                              <Flag className="h-3 w-3 mr-1" strokeWidth={2} />
-                              {a.replace(/_/g, " ")}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
+          {submissions.length > 0 ? (
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="h-9 text-xs font-medium">Exercise</TableHead>
+                    <TableHead className="h-9 text-xs font-medium">Attempt</TableHead>
+                    <TableHead className="h-9 text-xs font-medium">When</TableHead>
+                    <TableHead className="h-9 text-xs font-medium">Passed</TableHead>
+                    <TableHead className="h-9 text-xs font-medium text-right">Time</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {submissions.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.exercise_title}</TableCell>
+                      <TableCell className="text-muted-foreground">#{s.attempt_number}</TableCell>
+                      <TableCell className="text-muted-foreground">{timeAgo(s.submitted_at)}</TableCell>
+                      <TableCell>
+                        <Badge variant={s.is_correct ? "secondary" : "destructive"} className="font-medium">
+                          {s.is_correct ? "Pass" : "Fail"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-xs text-muted-foreground">
+                        {s.time_spent_seconds ? `${Math.round(s.time_spent_seconds / 60)}m` : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center">
+              <p className="text-sm font-semibold text-foreground">No submissions yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Submissions will appear here once the student submits exercises.
+              </p>
+            </div>
+          )}
         </TabsContent>
 
         {/* ----- Integrity ----- */}
         <TabsContent value="integrity" className="mt-6">
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold">Active flags</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {FLAGS.length} flag{FLAGS.length === 1 ? "" : "s"} require instructor review
+          {flagItems.length > 0 ? (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Active flags</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {flagItems.length} flag{flagItems.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <DecisionList items={flagItems} onAction={openFlag} />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center">
+              <p className="text-sm font-semibold text-foreground">No integrity flags</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                This student has no flagged submissions.
               </p>
             </div>
-            <DecisionList items={flagItems} onAction={openFlag} />
-          </div>
+          )}
         </TabsContent>
 
         {/* ----- Notes ----- */}
@@ -412,20 +506,10 @@ export default function InstructorStudentDetail() {
                 className="min-h-[96px]"
               />
               <div className="flex items-center justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setNote("")}
-                  disabled={!note}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setNote("")} disabled={!note}>
                   Clear
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleSaveNote}
-                  disabled={!note.trim()}
-                  className="font-medium"
-                >
+                <Button size="sm" onClick={handleSaveNote} disabled={!note.trim()} className="font-medium">
                   Save note
                 </Button>
               </div>
@@ -433,19 +517,21 @@ export default function InstructorStudentDetail() {
 
             <div className="space-y-3">
               <h3 className="text-sm font-semibold">Past notes</h3>
-              <ul className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
-                {notes.map((n) => (
-                  <li key={n.id} className="p-4 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">{n.author}</span>
-                      <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                        {n.when}
-                      </span>
-                    </div>
-                    <p className="text-sm text-foreground">{n.body}</p>
-                  </li>
-                ))}
-              </ul>
+              {notes.length > 0 ? (
+                <ul className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
+                  {notes.map((n) => (
+                    <li key={n.id} className="p-4 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">{n.author}</span>
+                        <span className="text-xs text-muted-foreground font-mono tabular-nums">{n.when}</span>
+                      </div>
+                      <p className="text-sm text-foreground">{n.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No notes yet.</p>
+              )}
             </div>
           </div>
         </TabsContent>
@@ -468,36 +554,15 @@ export default function InstructorStudentDetail() {
             </div>
 
             <div className="rounded-md border border-border bg-muted/40 p-4 space-y-2">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Evidence
-              </p>
-              <p className="text-sm font-mono tabular-nums">
-                {drawerFlag.subtitle}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Exercise: Recursion I · Session #4821 · 2h ago
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Recommended action
-              </p>
-              <p className="text-sm text-foreground">
-                Schedule a 1:1 to walk through the Recursion I submission step-by-step.
-                Compare session timing against the section baseline (median 12m).
-              </p>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Evidence</p>
+              <p className="text-sm font-mono tabular-nums">{drawerFlag.subtitle}</p>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDrawerOpen(false)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setDrawerOpen(false)}>
                 Dismiss
               </Button>
-              <Button size="sm" className="font-medium">
+              <Button size="sm" className="font-medium" onClick={() => student.email && window.open(`mailto:${student.email}`)}>
                 <MessageSquare className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                 Message student
               </Button>

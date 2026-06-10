@@ -1,16 +1,28 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowUpDown,
   ArrowRight,
   Mail,
   MoreHorizontal,
   Flag,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 import InsightHeader from "@/components/ui/insight-header";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import CDSPillDelta from "@/components/ui/cds-pill-delta";
 import RiskBadge from "@/components/ui/risk-badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,19 +30,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import api from "@/services/api";
 
-const ROSTER = [
-  { id: 1, name: "A. Khan",   cds: 0.82, delta: 0.10, flags: 1, last: "2h",  level: "high" },
-  { id: 2, name: "B. Reyes",  cds: 0.74, delta: 0.05, flags: 0, last: "1d",  level: "high" },
-  { id: 3, name: "C. Park",   cds: 0.68, delta: 0.02, flags: 1, last: "3h",  level: "moderate" },
-  { id: 4, name: "D. Lopez",  cds: 0.61, delta: -0.01, flags: 0, last: "5h", level: "moderate" },
-  { id: 5, name: "E. Chen",   cds: 0.55, delta: 0.04, flags: 0, last: "1d",  level: "moderate" },
-  { id: 6, name: "F. Adams",  cds: 0.48, delta: -0.03, flags: 0, last: "2d", level: "moderate" },
-  { id: 7, name: "G. Park",   cds: 0.41, delta: -0.05, flags: 0, last: "1d",  level: "low" },
-  { id: 8, name: "H. Singh",  cds: 0.33, delta: -0.08, flags: 0, last: "4h",  level: "low" },
-  { id: 9, name: "I. Diaz",   cds: 0.27, delta: -0.06, flags: 0, last: "1d",  level: "low" },
-  { id: 10, name: "J. Ortiz", cds: 0.18, delta: -0.04, flags: 0, last: "2d", level: "low" },
-];
+const LEVEL_THRESHOLDS = { low: 0.33, moderate: 0.66 };
+function computeLevel(cds) {
+  if (cds == null) return "low";
+  if (cds <= LEVEL_THRESHOLDS.low) return "low";
+  if (cds <= LEVEL_THRESHOLDS.moderate) return "moderate";
+  return "high";
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return "—";
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
 
 const SORTS = [
   { id: "cds",   label: "CDS" },
@@ -39,22 +59,109 @@ const SORTS = [
   { id: "name",  label: "Name" },
 ];
 
-export default function RosterTab() {
+export default function RosterTab({ sectionId, sectionName }) {
   const [sort, setSort] = useState("cds");
   const [selected, setSelected] = useState(null);
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [msgBody, setMsgBody] = useState("");
+  const [msgSending, setMsgSending] = useState(false);
+  const [msgTarget, setMsgTarget] = useState(null); // null = all, or { id, name }
 
-  const rows = [...ROSTER].sort((a, b) => {
-    if (sort === "name") return a.name.localeCompare(b.name);
-    if (sort === "delta") return b.delta - a.delta;
-    if (sort === "flags") return b.flags - a.flags;
-    return b.cds - a.cds;
+  const sendMessage = async () => {
+    if (!msgBody.trim() || !sectionId) return;
+    setMsgSending(true);
+    try {
+      const payload = { message: msgBody.trim() };
+      if (msgTarget) payload.student_id = msgTarget.id;
+      await api.post(`/api/sections/${sectionId}/messages`, payload);
+      toast.success(
+        msgTarget
+          ? `Message sent to ${msgTarget.name}`
+          : `Message sent to all students in ${sectionName}`,
+      );
+      setMsgOpen(false);
+      setMsgBody("");
+      setMsgTarget(null);
+    } catch {
+      toast.error("Failed to send message");
+    } finally {
+      setMsgSending(false);
+    }
+  };
+
+  const { data: students = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ["section-students", sectionId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/sections/${sectionId}/students-with-scores`);
+      return data.map((s) => ({
+        id: s.id,
+        name: s.name,
+        cds: s.latest_cds ?? 0,
+        delta: 0,
+        flags: s.integrity_flag_count ?? 0,
+        last: timeAgo(null),
+        level: computeLevel(s.latest_cds),
+        email: s.email,
+      }));
+    },
+    enabled: !!sectionId,
   });
+
+  const flaggedCount = useMemo(() => students.filter((s) => s.flags > 0).length, [students]);
+
+  const rows = useMemo(() => {
+    return [...students].sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "delta") return b.delta - a.delta;
+      if (sort === "flags") return b.flags - a.flags;
+      return b.cds - a.cds;
+    });
+  }, [students, sort]);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-border bg-card/50 py-8 px-6 text-center">
+        <p className="text-sm font-semibold text-foreground">Loading roster…</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+        <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+        <p className="text-sm text-destructive flex-1">Failed to load roster.</p>
+        <Button size="sm" variant="outline" className="border-destructive/30 text-destructive" onClick={() => refetch()}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <InsightHeader
-        insight="Ranked by CDS — highest risk first."
+        insight={`Ranked by CDS — ${flaggedCount} student${flaggedCount === 1 ? "" : "s"} flagged.`}
       />
+
+      <div className="flex items-center gap-2">
+        {SORTS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setSort(s.id)}
+            className={cn(
+              "px-3 py-1 text-sm rounded-md transition-colors",
+              sort === s.id
+                ? "bg-muted text-foreground font-medium"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       <div className="rounded-lg border border-border bg-card overflow-hidden">
         {/* Header row */}
@@ -106,7 +213,7 @@ export default function RosterTab() {
                 {r.flags}
               </span>
               <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                {r.last} ago
+                {r.last}
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -123,7 +230,13 @@ export default function RosterTab() {
                   <DropdownMenuItem onSelect={() => setSelected(r)}>
                     View detail
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setMsgTarget({ id: r.id, name: r.name });
+                      setMsgBody("");
+                      setMsgOpen(true);
+                    }}
+                  >
                     <Mail className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                     Message
                   </DropdownMenuItem>
@@ -138,7 +251,7 @@ export default function RosterTab() {
         open={selected != null}
         onClose={() => setSelected(null)}
         title={selected?.name ?? ""}
-        subtitle={selected ? `Student · Section 04` : undefined}
+        subtitle={selected ? `Student · ${sectionName}` : undefined}
       >
         {selected ? (
           <div className="space-y-6">
@@ -176,7 +289,7 @@ export default function RosterTab() {
                   Last active
                 </p>
                 <p className="text-sm font-medium text-foreground mt-1">
-                  {selected.last} ago
+                  {selected.last}
                 </p>
               </div>
             </div>
@@ -184,11 +297,25 @@ export default function RosterTab() {
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Quick actions</h3>
               <div className="flex flex-col gap-2">
-                <Button variant="outline" size="sm" className="justify-start">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start"
+                  onClick={() => {
+                    setMsgTarget({ id: selected.id, name: selected.name });
+                    setMsgBody("");
+                    setMsgOpen(true);
+                  }}
+                >
                   <Mail className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                   Send message
                 </Button>
-                <Button variant="outline" size="sm" className="justify-start">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start"
+                  onClick={() => toast.info("Check-in scheduling coming soon")}
+                >
                   <ArrowRight className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                   Schedule check-in
                 </Button>
@@ -197,6 +324,37 @@ export default function RosterTab() {
           </div>
         ) : null}
       </DetailDrawer>
+
+      {/* ---------- Message Dialog ---------- */}
+      <Dialog open={msgOpen} onOpenChange={(open) => { if (!open) { setMsgOpen(false); setMsgBody(""); setMsgTarget(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {msgTarget ? `Message ${msgTarget.name}` : `Message All Students`}
+            </DialogTitle>
+            <DialogDescription>
+              {msgTarget
+                ? `Send an in-app notification to ${msgTarget.name}.`
+                : `Send an in-app notification to all students in ${sectionName}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={msgBody}
+            onChange={(e) => setMsgBody(e.target.value)}
+            placeholder="Write a message…"
+            className="min-h-[120px]"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setMsgOpen(false); setMsgBody(""); setMsgTarget(null); }} disabled={msgSending}>
+              Cancel
+            </Button>
+            <Button onClick={sendMessage} disabled={msgSending || !msgBody.trim()}>
+              {msgSending ? "Sending…" : msgTarget ? `Send to ${msgTarget.name}` : "Send to All"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

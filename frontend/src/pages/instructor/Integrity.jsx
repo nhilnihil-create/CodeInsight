@@ -1,13 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowRight,
   ChevronDown,
   Search,
   Check,
   X,
   AlertTriangle,
   ShieldAlert,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,335 +27,132 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import PageBreadcrumb from "@/components/ui/page-breadcrumb";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import RiskBadge from "@/components/ui/risk-badge";
 import DecisionList from "@/components/ui/decision-list";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import { cn } from "@/lib/utils";
+import api from "@/services/api";
 
-/**
- * Unified Integrity page. Replaces the legacy /instructor/warnings
- * ("Early warnings", behavioral risk) and /instructor/violations
- * ("Structure violations", structural anomalies) sub-pages — both
- * surfaces are merged into one queue ordered by severity, then recency.
- *
- * Hierarchy
- *   1. PageHeader     "Integrity" + bulk-action menu
- *   2. InsightHeader  top actionable flag + "Review" action
- *   3. EvidenceRow    severity counts (Critical / High / Moderate / Low)
- *   4. Filter row     severity + type + free-text search
- *   5. DecisionList   selectable queue; first row highlighted
- *   6. DetailDrawer   row click → flag detail with code diff
- */
+function timeAgo(dateStr) {
+  if (!dateStr) return "—";
+  const ms = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
-const FLAGS = [
-  {
-    id: "f01",
-    type: "Behavioral Anomaly",
-    severity: "critical",
-    student: "A. Khan",
-    studentId: "u2",
-    exercise: "Recursion I",
-    exerciseId: "e4",
-    time: "2h ago",
-    evidence: [
-      "+  def factorial(n):",
-      "+    if n <= 1:",
-      "+        return 1",
-      "+    return n * factorial(n - 1)",
-      " ",
-      "  Keystroke delta: 0 → 87 LOC in 0.8s (baseline median 12m)",
-    ],
-    recommendation:
-      "Schedule a 1:1 to walk through Recursion I step-by-step. Compare session timing against the section baseline (median 12m).",
-    course: "CS101 · Section 04",
-  },
-  {
-    id: "f02",
-    type: "Hardcoding",
-    severity: "high",
-    student: "J. Doe",
-    studentId: "u4",
-    exercise: "Basic Loops",
-    exerciseId: "e1",
-    time: "5h ago",
-    evidence: [
-      "  for n in range(1, 6):",
-      "-    print(n)",
-      "+    print('1 2 3 4 5')",
-      " ",
-      "  Student output matches expected exactly using hardcoded string.",
-    ],
-    recommendation:
-      "Open submission side-by-side with the section baseline. Confirm with a 5-minute live-coding session.",
-    course: "CS101 · Section 02",
-  },
-  {
-    id: "f03",
-    type: "Code Growth Spike",
-    severity: "moderate",
-    student: "J. Doe",
-    studentId: "u4",
-    exercise: "Array Reversal",
-    exerciseId: "e3",
-    time: "3d ago",
-    evidence: [
-      "  def reverse(arr):",
-      "+    arr.reverse()",
-      "+    return arr",
-      " ",
-      "  Code size increased 220 LOC in a single commit (median session: 18 LOC).",
-    ],
-    recommendation:
-      "Review with the student whether the helper was understood. Suggest a rewrite from scratch without the library call.",
-    course: "CS101 · Section 02",
-  },
-  {
-    id: "f04",
-    type: "Output Mismatch",
-    severity: "moderate",
-    student: "A. Santos",
-    studentId: "u2",
-    exercise: "Array Reversal",
-    exerciseId: "e3",
-    time: "1d ago",
-    evidence: [
-      "  expected: '5 4 3 2 1'",
-      "  actual:   '1 2 3 4 5'",
-      "  status:   3/5 tests passed",
-    ],
-    recommendation: "Off-by-one on the loop bound. Pair with a stronger peer for the next attempt.",
-    course: "CS101 · Section 04",
-  },
-  {
-    id: "f05",
-    type: "Behavioral Anomaly",
-    severity: "moderate",
-    student: "C. Park",
-    studentId: "u6",
-    exercise: "Loops II",
-    exerciseId: "e2",
-    time: "1w ago",
-    evidence: [
-      "  Editor open: 47m",
-      "  Keystrokes:  9",
-      "  Paste events: 2",
-      "  Status:       Submitted correct",
-    ],
-    recommendation: "Behavior pattern matches prior flagged sessions. Schedule a check-in this week.",
-    course: "CS101 · Section 04",
-  },
-  {
-    id: "f06",
-    type: "Hardcoding",
-    severity: "low",
-    student: "D. Lopez",
-    studentId: "u7",
-    exercise: "Function Calculator",
-    exerciseId: "e2",
-    time: "1w ago",
-    evidence: [
-      "  return a + b",
-      "-# note: works for inputs 2, 3 only",
-      "+# return 5  # hardcoded for test",
-    ],
-    recommendation: "Low confidence — likely a dev shortcut. No action required unless repeated.",
-    course: "CS101 · Section 04",
-  },
-  {
-    id: "f07",
-    type: "Off-By-One",
-    severity: "low",
-    student: "M. Garcia",
-    studentId: "u3",
-    exercise: "Basic Loops",
-    exerciseId: "e1",
-    time: "4d ago",
-    evidence: [
-      "  for i in range(n + 1):   # off-by-one",
-      "      print(i)",
-      "  expected: n iterations, got n+1",
-    ],
-    recommendation: "Common error. Auto-credit if next attempt is correct.",
-    course: "CS101 · Section 02",
-  },
-  {
-    id: "f08",
-    type: "Missing Return",
-    severity: "low",
-    student: "J. Doe",
-    studentId: "u4",
-    exercise: "Function Calculator",
-    exerciseId: "e2",
-    time: "5d ago",
-    evidence: [
-      "  int add(int a, int b) {",
-      "-    return a + b;",
-      "+    // TODO",
-      "  }",
-    ],
-    recommendation: "Compile-time error. Submission cannot be evaluated. Re-attempt encouraged.",
-    course: "CS101 · Section 02",
-  },
-  {
-    id: "f09",
-    type: "Passive Behavior",
-    severity: "low",
-    student: "M. Garcia",
-    studentId: "u3",
-    exercise: "Array Reversal",
-    exerciseId: "e3",
-    time: "2d ago",
-    evidence: [
-      "  Editor open: 45m",
-      "  Keystrokes:  8",
-      "  Submissions: 0",
-    ],
-    recommendation: "Student may be stuck. Send an offer for office hours.",
-    course: "CS101 · Section 02",
-  },
-  {
-    id: "f10",
-    type: "Infinite Loop",
-    severity: "low",
-    student: "J. Doe",
-    studentId: "u4",
-    exercise: "Basic Loops",
-    exerciseId: "e1",
-    time: "1w ago",
-    evidence: [
-      "  while True:",
-      "      print('hello')",
-      "  # no break",
-    ],
-    recommendation: "Standard first-week error. No further action needed.",
-    course: "CS101 · Section 02",
-  },
-  {
-    id: "f11",
-    type: "Blank Template",
-    severity: "low",
-    student: "F. Adams",
-    studentId: "u8",
-    exercise: "Array Reversal",
-    exerciseId: "e3",
-    time: "2w ago",
-    evidence: [
-      "  # starter code unchanged",
-      "  # no student code present",
-    ],
-    recommendation: "Follow up — student may not have started. Auto-message at 24h idle threshold.",
-    course: "CS101 · Section 04",
-  },
-  {
-    id: "f12",
-    type: "Code Growth Spike",
-    severity: "low",
-    student: "E. Chen",
-    studentId: "u9",
-    exercise: "Functions Calculator",
-    exerciseId: "e2",
-    time: "2w ago",
-    evidence: [
-      "  import math",
-      "+ def solve(x):",
-      "+     return math.sqrt(x)",
-      " ",
-      "  LOC delta: +18 in 0.4s (baseline median 8m)",
-    ],
-    recommendation: "Likely IDE autocompletion. Monitor — escalate if repeats.",
-    course: "CS101 · Section 04",
-  },
-];
+function evidenceToString(evidence) {
+  if (!evidence) return "No evidence";
+  if (typeof evidence === "string") return evidence;
+  try {
+    const obj = typeof evidence === "string" ? JSON.parse(evidence) : evidence;
+    if (Array.isArray(obj)) return obj.join("\n");
+    if (typeof obj === "object") {
+      return Object.entries(obj)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+    }
+    return String(evidence);
+  } catch {
+    return String(evidence);
+  }
+}
 
-const SEVERITY_ORDER = { critical: 0, high: 1, moderate: 2, low: 3 };
+const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
+
 const SEVERITY_RANK = {
-  critical: "Critical",
   high: "High",
-  moderate: "Moderate",
+  medium: "Moderate",
   low: "Low",
 };
 
-const TYPE_OPTIONS = [
-  "All types",
-  "Behavioral Anomaly",
-  "Code Growth Spike",
-  "Hardcoding",
-  "Output Mismatch",
-  "Passive Behavior",
-  "Off-By-One",
-  "Missing Return",
-  "Infinite Loop",
-  "Blank Template",
-];
-
-const SEVERITY_OPTIONS = [
-  "All severities",
-  "Critical",
-  "High",
-  "Moderate",
-  "Low",
-];
-
 const SEVERITY_BADGE_TONE = {
-  critical: "border border-destructive/30 bg-destructive/10 text-destructive",
-  high: "border border-cds-high/30 bg-cds-high/10 text-cds-high",
-  moderate: "border border-cds-mod/30 bg-cds-mod/10 text-cds-mod",
-  low: "border border-cds-low/30 bg-cds-low/10 text-cds-low",
+  high: "bg-rose-500/10 text-rose-400 border border-rose-500/15",
+  medium: "bg-amber-500/10 text-amber-300 border border-amber-500/15",
+  low: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/15",
 };
 
 const SEVERITY_RISK_LEVEL = {
-  critical: "high",
   high: "high",
-  moderate: "moderate",
+  medium: "moderate",
   low: "low",
 };
 
-function severityCount(list, sev) {
-  return list.filter((f) => f.severity === sev).length;
-}
-
 export default function InstructorIntegrity() {
+  const [flags, setFlags] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [severity, setSeverity] = useState("All severities");
   const [type, setType] = useState("All types");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(() => new Set());
   const [openFlag, setOpenFlag] = useState(null);
+  const [saving, setSaving] = useState(null);
+
+  const fetchFlags = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get("/api/analytics/integrity");
+      setFlags(res.data.flags || []);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to load integrity flags");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFlags();
+  }, [fetchFlags]);
+
+  const typeOptions = useMemo(() => {
+    const set = new Set(flags.map((f) => f.flag_type));
+    return ["All types", ...[...set].sort()];
+  }, [flags]);
+
+  const severityOptions = ["All severities", "High", "Moderate", "Low"];
 
   const counts = useMemo(
     () => ({
-      critical: severityCount(FLAGS, "critical"),
-      high: severityCount(FLAGS, "high"),
-      moderate: severityCount(FLAGS, "moderate"),
-      low: severityCount(FLAGS, "low"),
+      high: flags.filter((f) => f.severity === "high" && f.status === "flagged").length,
+      medium: flags.filter((f) => f.severity === "medium" && f.status === "flagged").length,
+      low: flags.filter((f) => f.severity === "low" && f.status === "flagged").length,
     }),
-    [],
+    [flags],
+  );
+
+  const totalFlagged = flags.filter((f) => f.status === "flagged").length;
+
+  const awaitingReview = useMemo(
+    () => flags.filter((f) => f.status === "flagged" && (f.severity === "high" || f.severity === "medium")).length,
+    [flags],
   );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return FLAGS.filter((f) => {
-      if (severity !== "All severities" && SEVERITY_RANK[f.severity] !== severity) {
-        return false;
-      }
-      if (type !== "All types" && f.type !== type) {
-        return false;
-      }
-      if (q) {
-        const hay = `${f.student} ${f.exercise} ${f.type}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    }).sort((a, b) => {
-      const sev = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
-      if (sev !== 0) return sev;
-      return 0;
-    });
-  }, [severity, type, query]);
-
-  const firstHighlighted = filtered[0]?.id ?? null;
+    return flags
+      .filter((f) => {
+        if (severity !== "All severities" && SEVERITY_RANK[f.severity] !== severity) return false;
+        if (type !== "All types" && f.flag_type !== type) return false;
+        if (q) {
+          const hay = `${f.student_name} ${f.exercise_title} ${f.flag_type}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const sev = (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99);
+        if (sev !== 0) return sev;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [flags, severity, type, query]);
 
   const toggleSelected = (id) => {
     setSelected((prev) => {
@@ -368,9 +165,50 @@ export default function InstructorIntegrity() {
 
   const clearSelection = () => setSelected(new Set());
 
-  const onBulk = (action) => {
-    /* wiring target: optimistic update + POST /api/integrity/flags/bulk */
+  const onBulk = async (action) => {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (action === "dismiss") {
+      setSaving("bulk");
+      try {
+        await Promise.all(
+          ids.map((id) =>
+            api.put(`/api/analytics/integrity-flags/${id}/review`, {
+              status: "dismissed",
+              instructor_note: "Bulk dismissed from Integrity page",
+            }),
+          ),
+        );
+        setFlags((prev) =>
+          prev.map((f) => (ids.includes(f.id) ? { ...f, status: "dismissed" } : f)),
+        );
+      } catch (err) {
+        console.error("Bulk dismiss failed:", err);
+      } finally {
+        setSaving(null);
+      }
+    }
     clearSelection();
+  };
+
+  const handleAction = async (item, status) => {
+    setSaving(item.id);
+    try {
+      await api.put(`/api/analytics/integrity-flags/${item.id}/review`, { status });
+      // Eject reviewed/dismissed flags from the list so UI recalculates
+      if (status === "reviewed" || status === "dismissed") {
+        setFlags((prev) => prev.filter((f) => f.id !== item.id));
+      } else {
+        setFlags((prev) =>
+          prev.map((f) => (f.id === item.id ? { ...f, status } : f)),
+        );
+      }
+      setOpenFlag(null);
+    } catch (err) {
+      console.error("Flag action failed:", err);
+    } finally {
+      setSaving(null);
+    }
   };
 
   const openDetail = (item) => {
@@ -379,6 +217,7 @@ export default function InstructorIntegrity() {
 
   const renderRow = (item) => {
     const isSelected = selected.has(item.id);
+    const isReviewed = item.status === "reviewed";
     return (
       <>
         <span
@@ -389,130 +228,163 @@ export default function InstructorIntegrity() {
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => toggleSelected(item.id)}
-            aria-label={`Select ${item.type} for ${item.student}`}
+            aria-label={`Select ${item.flag_type} for ${item.student_name}`}
           />
         </span>
 
-        <RiskBadge level={SEVERITY_RISK_LEVEL[item.severity]} />
-
-        <span
-          className={cn(
-            "shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide",
-            SEVERITY_BADGE_TONE[item.severity],
-          )}
-        >
-          {SEVERITY_RANK[item.severity]}
-        </span>
+        <RiskBadge level={SEVERITY_RISK_LEVEL[item.severity] || "low"} />
 
         <span className="text-sm font-medium text-foreground truncate min-w-[10rem]">
-          {item.type}
+          {item.flag_type}
         </span>
 
         <span className="text-sm text-muted-foreground truncate min-w-[6rem]">
-          {item.student}
+          {item.student_name}
         </span>
 
         <span className="text-sm text-muted-foreground truncate min-w-[10rem] flex-1">
-          {item.exercise}
+          {item.exercise_title}
         </span>
 
         <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0 w-14 text-right">
-          {item.time}
+          {timeAgo(item.created_at)}
         </span>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="font-medium shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            openDetail(item);
-          }}
-        >
-          Review
-          <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-        </Button>
+        {isReviewed ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium shrink-0">
+            <Check className="h-3.5 w-3.5" strokeWidth={2} />
+            Reviewed
+          </span>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="font-medium shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAction(item, "reviewed");
+            }}
+          >
+            Mark Reviewed
+            <Check className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
+          </Button>
+        )}
       </>
     );
   };
 
-  return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* ---------- PageHeader ---------- */}
-      <div className="space-y-2">
-        <PageBreadcrumb crumbs={[{ label: "Integrity" }]} />
+  const topFlag = filtered[0];
+
+  if (loading && flags.length === 0) {
+    return (
+      <div className="space-y-6 sm:space-y-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Integrity</h1>
-            <p className="text-sm text-muted-foreground">
-              Behavioral and structural anomalies requiring instructor review.
-            </p>
+            <p className="text-sm text-muted-foreground">Loading integrity flags…</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {selected.size > 0 ? (
-              <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                {selected.size} selected
-              </span>
-            ) : null}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="font-medium"
-                  disabled={selected.size === 0}
-                >
-                  Bulk action
-                  <ChevronDown className="ml-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>{selected.size} flag{selected.size === 1 ? "" : "s"} selected</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onBulk("clear")}>
-                  <Check className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Clear
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onBulk("dismiss")}>
-                  <X className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Dismiss
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => onBulk("escalate")}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Escalate
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm py-12 px-6 text-center">
+          <RefreshCw className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading flags…</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      {/* ---------- PageHeader ---------- */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Integrity</h1>
+          <p className="text-sm text-muted-foreground">
+            Behavioral and structural anomalies requiring instructor review.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {error ? (
+            <span className="text-xs text-destructive font-medium">{error}</span>
+          ) : null}
+          <Button variant="ghost" size="icon" onClick={fetchFlags} title="Refresh">
+            <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
+          </Button>
+          {selected.size > 0 ? (
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">
+              {selected.size} selected
+            </span>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="font-medium"
+                disabled={selected.size === 0 || saving === "bulk"}
+              >
+                {saving === "bulk" ? "Saving…" : "Bulk action"}
+                <ChevronDown className="ml-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>{selected.size} flag{selected.size === 1 ? "" : "s"} selected</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onBulk("dismiss")}>
+                <X className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+                Dismiss
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
+      {error && (
+        <div className="flex items-center gap-3 rounded-xl border border-rose-500/15 bg-rose-500/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+          <p className="text-sm text-rose-400 flex-1">{error}</p>
+          <Button size="sm" variant="outline" className="border-destructive/30 text-destructive" onClick={fetchFlags}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* ---------- Insight ---------- */}
       <InsightHeader
-        eyebrow="Action required"
-        insight="2 active flags need your review — highest severity first."
-        description="Critical and high-severity flags are pinned to the top of the queue."
+        eyebrow={awaitingReview > 0 ? "Action required" : "No pending flags"}
+        insight={
+          awaitingReview > 0
+            ? `${awaitingReview} flag${awaitingReview === 1 ? "" : "s"} awaiting review — highest severity first.`
+            : totalFlagged > 0
+              ? `${totalFlagged} flag${totalFlagged === 1 ? "" : "s"} reviewed.`
+              : "All clear — no integrity flags."
+        }
+        description={
+          awaitingReview > 0
+            ? "High and medium-severity flags are at the top of the queue."
+            : undefined
+        }
         action={
-          <Button asChild size="sm" className="font-medium">
-            <Link to={`/instructor/integrity/${FLAGS[0].id}`}>
-              Review top flag
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-            </Link>
-          </Button>
+          topFlag && awaitingReview > 0 ? (
+            <Button
+              size="sm"
+              className="font-medium"
+              onClick={() => handleAction(topFlag, "reviewed")}
+              disabled={topFlag.status !== "flagged"}
+            >
+              {topFlag.status === "reviewed" ? "Reviewed" : "Review top flag"}
+              <Check className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
+            </Button>
+          ) : undefined
         }
       />
 
       {/* ---------- Evidence ---------- */}
       <EvidenceRow
         chips={[
-          { label: "Critical", value: counts.critical, delta: null, series: [0, 0, 0, 0, 0, 0, 1], comparison: "this week" },
-          { label: "High",     value: counts.high,     delta: null, series: [0, 0, 0, 0, 1, 1, 1], comparison: "this week" },
-          { label: "Moderate", value: counts.moderate, delta: null, series: [1, 1, 2, 2, 3, 3, 3], comparison: "this week" },
-          { label: "Low",      value: counts.low,      delta: null, series: [3, 4, 5, 5, 6, 7, 7], comparison: "this week" },
+          { label: "High", value: counts.high, delta: null, series: [0, 0, 0, 0, 0, 0, counts.high], comparison: "total" },
+          { label: "Moderate", value: counts.medium, delta: null, series: [0, 0, 0, 0, 0, 0, counts.medium], comparison: "total" },
+          { label: "Low", value: counts.low, delta: null, series: [0, 0, 0, 0, 0, 0, counts.low], comparison: "total" },
         ]}
       />
 
@@ -537,7 +409,7 @@ export default function InstructorIntegrity() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SEVERITY_OPTIONS.map((s) => (
+              {severityOptions.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s}
                 </SelectItem>
@@ -549,9 +421,9 @@ export default function InstructorIntegrity() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {TYPE_OPTIONS.map((t) => (
+              {typeOptions.map((t) => (
                 <SelectItem key={t} value={t}>
-                  {t}
+                  {t.replace(/_/g, " ")}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -576,7 +448,7 @@ export default function InstructorIntegrity() {
           />
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
+        <div className="rounded-xl border border-dashed border-border/40 bg-card/30 backdrop-blur-sm p-8 text-center">
           <ShieldAlert
             className="h-6 w-6 text-muted-foreground mx-auto mb-2"
             strokeWidth={1.5}
@@ -592,8 +464,8 @@ export default function InstructorIntegrity() {
       <DetailDrawer
         open={Boolean(openFlag)}
         onClose={() => setOpenFlag(null)}
-        title={openFlag ? openFlag.type : "Flag detail"}
-        subtitle={openFlag ? `${openFlag.student} · ${openFlag.exercise}` : ""}
+        title={openFlag ? openFlag.flag_type : "Flag detail"}
+        subtitle={openFlag ? `${openFlag.student_name} · ${openFlag.exercise_title}` : ""}
       >
         {openFlag ? (
           <div className="space-y-6">
@@ -602,13 +474,13 @@ export default function InstructorIntegrity() {
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
                   Classification
                 </p>
-                <RiskBadge level={SEVERITY_RISK_LEVEL[openFlag.severity]} />
+                <RiskBadge level={SEVERITY_RISK_LEVEL[openFlag.severity] || "low"} />
               </div>
               <div className="text-right">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
                   Flagged
                 </p>
-                <p className="text-sm font-mono tabular-nums">{openFlag.time}</p>
+                <p className="text-sm font-mono tabular-nums">{timeAgo(openFlag.created_at)}</p>
               </div>
             </div>
 
@@ -616,54 +488,47 @@ export default function InstructorIntegrity() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 Student
               </p>
-              <p className="text-sm font-medium">{openFlag.student}</p>
-              <p className="text-xs text-muted-foreground">{openFlag.course}</p>
+              <p className="text-sm font-medium">{openFlag.student_name}</p>
+              <p className="text-xs text-muted-foreground">{openFlag.exercise_title}</p>
             </div>
 
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Evidence · code diff
+                Evidence
               </p>
-              <pre className="rounded-md bg-muted/40 p-3 font-mono text-xs leading-relaxed overflow-x-auto">
-                {openFlag.evidence.join("\n")}
+              <pre className="rounded-md bg-muted/40 p-3 font-mono text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                {evidenceToString(openFlag.evidence)}
               </pre>
             </div>
 
-            <div className="rounded-md border border-border bg-card p-4 space-y-1">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Recommended action
-              </p>
-              <p className="text-sm text-foreground leading-relaxed">
-                {openFlag.recommendation}
-              </p>
-            </div>
+            {openFlag.context_behaviors?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Context behaviors
+                </p>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  {openFlag.context_behaviors.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
               <Button
-                variant="outline"
                 size="sm"
-                onClick={() => setOpenFlag(null)}
+                onClick={() => handleAction(openFlag, "reviewed")}
+                disabled={saving === openFlag.id || openFlag.status !== "flagged"}
                 className="font-medium"
               >
-                <X className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Dismiss
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setOpenFlag(null)}
-                className="font-medium text-destructive border-destructive/40 hover:bg-destructive/10"
-              >
-                <AlertTriangle className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Escalate
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setOpenFlag(null)}
-                className="font-medium"
-              >
-                <Check className="h-3.5 w-3.5 mr-1.5" strokeWidth={2} />
-                Resolve
+                {saving === openFlag.id ? (
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : openFlag.status === "reviewed" ? (
+                  <Check className="h-3.5 w-3.5 mr-1.5" strokeWidth={2} />
+                ) : (
+                  <Check className="h-3.5 w-3.5 mr-1.5" strokeWidth={2} />
+                )}
+                {openFlag.status === "reviewed" ? "Reviewed" : "Mark Reviewed"}
               </Button>
             </div>
           </div>

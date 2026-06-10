@@ -36,14 +36,24 @@ const TABS = [
 
 export default function OutputPanel({
   testResults,
+  testCases = [],
   consoleLog = "",
   compilationLog = "",
   programOutput = "",
   onClear,
 }) {
-  const [tab, setTab] = useState("output");
+  // Default to the Test Results tab so students see test cases on load
+  const [tab, setTab] = useState("tests");
   const error = testResults?.error;
+
+  // Visible test cases from the exercise (raw format from API)
+  const visibleTestCases = (testCases || []).filter(
+    tc => tc.isVisible !== false && tc.hidden !== true
+  );
+
+  // Transformed test results (after running)
   const results = Array.isArray(testResults?.testResults) ? testResults.testResults : [];
+  const hasRun = testResults !== null;
   const testsSummary = testResults
     ? `${testResults.passing}/${testResults.total}`
     : null;
@@ -134,7 +144,7 @@ export default function OutputPanel({
         ) : tab === "errors" ? (
           <ErrorsTab error={error} compilationLog={compilationLog} />
         ) : (
-          <TestResultsTab results={results} testResults={testResults} />
+          <TestResultsTab results={results} testResults={testResults} testCases={visibleTestCases} hasRun={hasRun} />
         )}
       </div>
     </div>
@@ -223,14 +233,56 @@ function ErrorsTab({ error, compilationLog }) {
 }
 
 // ----- Tab: Test Results -----
-function TestResultsTab({ results, testResults }) {
-  if (!results || results.length === 0) {
+function TestResultsTab({ results, testResults, testCases = [], hasRun }) {
+  // If we haven't run yet, show test cases as pending
+  if (!hasRun || !results || results.length === 0) {
+    if (testCases.length === 0) {
+      return (
+        <EmptyState>
+          {testResults
+            ? "No test cases defined for this exercise."
+            : "(No test cases yet — press Run to execute)"}
+        </EmptyState>
+      );
+    }
     return (
-      <EmptyState>
-        {testResults
-          ? "No test results to display."
-          : "(No test results yet — press Run to execute)"}
-      </EmptyState>
+      <div className="h-full overflow-y-auto px-3 py-2 font-mono text-[11px] leading-relaxed">
+        <p className="text-muted-foreground text-xs mb-2">
+          {testCases.length} visible test case{testCases.length === 1 ? '' : 's'} — press Run to check your code.
+        </p>
+        <ul className="space-y-1.5" role="list">
+          {testCases.map((tc, i) => (
+            <li
+              key={i}
+              className="rounded-md border border-border/40 px-2.5 py-2 space-y-1"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                <span className="font-semibold text-muted-foreground">
+                  Test case {i + 1}
+                </span>
+                {tc.validationType && tc.validationType !== 'exact' && (
+                  <span className="text-[10px] px-1 py-0 rounded-full bg-muted text-muted-foreground uppercase">
+                    {tc.validationType}
+                  </span>
+                )}
+              </div>
+              {tc.input ? (
+                <p className="text-muted-foreground">
+                  <span className="opacity-70">Input:</span>{' '}
+                  <span className="text-foreground">{tc.input}</span>
+                </p>
+              ) : null}
+              {tc.expectedOutput || tc.expected ? (
+                <p className="text-muted-foreground">
+                  <span className="opacity-70">Expected:</span>{' '}
+                  <span className="text-foreground">{tc.expectedOutput || tc.expected}</span>
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   }
   return (

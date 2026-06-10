@@ -251,11 +251,11 @@
   color: hsl(var(--muted-foreground));
 }
 
-/* CDS classification utility classes (spec §6.3) */
-.cds-low { color: hsl(var(--cds-low)); background: color-mix(in srgb, hsl(var(--cds-low)) 15%, transparent); }
-.cds-mod { color: hsl(var(--cds-mod)); background: color-mix(in srgb, hsl(var(--cds-mod)) 15%, transparent); }
-.cds-high { color: hsl(var(--cds-high)); background: color-mix(in srgb, hsl(var(--cds-high)) 15%, transparent); }
-.cds-na { color: hsl(var(--cds-na)); background: color-mix(in srgb, hsl(var(--cds-na)) 15%, transparent); }
+/* CDS classification utility classes — alpha-blended (refined 2026-06-09) */
+.cds-low { color: hsl(var(--cds-low)); background: color-mix(in srgb, hsl(var(--cds-low)) 10%, transparent); }
+.cds-mod { color: hsl(var(--cds-mod)); background: color-mix(in srgb, hsl(var(--cds-mod)) 10%, transparent); }
+.cds-high { color: hsl(var(--cds-high)); background: color-mix(in srgb, hsl(var(--cds-high)) 10%, transparent); }
+.cds-na { color: hsl(var(--cds-na)); background: color-mix(in srgb, hsl(var(--cds-na)) 10%, transparent); }
 
 .trend-up { color: hsl(var(--trend-up)); }
 .trend-down { color: hsl(var(--trend-down)); }
@@ -279,4 +279,73 @@
   color: hsl(142 76% 36%);
   font-size: 12.5px;
   margin-bottom: 14px;
+}
+
+/* ── Minimalist scrollbars (ultra-thin, alpha-blended) ───────────────── */
+.custom-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.1);
+  border-radius: 3px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.2);
+}
+
+/* ── Hide native browser scrollbars (scroll managed by .custom-scroll) ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.1) transparent;
+}
+
+/* ── Unified elevated surface — cards use this by default ────────────── */
+.surface-elevated {
+  background: hsl(var(--card) / 0.5);
+  border: 1px solid hsl(var(--border) / 0.6);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 2px hsl(0 0% 0% / 0.05);
+}
+
+/* ── Alpha-blended status palette (replaces stoplight solids) ────────── */
+.status-safe {
+  background: hsl(var(--success) / 0.1);
+  color: hsl(var(--success));
+  border: 1px solid hsl(var(--success) / 0.15);
+}
+.status-warning {
+  background: hsl(var(--warning) / 0.1);
+  color: hsl(var(--warning));
+  border: 1px solid hsl(var(--warning) / 0.15);
+}
+.status-friction {
+  background: hsl(var(--cds-high) / 0.1);
+  color: hsl(var(--cds-high));
+  border: 1px solid hsl(var(--cds-high) / 0.15);
+}
+.status-critical {
+  background: hsl(var(--destructive));
+  color: white;
+  border: 1px solid hsl(var(--destructive) / 0.2);
+  box-shadow: 0 1px 3px hsl(var(--destructive) / 0.2);
+}
+
+/* ── Monospace metric style for raw numbers ──────────────────────────── */
+.metric-mono {
+  font-family: var(--app-font-mono);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  font-size: 0.75rem;
+}
+
+/* ── Micro-interaction: hover lift for data rows & metric blocks ─────── */
+.hover-lift {
+  transition: all 0.2s ease-out;
+}
+.hover-lift:hover {
+  background: hsl(var(--card) / 0.8);
+  transform: scale(1.01);
 }

@@ -15,9 +15,11 @@ import KPIChartCard from "./kpi-chart-card";
  * Tokens only.
  */
 export default function EvidenceRow({ chips = [] }) {
+  const cols = chips.length <= 4 ? chips.length : 4;
   return (
     <div
-      className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+      className="grid gap-4"
+      style={{ gridTemplateColumns: `repeat(${Math.max(cols, 2)}, minmax(0, 1fr))` }}
       role="group"
       aria-label="Supporting evidence"
     >
@@ -29,6 +31,7 @@ export default function EvidenceRow({ chips = [] }) {
           delta={chip.delta}
           series={chip.series}
           comparison={chip.comparison}
+          inverted={chip.inverted ?? false}
         />
       ))}
     </div>

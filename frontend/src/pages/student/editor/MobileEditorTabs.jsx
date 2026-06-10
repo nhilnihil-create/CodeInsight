@@ -33,7 +33,8 @@ export default function MobileEditorTabs({
   onMount,
   submissions,
   history,
-  consoleLog = "",
+  compilationLog = "",
+  programOutput = "",
 }) {
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -75,7 +76,11 @@ export default function MobileEditorTabs({
           />
         ) : activeTab === "output" ? (
           <div className="h-full">
-            <OutputPanel testResults={testResults} consoleLog={consoleLog} />
+            <OutputPanel
+              testResults={testResults}
+              compilationLog={compilationLog}
+              programOutput={programOutput}
+            />
           </div>
         ) : (
           <ProblemContent exercise={exercise} testResults={testResults} />

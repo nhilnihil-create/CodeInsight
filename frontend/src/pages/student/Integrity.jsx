@@ -1,11 +1,58 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import StudentDashboardShell from '@/components/student-dashboard-shell';
-import { MOCK_STUDENT_INTEGRITY } from '@/data/mockData';
+import api from '@/services/api';
 
 export default function StudentIntegrityView() {
-  const { flags } = MOCK_STUDENT_INTEGRITY;
+  const [flags, setFlags] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get('/api/student/integrity-flags');
+        if (!cancelled) setFlags(res.data?.flags || []);
+      } catch (err) {
+        if (!cancelled) setError(err.response?.data?.error || 'Failed to load integrity data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <StudentDashboardShell
+        breadcrumb={[
+          { label: 'Student', href: '/student/dashboard' },
+          { label: 'My Learning Dashboard' },
+        ]}
+        subtitle="Patterns detected in your work — always hypotheses, never verdicts."
+      >
+        <div className="py-12 text-center text-muted-foreground">Loading integrity data…</div>
+      </StudentDashboardShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <StudentDashboardShell
+        breadcrumb={[
+          { label: 'Student', href: '/student/dashboard' },
+          { label: 'My Learning Dashboard' },
+        ]}
+        subtitle="Patterns detected in your work — always hypotheses, never verdicts."
+      >
+        <div className="py-12 text-center text-destructive">{error}</div>
+      </StudentDashboardShell>
+    );
+  }
 
   return (
     <StudentDashboardShell

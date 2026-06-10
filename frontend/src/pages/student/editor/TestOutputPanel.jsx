@@ -1,10 +1,11 @@
-import { Check, X, Lock } from "lucide-react";
+import { Check, X, Lock, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * TestOutputPanel
  * Body for the Test Cases section of the left panel. Renders:
- *   - List of test cases with Pass/Fail icon + name + Input + Expected
+ *   - Visible test cases immediately on mount (input + expected)
+ *   - After Run: each row gets a Pass/Fail indicator + runtime
  *   - Hidden tests pinned footer (never leaks names)
  *
  * `bare` strips the outer border so the body can be embedded inside
@@ -12,9 +13,30 @@ import { cn } from "@/lib/utils";
  *
  * Tokens only.
  */
-export default function TestOutputPanel({ testResults, bare = false }) {
+export default function TestOutputPanel({ testResults, testCases = [], bare = false }) {
   const hasResults = Boolean(testResults);
-  const tests = testResults?.publicTests ?? [];
+  const results = testResults?.publicTests ?? [];
+
+  // Filter visible test cases from the exercise definition
+  const visibleTestCases = (testCases || []).filter(
+    (tc) => tc.isVisible !== false && tc.hidden !== true
+  );
+
+  // Build merged rows: static test case data + execution results
+  // Results are indexed in the same order as the API returns them,
+  // so we can zip by index.
+  const rows = visibleTestCases.map((tc, i) => {
+    const result = results[i] ?? null;
+    return {
+      id: tc.id ?? i,
+      name: tc.name || result?.name || `Test ${i + 1}`,
+      input: tc.input ?? result?.input ?? null,
+      expected: tc.expected ?? tc.expectedOutput ?? result?.expected ?? null,
+      passed: result ? result.passed : null,
+      runtimeMs: result?.runtimeMs ?? null,
+      hasRun: hasResults,
+    };
+  });
 
   return (
     <div
@@ -24,56 +46,20 @@ export default function TestOutputPanel({ testResults, bare = false }) {
       )}
     >
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="px-3 py-3 space-y-2">
-          {hasResults && tests.length > 0 ? (
+        <div className="px-3 py-3">
+          {rows.length > 0 ? (
             <ul className="rounded-md border border-border bg-card divide-y divide-border overflow-hidden">
-              {tests.map((t) => (
-                <li
-                  key={t.id}
-                  className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2.5"
-                >
-                  {t.passed ? (
-                    <Check
-                      className="h-4 w-4 text-success shrink-0"
-                      strokeWidth={2.25}
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <X
-                      className="h-4 w-4 text-destructive shrink-0"
-                      strokeWidth={2.25}
-                      aria-hidden="true"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{t.name}</p>
-                    <p className="text-[11px] font-mono text-muted-foreground">
-                      {t.input ? <span>Input: {t.input}</span> : null}
-                      {t.input && t.expected ? <span className="mx-1">·</span> : null}
-                      {t.expected ? <span>Expected: {t.expected}</span> : null}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      "text-[11px] font-mono tabular-nums shrink-0",
-                      t.passed ? "text-success" : "text-destructive",
-                    )}
-                  >
-                    {t.runtimeMs}ms
-                  </span>
-                </li>
+              {rows.map((row) => (
+                <TestRow key={row.id} row={row} />
               ))}
             </ul>
-          ) : null}
-
-          {!hasResults ? (
+          ) : (
             <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-center">
               <p className="text-sm text-muted-foreground">
-                Press <Kbd>⌘ ↵</Kbd> or click{" "}
-                <span className="font-medium text-foreground">Run</span> to execute the test suite.
+                No visible test cases for this exercise.
               </p>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
 
@@ -103,17 +89,54 @@ export default function TestOutputPanel({ testResults, bare = false }) {
   );
 }
 
-function Kbd({ children }) {
+/** Single test row — shows Clock before run, Check/X after. */
+function TestRow({ row }) {
+  const { passed, hasRun, name, input, expected, runtimeMs } = row;
+
   return (
-    <span className="inline-flex items-center gap-0.5 align-middle">
-      {children.split(" ").map((k, i) => (
-        <kbd
-          key={i}
-          className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border border-border bg-muted/60 text-muted-foreground text-[10px] font-mono"
+    <li className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3 py-2.5">
+      {/* Status icon */}
+      {!hasRun ? (
+        <Clock
+          className="h-4 w-4 text-muted-foreground shrink-0"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+      ) : passed ? (
+        <Check
+          className="h-4 w-4 text-success shrink-0"
+          strokeWidth={2.25}
+          aria-hidden="true"
+        />
+      ) : (
+        <X
+          className="h-4 w-4 text-destructive shrink-0"
+          strokeWidth={2.25}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Name + input / expected */}
+      <div className="min-w-0">
+        <p className="text-sm font-medium truncate">{name}</p>
+        <p className="text-[11px] font-mono text-muted-foreground">
+          {input ? <span>Input: {input}</span> : null}
+          {input && expected ? <span className="mx-1">·</span> : null}
+          {expected ? <span>Expected: {expected}</span> : null}
+        </p>
+      </div>
+
+      {/* Runtime (only after run) */}
+      {hasRun && runtimeMs != null ? (
+        <span
+          className={cn(
+            "text-[11px] font-mono tabular-nums shrink-0",
+            passed ? "text-success" : "text-destructive",
+          )}
         >
-          {k}
-        </kbd>
-      ))}
-    </span>
+          {runtimeMs}ms
+        </span>
+      ) : null}
+    </li>
   );
 }

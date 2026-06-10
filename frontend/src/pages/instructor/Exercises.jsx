@@ -1,87 +1,69 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Lock, Unlock } from 'lucide-react';
-import { MOCK_EXERCISES } from '@/data/mockData';
-import ExerciseAccordion from '@/components/analytics/ExerciseAccordion';
+import { Plus, Lock, Unlock, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
+import ExerciseAccordionRow from '@/components/analytics/ExerciseAccordionRow';
 import SectionFilter from '@/components/SectionFilter';
 import api from '@/services/api';
-import '@/components/analytics/ExerciseAccordion.css';
 
 /**
- * Exercises list — see spec §3 row 5.
- * "All Sections" falls back to MOCK_EXERCISES for design continuity when
- * the instructor has no created exercises yet. A chosen section re-sources
- * the table from /api/sections/:id/exercises; the "All Sections" + new flow
- * re-sources from /api/exercises (instructor-scoped).
+ * Exercises list — in-row accordion push-down refactor (2026-06-09).
+ *
+ * Master table with native <tr> accordion expansion: clicking a row
+ * toggles a detail <tr> directly beneath it via colSpan={6}.
+ * No fixed overlays, no floating blocks — pure table flow.
  */
 export default function InstructorExercises() {
   const [sectionId, setSectionId] = useState('all');
-  const [exercises, setExercises] = useState(MOCK_EXERCISES);
+  const [exercises, setExercises] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const toggleExpand = useCallback((id) => {
+    setExpandedId(prev => prev === id ? null : id);
+  }, []);
+
+  const fetchExercises = async (secId) => {
+    const url = secId === 'all'
+      ? '/api/exercises'
+      : `/api/sections/${secId}/exercises`;
+    const res = await api.get(url);
+    const list = Array.isArray(res.data) ? res.data : [];
+    return list.map(e => ({
+      id: e.id,
+      title: e.title,
+      conceptTags: e.concept_name ? [e.concept_name] : (e.concept_tags || e.conceptTags || []),
+      difficulty: e.difficulty || 'Beginner',
+      dueDate: e.deadline || e.due_date || e.dueDate,
+      isDraft: e.is_draft,
+      closedAt: e.closed_at,
+      sectionId: e.section_id,
+      avg_cds: e.avg_cds ?? e.avgCds,
+      submitted_count: e.submitted_count ?? e.submittedCount,
+      total_students: e.total_students ?? e.totalStudents,
+    }));
+  };
 
   const loadAll = async () => {
     try {
-      const res = await api.get('/api/exercises');
-      const list = Array.isArray(res.data) ? res.data : [];
-      if (list.length === 0) {
-        setExercises(MOCK_EXERCISES);
-        return;
-      }
-      setExercises(list.map(e => ({
-        id: e.id,
-        title: e.title,
-        conceptTags: e.concept_name ? [e.concept_name] : [],
-        difficulty: 'Beginner',
-        dueDate: e.deadline,
-        isDraft: e.is_draft,
-        closedAt: e.closed_at,
-        sectionId: e.section_id,
-      })));
+      const list = await fetchExercises(sectionId);
+      setExercises(list);
     } catch {
-      setExercises(MOCK_EXERCISES);
+      setExercises([]);
     }
   };
 
   useEffect(() => {
-    if (sectionId !== 'all') return;
     let cancelled = false;
-    loadAll().then(() => { if (cancelled) setExercises(get => get); });
+    setLoading(true);
+    loadAll().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionId]);
-
-  useEffect(() => {
-    if (sectionId === 'all') return;
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await api.get(`/api/sections/${sectionId}/exercises`);
-        if (!cancelled) {
-          const list = Array.isArray(res.data) ? res.data : [];
-          setExercises(
-            list.map((e) => ({
-              id: e.id,
-              title: e.title,
-              conceptTags: e.concept_tags || e.conceptTags || [],
-              difficulty: e.difficulty || 'Beginner',
-              dueDate: e.due_date || e.dueDate,
-              isDraft: e.is_draft,
-              closedAt: e.closed_at,
-              sectionId: e.section_id,
-            }))
-          );
-        }
-      } catch {
-        if (!cancelled) setExercises([]);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
   }, [sectionId]);
 
   const handleClose = async (e) => {
@@ -104,6 +86,21 @@ export default function InstructorExercises() {
     } finally { setBusyId(null); }
   };
 
+  const handleDelete = async (e) => {
+    if (!confirm(`Delete "${e.title}"? This cannot be undone.`)) return;
+    setBusyId(e.id); setError(null);
+    try {
+      await api.delete(`/api/exercises/${e.id}`);
+      await loadAll();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally { setBusyId(null); }
+  };
+
+  const sectionForDetail = sectionId === 'all'
+    ? exercises.find(e => e.id === expandedId)?.sectionId
+    : sectionId;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -121,13 +118,22 @@ export default function InstructorExercises() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive flex-1">{error}</p>
+          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setError(null)}>
+            Dismiss
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8" />
                 <TableHead>Title</TableHead>
                 <TableHead>Concepts</TableHead>
                 <TableHead>Difficulty</TableHead>
@@ -137,69 +143,100 @@ export default function InstructorExercises() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {exercises.length === 0 ? (
+              {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Loading exercises…</p>
+                  </TableCell>
+                </TableRow>
+              ) : exercises.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
                     No exercises found for this selection.
                   </TableCell>
                 </TableRow>
               ) : (
                 exercises.map((e) => {
                   const isClosed = !!e.closedAt;
+                  const isExpanded = expandedId === e.id;
                   return (
-                    <TableRow key={e.id}>
-                      <TableCell className="font-medium">{e.title}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {(e.conceptTags || []).map((t) => (
-                            <Badge key={t} variant="secondary">{t}</Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={e.difficulty === 'Beginner' ? 'outline' : e.difficulty === 'Intermediate' ? 'secondary' : 'destructive'}>
-                          {e.difficulty}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {e.dueDate ? new Date(e.dueDate).toLocaleDateString() : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {e.isDraft ? <Badge variant="outline">Draft</Badge>
-                          : isClosed ? <Badge variant="secondary">Closed</Badge>
-                          : <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Open</Badge>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="inline-flex gap-1">
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={`/instructor/exercises/${e.id}/edit`}>Edit</Link>
-                          </Button>
-                          {isClosed ? (
-                            <Button variant="ghost" size="sm" onClick={() => handleReopen(e)} disabled={busyId === e.id} title="Reopen exercise">
-                              <Unlock className="w-3.5 h-3.5" />
+                    <React.Fragment key={e.id}>
+                      <TableRow
+                        className="cursor-pointer transition-colors hover:bg-muted/40"
+                        onClick={() => toggleExpand(e.id)}
+                      >
+                        <TableCell className="w-8 text-muted-foreground">
+                          <ChevronRight
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              isExpanded ? 'rotate-90 text-primary' : ''
+                            }`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{e.title}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap">
+                            {(e.conceptTags || []).map((t) => (
+                              <span
+                                key={t}
+                                className="bg-info/10 text-info border-info/20 px-2 py-0.5 rounded text-xs"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                            {(!e.conceptTags || e.conceptTags.length === 0) && (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={e.difficulty === 'Beginner' ? 'outline' : e.difficulty === 'Intermediate' ? 'secondary' : 'destructive'}>
+                            {e.difficulty}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {e.dueDate ? new Date(e.dueDate).toLocaleDateString() : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {e.isDraft ? <Badge variant="outline">Draft</Badge>
+                            : isClosed ? <Badge className="bg-muted text-muted-foreground border-border">Closed</Badge>
+                            : <Badge className="bg-cds-low/10 text-cds-low border-cds-low/15">Open</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="inline-flex gap-1">
+                            <Button asChild variant="ghost" size="sm">
+                              <Link to={`/instructor/exercises/${e.id}/edit`}>Edit</Link>
                             </Button>
-                          ) : (
-                            <Button variant="ghost" size="sm" onClick={() => handleClose(e)} disabled={busyId === e.id} title="Close exercise (compute CDS)">
-                              <Lock className="w-3.5 h-3.5" />
+                            {isClosed ? (
+                              <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleReopen(e); }} disabled={busyId === e.id} title="Reopen exercise" aria-label="Reopen exercise">
+                                <Unlock className="w-3.5 h-3.5" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleClose(e); }} disabled={busyId === e.id} title="Close exercise (compute CDS)" aria-label="Close exercise">
+                                <Lock className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleDelete(e); }} disabled={busyId === e.id} title="Delete exercise" aria-label="Delete exercise" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+
+                      {/* Accordion detail row — pushes siblings down via native table flow */}
+                      {isExpanded && (
+                        <ExerciseAccordionRow
+                          exercise={e}
+                          sectionId={sectionForDetail}
+                          colSpan={7}
+                        />
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Exercise Detail</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ExerciseAccordion sectionId={sectionId === 'all' ? undefined : sectionId} />
         </CardContent>
       </Card>
     </div>

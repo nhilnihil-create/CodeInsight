@@ -37,7 +37,11 @@ export default function ProblemPanel({ exercise, testResults }) {
         badgeTone={allPassing ? "success" : "muted"}
         className="flex-1 min-h-0 border-t border-border"
       >
-        <TestOutputPanel testResults={testResults} bare />
+        <TestOutputPanel
+          testResults={testResults}
+          testCases={exercise?.test_cases || []}
+          bare
+        />
       </Section>
     </div>
   );

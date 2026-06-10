@@ -35,21 +35,27 @@ import api from '../../services/api';
  *   - Design's MOCK_RADAR_DATA → aggregated real CDS by concept
  *   - Hard-coded "Exercises Attempted" → real count from data
  */
-const getDifficultyBadge = (score) => {
-  if (score == null) return null;
-  if (score <= 25)
+/**
+ * getDifficultyBadge — takes CDS as a 0–1 value (the raw API format).
+ * Converts to 0–100 scale for classification.
+ * CDS measures difficulty, so lower = better.
+ */
+const getDifficultyBadge = (cds01) => {
+  if (cds01 == null) return null;
+  const cds100 = cds01 * 100; // convert 0–1 to 0–100 scale
+  if (cds100 <= 25)
     return (
       <Badge variant="secondary" className="bg-green-500/10 text-green-700">
         Low
       </Badge>
     );
-  if (score <= 50)
+  if (cds100 <= 50)
     return (
       <Badge variant="secondary" className="bg-blue-500/10 text-blue-700">
         Medium
       </Badge>
     );
-  if (score <= 75)
+  if (cds100 <= 75)
     return (
       <Badge variant="secondary" className="bg-orange-500/10 text-orange-700">
         High
@@ -63,18 +69,24 @@ const aggregateByConcept = (scores) => {
   for (const s of scores || []) {
     const concept = s.concept_name || 'Unknown';
     if (!buckets.has(concept)) {
-      buckets.set(concept, { subject: concept, total: 0, count: 0, attempts: 0 });
+      buckets.set(concept, { subject: concept, cdsTotal: 0, cdsCount: 0, attempts: 0 });
     }
     const b = buckets.get(concept);
-    b.total += Number(s.cds) || 0;
-    b.count += 1;
+    b.cdsTotal += Number(s.cds) || 0;
+    b.cdsCount += 1;
     b.attempts += 1;
   }
-  return Array.from(buckets.values()).map((b) => ({
-    subject: b.subject,
-    A: b.count > 0 ? Math.round((b.total / b.count) * 100) / 100 : 0,
-    attempts: b.attempts,
-  }));
+  // Convert CDS → mastery (100 - CDS×100) so larger radar area = better.
+  // This aligns with the Progress page radar where larger = better.
+  return Array.from(buckets.values()).map((b) => {
+    const avgCds = b.cdsCount > 0 ? (b.cdsTotal / b.cdsCount) : 0;
+    return {
+      subject: b.subject,
+      mastery: Math.round((1 - avgCds) * 10000) / 100, // 0–100 scale
+      cds: Math.round(avgCds * 100) / 100,
+      attempts: b.attempts,
+    };
+  });
 };
 
 export default function StudentProfile() {
@@ -85,7 +97,7 @@ export default function StudentProfile() {
     let active = true;
     const load = async () => {
       try {
-        const res = await api.get('/analytics/my-scores');
+        const res = await api.get('/api/analytics/my-scores');
         if (active) setScores(res.data || []);
       } catch (err) {
         // network errors are expected for unauthenticated users; leave empty
@@ -109,7 +121,7 @@ export default function StudentProfile() {
         { label: 'Student', href: '/student/dashboard' },
         { label: 'My Concept Profile' },
       ]}
-      subtitle="Understanding your Concept Difficulty Score (CDS) across different programming topics."
+      subtitle="Concept mastery and difficulty scores across programming topics."
     >
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-1">
@@ -145,16 +157,20 @@ export default function StudentProfile() {
               CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS), normalized to a
               0–100 scale.
             </p>
+            <p className="text-xs text-muted-foreground border-t border-border pt-2">
+              <strong>Mastery = 100 − CDS.</strong> The radar chart below shows
+              mastery (larger area = better understanding), not difficulty.
+            </p>
           </CardContent>
         </Card>
 
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Overall Concept Footprint</CardTitle>
+            <CardTitle>Concept Mastery Footprint</CardTitle>
             <CardDescription>
               {radarData.length === 0
-                ? 'Submit some exercises to see your profile.'
-                : `${radarData.length} concepts, ${scores.length} submissions`}
+                ? 'Submit some exercises to see your mastery profile.'
+                : `${radarData.length} concepts, ${scores.length} submissions — larger area = better understanding`}
             </CardDescription>
           </CardHeader>
           <CardContent className="h-[400px]">
@@ -179,8 +195,8 @@ export default function StudentProfile() {
                   />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} />
                   <Radar
-                    name="CDS"
-                    dataKey="A"
+                    name="Mastery"
+                    dataKey="mastery"
                     stroke="hsl(var(--primary))"
                     fill="hsl(var(--primary))"
                     fillOpacity={0.6}
@@ -194,36 +210,43 @@ export default function StudentProfile() {
 
       {radarData.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {radarData.map((data) => (
-            <Card key={data.subject}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{data.subject}</CardTitle>
-                  {getDifficultyBadge(data.A)}
-                </div>
-                <CardDescription>CDS: {data.A}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-1 text-sm text-muted-foreground">
-                  Submissions: {data.attempts}
-                </p>
-                <div className="mt-2 h-2 w-full rounded-full bg-muted">
-                  <div
-                    className={
-                      data.A > 75
-                        ? 'h-2 rounded-full bg-destructive'
-                        : data.A > 50
-                          ? 'h-2 rounded-full bg-orange-500'
-                          : data.A > 25
+          {radarData.map((data) => {
+            const masteryScore = data.mastery;
+            const cdsScore = data.cds;
+            const difficultyLabel = cdsScore <= 0.25 ? 'Low' : cdsScore <= 0.50 ? 'Medium' : cdsScore <= 0.75 ? 'High' : 'Critical';
+            return (
+              <Card key={data.subject}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <CardTitle className="text-lg">{data.subject}</CardTitle>
+                    {getDifficultyBadge(cdsScore)}
+                  </div>
+                  <CardDescription>
+                    Mastery: {masteryScore.toFixed(0)}% · Difficulty: {cdsScore.toFixed(2)} ({difficultyLabel})
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-1 text-sm text-muted-foreground">
+                    Submissions: {data.attempts}
+                  </p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={
+                        masteryScore > 75
+                          ? 'h-2 rounded-full bg-green-500'
+                          : masteryScore > 50
                             ? 'h-2 rounded-full bg-blue-500'
-                            : 'h-2 rounded-full bg-green-500'
-                    }
-                    style={{ width: `${data.A}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                            : masteryScore > 25
+                              ? 'h-2 rounded-full bg-orange-500'
+                              : 'h-2 rounded-full bg-destructive'
+                      }
+                      style={{ width: `${masteryScore}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </StudentDashboardShell>

@@ -24,13 +24,15 @@ export default function CDSPillDelta({ value, delta, classification, trend, insi
   const trendIcon = TREND_ICONS[trend] || TREND_ICONS.flat;
   const trendClass = TREND_CLASSES[trend] || TREND_CLASSES.flat;
 
+  if (value == null) return null;
+
   return (
     <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold font-mono', cdsClass, className)}>
       <span className="cds-value">{value.toFixed(2)}</span>
       {delta != null && (
         <span className={cn('flex items-center gap-0.5', trendClass)}>
           {trendIcon}
-          {(delta >= 0 ? '+' : '')}{delta.toFixed(2)}
+          {(delta >= 0 ? '+' : '')}{(typeof delta === 'number' ? delta : 0).toFixed(2)}
         </span>
       )}
       {classification && (

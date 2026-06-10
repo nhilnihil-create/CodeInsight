@@ -1,19 +1,19 @@
 import Sidebar from "./Sidebar";
-import ThemeToggle from "./ThemeToggle";
 import { useSidebar } from "../context/SidebarContext";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 /**
- * App shell.
+ * App shell — scroll discipline (2026-06-09 refactor).
  *
- * - Sidebar: fixed h-screen, drives the main margin via SidebarContext.
- * - Main:    h-screen, flex column, overflow-hidden, ml-[220|70] for sidebar.
- * - Content: flex column, overflow-auto, with the standard
- *            max-w-7xl mx-auto p-6 lg:p-8 gutter.
+ * Root:        h-screen overflow-hidden — viewport-locked, no browser scroll.
+ * Sidebar:     fixed left, own vertical scroll, decoupled from content.
+ * Main:        flex-1 flex flex-col h-full overflow-hidden — no scroll here.
+ * ContentPane: THE SOLE scroll container. flex-1 overflow-y-auto with
+ *              custom-scroll thin tracking so only this pane scrolls.
  *
- * Code editor exception: the Monaco editor is edge-to-edge and the
- * theme toggle is hidden on it. The code editor paths are:
+ * Code editor exception: Monaco editor is edge-to-edge (no padding, no
+ * max-width) and the theme toggle is hidden on it. The code editor paths are:
  *   - /student/code-editor
  *   - /student/code-editor/:exerciseId
  *   - /student/exercises/:exerciseId  (the exercise detail IS the editor)
@@ -37,28 +37,23 @@ export default function Layout({ children }) {
     CODE_EDITOR_EXERCISE_RE.test(pathname);
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
+    <div className="flex h-screen bg-slate-950 text-slate-50 overflow-hidden">
       <Sidebar />
       <main
         className={cn(
-          "flex h-screen w-full flex-1 flex-col overflow-hidden bg-background transition-[margin] duration-300 ease-in-out",
+          "flex h-screen w-full flex-1 flex-col overflow-hidden bg-slate-950/95 transition-[margin] duration-300 ease-in-out",
           isOpen ? "ml-[220px]" : "ml-[70px]"
         )}
       >
         <div
           className={cn(
-            "flex w-full flex-1 flex-col overflow-auto",
-            isCodeEditor ? "max-w-none p-0" : "max-w-7xl mx-auto p-6 lg:p-8"
+            "flex w-full flex-1 flex-col overflow-y-auto custom-scroll",
+            isCodeEditor ? "max-w-none p-0" : "p-6 lg:p-8"
           )}
         >
           {children}
         </div>
       </main>
-      {!isCodeEditor ? (
-        <div className="fixed right-4 top-4 z-50" aria-label="Theme toggle">
-          <ThemeToggle />
-        </div>
-      ) : null}
     </div>
   );
 }

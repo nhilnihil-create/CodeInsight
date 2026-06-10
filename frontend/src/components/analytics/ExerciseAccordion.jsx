@@ -14,6 +14,11 @@ function ExerciseAccordion({ sectionId }) {
   }, [sectionId]);
 
   const fetchSectionExercises = async () => {
+    if (!sectionId) {
+      setExercises([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await api.get(`/api/sections/${sectionId}/exercises`);
@@ -28,6 +33,7 @@ function ExerciseAccordion({ sectionId }) {
   };
 
   const fetchExerciseReport = async (exerciseId) => {
+    if (!sectionId) return;
     try {
       setLoadingReports(prev => ({
         ...prev,

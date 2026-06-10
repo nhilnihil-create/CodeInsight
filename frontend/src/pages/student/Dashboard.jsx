@@ -1,11 +1,12 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  CalendarClock,
   Sparkles,
   MessageSquare,
   Clock,
   ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,76 +15,7 @@ import { cn } from "@/lib/utils";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import StudentDashboardShell from "@/components/student-dashboard-shell";
-
-/**
- * Student "Today" page — mobile-first reference.
- * URL: /student/dashboard · file: student/Dashboard.jsx
- *
- * Layout
- *   Mobile  max-w-lg mx-auto px-4 py-4 (tighter gaps)
- *   Desktop max-w-none px-6 py-8 (full width)
- *
- * Hierarchy
- *   1. PageHeader     "Today, <weekday> <month> <day>"
- *   2. InsightHeader  due-soon flag + Start action
- *   3. EvidenceRow    Mastery / Streak / CDS (3 chips)
- *   4. Card           "You're close on recursion" — 3 weakest concepts
- *   5. Card           "Recent feedback" — 2 instructor notes
- *   6. Card           "Recommended next" — 3 ranked exercise suggestions
- */
-
-const WEAKEST = [
-  { id: "rc", name: "Recursion",   value: 32, level: "low",      hint: "3 exercises to go" },
-  { id: "ar", name: "Arrays",      value: 48, level: "low",      hint: "2 exercises to go" },
-  { id: "fn", name: "Functions",   value: 56, level: "moderate", hint: "1 exercise to go" },
-];
-
-const NOTES = [
-  {
-    id: "n1",
-    author: "Dr. E. Chen",
-    initials: "EC",
-    when: "2 days ago",
-    body: "Recursion workshop Friday 3pm, Lab 204. Pair with H. Singh for the Loops review.",
-  },
-  {
-    id: "n2",
-    author: "Dr. E. Chen",
-    initials: "EC",
-    when: "1 week ago",
-    body: "Midterm: 78% on Functions. Watch edge cases on empty input arrays — 3/5 missed there.",
-  },
-];
-
-const RECOMMENDED = [
-  {
-    id: "e7",
-    rank: 1,
-    title: "Recursion Warmup",
-    blurb: "Base cases, the call stack, and tracing factorial.",
-    minutes: 20,
-    concept: "RC",
-    conceptName: "Recursion",
-  },
-  {
-    id: "e8",
-    rank: 2,
-    title: "Functions II",
-    blurb: "Closures, lambdas, and pass-by-reference gotchas.",
-    minutes: 25,
-    concept: "FN",
-    conceptName: "Functions",
-  },
-  {
-    id: "e9",
-    rank: 3,
-    title: "Array Filter",
-    blurb: "Predicate-based filtering with one and two-pass patterns.",
-    minutes: 15,
-    concept: "AR",
-    conceptName: "Arrays",
-  },
-];
+import api from "@/services/api";
 
 function formatToday() {
   const d = new Date();
@@ -99,7 +31,97 @@ const FILL_TONE = {
   high: "bg-success",
 };
 
+function Skeleton({ className }) {
+  return <div className={cn("animate-pulse rounded-md bg-muted", className)} />;
+}
+
 export default function StudentDashboard() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchDashboard() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.get("/api/student/dashboard");
+        if (!cancelled) setData(res.data);
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchDashboard();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ---------- Loading skeleton ----------
+  if (loading) {
+    return (
+      <StudentDashboardShell>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <Skeleton className="h-9 w-24" />
+          </div>
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+            <Skeleton className="h-64 w-full rounded-lg" />
+            <Skeleton className="h-64 w-full rounded-lg" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-lg" />
+        </div>
+      </StudentDashboardShell>
+    );
+  }
+
+  // ---------- Error state ----------
+  if (error) {
+    return (
+      <StudentDashboardShell>
+        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+          <AlertCircle className="h-10 w-10 text-destructive" strokeWidth={1.5} />
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-foreground">Failed to load dashboard</p>
+            <p className="text-sm text-muted-foreground max-w-sm">{error}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+            Try again
+          </Button>
+        </div>
+      </StudentDashboardShell>
+    );
+  }
+
+  // ---------- Derived data ----------
+  const due = data.dueExercises;
+  const dueCount = due?.count ?? 0;
+  const nearest = due?.nearestDeadline;
+  const insightEyebrow = dueCount > 0 ? "Due soon" : "All clear";
+  const insightText = nearest
+    ? `Exercise ${nearest.id} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
+    : "You're all caught up on your exercises.";
+  const insightDesc = nearest
+    ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
+    : "No deadlines approaching.";
+
+  const mastery = data.mastery;
+  const completion = data.completion;
+  const streak = data.streak;
+  const avgCds = data.avgCds ?? 0;
+  const weakest = data.weakestConcepts ?? [];
+  const feedback = data.recentFeedback ?? [];
+  const recs = data.recommended ?? [];
+
   return (
     <StudentDashboardShell>
       {/* ---------- PageHeader ---------- */}
@@ -109,7 +131,9 @@ export default function StudentDashboard() {
             {formatToday()}
           </h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
-            3 exercises due this week · 1 in 2 hours
+            {dueCount > 0
+              ? `${dueCount} exercise${dueCount > 1 ? 's' : ''} due this week`
+              : "No exercises due this week"}
           </p>
         </div>
         <Button asChild variant="outline" size="sm" className="font-medium shrink-0">
@@ -121,30 +145,50 @@ export default function StudentDashboard() {
       </header>
 
       {/* ---------- Insight ---------- */}
-      <InsightHeader
-        eyebrow="Due soon"
-        insight="Exercise 7 (Recursion) is due in 2 hours. You haven't started."
-        description="~35 min · Targets: recursion, base case"
-        action={
-          <Button asChild size="sm" className="font-medium">
-            <Link to="/student/exercises/e7">
-              Start Exercise 7
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-            </Link>
-          </Button>
-        }
-      />
+      {nearest ? (
+        <InsightHeader
+          eyebrow={insightEyebrow}
+          insight={insightText}
+          description={insightDesc}
+          action={
+            <Button asChild size="sm" className="font-medium">
+              <Link to={`/student/exercises/${nearest.id}`}>
+                Start Exercise {nearest.id}
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
+              </Link>
+            </Button>
+          }
+        />
+      ) : null}
 
       {/* ---------- Evidence ---------- */}
       <EvidenceRow
         chips={[
-          { label: "Mastery", value: "64%",  delta: 2,    series: [60, 61, 62, 63, 64], comparison: "this week" },
-          { label: "Streak",  value: "5 days", delta: 1,  series: [2, 3, 3, 4, 5],         comparison: "personal best" },
-          { label: "CDS",     value: "0.28",  delta: -0.04, series: [0.34, 0.32, 0.31, 0.30, 0.28], comparison: "improving" },
+          {
+            label: "Mastery",
+            value: `${mastery?.percentage ?? 0}%`,
+            delta: avgCds <= 0.33 ? -1 : avgCds > 0.66 ? 1 : 0,
+            series: mastery?.series ?? [],
+            comparison: "concept understanding",
+          },
+          {
+            label: "Completion",
+            value: `${completion?.percentage ?? 0}%`,
+            delta: completion?.completed ?? 0,
+            series: [],
+            comparison: `${completion?.total ?? 0} exercises total`,
+          },
+          {
+            label: "Streak",
+            value: `${streak?.current ?? 0} day${streak?.current !== 1 ? 's' : ''}`,
+            delta: streak?.best ?? 0,
+            series: streak?.series ?? [],
+            comparison: "personal best",
+          },
         ]}
       />
 
-      {/* ---------- Card 4: weakest concepts ---------- */}
+      {/* ---------- Card: weakest concepts + feedback ---------- */}
       <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
@@ -153,17 +197,20 @@ export default function StudentDashboard() {
                 Focus
               </p>
               <CardTitle className="text-sm font-semibold truncate">
-                You're close on recursion
+                {weakest.length > 0
+                  ? `Work on ${weakest[0].name.toLowerCase()}`
+                  : "No data yet"}
               </CardTitle>
             </div>
             <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
           </CardHeader>
           <CardContent className="pt-4 space-y-3">
-            {WEAKEST.map((c) => {
+            {weakest.length > 0 ? weakest.map((c) => {
               const fillTone = FILL_TONE[c.level] ?? "bg-primary";
+              const displayValue = Math.round((1 - c.avgCds) * 100);
               return (
                 <div
-                  key={c.id}
+                  key={c.name}
                   className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-3 min-w-0"
                 >
                   <div className="min-w-0">
@@ -177,20 +224,24 @@ export default function StudentDashboard() {
                   <div className="h-2 rounded-full bg-muted overflow-hidden min-w-0">
                     <div
                       className={cn("h-full rounded-full transition-all", fillTone)}
-                      style={{ width: `${c.value}%` }}
+                      style={{ width: `${displayValue}%` }}
                       aria-hidden="true"
                     />
                   </div>
                   <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                    {c.value}%
+                    {displayValue}%
                   </span>
                 </div>
               );
-            })}
+            }) : (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Complete exercises to see your progress
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        {/* ---------- Card 5: recent feedback ---------- */}
+        {/* ---------- Card: recent feedback ---------- */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
             <div className="space-y-1 min-w-0">
@@ -207,38 +258,46 @@ export default function StudentDashboard() {
             />
           </CardHeader>
           <CardContent className="p-0">
-            <ul className="divide-y divide-border">
-              {NOTES.map((n) => (
-                <li key={n.id} className="px-4 py-3 sm:px-5 sm:py-4">
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarFallback className="text-[10px] font-semibold text-muted-foreground">
-                        {n.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">
-                          {n.author}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0 inline-flex items-center gap-1">
-                          <Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                          {n.when}
-                        </span>
+            {feedback.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {feedback.map((n) => (
+                  <li key={n.id} className="px-4 py-3 sm:px-5 sm:py-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarFallback className="text-[10px] font-semibold text-muted-foreground">
+                          {n.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium truncate">
+                            {n.author}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0 inline-flex items-center gap-1">
+                            <Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            {n.when}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {n.body}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {n.body}
-                      </p>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="px-4 py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No feedback yet
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* ---------- Card 6: recommended next ---------- */}
+      {/* ---------- Card: recommended next ---------- */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
           <div className="space-y-1 min-w-0">
@@ -257,47 +316,49 @@ export default function StudentDashboard() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <ul className="divide-y divide-border">
-            {RECOMMENDED.map((r) => (
-              <li key={r.id}>
-                <Link
-                  to={`/student/exercises/${r.id}`}
-                  className="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                >
-                  <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground font-mono tabular-nums"
-                    aria-hidden="true"
+          {recs.length > 0 ? (
+            <ul className="divide-y divide-border">
+              {recs.map((r, idx) => (
+                <li key={r.id}>
+                  <Link
+                    to={`/student/exercises/${r.id}`}
+                    className="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4 transition-all duration-200 ease-out hover:bg-slate-900/80 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                   >
-                    {r.rank}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {r.title}
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground font-mono tabular-nums"
+                      aria-hidden="true"
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {r.title}
+                        </p>
+                        <ConceptTag code={r.concept} name={r.conceptName} />
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                        {r.blurb} · ~{r.minutes} min
                       </p>
-                      <ConceptTag code={r.concept} name={r.conceptName} />
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                      {r.blurb} · ~{r.minutes} min
-                    </p>
-                  </div>
-                  <ChevronRight
-                    className="h-4 w-4 text-muted-foreground shrink-0"
-                    strokeWidth={1.5}
-                    aria-hidden="true"
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    <ChevronRight
+                      className="h-4 w-4 text-muted-foreground shrink-0"
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                No exercises available yet
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* ---------- Tiny foot ---------- */}
-      <p className="text-[11px] text-muted-foreground text-center pt-2 inline-flex items-center gap-1.5 w-full justify-center">
-        <CalendarClock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-        Next sync in 14 min · last 2 min ago
-      </p>
     </StudentDashboardShell>
   );
 }

@@ -42,13 +42,8 @@ export default function SectionFilter({
     let cancelled = false;
     const load = async () => {
       try {
-        // Try instructor endpoint first; fall back to generic list.
-        let res;
-        try {
-          res = await api.get('/api/instructor/sections');
-        } catch {
-          res = await api.get('/api/sections');
-        }
+        // Fetch sections from the generic endpoint (no instructor-specific route exists)
+        const res = await api.get('/api/sections');
         const list = Array.isArray(res.data) ? res.data : [];
         if (!cancelled) {
           setSections(list);

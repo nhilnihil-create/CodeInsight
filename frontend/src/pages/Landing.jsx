@@ -24,7 +24,11 @@ export default function Landing() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      const dest = user?.role === 'instructor' ? '/instructor' : '/student';
+      const dest = user?.role === 'instructor'
+        ? '/instructor/dashboard'
+        : user?.role === 'admin'
+          ? '/admin'
+          : '/student/dashboard';
       navigate(dest, { replace: true });
     }
   }, [isLoggedIn, user, navigate]);

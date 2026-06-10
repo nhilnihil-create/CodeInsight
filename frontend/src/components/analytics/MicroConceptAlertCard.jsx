@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import api from '../../services/api';
 import './MicroConceptAlertCard.css';
 
+const __DEV__ = import.meta.env.DEV;
+
 function MicroConceptAlertCard({ alert, onDismiss }) {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionCode, setSubmissionCode] = useState('');
@@ -38,74 +40,52 @@ function MicroConceptAlertCard({ alert, onDismiss }) {
     setLoading(true);
     setError('');
     try {
-      // Log the alert object for debugging
-      console.log('Alert object received:', alert);
-
-      // Check if alert has the required IDs
       if (!alert.student_id || !alert.exercise_id) {
-        console.error('Missing required IDs in alert:', {
-          student_id: alert.student_id,
-          exercise_id: alert.exercise_id,
-          alert
-        });
+        if (__DEV__) console.error('Missing required IDs in alert:', { student_id: alert.student_id, exercise_id: alert.exercise_id, alert });
         setError('Missing student or exercise ID in alert data');
         return;
       }
 
-      console.log(`Fetching submission for student ${alert.student_id}, exercise ${alert.exercise_id}`);
+      if (__DEV__) console.log(`Fetching submission for student ${alert.student_id}, exercise ${alert.exercise_id}`);
       const response = await api.get(`/api/submissions/${alert.student_id}/${alert.exercise_id}`);
-      console.log('Submissions API response:', response.data);
 
-      // Handle response: could be array of submissions, single submission object, or undefined
       let submissions = [];
 
-      // Safely check if response.data exists and is not null
       if (response.data !== undefined && response.data !== null) {
         if (Array.isArray(response.data)) {
           submissions = response.data;
         } else if (typeof response.data === 'object') {
-          // If it's a single submission object
           submissions = [response.data];
         }
       }
 
-      // Filter out any null, undefined, or non-object submissions
       submissions = submissions.filter(sub =>
         sub !== null &&
         sub !== undefined &&
         typeof sub === 'object'
       );
 
-      console.log('Processed submissions array:', submissions);
-
-      // If we have submissions, sort and get the latest
       if (submissions.length > 0) {
         try {
           submissions.sort((a, b) => {
-            // Safely handle created_at dates
             const dateA = a ? new Date(a.created_at) : new Date(0);
             const dateB = b ? new Date(b.created_at) : new Date(0);
             return dateB - dateA;
           });
           const latestSubmission = submissions[0];
-          console.log('Latest submission object:', latestSubmission);
 
-          // Safely access the code property
           if (latestSubmission && typeof latestSubmission === 'object') {
             const code = latestSubmission.code;
-            console.log('Submission code:', code);
             setSubmissionCode(code !== undefined && code !== null ? code : 'No code available');
           } else {
-            console.error('Latest submission is not a valid object:', latestSubmission);
+            if (__DEV__) console.error('Latest submission is not a valid object:', latestSubmission);
             setSubmissionCode('Invalid submission data format');
           }
         } catch (sortError) {
-          console.error('Error sorting submissions:', sortError);
-          // Fallback: just take the first submission if sorting fails
+          if (__DEV__) console.error('Error sorting submissions:', sortError);
           const latestSubmission = submissions[0];
           if (latestSubmission && typeof latestSubmission === 'object') {
             const code = latestSubmission.code;
-            console.log('Submission code (fallback):', code);
             setSubmissionCode(code !== undefined && code !== null ? code : 'No code available');
           } else {
             setSubmissionCode('Invalid submission data');
@@ -115,7 +95,7 @@ function MicroConceptAlertCard({ alert, onDismiss }) {
         setSubmissionCode('No submissions found for this student and exercise');
       }
     } catch (err) {
-      console.error('Error fetching submission:', err);
+      if (__DEV__) console.error('Error fetching submission:', err);
       setError('Failed to load submission code: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);

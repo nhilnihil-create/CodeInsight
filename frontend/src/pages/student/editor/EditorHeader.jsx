@@ -1,6 +1,5 @@
-import { Play, Send, Clock, ChevronLeft, Sun, Moon, ChevronDown } from "lucide-react";
+import { Play, Send, Clock, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,18 +17,23 @@ export default function EditorHeader({
   title,
   concepts = [],
   testResults,
-  timerSeconds = 0,
+  mode = 'learning',
+  timeLimitMinutes,
+  activeElapsedSeconds = 0,
   isRunning = false,
+  isReviewMode = false,
   onRun,
   onSubmit,
   onBack,
-  language = "C++",
-  languageOptions = [],
-  onLanguageChange,
 }) {
   const passing = testResults?.passing ?? 0;
   const total = testResults?.total ?? 0;
-  const { theme, setTheme } = useTheme();
+
+  // Derive countdown from elapsed time (Assessment Mode only)
+  const timeLimitSeconds = timeLimitMinutes ? timeLimitMinutes * 60 : 0;
+  const countdownSeconds = mode === 'assessment' && timeLimitSeconds > 0
+    ? Math.max(0, timeLimitSeconds - activeElapsedSeconds)
+    : 0;
 
   const visibleConcepts = concepts.slice(0, VISIBLE_CHIPS);
   const overflow = Math.max(0, concepts.length - VISIBLE_CHIPS);
@@ -94,50 +98,19 @@ export default function EditorHeader({
         </span>
       </div>
 
-      {/* Right: timer · Run · Submit · Language · Theme */}
+      {/* Right: timer · Run · Submit */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <div className="hidden sm:flex items-center gap-1.5 text-sm font-mono tabular-nums text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-          <span className="sr-only">Time remaining:</span>
-          <span aria-hidden="true">{formatTime(timerSeconds)}</span>
-        </div>
-
-        {/* Language selector — simple <select> styled as a pill. */}
-        {languageOptions.length > 0 && onLanguageChange ? (
-          <label className="hidden md:inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            <span className="sr-only">Language</span>
-            <select
-              value={language}
-              onChange={(e) => onLanguageChange(e.target.value)}
-              className="appearance-none bg-transparent text-foreground pr-3 focus:outline-none cursor-pointer"
-              style={{ backgroundImage: "none" }}
-            >
-              {languageOptions.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="h-3 w-3 -ml-2 pointer-events-none" strokeWidth={1.75} aria-hidden="true" />
-          </label>
-        ) : null}
-
-        {/* Theme toggle — only one button (just flips). Hidden on small
-            screens to save space; the global ThemeToggle is reachable
-            from other pages. */}
-        <button
-          type="button"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          className="hidden sm:inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          {theme === "dark" ? (
-            <Sun className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
-          ) : (
-            <Moon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
-          )}
-        </button>
+        {/* Timer: Assessment Mode countdown only */}
+        {mode === 'assessment' && timeLimitSeconds > 0 && countdownSeconds > 0 && (
+          <div className={cn(
+            "hidden sm:flex items-center gap-1.5 text-sm font-mono tabular-nums",
+            countdownSeconds <= 60 ? "text-destructive" : "text-muted-foreground",
+          )}>
+            <Clock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            <span className="sr-only">Time remaining:</span>
+            <span aria-hidden="true">{formatTime(countdownSeconds)}</span>
+          </div>
+        )}
 
         <Button
           variant="ghost"
@@ -150,10 +123,16 @@ export default function EditorHeader({
           Run
           <KbdHint keys={["⌘", "↵"]} />
         </Button>
-        <Button variant="default" size="sm" onClick={onSubmit} className="gap-1.5 px-4">
-          Submit
-          <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
-        </Button>
+        {isReviewMode ? (
+          <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-muted/60 text-[10px] font-medium text-muted-foreground border border-border">
+            Review Mode
+          </span>
+        ) : (
+          <Button variant="default" size="sm" onClick={onSubmit} className="gap-1.5 px-4">
+            Submit
+            <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </Button>
+        )}
       </div>
     </header>
   );

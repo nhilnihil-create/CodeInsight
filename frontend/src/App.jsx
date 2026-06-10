@@ -9,15 +9,15 @@ import InstructorHeatmap from './pages/instructor/Heatmap';
 import InstructorStudents from './pages/instructor/Students';
 import InstructorStudentDetail from './pages/instructor/StudentDetail';
 import InstructorExercises from './pages/instructor/Exercises';
-import InstructorExerciseForm from './pages/instructor/ExerciseForm';
+import ExerciseWorkspace from './pages/instructor/ExerciseWorkspace';
 import InstructorReports from './pages/instructor/Reports';
+import InstructorExerciseExplorer from './pages/instructor/ExerciseExplorer';
 import InstructorIntegrity from './pages/instructor/Integrity';
 // Section management — preserved per user directive 2026-06-04
 import InstructorSections from './pages/instructor/Sections';
 import SectionDetail from './pages/instructor/SectionDetail';
 import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
 import InstructorCommand from './pages/instructor/Command';
-import InstructorIntegrityDetail from './pages/instructor/IntegrityDetail';
 import InstructorDeveloper from './pages/instructor/Developer';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentToday from './pages/student/Today';
@@ -61,7 +61,11 @@ function ProtectedRoute({ children, requiredRole }) {
 
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (requiredRole && user?.role !== requiredRole) {
-    const home = user?.role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
+    const home = user?.role === 'instructor'
+      ? '/instructor/dashboard'
+      : user?.role === 'admin'
+        ? '/admin'
+        : '/student/dashboard';
     return <Navigate to={home} replace />;
   }
   return <Layout>{children}</Layout>;
@@ -114,14 +118,34 @@ function AppContent() {
             <ModeSwitch mobile={<MobileInstructorConcepts />} desktop={<InstructorExercises />} />
           </ProtectedRoute>
         } />
+        <Route path="/instructor/explorer" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorExerciseExplorer />
+          </ProtectedRoute>
+        } />
         <Route path="/instructor/exercises/new" element={
           <ProtectedRoute requiredRole="instructor">
-            <InstructorExerciseForm />
+            <ExerciseWorkspace />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/exercises/workspace" element={
+          <ProtectedRoute requiredRole="instructor">
+            <ExerciseWorkspace />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/exercises/bulk-create" element={
+          <ProtectedRoute requiredRole="instructor">
+            <Navigate to="/instructor/exercises/workspace" replace />
           </ProtectedRoute>
         } />
         <Route path="/instructor/exercises/:id/edit" element={
           <ProtectedRoute requiredRole="instructor">
-            <InstructorExerciseForm />
+            <ExerciseWorkspace />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/create-exercise" element={
+          <ProtectedRoute requiredRole="instructor">
+            <Navigate to="/instructor/exercises/new" replace />
           </ProtectedRoute>
         } />
         <Route path="/instructor/warnings" element={
@@ -141,9 +165,7 @@ function AppContent() {
           </ProtectedRoute>
         } />
         <Route path="/instructor/integrity/:id" element={
-          <ProtectedRoute requiredRole="instructor">
-            <InstructorIntegrityDetail />
-          </ProtectedRoute>
+          <Navigate to="/instructor/integrity" replace />
         } />
         <Route path="/instructor/developer" element={
           <ProtectedRoute requiredRole="instructor">
@@ -161,7 +183,7 @@ function AppContent() {
             /instructor/{warnings,violations} now redirect to the unified /integrity page. */}
         <Route path="/instructor/create-exercise" element={
           <ProtectedRoute requiredRole="instructor">
-            <InstructorExerciseForm />
+            <Navigate to="/instructor/exercises/new" replace />
           </ProtectedRoute>
         } />
         <Route path="/instructor/alerts" element={

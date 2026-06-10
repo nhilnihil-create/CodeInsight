@@ -92,15 +92,14 @@ export default function ResizableWorkbench({
   onCodeChange,
   testResults,
   onMount,
-  language = "python",
-  languageOptions = [],
-  onLanguageChange,
+  language = "cpp",
   submissions = [],
   history = [],
   consoleLog = "",
   compilationLog = "",
   programOutput = "",
   onClearTerminal,
+  isReviewMode = false,
 }) {
   const centerGroupRef = useGroupRef();
   const outerGroupRef = useGroupRef();
@@ -225,21 +224,21 @@ export default function ResizableWorkbench({
       };
       const failures = collectFailures(result);
 
-      if (failures.length === 0) {
-        // eslint-disable-next-line no-console
-        console.info(
-          "[workbench] layout OK",
-          result.outer.actual,
-          result.center.actual,
-        );
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn(
-          "[workbench] layout MISMATCH",
-          result,
-          "failures:",
-          failures,
-        );
+      if (process.env.NODE_ENV !== 'production') {
+        if (failures.length === 0) {
+          console.info(
+            "[workbench] layout OK",
+            result.outer.actual,
+            result.center.actual,
+          );
+        } else {
+          console.warn(
+            "[workbench] layout MISMATCH",
+            result,
+            "failures:",
+            failures,
+          );
+        }
       }
     }, 100);
 
@@ -307,6 +306,7 @@ export default function ResizableWorkbench({
             >
               <OutputPanel
                 testResults={testResults}
+                testCases={exercise?.test_cases || []}
                 consoleLog={consoleLog}
                 compilationLog={compilationLog}
                 programOutput={programOutput}
@@ -317,7 +317,7 @@ export default function ResizableWorkbench({
         </Panel>
         <DragHandle axis="col" />
 
-        {/* RIGHT — Submissions | History */}
+        {/* RIGHT — Submissions | History (or Review Mode) */}
         <Panel
           id="right"
           defaultSize={PANEL_PROPS.outer.right.defaultSize}
@@ -325,10 +325,22 @@ export default function ResizableWorkbench({
           maxSize={PANEL_PROPS.outer.right.maxSize}
           order={3}
         >
-          <SubmissionsPanel
-            submissions={submissions}
-            history={history}
-          />
+          {isReviewMode ? (
+            <div className="h-full flex items-center justify-center p-4">
+              <div className="text-center space-y-2">
+                <div className="text-2xl">👁️</div>
+                <p className="text-sm font-medium">Review Mode</p>
+                <p className="text-xs text-muted-foreground">
+                  Your code changes and test runs won't be saved.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <SubmissionsPanel
+              submissions={submissions}
+              history={history}
+            />
+          )}
         </Panel>
       </Group>
 
