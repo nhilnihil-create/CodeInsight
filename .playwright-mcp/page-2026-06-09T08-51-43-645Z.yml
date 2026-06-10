@@ -1,0 +1,119 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: JD
+          - generic [ref=e70]:
+            - generic [ref=e71]: Juan Dela Cruz
+            - generic [ref=e72]: instructor@psu.edu
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - heading "Class Heatmap" [level=1] [ref=e82]
+            - paragraph [ref=e83]: CDS struggle index — colour mosaic, no scroll.
+          - generic [ref=e84]:
+            - generic [ref=e85]: Section
+            - combobox [ref=e86]:
+              - generic: All Sections
+              - img [ref=e87]
+        - generic [ref=e89]:
+          - heading "Concept × Student — Struggle Index" [level=3] [ref=e91]
+          - generic [ref=e93]:
+            - generic [ref=e94]:
+              - generic [ref=e95]: Student
+              - generic [ref=e96]: Datatypes
+              - generic [ref=e97]: Variables
+              - generic [ref=e98]: Conditionals
+              - generic [ref=e99]: Loops
+              - generic [ref=e100]: Functions
+              - generic [ref=e101]: Arrays
+              - generic [ref=e102]: OOP
+            - generic [ref=e104]: Maria Reyes
+            - generic [ref=e113]: Jose Santos
+            - generic [ref=e122]: Ana Lim
+            - generic [ref=e131]: Test Student 1
+            - generic [ref=e140]: Test Student 2
+            - generic [ref=e149]: Test Student 3
+            - generic [ref=e158]: Test Student 4
+            - generic [ref=e167]: Test Student 5
+            - generic [ref=e176]: Test Student 6
+            - generic [ref=e185]: Test Student 7
+            - generic [ref=e194]: Test Student 8
+            - generic [ref=e203]: Test Student 9
+            - generic [ref=e212]: Test Student 10
+            - generic [ref=e221]: Test Student 11
+            - generic [ref=e230]: Test Student 12
+            - generic [ref=e239]: Test Student 13
+            - generic [ref=e248]: Test Student 14
+            - generic [ref=e257]: Test Student 15
+            - generic [ref=e266]: Test Student 16
+            - generic [ref=e275]: Test Student 17
+            - generic [ref=e284]: Test Student 18
+            - generic [ref=e293]: Test Student 19
+            - generic [ref=e302]: Test Student 20
+            - generic [ref=e311]: Test Student 21
+            - generic [ref=e320]: Test Student 22
+            - generic [ref=e329]: Test Student 23
+            - generic [ref=e338]: Test Student 24
+            - generic [ref=e347]: Test Student 25
+            - generic [ref=e356]: Test Student 26
+            - generic [ref=e365]: Test Student 27
+            - generic [ref=e374]: Test Student 28
+            - generic [ref=e383]: Test Student 29
+            - generic [ref=e392]: Test Student 30
+            - generic [ref=e401]: Test Student 31
+            - generic [ref=e410]: Test Student 32
+            - generic [ref=e419]: Test Student 33
+            - generic [ref=e428]: Test Student 34
+            - generic [ref=e437]: Test Student 35
+            - generic [ref=e446]: Test Student 36
+            - generic [ref=e455]: Test Student 37
+            - generic [ref=e464]: Test Student 38
+            - generic [ref=e473]: Test Student 39
+            - generic [ref=e482]: Test Student 40
+            - generic [ref=e491]: Student A
+  - region "Notifications alt+T"

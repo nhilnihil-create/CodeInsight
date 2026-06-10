@@ -1,0 +1,564 @@
+[
+  {
+    "id": "401590e5-31f3-41d0-b4a9-ab9fd92bd9d4",
+    "concept": "Datatypes",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Print Size of Fundamental Types",
+    "description": "Write a program that uses the sizeof operator to display the byte size of the following C++ fundamental types in this exact order, each on its own line: int, float, double, char, bool, long long. Use std::cout to print the type name, a space, the size in bytes, and the word 'bytes'. Format: 'typename X bytes'.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    // Use sizeof to print the size of each fundamental type\n    // Format: \"typename X bytes\"\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    std::cout << \"int \" << sizeof(int) << \" bytes\" << std::endl;\n    std::cout << \"float \" << sizeof(float) << \" bytes\" << std::endl;\n    std::cout << \"double \" << sizeof(double) << \" bytes\" << std::endl;\n    std::cout << \"char \" << sizeof(char) << \" bytes\" << std::endl;\n    std::cout << \"bool \" << sizeof(bool) << \" bytes\" << std::endl;\n    std::cout << \"long long \" << sizeof(long long) << \" bytes\" << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "",
+        "expected_output": "int 4 bytes\nfloat 4 bytes\ndouble 8 bytes\nchar 1 bytes\nbool 1 bytes\nlong long 8 bytes",
+        "is_hidden": false
+      },
+      {
+        "input": "",
+        "expected_output": "int 4 bytes\nfloat 4 bytes\ndouble 8 bytes\nchar 1 bytes\nbool 1 bytes\nlong long 8 bytes",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "16ce32fb-4ed4-4272-9a07-e33fd529e2a7",
+    "concept": "Datatypes",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Type Casting and Precision Formatting",
+    "description": "Write a program that reads two integers from std::cin. Compute their integer division result and their floating-point division result. Cast one operand to double before dividing to force floating-point arithmetic. Print three lines: the integer division result, the floating-point result formatted to exactly 2 decimal places using std::fixed and std::setprecision, and the type name of each result ('int' for the first, 'double' for the second).",
+    "starter_code": "#include <iostream>\n#include <iomanip>\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    // Compute integer division\n    // Compute floating-point division using type cast\n    // Print results with proper formatting\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n#include <iomanip>\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    int intResult = a / b;\n    double floatResult = static_cast<double>(a) / b;\n    std::cout << intResult << std::endl;\n    std::cout << std::fixed << std::setprecision(2) << floatResult << std::endl;\n    std::cout << \"int\" << std::endl;\n    std::cout << \"double\" << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "7\n2",
+        "expected_output": "3\n3.50\nint\ndouble",
+        "is_hidden": false
+      },
+      {
+        "input": "10\n3",
+        "expected_output": "3\n3.33\nint\ndouble",
+        "is_hidden": false
+      },
+      {
+        "input": "100\n8",
+        "expected_output": "12\n12.50\nint\ndouble",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "d62c7fc0-a064-45c9-b040-484ccef43666",
+    "concept": "Datatypes",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Enum Types and Struct Memory Layout",
+    "description": "Define an enum called Status with values: ACTIVE=1, INACTIVE=0, PENDING=2. Define a struct called Student with fields: int id, char grade, double gpa. Write a program that reads an integer student id, a character grade, and a double gpa from std::cin. Assign them to a Student struct, set the status to ACTIVE, and print the struct fields on separate lines: the id, the grade character, the gpa formatted to 2 decimal places, and the numeric value of the ACTIVE status.",
+    "starter_code": "#include <iostream>\n#include <iomanip>\n\n// Define enum Status with ACTIVE=1, INACTIVE=0, PENDING=2\n\n// Define struct Student with id (int), grade (char), gpa (double)\n\nint main() {\n    int id;\n    char grade;\n    double gpa;\n    std::cin >> id >> grade >> gpa;\n    // Create Student struct, assign values and ACTIVE status\n    // Print id, grade, gpa (2 decimals), and ACTIVE status value\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n#include <iomanip>\n\nenum Status { INACTIVE = 0, ACTIVE = 1, PENDING = 2 };\n\nstruct Student {\n    int id;\n    char grade;\n    double gpa;\n};\n\nint main() {\n    int id;\n    char grade;\n    double gpa;\n    std::cin >> id >> grade >> gpa;\n    Student s;\n    s.id = id;\n    s.grade = grade;\n    s.gpa = gpa;\n    Status status = ACTIVE;\n    std::cout << s.id << std::endl;\n    std::cout << s.grade << std::endl;\n    std::cout << std::fixed << std::setprecision(2) << s.gpa << std::endl;\n    std::cout << status << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "1001\nA\n3.75",
+        "expected_output": "1001\nA\n3.75\n1",
+        "is_hidden": false
+      },
+      {
+        "input": "2045\nB\n2.90",
+        "expected_output": "2045\nB\n2.90\n1",
+        "is_hidden": false
+      },
+      {
+        "input": "9999\nC\n4.00",
+        "expected_output": "9999\nC\n4.00\n1",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "86b62848-24dc-4d83-8ab0-0878d20607bd",
+    "concept": "Variables",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Declare, Initialize, and Print Variables",
+    "description": "Write a program that declares four variables: an int named 'age' initialized to 20, a double named 'height' initialized to 170.5, a char named 'initial' initialized to 'A', and a bool named 'isStudent' initialized to true (print as 1). Print each variable on its own line in this order: age, height, initial, isStudent. Use std::cout for output.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    // Declare and initialize: age (int=20), height (double=170.5)\n    // initial (char='A'), isStudent (bool=true)\n    // Print each on its own line\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int age = 20;\n    double height = 170.5;\n    char initial = 'A';\n    bool isStudent = true;\n    std::cout << age << std::endl;\n    std::cout << height << std::endl;\n    std::cout << initial << std::endl;\n    std::cout << isStudent << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "",
+        "expected_output": "20\n170.5\nA\n1",
+        "is_hidden": false
+      },
+      {
+        "input": "",
+        "expected_output": "20\n170.5\nA\n1",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "71c21fb9-c224-4943-afc5-73fec578cddc",
+    "concept": "Variables",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Variable Scope and Shadowing",
+    "description": "Write a program that declares a global variable 'counter' initialized to 100. In main(), declare a local variable 'counter' initialized to 1. Print the local counter. Then enter a block scope { } and declare another 'counter' initialized to 50. Print the block-scoped counter. After the block, print the local counter again. Then print the global counter using the scope resolution operator (::counter). Output exactly four lines.",
+    "starter_code": "#include <iostream>\n\nint counter = 100;\n\nint main() {\n    // Declare local counter = 1\n    // Print local counter\n    // Enter block: declare block-scoped counter = 50, print it\n    // After block: print local counter again\n    // Print global counter using ::counter\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint counter = 100;\n\nint main() {\n    int counter = 1;\n    std::cout << counter << std::endl;\n    {\n        int counter = 50;\n        std::cout << counter << std::endl;\n    }\n    std::cout << counter << std::endl;\n    std::cout << ::counter << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "",
+        "expected_output": "1\n50\n1\n100",
+        "is_hidden": false
+      },
+      {
+        "input": "",
+        "expected_output": "1\n50\n1\n100",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "1eb9838c-e94c-4363-9c22-e51359d24133",
+    "concept": "Variables",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Const, Constexpr, and Static Variable Lifetimes",
+    "description": "Write a program with a function called 'countCalls' that uses a static int variable to track how many times it has been called. Each call increments the counter and prints the current count. In main(), call countCalls() three times. Then declare a const int PI = 3 and a constexpr int MAX = 100. Print PI and MAX on separate lines after the function calls. Total output: 5 lines (3 from the function, 2 from main).",
+    "starter_code": "#include <iostream>\n\n// Function countCalls with a static int counter\n\nint main() {\n    // Call countCalls() three times\n    // Declare const int PI = 3\n    // Declare constexpr int MAX = 100\n    // Print PI and MAX\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nvoid countCalls() {\n    static int count = 0;\n    count++;\n    std::cout << count << std::endl;\n}\n\nint main() {\n    countCalls();\n    countCalls();\n    countCalls();\n    const int PI = 3;\n    constexpr int MAX = 100;\n    std::cout << PI << std::endl;\n    std::cout << MAX << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "",
+        "expected_output": "1\n2\n3\n3\n100",
+        "is_hidden": false
+      },
+      {
+        "input": "",
+        "expected_output": "1\n2\n3\n3\n100",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "ce0e843f-bd48-4933-bd55-cde1008ef87f",
+    "concept": "Conditionals",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Classify Number as Positive, Negative, or Zero",
+    "description": "Write a program that reads a single integer from std::cin. Use an if-else chain to classify the number. If the number is greater than 0, print 'Positive'. If less than 0, print 'Negative'. If equal to 0, print 'Zero'. Output exactly one word on a single line.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    // Use if-else to classify the number\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    if (n > 0) {\n        std::cout << \"Positive\" << std::endl;\n    } else if (n < 0) {\n        std::cout << \"Negative\" << std::endl;\n    } else {\n        std::cout << \"Zero\" << std::endl;\n    }\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "42",
+        "expected_output": "Positive",
+        "is_hidden": false
+      },
+      {
+        "input": "-7",
+        "expected_output": "Negative",
+        "is_hidden": false
+      },
+      {
+        "input": "0",
+        "expected_output": "Zero",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "4ec3cdc5-9277-4dde-9fef-e69e4e8b2867",
+    "concept": "Conditionals",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Grade Calculator with Nested If-Else",
+    "description": "Write a program that reads an integer score from std::cin (0-100). Use nested if-else statements to determine the letter grade: A for 90-100, B for 80-89, C for 70-79, D for 60-69, F for 0-59. Print the letter grade on a single line. Assume input is always a valid integer between 0 and 100.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int score;\n    std::cin >> score;\n    // Use nested if-else to determine letter grade\n    // A: 90-100, B: 80-89, C: 70-79, D: 60-69, F: 0-59\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int score;\n    std::cin >> score;\n    if (score >= 90) {\n        std::cout << \"A\" << std::endl;\n    } else if (score >= 80) {\n        std::cout << \"B\" << std::endl;\n    } else if (score >= 70) {\n        std::cout << \"C\" << std::endl;\n    } else if (score >= 60) {\n        std::cout << \"D\" << std::endl;\n    } else {\n        std::cout << \"F\" << std::endl;\n    }\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "95",
+        "expected_output": "A",
+        "is_hidden": false
+      },
+      {
+        "input": "73",
+        "expected_output": "C",
+        "is_hidden": false
+      },
+      {
+        "input": "59",
+        "expected_output": "F",
+        "is_hidden": true
+      },
+      {
+        "input": "80",
+        "expected_output": "B",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "95349dd2-1c9f-4143-aedc-86a241a34a5c",
+    "concept": "Conditionals",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Day of Week Using Switch Statement",
+    "description": "Write a program that reads an integer from std::cin representing a day number (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday). Use a switch statement to print the full day name on a single line. If the number is outside 1-7, print 'Invalid'. The switch must handle each case explicitly.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int day;\n    std::cin >> day;\n    // Use switch statement to print day name\n    // 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday\n    // 5=Friday, 6=Saturday, 7=Sunday, else Invalid\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int day;\n    std::cin >> day;\n    switch (day) {\n        case 1:\n            std::cout << \"Monday\" << std::endl;\n            break;\n        case 2:\n            std::cout << \"Tuesday\" << std::endl;\n            break;\n        case 3:\n            std::cout << \"Wednesday\" << std::endl;\n            break;\n        case 4:\n            std::cout << \"Thursday\" << std::endl;\n            break;\n        case 5:\n            std::cout << \"Friday\" << std::endl;\n            break;\n        case 6:\n            std::cout << \"Saturday\" << std::endl;\n            break;\n        case 7:\n            std::cout << \"Sunday\" << std::endl;\n            break;\n        default:\n            std::cout << \"Invalid\" << std::endl;\n            break;\n    }\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "1",
+        "expected_output": "Monday",
+        "is_hidden": false
+      },
+      {
+        "input": "5",
+        "expected_output": "Friday",
+        "is_hidden": false
+      },
+      {
+        "input": "8",
+        "expected_output": "Invalid",
+        "is_hidden": true
+      },
+      {
+        "input": "3",
+        "expected_output": "Wednesday",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "957af572-b5ba-4a05-970d-1ac0bd300367",
+    "concept": "Loops",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Sum of Numbers from 1 to N",
+    "description": "Write a program that reads a positive integer N from std::cin. Use a for-loop to compute the sum of all integers from 1 to N (inclusive). Print the sum on a single line. For example, if N=5, output is 15 (1+2+3+4+5).",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    // Use a for-loop to sum numbers from 1 to n\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    int sum = 0;\n    for (int i = 1; i <= n; i++) {\n        sum += i;\n    }\n    std::cout << sum << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "5",
+        "expected_output": "15",
+        "is_hidden": false
+      },
+      {
+        "input": "10",
+        "expected_output": "55",
+        "is_hidden": false
+      },
+      {
+        "input": "100",
+        "expected_output": "5050",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "de41af92-9311-428c-866b-d0e9774b99d1",
+    "concept": "Loops",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Factorial Using While Loop",
+    "description": "Write a program that reads a non-negative integer N from std::cin. Compute N! (factorial) using a while-loop. The factorial of 0 is 1. Print the result on a single line. For example, 5! = 120.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    // Use a while-loop to compute n!\n    // factorial of 0 is 1\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    long long factorial = 1;\n    int i = 1;\n    while (i <= n) {\n        factorial *= i;\n        i++;\n    }\n    std::cout << factorial << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "5",
+        "expected_output": "120",
+        "is_hidden": false
+      },
+      {
+        "input": "0",
+        "expected_output": "1",
+        "is_hidden": false
+      },
+      {
+        "input": "10",
+        "expected_output": "3628800",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "fbd82bc6-ab38-4520-a692-f7620feb5151",
+    "concept": "Loops",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Multiplication Table with Nested Loops",
+    "description": "Write a program that reads an integer N from std::cin. Print the multiplication table from 1 to N using nested loops. Each row i (1 to N) contains i*1, i*2, ..., i*N separated by single spaces. Each row ends with a newline. For N=3, the output is:\n1 2 3\n2 4 6\n3 6 9",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    // Use nested for-loops to print multiplication table\n    // Each product separated by a space, each row on new line\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    for (int i = 1; i <= n; i++) {\n        for (int j = 1; j <= n; j++) {\n            std::cout << i * j;\n            if (j < n) std::cout << \" \";\n        }\n        std::cout << std::endl;\n    }\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "3",
+        "expected_output": "1 2 3\n2 4 6\n3 6 9",
+        "is_hidden": false
+      },
+      {
+        "input": "5",
+        "expected_output": "1 2 3 4 5\n2 4 6 8 10\n3 6 9 12 15\n4 8 12 16 20\n5 10 15 20 25",
+        "is_hidden": false
+      },
+      {
+        "input": "1",
+        "expected_output": "1",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "4e3f9fe0-8943-44fd-9b59-220f43b15b64",
+    "concept": "Functions",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Add Two Numbers Using a Function",
+    "description": "Write a program with a function called 'add' that takes two int parameters and returns their sum as an int. In main(), read two integers from std::cin, call the add function, and print the result on a single line.",
+    "starter_code": "#include <iostream>\n\n// Function: add takes two ints, returns their sum\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    // Call add and print result\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    std::cout << add(a, b) << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "3\n4",
+        "expected_output": "7",
+        "is_hidden": false
+      },
+      {
+        "input": "-5\n10",
+        "expected_output": "5",
+        "is_hidden": false
+      },
+      {
+        "input": "0\n0",
+        "expected_output": "0",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "f5b77594-e0b9-4a6f-8087-af594696bb09",
+    "concept": "Functions",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Swap Two Values Using Pass-by-Reference",
+    "description": "Write a program with a function called 'swap' that takes two int parameters by reference and swaps their values. In main(), read two integers from std::cin. Print them in their original order. Call swap. Print them again in the swapped order. Use the format: 'Before: X Y' and 'After: X Y' on two separate lines.",
+    "starter_code": "#include <iostream>\n\n// Function: swap takes two ints by reference, swaps their values\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    // Print \"Before: a b\"\n    // Call swap\n    // Print \"After: a b\"\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nvoid swap(int& a, int& b) {\n    int temp = a;\n    a = b;\n    b = temp;\n}\n\nint main() {\n    int a, b;\n    std::cin >> a >> b;\n    std::cout << \"Before: \" << a << \" \" << b << std::endl;\n    swap(a, b);\n    std::cout << \"After: \" << a << \" \" << b << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "10\n20",
+        "expected_output": "Before: 10 20\nAfter: 20 10",
+        "is_hidden": false
+      },
+      {
+        "input": "-3\n7",
+        "expected_output": "Before: -3 7\nAfter: 7 -3",
+        "is_hidden": false
+      },
+      {
+        "input": "100\n100",
+        "expected_output": "Before: 100 100\nAfter: 100 100",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "d978724f-657e-4b87-9701-fead6a2ff211",
+    "concept": "Functions",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Recursive Fibonacci Function",
+    "description": "Write a program with a recursive function called 'fibonacci' that takes an int n and returns the nth Fibonacci number. fibonacci(0) returns 0, fibonacci(1) returns 1, fibonacci(n) returns fibonacci(n-1) + fibonacci(n-2). In main(), read an integer N from std::cin. Print the first N Fibonacci numbers separated by spaces on a single line. For N=7, output: 0 1 1 2 3 5 8",
+    "starter_code": "#include <iostream>\n\n// Recursive function: fibonacci returns nth fibonacci number\n// fibonacci(0)=0, fibonacci(1)=1, fibonacci(n)=fib(n-1)+fib(n-2)\n\nint main() {\n    int n;\n    std::cin >> n;\n    // Print first n fibonacci numbers separated by spaces\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint fibonacci(int n) {\n    if (n <= 0) return 0;\n    if (n == 1) return 1;\n    return fibonacci(n - 1) + fibonacci(n - 2);\n}\n\nint main() {\n    int n;\n    std::cin >> n;\n    for (int i = 0; i < n; i++) {\n        std::cout << fibonacci(i);\n        if (i < n - 1) std::cout << \" \";\n    }\n    std::cout << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "7",
+        "expected_output": "0 1 1 2 3 5 8",
+        "is_hidden": false
+      },
+      {
+        "input": "1",
+        "expected_output": "0",
+        "is_hidden": false
+      },
+      {
+        "input": "10",
+        "expected_output": "0 1 1 2 3 5 8 13 21 34",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "e829aa36-f69a-46d6-94e1-12a93c6e199f",
+    "concept": "Arrays",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Array Sum and Average",
+    "description": "Write a program that reads an integer N from std::cin, then reads N integers into an array. Compute and print the sum of all elements on the first line, and the average (as an integer using integer division) on the second line.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    // Read n integers into an array\n    // Compute and print sum\n    // Compute and print average (integer division)\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    int arr[100];\n    int sum = 0;\n    for (int i = 0; i < n; i++) {\n        std::cin >> arr[i];\n        sum += arr[i];\n    }\n    std::cout << sum << std::endl;\n    std::cout << sum / n << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "5\n10\n20\n30\n40\n50",
+        "expected_output": "150\n30",
+        "is_hidden": false
+      },
+      {
+        "input": "3\n1\n2\n3",
+        "expected_output": "6\n2",
+        "is_hidden": false
+      },
+      {
+        "input": "1\n42",
+        "expected_output": "42\n42",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "5cc28ad1-60d9-44b1-9c1a-3a5bd67864f9",
+    "concept": "Arrays",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Find Min, Max, and Linear Search",
+    "description": "Write a program that reads an integer N from std::cin, then reads N integers into an array. Then read a search target integer. Find and print the minimum value, the maximum value, and the 0-based index of the first occurrence of the search target. If the target is not found, print -1 for the index. Print all three values on separate lines: min, max, index.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    int arr[100];\n    // Read n integers\n    // Read search target\n    // Find min, max, and index of first occurrence of target\n    // Print min, max, index on separate lines\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int n;\n    std::cin >> n;\n    int arr[100];\n    for (int i = 0; i < n; i++) {\n        std::cin >> arr[i];\n    }\n    int target;\n    std::cin >> target;\n    int minVal = arr[0];\n    int maxVal = arr[0];\n    int foundIndex = -1;\n    for (int i = 1; i < n; i++) {\n        if (arr[i] < minVal) minVal = arr[i];\n        if (arr[i] > maxVal) maxVal = arr[i];\n    }\n    for (int i = 0; i < n; i++) {\n        if (arr[i] == target) {\n            foundIndex = i;\n            break;\n        }\n    }\n    std::cout << minVal << std::endl;\n    std::cout << maxVal << std::endl;\n    std::cout << foundIndex << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "5\n3\n1\n4\n1\n5\n4",
+        "expected_output": "1\n5\n2",
+        "is_hidden": false
+      },
+      {
+        "input": "4\n10\n20\n30\n40\n50",
+        "expected_output": "10\n40\n-1",
+        "is_hidden": false
+      },
+      {
+        "input": "3\n7\n7\n7\n7",
+        "expected_output": "7\n7\n0",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "d9c1d478-7bf4-461c-a263-affaab85f28f",
+    "concept": "Arrays",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Matrix Addition with Two-Dimensional Arrays",
+    "description": "Write a program that reads two integers R and C from std::cin (rows and columns). Then reads R*C integers for matrix A (row-major order), then R*C integers for matrix B. Compute matrix C = A + B (element-wise addition). Print matrix C with R rows and C columns, elements in each row separated by a space.",
+    "starter_code": "#include <iostream>\n\nint main() {\n    int r, c;\n    std::cin >> r >> c;\n    int a[10][10], b[10][10];\n    // Read matrix A (r rows, c columns)\n    // Read matrix B (r rows, c columns)\n    // Compute and print C = A + B\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nint main() {\n    int r, c;\n    std::cin >> r >> c;\n    int a[10][10], b[10][10];\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++)\n            std::cin >> a[i][j];\n    for (int i = 0; i < r; i++)\n        for (int j = 0; j < c; j++)\n            std::cin >> b[i][j];\n    for (int i = 0; i < r; i++) {\n        for (int j = 0; j < c; j++) {\n            std::cout << a[i][j] + b[i][j];\n            if (j < c - 1) std::cout << \" \";\n        }\n        std::cout << std::endl;\n    }\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "2\n2\n1\n2\n3\n4\n5\n6\n7\n8",
+        "expected_output": "6 8\n10 12",
+        "is_hidden": false
+      },
+      {
+        "input": "2\n3\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12",
+        "expected_output": "8 10 12\n14 16 18",
+        "is_hidden": false
+      },
+      {
+        "input": "1\n1\n5\n3",
+        "expected_output": "8",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "bbad29c5-e0e3-4871-8559-b45247b8a161",
+    "concept": "OOP",
+    "difficulty": "Easy",
+    "sequence_order": 1,
+    "title": "Basic Class with Constructor and Getters",
+    "description": "Write a program that defines a class called 'Rectangle' with private members 'width' and 'height' (both int). Provide a constructor that takes two parameters to initialize them. Provide public getter methods getWidth() and getHeight(). Provide a method getArea() that returns width * height. In main(), read two integers for width and height, create a Rectangle object, and print the width, height, and area on separate lines.",
+    "starter_code": "#include <iostream>\n\nclass Rectangle {\nprivate:\n    int width;\n    int height;\npublic:\n    // Constructor\n    // getWidth()\n    // getHeight()\n    // getArea()\n};\n\nint main() {\n    int w, h;\n    std::cin >> w >> h;\n    // Create Rectangle, print width, height, area\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n\nclass Rectangle {\nprivate:\n    int width;\n    int height;\npublic:\n    Rectangle(int w, int h) {\n        width = w;\n        height = h;\n    }\n    int getWidth() const { return width; }\n    int getHeight() const { return height; }\n    int getArea() const { return width * height; }\n};\n\nint main() {\n    int w, h;\n    std::cin >> w >> h;\n    Rectangle rect(w, h);\n    std::cout << rect.getWidth() << std::endl;\n    std::cout << rect.getHeight() << std::endl;\n    std::cout << rect.getArea() << std::endl;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "5\n10",
+        "expected_output": "5\n10\n50",
+        "is_hidden": false
+      },
+      {
+        "input": "3\n7",
+        "expected_output": "3\n7\n21",
+        "is_hidden": false
+      },
+      {
+        "input": "1\n1",
+        "expected_output": "1\n1\n1",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "18c4cd22-120b-4e09-8923-35904c544934",
+    "concept": "OOP",
+    "difficulty": "Medium",
+    "sequence_order": 2,
+    "title": "Student Records with Multiple Objects",
+    "description": "Write a program that defines a class called 'Student' with private members: name (string), id (int), and gpa (double). Provide a constructor and public getters. Provide a method getGrade() that returns 'A' if gpa >= 3.5, 'B' if gpa >= 2.5, 'C' if gpa >= 1.5, otherwise 'F'. In main(), read an integer N (number of students), then for each student read their name (no spaces), id, and gpa. Create a Student object for each and print 'name id grade' on each line.",
+    "starter_code": "#include <iostream>\n#include <string>\n\nclass Student {\nprivate:\n    std::string name;\n    int id;\n    double gpa;\npublic:\n    // Constructor\n    // getName(), getId(), getGpa()\n    // getGrade(): A>=3.5, B>=2.5, C>=1.5, else F\n};\n\nint main() {\n    int n;\n    std::cin >> n;\n    // For each student: read name, id, gpa; print name, id, grade\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n#include <string>\n\nclass Student {\nprivate:\n    std::string name;\n    int id;\n    double gpa;\npublic:\n    Student(std::string n, int i, double g) {\n        name = n;\n        id = i;\n        gpa = g;\n    }\n    std::string getName() const { return name; }\n    int getId() const { return id; }\n    double getGpa() const { return gpa; }\n    char getGrade() const {\n        if (gpa >= 3.5) return 'A';\n        if (gpa >= 2.5) return 'B';\n        if (gpa >= 1.5) return 'C';\n        return 'F';\n    }\n};\n\nint main() {\n    int n;\n    std::cin >> n;\n    for (int i = 0; i < n; i++) {\n        std::string name;\n        int id;\n        double gpa;\n        std::cin >> name >> id >> gpa;\n        Student s(name, id, gpa);\n        std::cout << s.getName() << \" \" << s.getId() << \" \" << s.getGrade() << std::endl;\n    }\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "2\nAlice 101 3.8\nBob 102 2.3",
+        "expected_output": "Alice 101 A\nBob 102 C",
+        "is_hidden": false
+      },
+      {
+        "input": "1\nCharlie 205 1.5",
+        "expected_output": "Charlie 205 C",
+        "is_hidden": false
+      },
+      {
+        "input": "3\nX 1 4.0\nY 2 0.0\nZ 3 2.5",
+        "expected_output": "X 1 A\nY 2 F\nZ 3 B",
+        "is_hidden": true
+      }
+    ]
+  },
+  {
+    "id": "d436aca7-b4f0-4f77-b9c0-f596c9c69dd8",
+    "concept": "OOP",
+    "difficulty": "Hard",
+    "sequence_order": 3,
+    "title": "Shape Inheritance with Virtual Area Method",
+    "description": "Write a program that defines a base class 'Shape' with a virtual method area() that returns 0.0. Derive a class 'Circle' from Shape with a private member 'radius' (double). Derive a class 'Rectangle' from Shape with private members 'width' and 'height' (both double). Each derived class overrides area() using the const keyword. Use 3.14159 for PI. In main(), read 'C' followed by radius for a circle, or 'R' followed by width and height for a rectangle. Create the appropriate object and print the area formatted to 2 decimal places.",
+    "starter_code": "#include <iostream>\n#include <iomanip>\n#include <string>\n\nclass Shape {\npublic:\n    virtual double area() const { return 0.0; }\n    virtual ~Shape() {}\n};\n\n// class Circle : public Shape with radius and area()\n// class Rectangle : public Shape with width, height and area()\n\nint main() {\n    char type;\n    std::cin >> type;\n    // If type=='C': read radius, create Circle\n    // If type=='R': read width and height, create Rectangle\n    // Print area with 2 decimal places\n    \n    return 0;\n}\n",
+    "sample_solution": "#include <iostream>\n#include <iomanip>\n#include <string>\n\nclass Shape {\npublic:\n    virtual double area() const { return 0.0; }\n    virtual ~Shape() {}\n};\n\nclass Circle : public Shape {\nprivate:\n    double radius;\npublic:\n    Circle(double r) : radius(r) {}\n    double area() const override {\n        return 3.14159 * radius * radius;\n    }\n};\n\nclass Rectangle : public Shape {\nprivate:\n    double width, height;\npublic:\n    Rectangle(double w, double h) : width(w), height(h) {}\n    double area() const override {\n        return width * height;\n    }\n};\n\nint main() {\n    char type;\n    std::cin >> type;\n    Shape* shape = nullptr;\n    if (type == 'C') {\n        double r;\n        std::cin >> r;\n        shape = new Circle(r);\n    } else if (type == 'R') {\n        double w, h;\n        std::cin >> w >> h;\n        shape = new Rectangle(w, h);\n    }\n    std::cout << std::fixed << std::setprecision(2) << shape->area() << std::endl;\n    delete shape;\n    return 0;\n}\n",
+    "test_cases": [
+      {
+        "input": "C\n5",
+        "expected_output": "78.54",
+        "is_hidden": false
+      },
+      {
+        "input": "R\n4\n6",
+        "expected_output": "24.00",
+        "is_hidden": false
+      },
+      {
+        "input": "C\n1",
+        "expected_output": "3.14",
+        "is_hidden": true
+      },
+      {
+        "input": "R\n10\n3",
+        "expected_output": "30.00",
+        "is_hidden": true
+      }
+    ]
+  }
+]

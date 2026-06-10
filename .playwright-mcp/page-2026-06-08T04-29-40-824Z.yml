@@ -1,0 +1,135 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Integrity
+                - paragraph: Behavioral and structural anomalies requiring instructor review.
+              - generic:
+                - button:
+                  - img
+                - button [disabled]:
+                  - text: Bulk action
+                  - img
+            - generic:
+              - generic:
+                - paragraph: Action required
+                - heading [level=2]: 1 flag awaiting review — highest severity first.
+                - paragraph: High and medium-severity flags are at the top of the queue.
+            - group:
+              - generic:
+                - paragraph: High
+                - generic:
+                  - paragraph: "1"
+                - paragraph: total
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Moderate
+                - generic:
+                  - paragraph: "0"
+                - paragraph: total
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Low
+                - generic:
+                  - paragraph: "0"
+                - paragraph: total
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+            - generic:
+              - generic:
+                - img
+                - textbox:
+                  - /placeholder: Search student, exercise, or type…
+                  - text: Jose
+              - generic:
+                - combobox [expanded]:
+                  - generic: Low
+                  - img
+                - combobox:
+                  - generic: All types
+                  - img
+            - generic:
+              - img
+              - paragraph: No flags match the current filters.
+              - paragraph: Clear the search or pick a different severity to widen the queue.
+    - region "Notifications alt+T"
+  - listbox [ref=e189]:
+    - option "All severities" [ref=e190]:
+      - generic [ref=e192]: All severities
+    - option "High" [ref=e193]:
+      - generic [ref=e195]: High
+    - option "Moderate" [ref=e196]:
+      - generic [ref=e198]: Moderate
+    - option "Low" [active] [selected] [ref=e199]:
+      - img [ref=e202]
+      - generic [ref=e204]: Low

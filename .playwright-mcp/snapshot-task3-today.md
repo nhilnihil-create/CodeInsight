@@ -1,0 +1,62 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: MR
+          - generic [ref=e35]:
+            - generic [ref=e36]: Maria Reyes
+            - generic [ref=e37]: maria@student.psu.edu
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e44]:
+        - navigation "Breadcrumb" [ref=e46]:
+          - list [ref=e47]:
+            - listitem [ref=e48]:
+              - link "Student" [ref=e49] [cursor=pointer]:
+                - /url: /student/dashboard
+              - img [ref=e50]
+            - listitem [ref=e52]:
+              - generic [ref=e53]: Today's Plan
+        - generic [ref=e56]:
+          - paragraph [ref=e57]: What
+          - heading "All caught up!" [level=2] [ref=e58]
+          - paragraph [ref=e59]: Estimated —
+        - generic [ref=e61]:
+          - paragraph [ref=e62]: Why
+          - paragraph [ref=e63]: You're all caught up! Explore more exercises or review previous concepts to strengthen your mastery.
+        - generic [ref=e65]:
+          - paragraph [ref=e66]: Who
+          - paragraph [ref=e67]:
+            - text: "You. Class avg on this concept:"
+            - generic [ref=e68]:
+              - generic [ref=e69]: "0.50"
+              - generic [ref=e70]: (mod)
+        - generic [ref=e71]:
+          - heading "Your Concept Mastery" [level=3] [ref=e73]
+          - generic [ref=e74]:
+            - generic [ref=e76]: DT
+            - generic [ref=e80]: VR
+            - generic [ref=e84]: LP
+  - region "Notifications alt+T"

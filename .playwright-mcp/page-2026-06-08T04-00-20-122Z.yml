@@ -1,0 +1,188 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Student
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "My Exercises" [ref=e15] [cursor=pointer]:
+            - /url: /student/dashboard
+            - img [ref=e16]
+            - generic [ref=e18]: My Exercises
+          - link "My Progress" [ref=e20] [cursor=pointer]:
+            - /url: /student/progress
+            - img [ref=e21]
+            - generic [ref=e24]: My Progress
+          - link "My Profile" [ref=e26] [cursor=pointer]:
+            - /url: /student/profile
+            - img [ref=e27]
+            - generic [ref=e30]: My Profile
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e34]: SA
+            - generic [ref=e35]:
+              - generic [ref=e36]: Student A
+              - generic [ref=e37]: student@test.com
+          - button "Logout" [ref=e38]:
+            - img [ref=e39]
+            - text: Logout
+      - main [ref=e42]:
+        - generic [ref=e44]:
+          - generic [ref=e49]:
+            - button "Back to exercises" [ref=e50]:
+              - img [ref=e51]
+            - generic [ref=e53]:
+              - heading "Variables Practice" [level=1] [ref=e54]
+              - generic "Variables" [ref=e56]
+            - generic "1 of 1 tests passing" [ref=e242]: 1 / 1 passing
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - img [ref=e61]
+                - generic [ref=e64]: "Time remaining:"
+                - generic [ref=e65]: 29:04
+              - generic [ref=e66]:
+                - generic [ref=e67]: Language
+                - combobox "Language" [ref=e68] [cursor=pointer]:
+                  - option "C++" [selected]
+                  - option "Python"
+                  - option "JavaScript"
+                  - option "Java"
+                  - option "Go"
+                - img
+              - button "Run ⌘ ↵" [ref=e69]:
+                - img [ref=e70]
+                - text: Run
+                - generic [ref=e72]:
+                  - generic [ref=e73]: ⌘
+                  - generic [ref=e74]: ↵
+              - button "Submit" [active] [ref=e75]:
+                - text: Submit
+                - img [ref=e76]
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - generic [ref=e84]:
+                - generic [ref=e85]:
+                  - generic [ref=e86]:
+                    - img [ref=e87]
+                    - heading "Instructions" [level=2] [ref=e90]
+                  - generic [ref=e96]:
+                    - generic [ref=e97]:
+                      - paragraph [ref=e98]: Description
+                      - paragraph [ref=e100]: Declare and initialize variables
+                    - generic [ref=e101]:
+                      - paragraph [ref=e102]:
+                        - img [ref=e103]
+                        - text: Concepts
+                      - generic "Variables" [ref=e107]:
+                        - text: VA
+                        - generic [ref=e108]: Variables
+                - generic [ref=e109]:
+                  - generic [ref=e110]:
+                    - img [ref=e111]
+                    - heading "Test Cases" [level=2] [ref=e114]
+                    - generic [ref=e243]: 1/1
+                  - generic [ref=e116]:
+                    - list [ref=e244]:
+                      - listitem [ref=e245]:
+                        - img [ref=e246]
+                        - generic [ref=e248]:
+                          - paragraph [ref=e249]: Test 1
+                          - paragraph [ref=e250]:
+                            - generic [ref=e251]: "Input: 10 20"
+                        - generic [ref=e252]: 0ms
+                    - generic [ref=e254]:
+                      - img [ref=e255]
+                      - generic [ref=e258]: 0 hidden tests · all passed
+              - separator [ref=e124]
+              - generic [ref=e128]:
+                - code [ref=e134]:
+                  - generic [ref=e135]:
+                    - textbox "Editor content"
+                    - textbox [ref=e136]
+                    - generic [ref=e138]:
+                      - generic [ref=e141]: "1"
+                      - generic [ref=e143]: "2"
+                      - generic [ref=e145]: "3"
+                      - generic [ref=e146]:
+                        - generic [ref=e147] [cursor=pointer]: 
+                        - generic [ref=e148]: "4"
+                      - generic [ref=e150]: "5"
+                      - generic [ref=e152]: "6"
+                      - generic [ref=e154]: "7"
+                      - generic [ref=e156]: "8"
+                    - generic [ref=e168]:
+                      - generic [ref=e260]: "#include <iostream>"
+                      - generic [ref=e262]: using namespace std;
+                      - generic [ref=e265]: "int main() {"
+                      - generic [ref=e267]: // Write code here
+                      - generic [ref=e269]: return 0;
+                      - generic [ref=e271]: "}"
+                - separator [ref=e184]
+                - generic [ref=e188]:
+                  - generic [ref=e189]:
+                    - tab "Output" [selected] [ref=e190]:
+                      - img [ref=e191]
+                      - text: Output
+                    - tab "Errors" [ref=e194]:
+                      - img [ref=e195]
+                      - text: Errors
+                    - tab "Test Results" [ref=e197]:
+                      - img [ref=e198]
+                      - text: Test Results
+                    - generic [ref=e201]:
+                      - generic [ref=e273]: Passed · 1/1
+                      - button "Clear terminal" [ref=e202]:
+                        - img [ref=e203]
+                        - text: Clear
+                  - generic [ref=e207]: (No output yet — press Run to execute)
+              - separator [ref=e208]
+              - generic [ref=e212]:
+                - generic [ref=e213]:
+                  - generic [ref=e214]:
+                    - img [ref=e215]
+                    - heading "Submissions" [level=2] [ref=e218]
+                    - generic [ref=e274]: "1"
+                  - list [ref=e278]:
+                    - listitem [ref=e279] [cursor=pointer]:
+                      - generic [ref=e280]:
+                        - img [ref=e282]
+                        - generic [ref=e284]:
+                          - generic [ref=e285]:
+                            - paragraph [ref=e286]: Passed
+                            - generic [ref=e287]: "#255"
+                          - paragraph [ref=e288]: 1/1 tests · -- · --
+                        - generic [ref=e289]: just now
+                      - generic [ref=e290]:
+                        - term [ref=e291]: Input
+                        - definition [ref=e292]
+                        - term [ref=e293]: Expected
+                        - definition [ref=e294]
+                        - term [ref=e295]: Got
+                        - definition [ref=e296]
+                - generic [ref=e224]:
+                  - generic [ref=e225]:
+                    - img [ref=e226]
+                    - heading "History" [level=2] [ref=e230]
+                  - list [ref=e300]:
+                    - listitem [ref=e302]:
+                      - img [ref=e304]
+                      - generic [ref=e307]:
+                        - paragraph [ref=e308]: Submitted · Passed
+                        - generic [ref=e309]: just now
+            - button "Reset panel sizes" [ref=e237]:
+              - img [ref=e238]
+              - text: Reset
+    - region "Notifications alt+T":
+      - list:
+        - listitem [ref=e310]:
+          - button "Close toast" [ref=e311] [cursor=pointer]:
+            - img [ref=e312]
+          - img [ref=e316]
+          - generic [ref=e319]: Submitted · 0 hidden tests · live CDS 36%
+  - generic [ref=e241]:
+    - alert
+    - alert

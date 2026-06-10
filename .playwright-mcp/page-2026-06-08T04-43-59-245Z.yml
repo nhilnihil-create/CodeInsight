@@ -1,0 +1,278 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Reports
+                - paragraph: Class-wide trends and concept-level difficulty across all sections.
+              - generic:
+                - radiogroup:
+                  - radio: 1w
+                  - radio: 2w
+                  - radio: 4w
+                  - radio [checked]: 12w
+                - button [expanded]:
+                  - img
+                  - text: Export
+                  - img
+            - generic:
+              - generic:
+                - paragraph: Headline
+                - heading [level=2]: Class mastery is up 7% over the last 4 weeks.
+                - paragraph: Driven by Functions (+14%) and OOP (+14%) — Recursion still the highest-CDS concept.
+              - generic:
+                - button:
+                  - text: Export report
+                  - img
+            - group:
+              - generic:
+                - paragraph: Mastery
+                - generic:
+                  - paragraph: 64%
+                  - generic:
+                    - generic: ▲
+                    - text: "7"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Completion
+                - generic:
+                  - paragraph: 78%
+                  - generic:
+                    - generic: ▲
+                    - text: "3"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: At Risk
+                - generic:
+                  - paragraph: 14%
+                  - generic:
+                    - generic: ▼
+                    - text: "4"
+                - paragraph: improving
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Flags
+                - generic:
+                  - paragraph: 0.3/student
+                  - generic:
+                    - generic: ▼
+                    - text: "0.1"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+            - generic:
+              - tablist:
+                - tab: Mastery
+                - tab: Completion
+                - tab: Engagement
+                - tab [selected]: Integrity
+              - tabpanel "Integrity":
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - paragraph: Trend
+                        - heading [level=3]: Integrity flags · 4-week rolling
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - list:
+                                  - listitem:
+                                    - img
+                                    - text: Critical
+                                  - listitem:
+                                    - img
+                                    - text: High
+                                  - listitem:
+                                    - img
+                                    - text: Low
+                                  - listitem:
+                                    - img
+                                    - text: Moderate
+                              - application:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - generic: W-4
+                                    - generic:
+                                      - generic: W-3
+                                    - generic:
+                                      - generic: W-2
+                                    - generic:
+                                      - generic: W-1
+                                    - generic:
+                                      - generic: Now
+                                  - generic:
+                                    - generic:
+                                      - generic: "0"
+                                    - generic:
+                                      - generic: "3"
+                                    - generic:
+                                      - generic: "6"
+                                    - generic:
+                                      - generic: "9"
+                                    - generic:
+                                      - generic: "12"
+                  - generic:
+                    - generic:
+                      - heading [level=3]: Flag breakdown
+                    - generic:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - columnheader:
+                                - button:
+                                  - text: Type
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: Level
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: Count
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: Share
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: Δ
+                                  - img
+                          - rowgroup:
+                            - row:
+                              - cell: Code Growth Spike
+                              - cell: Moderate
+                              - cell: "4"
+                              - cell:
+                                - generic: 31%
+                              - cell:
+                                - generic: "+2"
+                            - row:
+                              - cell: Output Mismatch
+                              - cell: Moderate
+                              - cell: "3"
+                              - cell:
+                                - generic: 23%
+                              - cell: "-1"
+                            - row:
+                              - cell: Behavioral Anomaly
+                              - cell: High
+                              - cell: "2"
+                              - cell:
+                                - generic: 16%
+                              - cell:
+                                - generic: "+1"
+                            - row:
+                              - cell: Hardcoding
+                              - cell: High
+                              - cell: "1"
+                              - cell:
+                                - generic: 8%
+                              - cell: "0"
+                            - row:
+                              - cell: Off-By-One
+                              - cell: Low
+                              - cell: "1"
+                              - cell:
+                                - generic: 8%
+                              - cell: "0"
+                            - row:
+                              - cell: Blank Template
+                              - cell: Low
+                              - cell: "1"
+                              - cell:
+                                - generic: 8%
+                              - cell: "0"
+                            - row:
+                              - cell: Passive Behavior
+                              - cell: Low
+                              - cell: "1"
+                              - cell:
+                                - generic: 8%
+                              - cell: "0"
+    - region "Notifications alt+T"
+  - generic: "3"
+  - menu "Export" [active] [ref=e881]:
+    - menuitem "Export as CSV" [ref=e882]
+    - menuitem "Export as PDF" [ref=e883]
+    - menuitem "Copy share link" [ref=e884]

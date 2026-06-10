@@ -1,0 +1,79 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: TI
+          - generic [ref=e70]:
+            - generic [ref=e71]: Test Instructor
+            - generic [ref=e72]: inst@test.com
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - heading "Students" [level=1] [ref=e82]
+            - paragraph [ref=e83]: Manage and monitor student progress.
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - generic [ref=e86]: Section
+              - combobox [disabled] [ref=e87]:
+                - generic: All Sections
+                - img [ref=e88]
+            - generic [ref=e90]:
+              - img [ref=e91]
+              - searchbox "Search by name or ID..." [ref=e94]
+        - table [ref=e98]:
+          - rowgroup [ref=e99]:
+            - row "Student Student ID Avg CDS Strongest Concept Last Active Status" [ref=e100]:
+              - columnheader "Student" [ref=e101]
+              - columnheader "Student ID" [ref=e102]
+              - columnheader "Avg CDS" [ref=e103]
+              - columnheader "Strongest Concept" [ref=e104]
+              - columnheader "Last Active" [ref=e105]
+              - columnheader "Status" [ref=e106]
+          - rowgroup [ref=e107]:
+            - row "No students found matching your search." [ref=e108]:
+              - cell "No students found matching your search." [ref=e109]
+  - region "Notifications alt+T"

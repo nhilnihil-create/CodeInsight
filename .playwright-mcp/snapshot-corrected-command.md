@@ -1,0 +1,147 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: TI
+          - generic [ref=e70]:
+            - generic [ref=e71]: Test Instructor
+            - generic [ref=e72]: inst@test.com
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e81]: "Confidence: Low"
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - paragraph [ref=e86]: Class average CDS is 0.00 across 0 students in 1 sections.
+            - paragraph [ref=e87]: "Rule: no-significant-pattern | n=0 | Wilson 95% CI half-width = 0.08"
+          - link "View reports →" [ref=e88] [cursor=pointer]:
+            - /url: /instructor/reports
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - generic [ref=e93]:
+              - heading "What is happening?" [level=3] [ref=e94]
+              - generic [ref=e95]: "Confidence: Low"
+            - paragraph [ref=e97]: Class average CDS is 0.00 across 0 students.
+          - generic [ref=e99]:
+            - heading "Why is it happening?" [level=3] [ref=e103]
+            - paragraph [ref=e105]: No significant pattern detected yet. More data needed.
+          - generic [ref=e107]:
+            - generic [ref=e110]:
+              - heading "Who needs help?" [level=3] [ref=e111]
+              - generic [ref=e112]: "Confidence: Low0"
+            - paragraph [ref=e114]: 0 students flagged as at-risk. 0 moved to Critical in the last period.
+          - generic [ref=e116]:
+            - heading "What action should be taken?" [level=3] [ref=e120]
+            - paragraph [ref=e122]: No specific intervention needed at this time.
+        - generic [ref=e124]:
+          - generic [ref=e125]:
+            - paragraph [ref=e126]: Class Avg CDS
+            - generic [ref=e127]:
+              - generic [ref=e128]: "0.00"
+              - generic [ref=e129]:
+                - generic [ref=e130]: "0.00"
+                - generic [ref=e131]: ▲+0.03
+                - generic [ref=e132]: (high)
+          - generic [ref=e133]:
+            - paragraph [ref=e134]: Submissions/Week
+            - generic [ref=e135]:
+              - generic [ref=e136]: "0.00"
+              - generic [ref=e137]:
+                - generic [ref=e138]: "0.00"
+                - generic [ref=e139]: —+0.00
+                - generic [ref=e140]: (na)
+          - generic [ref=e141]:
+            - paragraph [ref=e142]: At-Risk Count
+            - generic [ref=e143]:
+              - generic [ref=e144]: "0.00"
+              - generic [ref=e145]:
+                - generic [ref=e146]: "0.00"
+                - generic [ref=e147]: ▲-2.00
+                - generic [ref=e148]: (high)
+          - generic [ref=e149]:
+            - paragraph [ref=e150]: Integrity Flags
+            - generic [ref=e151]:
+              - generic [ref=e152]: "0.00"
+              - generic [ref=e153]:
+                - generic [ref=e154]: "0.00"
+                - generic [ref=e155]: ▲+0.00
+                - generic [ref=e156]: (na)
+          - generic [ref=e157]:
+            - paragraph [ref=e158]: Active Sections
+            - generic [ref=e159]:
+              - generic [ref=e160]: "1.00"
+              - generic [ref=e161]:
+                - generic [ref=e162]: "0.00"
+                - generic [ref=e163]: —+0.00
+                - generic [ref=e164]: (na)
+          - generic [ref=e165]:
+            - paragraph [ref=e166]: Class Mastery
+            - generic [ref=e167]:
+              - generic [ref=e168]: "100"
+              - generic [ref=e169]:
+                - generic [ref=e170]: "0.00"
+                - generic [ref=e171]: ▲+0.05
+                - generic [ref=e172]: (high)
+          - generic [ref=e173]:
+            - paragraph [ref=e174]: Completion
+            - generic [ref=e175]:
+              - generic [ref=e176]: "0.00"
+              - generic [ref=e177]:
+                - generic [ref=e178]: "0.00"
+                - generic [ref=e179]: —+0.00
+                - generic [ref=e180]: (na)
+        - generic [ref=e181]:
+          - heading "Learning Signals" [level=3] [ref=e183]
+          - list [ref=e185]:
+            - listitem [ref=e186]:
+              - generic [ref=e187]: •
+              - text: All metrics are within expected ranges.
+        - button "0 integrity flags open across 0 sections.Review queue → ▼" [ref=e190]:
+          - paragraph [ref=e191]:
+            - text: 0 integrity flags open across 0 sections.
+            - link "Review queue →" [ref=e192] [cursor=pointer]:
+              - /url: /instructor/integrity
+          - generic [ref=e193]: ▼
+  - region "Notifications alt+T"

@@ -1,0 +1,253 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - navigation:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /instructor/sections
+                      - text: Sections
+                    - img
+                  - listitem:
+                    - generic: BSCS - 1A
+              - generic:
+                - generic:
+                  - heading [level=1]: BSCS - 1A — CS102
+                  - paragraph: CS102 · Sem 1 · AY 2025 - 2026 · 4 students
+                - generic:
+                  - button:
+                    - img
+                    - text: Message at-risk
+                  - button:
+                    - img
+            - generic:
+              - generic:
+                - heading [level=2]: 0 students are at risk; 0 have active integrity flags.
+              - generic:
+                - link:
+                  - /url: /instructor/integrity?section=5
+                  - text: Schedule intervention
+                  - img
+            - group:
+              - generic:
+                - paragraph: At Risk
+                - generic:
+                  - paragraph: "0"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: this week
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Avg CDS
+                - generic:
+                  - paragraph: "0.49"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: current
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Open Flags
+                - generic:
+                  - paragraph: "0"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: this week
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Submissions
+                - generic:
+                  - paragraph: "2"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: all time
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+            - generic:
+              - tablist:
+                - tab [selected]: Roster
+                - tab: Analytics
+                - tab: Submissions
+                - tab:
+                  - img
+                  - text: Settings
+              - tabpanel:
+                - generic:
+                  - generic:
+                    - generic:
+                      - heading [level=2]: Ranked by CDS — 0 students flagged.
+                  - generic:
+                    - button: CDS
+                    - button: Δ
+                    - button: Flags
+                    - button: Name
+                  - generic:
+                    - generic:
+                      - generic: Student
+                      - generic: CDS
+                      - generic: Δ
+                      - generic: Flags
+                      - generic: Last Active
+                      - generic: Actions
+                    - list:
+                      - listitem:
+                        - generic:
+                          - generic: MR
+                          - generic: Maria Reyes
+                          - generic: High
+                        - generic:
+                          - generic:
+                            - generic: —
+                        - generic: "0.00"
+                        - generic: "0"
+                        - generic: —
+                        - button:
+                          - img
+                      - listitem:
+                        - generic:
+                          - generic: SA
+                          - generic: Student A
+                          - generic: Moderate
+                        - generic:
+                          - generic:
+                            - generic: —
+                        - generic: "0.00"
+                        - generic: "0"
+                        - generic: —
+                        - button:
+                          - img
+                      - listitem:
+                        - generic:
+                          - generic: AL
+                          - generic: Ana Lim
+                          - generic: Low
+                        - generic:
+                          - generic:
+                            - generic: "0.00"
+                        - generic: "0.00"
+                        - generic: "0"
+                        - generic: —
+                        - button:
+                          - img
+                      - listitem:
+                        - generic:
+                          - generic: JS
+                          - generic: Jose Santos
+                          - generic: Low
+                        - generic:
+                          - generic:
+                            - generic: "0.00"
+                        - generic: "0.00"
+                        - generic: "0"
+                        - generic: —
+                        - button:
+                          - img
+    - region "Notifications alt+T"
+  - dialog [ref=e500]:
+    - generic [ref=e501]:
+      - generic [ref=e502]:
+        - heading "Maria Reyes" [level=2] [ref=e503]
+        - paragraph [ref=e504]: Student · BSCS - 1A
+      - button "Close" [active] [ref=e505]:
+        - img [ref=e506]
+    - generic [ref=e510]:
+      - generic [ref=e511]:
+        - generic [ref=e512]:
+          - paragraph [ref=e513]: CDS
+          - generic [ref=e515]:
+            - generic [ref=e516]: —
+            - generic "No change" [ref=e517]: ■0.00
+        - generic [ref=e518]:
+          - paragraph [ref=e519]: Risk
+          - generic [ref=e520]: High
+        - generic [ref=e521]:
+          - paragraph [ref=e522]: Flags
+          - paragraph [ref=e523]: "0"
+        - generic [ref=e524]:
+          - paragraph [ref=e525]: Last active
+          - paragraph [ref=e526]: —
+      - generic [ref=e527]:
+        - heading "Quick actions" [level=3] [ref=e528]
+        - generic [ref=e529]:
+          - button "Send message" [ref=e530]:
+            - img [ref=e531]
+            - text: Send message
+          - button "Schedule check-in" [ref=e534]:
+            - img [ref=e535]
+            - text: Schedule check-in

@@ -1,0 +1,197 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: DT
+          - generic [ref=e70]:
+            - generic [ref=e71]: Dr. Test
+            - generic [ref=e72]: instructor@psu.edu
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e245]:
+        - link "Back to exercises" [ref=e247] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e248]
+          - text: Back to exercises
+        - generic [ref=e250]:
+          - heading "Edit Exercise" [level=1] [ref=e251]
+          - paragraph [ref=e252]: Compose a problem, attach test cases, and assign to a section.
+        - generic [ref=e253]:
+          - generic [ref=e254]:
+            - generic [ref=e255]:
+              - heading "General Details" [level=2] [ref=e256]
+              - generic [ref=e257]:
+                - generic [ref=e258]:
+                  - text: Exercise Title
+                  - textbox "Exercise Title" [ref=e259]:
+                    - /placeholder: e.g. Fibonacci with Recursion
+                - generic [ref=e260]:
+                  - text: Description
+                  - textbox "Description" [ref=e261]:
+                    - /placeholder: Describe the problem, the expected behavior, and any constraints…
+                  - paragraph [ref=e262]: "Markdown supported · use `code`, **bold**, and lists."
+            - generic [ref=e263]:
+              - heading "Code" [level=2] [ref=e264]
+              - generic [ref=e265]:
+                - text: Starter Code (optional)
+                - textbox "Starter Code (optional)" [ref=e266]:
+                  - /placeholder: "# Provide students with a starting template\\n"
+                - paragraph [ref=e267]: Pre-filled code students receive. Leave blank for empty file.
+              - generic [ref=e268]:
+                - text: Reference Solution (optional)
+                - textbox "Reference Solution (optional)" [ref=e269]:
+                  - /placeholder: "# Your reference solution — used for code-paste detection\\n"
+                - paragraph [ref=e270]: Used to detect student code that matches the solution. Only visible to you.
+            - generic [ref=e271]:
+              - heading "Concept Metadata" [level=2] [ref=e272]
+              - generic [ref=e273]:
+                - text: Concept
+                - radiogroup "Select concept" [ref=e274]:
+                  - radio "Datatypes" [ref=e275]
+                  - radio "Variables" [ref=e276]
+                  - radio "Conditionals" [ref=e277]
+                  - radio "Loops" [ref=e278]
+                  - radio "Functions" [ref=e279]
+                  - radio "Arrays" [ref=e280]
+                  - radio "OOP" [ref=e281]
+                - paragraph [ref=e282]: Students see this tag. It helps target recommendations.
+            - generic [ref=e283]:
+              - generic [ref=e284]:
+                - heading "Test Cases" [level=2] [ref=e285]
+                - button "Add test case" [ref=e286]:
+                  - img [ref=e287]
+                  - text: Add test case
+              - list [ref=e288]:
+                - listitem [ref=e289]:
+                  - generic [ref=e290]:
+                    - generic [ref=e291]:
+                      - img "Drag to reorder" [ref=e292]
+                      - generic [ref=e300]: Test case 1
+                      - generic [ref=e301]: Visible to students
+                      - generic [ref=e302]:
+                        - generic [ref=e303] [cursor=pointer]: Hidden
+                        - switch "Hidden" [ref=e304] [cursor=pointer]
+                    - generic [ref=e305]:
+                      - generic [ref=e306]:
+                        - text: Input
+                        - textbox "Input" [ref=e307]:
+                          - /placeholder: stdin
+                      - generic [ref=e308]:
+                        - text: Expected Output
+                        - textbox "Expected Output" [ref=e309]:
+                          - /placeholder: expected stdout
+                    - generic [ref=e310]:
+                      - text: Description (optional)
+                      - textbox "Description (optional)" [ref=e311]:
+                        - /placeholder: What this test checks
+                    - generic [ref=e312]:
+                      - button "Remove" [disabled]:
+                        - img
+                        - text: Remove
+              - paragraph [ref=e313]: Changes to test cases affect all future submissions. Past submissions are not re-evaluated.
+          - complementary [ref=e314]:
+            - generic [ref=e315]:
+              - heading "Timer" [level=2] [ref=e316]
+              - paragraph [ref=e317]: Maximum time students have to solve this exercise.
+              - generic [ref=e318]:
+                - generic [ref=e319]:
+                  - text: Minutes
+                  - spinbutton "Minutes" [ref=e320]: "60"
+                - generic [ref=e321]:
+                  - text: Seconds
+                  - spinbutton "Seconds" [ref=e322]: "0"
+            - generic [ref=e323]:
+              - heading "Assign to Sections" [level=2] [ref=e324]
+              - generic [ref=e325]:
+                - img
+                - textbox "Search sections…" [ref=e326]
+              - generic [ref=e327]:
+                - checkbox "Select all" [ref=e328]
+                - generic [ref=e329] [cursor=pointer]: Select all
+              - list [ref=e330]:
+                - listitem [ref=e331]:
+                  - generic [ref=e332] [cursor=pointer]:
+                    - checkbox "Assign to cc" [ref=e333]
+                    - generic [ref=e334]: cc
+                    - generic [ref=e335]: "0"
+                - listitem [ref=e336]:
+                  - generic [ref=e337] [cursor=pointer]:
+                    - checkbox "Assign to BIST - 4H" [ref=e338]
+                    - generic [ref=e339]: BIST - 4H
+                    - generic [ref=e340]: "0"
+                - listitem [ref=e341]:
+                  - generic [ref=e342] [cursor=pointer]:
+                    - checkbox "Assign to BSCS - 1A" [ref=e343]
+                    - generic [ref=e344]: BSCS - 1A
+                    - generic [ref=e345]: "3"
+                - listitem [ref=e346]:
+                  - generic [ref=e347] [cursor=pointer]:
+                    - checkbox "Assign to BSIT-3H-E2E" [ref=e348]
+                    - generic [ref=e349]: BSIT-3H-E2E
+                    - generic [ref=e350]: "40"
+                - listitem [ref=e351]:
+                  - generic [ref=e352] [cursor=pointer]:
+                    - checkbox "Assign to BSIT - 3H" [ref=e353]
+                    - generic [ref=e354]: BSIT - 3H
+                    - generic [ref=e355]: "2"
+              - paragraph [ref=e356]: Exercise will be unpublished until assigned.
+            - generic [ref=e357]:
+              - heading "Deadline" [level=2] [ref=e358]
+              - generic [ref=e359]:
+                - text: Due Date & Time
+                - textbox "Due Date & Time" [ref=e360]
+                - paragraph [ref=e361]: Students must submit before this time.
+        - generic [ref=e362]:
+          - button "Delete" [ref=e363]:
+            - img [ref=e364]
+            - text: Delete
+          - generic [ref=e367]:
+            - button "Save draft" [ref=e368]:
+              - img [ref=e369]
+              - text: Save draft
+            - button "Update" [ref=e373]:
+              - img [ref=e374]
+              - text: Update
+  - region "Notifications alt+T"

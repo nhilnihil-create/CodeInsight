@@ -1,0 +1,110 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: TI
+          - generic [ref=e70]:
+            - generic [ref=e71]: Test Instructor
+            - generic [ref=e72]: inst@test.com
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - heading "Integrity" [level=1] [ref=e82]
+            - paragraph [ref=e83]: Behavioral and structural anomalies requiring instructor review.
+          - generic [ref=e91]:
+            - button "Refresh" [ref=e92]:
+              - img [ref=e93]
+            - button "Bulk action" [disabled]:
+              - text: Bulk action
+              - img
+        - generic [ref=e99]:
+          - paragraph [ref=e100]: No pending flags
+          - heading "All clear — no integrity flags." [level=2] [ref=e101]
+        - group "Supporting evidence" [ref=e102]:
+          - generic [ref=e103]:
+            - paragraph [ref=e104]: High
+            - paragraph [ref=e106]: "1"
+            - paragraph [ref=e107]: total
+            - application [ref=e111]
+          - generic [ref=e116]:
+            - paragraph [ref=e117]: Moderate
+            - paragraph [ref=e119]: "0"
+            - paragraph [ref=e120]: total
+            - application [ref=e124]
+          - generic [ref=e125]:
+            - paragraph [ref=e126]: Low
+            - paragraph [ref=e128]: "0"
+            - paragraph [ref=e129]: total
+            - application [ref=e133]
+        - generic [ref=e134]:
+          - generic [ref=e135]:
+            - img
+            - textbox "Search student, exercise, or type…" [ref=e136]
+          - generic [ref=e137]:
+            - combobox [ref=e138]:
+              - generic: All severities
+              - img [ref=e139]
+            - combobox [ref=e141]:
+              - generic: All types
+              - img [ref=e142]
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - heading "Queue" [level=2] [ref=e146]
+            - generic [ref=e147]: 1 flag
+          - list "Decision list" [ref=e148]:
+            - button "Select code_paste_detected for Jose Santos High code_paste_detected Jose Santos Sum 1 to N 5d ago Review" [ref=e149] [cursor=pointer]:
+              - generic [ref=e150]:
+                - checkbox "Select code_paste_detected for Jose Santos" [ref=e152]
+                - generic [ref=e153]: High
+                - generic [ref=e154]: code_paste_detected
+                - generic [ref=e155]: Jose Santos
+                - generic [ref=e156]: Sum 1 to N
+                - generic [ref=e157]: 5d ago
+                - button "Review" [ref=e158]:
+                  - text: Review
+                  - img [ref=e159]
+  - region "Notifications alt+T"

@@ -1,0 +1,243 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - navigation:
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /instructor/sections
+                      - text: Sections
+                    - img
+                  - listitem:
+                    - generic: BSCS - 1A
+              - generic:
+                - generic:
+                  - heading [level=1]: BSCS - 1A — CS102
+                  - paragraph: CS102 · Sem 1 · AY 2025 - 2026 · 4 students
+                - generic:
+                  - button:
+                    - img
+                    - text: Message at-risk
+                  - button [expanded]:
+                    - img
+            - generic:
+              - generic:
+                - heading [level=2]: 0 students are at risk; 0 have active integrity flags.
+              - generic:
+                - link:
+                  - /url: /instructor/integrity?section=5
+                  - text: Schedule intervention
+                  - img
+            - group:
+              - generic:
+                - paragraph: At Risk
+                - generic:
+                  - paragraph: "0"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: this week
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Avg CDS
+                - generic:
+                  - paragraph: "0.49"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: current
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Open Flags
+                - generic:
+                  - paragraph: "0"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: this week
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Submissions
+                - generic:
+                  - paragraph: "2"
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: all time
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+            - generic:
+              - tablist:
+                - tab: Roster
+                - tab: Analytics
+                - tab: Submissions
+                - tab [selected]:
+                  - img
+                  - text: Settings
+              - tabpanel:
+                - generic:
+                  - generic:
+                    - generic:
+                      - heading [level=2]: Section metadata and roster configuration.
+                  - generic:
+                    - generic:
+                      - generic:
+                        - paragraph: Settings
+                        - heading [level=3]: Section metadata
+                      - generic:
+                        - generic:
+                          - text: Section name
+                          - textbox: BSCS - 1A
+                        - generic:
+                          - text: Course code
+                          - textbox: CS102
+                        - generic:
+                          - button:
+                            - img
+                            - text: Save changes
+                    - generic:
+                      - generic:
+                        - generic:
+                          - paragraph: Settings
+                          - heading [level=3]: Roster (4)
+                      - generic:
+                        - generic:
+                          - textbox:
+                            - /placeholder: Add student by email…
+                          - button:
+                            - img
+                            - text: Add
+                        - list:
+                          - listitem:
+                            - generic:
+                              - text: Ana Lim
+                              - generic: (ana@student.psu.edu)
+                            - button:
+                              - img
+                          - listitem:
+                            - generic:
+                              - text: Jose Santos
+                              - generic: (jose@student.psu.edu)
+                            - button:
+                              - img
+                          - listitem:
+                            - generic:
+                              - text: Maria Reyes
+                              - generic: (maria@student.psu.edu)
+                            - button:
+                              - img
+                          - listitem:
+                            - generic:
+                              - text: Student A
+                              - generic: (student@test.com)
+                            - button:
+                              - img
+                  - generic:
+                    - generic:
+                      - generic:
+                        - paragraph: Settings
+                        - heading [level=3]: Assigned exercises
+                      - button:
+                        - img
+                        - text: Assign exercise
+                    - list:
+                      - listitem:
+                        - generic: Variables Practice
+                        - generic: 2/4 submitted
+                        - generic: Variables
+                        - button:
+                          - img
+                      - listitem:
+                        - generic: Basic Datatypes Exercise
+                        - generic: 1/4 submitted
+                        - generic: Datatypes
+                        - button:
+                          - img
+    - region "Notifications alt+T"
+  - menu "More actions" [active] [ref=e377]:
+    - menuitem "Export section" [ref=e378]:
+      - img [ref=e379]
+      - text: Export section
+    - menuitem "Copy join code" [ref=e382]:
+      - img [ref=e383]
+      - text: Copy join code
+    - menuitem "Manage roster" [ref=e386]:
+      - img [ref=e387]
+      - text: Manage roster
+    - separator [ref=e392]
+    - menuitem "View reports" [ref=e393]:
+      - img [ref=e394]
+      - text: View reports

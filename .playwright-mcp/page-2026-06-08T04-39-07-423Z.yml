@@ -1,0 +1,224 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Instructor
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "Dashboard" [ref=e15] [cursor=pointer]:
+            - /url: /instructor/dashboard
+            - img [ref=e16]
+            - generic [ref=e21]: Dashboard
+          - link "Heatmap" [ref=e23] [cursor=pointer]:
+            - /url: /instructor/heatmap
+            - img [ref=e24]
+            - generic [ref=e29]: Heatmap
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /instructor/students
+            - img [ref=e32]
+            - generic [ref=e37]: Students
+          - link "My Sections" [ref=e39] [cursor=pointer]:
+            - /url: /instructor/my-sections
+            - img [ref=e40]
+            - generic [ref=e43]: My Sections
+          - link "Exercises" [ref=e45] [cursor=pointer]:
+            - /url: /instructor/exercises
+            - img [ref=e46]
+            - generic [ref=e48]: Exercises
+          - link "Reports" [ref=e50] [cursor=pointer]:
+            - /url: /instructor/reports
+            - img [ref=e51]
+            - generic [ref=e54]: Reports
+          - link "Integrity" [ref=e56] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - img [ref=e57]
+            - generic [ref=e59]: Integrity
+          - link "Developer" [ref=e61] [cursor=pointer]:
+            - /url: /instructor/developer
+            - img [ref=e62]
+            - generic [ref=e65]: Developer
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e69]: JD
+            - generic [ref=e70]:
+              - generic [ref=e71]: Juan Dela Cruz
+              - generic [ref=e72]: instructor@psu.edu
+          - button "Logout" [ref=e73]:
+            - img [ref=e74]
+            - text: Logout
+      - main [ref=e77]:
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - heading "Reports" [level=1] [ref=e82]
+              - paragraph [ref=e83]: Class-wide trends and concept-level difficulty across all sections.
+            - generic [ref=e84]:
+              - radiogroup "Period" [ref=e85]:
+                - radio "1w" [ref=e86] [cursor=pointer]
+                - radio "2w" [ref=e87] [cursor=pointer]
+                - radio "4w" [checked] [ref=e88] [cursor=pointer]
+                - radio "12w" [ref=e89] [cursor=pointer]
+              - button "Export" [ref=e90]:
+                - img [ref=e91]
+                - text: Export
+                - img [ref=e94]
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - paragraph [ref=e98]: Headline
+              - heading "Class mastery is up 7% over the last 4 weeks." [level=2] [ref=e99]
+              - paragraph [ref=e100]: Driven by Functions (+14%) and OOP (+14%) — Recursion still the highest-CDS concept.
+            - button "Export report" [ref=e102]:
+              - text: Export report
+              - img [ref=e103]
+          - group "Supporting evidence" [ref=e105]:
+            - generic [ref=e106]:
+              - paragraph [ref=e107]: Mastery
+              - generic [ref=e108]:
+                - paragraph [ref=e109]: 64%
+                - generic "Up 7 vs. 4w ago" [ref=e110]:
+                  - generic [ref=e111]: ▲
+                  - text: "7"
+              - paragraph [ref=e112]: vs. 4w ago
+              - application [ref=e116]
+            - generic [ref=e121]:
+              - paragraph [ref=e122]: Completion
+              - generic [ref=e123]:
+                - paragraph [ref=e124]: 78%
+                - generic "Up 3 vs. 4w ago" [ref=e125]:
+                  - generic [ref=e126]: ▲
+                  - text: "3"
+              - paragraph [ref=e127]: vs. 4w ago
+              - application [ref=e131]
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: At Risk
+              - generic [ref=e138]:
+                - paragraph [ref=e139]: 14%
+                - generic "Down 4 improving" [ref=e140]:
+                  - generic [ref=e141]: ▼
+                  - text: "4"
+              - paragraph [ref=e142]: improving
+              - application [ref=e146]
+            - generic [ref=e151]:
+              - paragraph [ref=e152]: Flags
+              - generic [ref=e153]:
+                - paragraph [ref=e154]: 0.3/student
+                - generic "Down 0.1 vs. 4w ago" [ref=e155]:
+                  - generic [ref=e156]: ▼
+                  - text: "0.1"
+              - paragraph [ref=e157]: vs. 4w ago
+              - application [ref=e161]
+          - generic [ref=e166]:
+            - tablist [ref=e167]:
+              - tab "Mastery" [selected] [ref=e168]
+              - tab "Completion" [ref=e169]
+              - tab "Engagement" [ref=e170]
+              - tab "Integrity" [ref=e171]
+            - tabpanel "Mastery" [ref=e172]:
+              - generic [ref=e173]:
+                - generic [ref=e174]:
+                  - generic [ref=e176]:
+                    - paragraph [ref=e177]: Trend
+                    - heading "Concept mastery · 4-week rolling" [level=3] [ref=e178]
+                  - generic [ref=e182]:
+                    - list [ref=e184]:
+                      - listitem [ref=e185]:
+                        - img "Arrays legend icon" [ref=e186]
+                        - text: Arrays
+                      - listitem [ref=e188]:
+                        - img "Conditionals legend icon" [ref=e189]
+                        - text: Conditionals
+                      - listitem [ref=e191]:
+                        - img "Datatypes legend icon" [ref=e192]
+                        - text: Datatypes
+                      - listitem [ref=e194]:
+                        - img "Functions legend icon" [ref=e195]
+                        - text: Functions
+                      - listitem [ref=e197]:
+                        - img "Loops legend icon" [ref=e198]
+                        - text: Loops
+                      - listitem [ref=e200]:
+                        - img "OOP legend icon" [ref=e201]
+                        - text: OOP
+                      - listitem [ref=e203]:
+                        - img "Variables legend icon" [ref=e204]
+                        - text: Variables
+                    - application [ref=e206]:
+                      - generic [ref=e232]:
+                        - generic [ref=e233]:
+                          - generic [ref=e235]: W-4
+                          - generic [ref=e237]: W-3
+                          - generic [ref=e239]: W-2
+                          - generic [ref=e241]: W-1
+                          - generic [ref=e243]: Now
+                        - generic [ref=e244]:
+                          - generic [ref=e246]: "0"
+                          - generic [ref=e248]: "25"
+                          - generic [ref=e250]: "50"
+                          - generic [ref=e252]: "75"
+                          - generic [ref=e254]: "100"
+                - generic [ref=e255]:
+                  - heading "Concepts · current vs. 4w ago" [level=3] [ref=e257]
+                  - table [ref=e260]:
+                    - rowgroup [ref=e261]:
+                      - row "Concept Current Δ" [ref=e262]:
+                        - columnheader "Concept" [ref=e263]:
+                          - button "Concept" [ref=e264]:
+                            - text: Concept
+                            - img [ref=e265]
+                        - columnheader "Current" [ref=e268]:
+                          - button "Current" [ref=e269]:
+                            - text: Current
+                            - img [ref=e270]
+                        - columnheader "Δ" [ref=e272]:
+                          - button "Δ" [ref=e273]:
+                            - text: Δ
+                            - img [ref=e274]
+                    - rowgroup [ref=e277]:
+                      - row "Datatypes 85% +7" [ref=e278]:
+                        - cell "Datatypes" [ref=e279]
+                        - cell "85%" [ref=e280]:
+                          - generic [ref=e281]: 85%
+                        - cell "+7" [ref=e282]:
+                          - generic [ref=e283]: "+7"
+                      - row "Variables 80% +8" [ref=e284]:
+                        - cell "Variables" [ref=e285]
+                        - cell "80%" [ref=e286]:
+                          - generic [ref=e287]: 80%
+                        - cell "+8" [ref=e288]:
+                          - generic [ref=e289]: "+8"
+                      - row "Conditionals 76% +11" [ref=e290]:
+                        - cell "Conditionals" [ref=e291]
+                        - cell "76%" [ref=e292]:
+                          - generic [ref=e293]: 76%
+                        - cell "+11" [ref=e294]:
+                          - generic [ref=e295]: "+11"
+                      - row "Loops 66% +8" [ref=e296]:
+                        - cell "Loops" [ref=e297]
+                        - cell "66%" [ref=e298]:
+                          - generic [ref=e299]: 66%
+                        - cell "+8" [ref=e300]:
+                          - generic [ref=e301]: "+8"
+                      - row "Functions 64% +14" [ref=e302]:
+                        - cell "Functions" [ref=e303]
+                        - cell "64%" [ref=e304]:
+                          - generic [ref=e305]: 64%
+                        - cell "+14" [ref=e306]:
+                          - generic [ref=e307]: "+14"
+                      - row "Arrays 56% +12" [ref=e308]:
+                        - cell "Arrays" [ref=e309]
+                        - cell "56%" [ref=e310]:
+                          - generic [ref=e311]: 56%
+                        - cell "+12" [ref=e312]:
+                          - generic [ref=e313]: "+12"
+                      - row "OOP 52% +14" [ref=e314]:
+                        - cell "OOP" [ref=e315]
+                        - cell "52%" [ref=e316]:
+                          - generic [ref=e317]: 52%
+                        - cell "+14" [ref=e318]:
+                          - generic [ref=e319]: "+14"
+    - region "Notifications alt+T"
+  - generic [ref=e320]: "0"

@@ -1,0 +1,169 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Instructor
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "Dashboard" [ref=e15] [cursor=pointer]:
+            - /url: /instructor/dashboard
+            - img [ref=e16]
+            - generic [ref=e21]: Dashboard
+          - link "Heatmap" [ref=e23] [cursor=pointer]:
+            - /url: /instructor/heatmap
+            - img [ref=e24]
+            - generic [ref=e29]: Heatmap
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /instructor/students
+            - img [ref=e32]
+            - generic [ref=e37]: Students
+          - link "My Sections" [ref=e39] [cursor=pointer]:
+            - /url: /instructor/my-sections
+            - img [ref=e40]
+            - generic [ref=e43]: My Sections
+          - link "Exercises" [ref=e45] [cursor=pointer]:
+            - /url: /instructor/exercises
+            - img [ref=e46]
+            - generic [ref=e48]: Exercises
+          - link "Reports" [ref=e50] [cursor=pointer]:
+            - /url: /instructor/reports
+            - img [ref=e51]
+            - generic [ref=e54]: Reports
+          - link "Integrity" [ref=e56] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - img [ref=e57]
+            - generic [ref=e59]: Integrity
+          - link "Developer" [ref=e61] [cursor=pointer]:
+            - /url: /instructor/developer
+            - img [ref=e62]
+            - generic [ref=e65]: Developer
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e69]: TI
+            - generic [ref=e70]:
+              - generic [ref=e71]: Test Instructor
+              - generic [ref=e72]: inst@test.com
+          - button "Logout" [ref=e73]:
+            - img [ref=e74]
+            - text: Logout
+      - main [ref=e77]:
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e82]:
+              - heading "Class Status" [level=1] [ref=e83]
+              - paragraph [ref=e84]: Aggregated metrics across all your sections, updated live.
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - generic [ref=e87]: Section
+                - combobox [ref=e88]:
+                  - generic: All Sections
+                  - img [ref=e89]
+              - radiogroup "Period" [ref=e91]:
+                - radio "7d" [checked] [ref=e92] [cursor=pointer]
+                - radio "30d" [ref=e93] [cursor=pointer]
+                - radio "90d" [ref=e94] [cursor=pointer]
+              - button "Export" [ref=e97]:
+                - img [ref=e98]
+                - text: Export
+          - generic [ref=e101]:
+            - heading "No students currently at high risk across all sections." [level=2] [ref=e103]
+            - link "Open intervention queue" [ref=e105] [cursor=pointer]:
+              - /url: /instructor/integrity
+              - text: Open intervention queue
+              - img [ref=e106]
+          - group "Supporting evidence" [ref=e108]:
+            - generic [ref=e109]:
+              - paragraph [ref=e110]: At risk
+              - generic [ref=e111]:
+                - paragraph [ref=e112]: "0"
+                - generic "No change vs. last week" [ref=e113]:
+                  - generic [ref=e114]: ■
+                  - text: "0"
+              - paragraph [ref=e115]: vs. last week
+              - application [ref=e119]
+            - generic [ref=e120]:
+              - paragraph [ref=e121]: Avg CDS
+              - generic [ref=e122]:
+                - paragraph [ref=e123]: "0.00"
+                - generic "No change improving" [ref=e124]:
+                  - generic [ref=e125]: ■
+                  - text: "0"
+              - paragraph [ref=e126]: improving
+              - application [ref=e130]
+            - generic [ref=e131]:
+              - paragraph [ref=e132]: Mastery
+              - generic [ref=e133]:
+                - paragraph [ref=e134]: 100%
+                - generic "No change this week" [ref=e135]:
+                  - generic [ref=e136]: ■
+                  - text: "0"
+              - paragraph [ref=e137]: this week
+              - application [ref=e141]
+            - generic [ref=e146]:
+              - paragraph [ref=e147]: Flags
+              - generic [ref=e148]:
+                - paragraph [ref=e149]: "0"
+                - generic "No change last 24h" [ref=e150]:
+                  - generic [ref=e151]: ■
+                  - text: "0"
+              - paragraph [ref=e152]: last 24h
+              - application [ref=e156]
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e159]:
+                - paragraph [ref=e160]: Details
+                - heading "Class trend" [level=3] [ref=e161]
+              - radiogroup "Period" [ref=e162]:
+                - radio "7d" [checked] [ref=e163] [cursor=pointer]
+                - radio "30d" [ref=e164] [cursor=pointer]
+                - radio "90d" [ref=e165] [cursor=pointer]
+            - generic [ref=e169]:
+              - list [ref=e171]:
+                - listitem [ref=e172]:
+                  - img "CDS legend icon" [ref=e173]
+                  - text: CDS
+                - listitem [ref=e175]:
+                  - img "Engagement legend icon" [ref=e176]
+                  - text: Engagement
+                - listitem [ref=e178]:
+                  - img "Mastery legend icon" [ref=e179]
+                  - text: Mastery
+              - application [ref=e181]:
+                - generic [ref=e185]:
+                  - generic [ref=e186]:
+                    - generic [ref=e188]: Mon, Jun 1
+                    - generic [ref=e190]: Tue, Jun 2
+                    - generic [ref=e192]: Wed, Jun 3
+                    - generic [ref=e194]: Thu, Jun 4
+                    - generic [ref=e196]: Fri, Jun 5
+                    - generic [ref=e198]: Sat, Jun 6
+                    - generic [ref=e200]: Sun, Jun 7
+                    - generic [ref=e202]: Mon, Jun 8
+                  - generic [ref=e203]:
+                    - generic [ref=e205]: "0"
+                    - generic [ref=e207]: "1"
+                    - generic [ref=e209]: "2"
+                    - generic [ref=e211]: "3"
+                    - generic [ref=e213]: "4"
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - generic [ref=e217]:
+                - paragraph [ref=e218]: Details
+                - heading "Top struggling concepts" [level=3] [ref=e219]
+              - generic [ref=e222]: No concept data available yet.
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - generic [ref=e225]:
+                  - paragraph [ref=e226]: Details
+                  - heading "Recent integrity flags" [level=3] [ref=e227]
+                - link "View all" [ref=e228] [cursor=pointer]:
+                  - /url: /instructor/integrity
+                  - text: View all
+                  - img [ref=e229]
+              - generic [ref=e232]: No recent integrity flags.
+    - region "Notifications alt+T"
+  - generic [ref=e233]: "0"

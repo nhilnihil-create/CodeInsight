@@ -1,0 +1,119 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [active] [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: MR
+          - generic [ref=e35]:
+            - generic [ref=e36]: Maria Reyes
+            - generic [ref=e37]: maria@student.psu.edu
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e392]:
+        - generic [ref=e393]:
+          - generic [ref=e394]:
+            - heading "Today, Monday June 8" [level=1] [ref=e395]
+            - paragraph [ref=e396]: No exercises due this week
+          - link "View all" [ref=e397] [cursor=pointer]:
+            - /url: /student/exercises
+            - text: View all
+            - img [ref=e398]
+        - group "Supporting evidence" [ref=e400]:
+          - generic [ref=e401]:
+            - paragraph [ref=e402]: Mastery
+            - generic [ref=e403]:
+              - paragraph [ref=e404]: 100%
+              - generic "Up 4 4 exercises total" [ref=e405]:
+                - generic [ref=e406]: ▲
+                - text: "4"
+            - paragraph [ref=e407]: 4 exercises total
+            - application [ref=e411]
+          - generic [ref=e412]:
+            - paragraph [ref=e413]: Streak
+            - generic [ref=e414]:
+              - paragraph [ref=e415]: 1 day
+              - generic "Up 1 personal best" [ref=e416]:
+                - generic [ref=e417]: ▲
+                - text: "1"
+            - paragraph [ref=e418]: personal best
+            - application [ref=e422]
+          - generic [ref=e423]:
+            - paragraph [ref=e424]: CDS
+            - generic [ref=e425]:
+              - paragraph [ref=e426]: "0.46"
+              - generic "No change moderate" [ref=e427]:
+                - generic [ref=e428]: ■
+                - text: "0"
+            - paragraph [ref=e429]: moderate
+        - generic [ref=e432]:
+          - generic [ref=e433]:
+            - generic [ref=e434]:
+              - generic [ref=e435]:
+                - paragraph [ref=e436]: Focus
+                - heading "Work on loops" [level=3] [ref=e437]
+              - img [ref=e438]
+            - generic [ref=e441]:
+              - generic [ref=e442]:
+                - generic [ref=e443]:
+                  - paragraph [ref=e444]: Loops
+                  - paragraph [ref=e445]: 1 exercise completed
+                - generic [ref=e448]: 65%
+              - generic [ref=e449]:
+                - generic [ref=e450]:
+                  - paragraph [ref=e451]: Variables
+                  - paragraph [ref=e452]: 1 exercise completed
+                - generic [ref=e455]: 64%
+              - generic [ref=e456]:
+                - generic [ref=e457]:
+                  - paragraph [ref=e458]: Datatypes
+                  - paragraph [ref=e459]: 2 exercises completed
+                - generic [ref=e462]: 44%
+          - generic [ref=e463]:
+            - generic [ref=e464]:
+              - generic [ref=e465]:
+                - paragraph [ref=e466]: From instructor
+                - heading "Recent feedback" [level=3] [ref=e467]
+              - img [ref=e468]
+            - list [ref=e471]:
+              - listitem [ref=e472]:
+                - generic [ref=e473]:
+                  - generic [ref=e475]: JD
+                  - generic [ref=e476]:
+                    - generic [ref=e477]:
+                      - generic [ref=e478]: Juan Dela Cruz
+                      - generic [ref=e479]:
+                        - img [ref=e480]
+                        - text: just now
+                    - paragraph [ref=e483]: Welcome! Complete your first exercise to get personalized feedback here.
+        - generic [ref=e484]:
+          - generic [ref=e485]:
+            - generic [ref=e486]:
+              - paragraph [ref=e487]: Up next
+              - heading "Recommended next" [level=3] [ref=e488]
+            - link "See all" [ref=e489] [cursor=pointer]:
+              - /url: /student/exercises
+              - text: See all
+              - img [ref=e490]
+          - paragraph [ref=e494]: No exercises available yet
+  - region "Notifications alt+T"

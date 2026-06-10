@@ -1,0 +1,232 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Instructor
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "Dashboard" [ref=e15] [cursor=pointer]:
+            - /url: /instructor/dashboard
+            - img [ref=e16]
+            - generic [ref=e21]: Dashboard
+          - link "Heatmap" [ref=e23] [cursor=pointer]:
+            - /url: /instructor/heatmap
+            - img [ref=e24]
+            - generic [ref=e29]: Heatmap
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /instructor/students
+            - img [ref=e32]
+            - generic [ref=e37]: Students
+          - link "My Sections" [ref=e39] [cursor=pointer]:
+            - /url: /instructor/my-sections
+            - img [ref=e40]
+            - generic [ref=e43]: My Sections
+          - link "Exercises" [ref=e45] [cursor=pointer]:
+            - /url: /instructor/exercises
+            - img [ref=e46]
+            - generic [ref=e48]: Exercises
+          - link "Reports" [ref=e50] [cursor=pointer]:
+            - /url: /instructor/reports
+            - img [ref=e51]
+            - generic [ref=e54]: Reports
+          - link "Integrity" [ref=e56] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - img [ref=e57]
+            - generic [ref=e59]: Integrity
+          - link "Developer" [ref=e61] [cursor=pointer]:
+            - /url: /instructor/developer
+            - img [ref=e62]
+            - generic [ref=e65]: Developer
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e69]: JD
+            - generic [ref=e70]:
+              - generic [ref=e71]: Juan Dela Cruz
+              - generic [ref=e72]: instructor@psu.edu
+          - button "Logout" [ref=e73]:
+            - img [ref=e74]
+            - text: Logout
+      - main [ref=e77]:
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - heading "Reports" [level=1] [ref=e82]
+              - paragraph [ref=e83]: Class-wide trends and concept-level difficulty across all sections.
+            - generic [ref=e84]:
+              - radiogroup "Period" [ref=e85]:
+                - radio "1w" [ref=e86] [cursor=pointer]
+                - radio "2w" [ref=e87] [cursor=pointer]
+                - radio "4w" [checked] [ref=e88] [cursor=pointer]
+                - radio "12w" [ref=e89] [cursor=pointer]
+              - button "Export" [ref=e90]:
+                - img [ref=e91]
+                - text: Export
+                - img [ref=e94]
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - paragraph [ref=e98]: Headline
+              - heading "Class mastery is up 7% over the last 4 weeks." [level=2] [ref=e99]
+              - paragraph [ref=e100]: Driven by Functions (+14%) and OOP (+14%) — Recursion still the highest-CDS concept.
+            - button "Export report" [ref=e102]:
+              - text: Export report
+              - img [ref=e103]
+          - group "Supporting evidence" [ref=e105]:
+            - generic [ref=e106]:
+              - paragraph [ref=e107]: Mastery
+              - generic [ref=e108]:
+                - paragraph [ref=e109]: 64%
+                - generic "Up 7 vs. 4w ago" [ref=e110]:
+                  - generic [ref=e111]: ▲
+                  - text: "7"
+              - paragraph [ref=e112]: vs. 4w ago
+              - application [ref=e116]
+            - generic [ref=e121]:
+              - paragraph [ref=e122]: Completion
+              - generic [ref=e123]:
+                - paragraph [ref=e124]: 78%
+                - generic "Up 3 vs. 4w ago" [ref=e125]:
+                  - generic [ref=e126]: ▲
+                  - text: "3"
+              - paragraph [ref=e127]: vs. 4w ago
+              - application [ref=e131]
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: At Risk
+              - generic [ref=e138]:
+                - paragraph [ref=e139]: 14%
+                - generic "Down 4 improving" [ref=e140]:
+                  - generic [ref=e141]: ▼
+                  - text: "4"
+              - paragraph [ref=e142]: improving
+              - application [ref=e146]
+            - generic [ref=e151]:
+              - paragraph [ref=e152]: Flags
+              - generic [ref=e153]:
+                - paragraph [ref=e154]: 0.3/student
+                - generic "Down 0.1 vs. 4w ago" [ref=e155]:
+                  - generic [ref=e156]: ▼
+                  - text: "0.1"
+              - paragraph [ref=e157]: vs. 4w ago
+              - application [ref=e161]
+          - generic [ref=e169]:
+            - tablist [ref=e170]:
+              - tab "Mastery" [ref=e171]
+              - tab "Completion" [ref=e172]
+              - tab "Engagement" [ref=e173]
+              - tab "Integrity" [active] [selected] [ref=e174]
+            - tabpanel "Integrity" [ref=e724]:
+              - generic [ref=e725]:
+                - generic [ref=e726]:
+                  - generic [ref=e728]:
+                    - paragraph [ref=e729]: Trend
+                    - heading "Integrity flags · 4-week rolling" [level=3] [ref=e730]
+                  - generic [ref=e734]:
+                    - list [ref=e736]:
+                      - listitem [ref=e737]:
+                        - img "Critical legend icon" [ref=e738]
+                        - text: Critical
+                      - listitem [ref=e740]:
+                        - img "High legend icon" [ref=e741]
+                        - text: High
+                      - listitem [ref=e743]:
+                        - img "Low legend icon" [ref=e744]
+                        - text: Low
+                      - listitem [ref=e746]:
+                        - img "Moderate legend icon" [ref=e747]
+                        - text: Moderate
+                    - application [ref=e749]:
+                      - generic [ref=e766]:
+                        - generic [ref=e767]:
+                          - generic [ref=e769]: W-4
+                          - generic [ref=e771]: W-3
+                          - generic [ref=e773]: W-2
+                          - generic [ref=e775]: W-1
+                          - generic [ref=e777]: Now
+                        - generic [ref=e778]:
+                          - generic [ref=e780]: "0"
+                          - generic [ref=e782]: "3"
+                          - generic [ref=e784]: "6"
+                          - generic [ref=e786]: "9"
+                          - generic [ref=e788]: "12"
+                - generic [ref=e789]:
+                  - heading "Flag breakdown" [level=3] [ref=e791]
+                  - table [ref=e794]:
+                    - rowgroup [ref=e795]:
+                      - row "Type Level Count Share Δ" [ref=e796]:
+                        - columnheader "Type" [ref=e797]:
+                          - button "Type" [ref=e798]:
+                            - text: Type
+                            - img [ref=e799]
+                        - columnheader "Level" [ref=e802]:
+                          - button "Level" [ref=e803]:
+                            - text: Level
+                            - img [ref=e804]
+                        - columnheader "Count" [ref=e807]:
+                          - button "Count" [ref=e808]:
+                            - text: Count
+                            - img [ref=e809]
+                        - columnheader "Share" [ref=e811]:
+                          - button "Share" [ref=e812]:
+                            - text: Share
+                            - img [ref=e813]
+                        - columnheader "Δ" [ref=e816]:
+                          - button "Δ" [ref=e817]:
+                            - text: Δ
+                            - img [ref=e818]
+                    - rowgroup [ref=e821]:
+                      - row "Code Growth Spike Moderate 4 31% +2" [ref=e822]:
+                        - cell "Code Growth Spike" [ref=e823]
+                        - cell "Moderate" [ref=e824]
+                        - cell "4" [ref=e825]
+                        - cell "31%" [ref=e826]:
+                          - generic [ref=e827]: 31%
+                        - cell "+2" [ref=e828]:
+                          - generic [ref=e829]: "+2"
+                      - row "Output Mismatch Moderate 3 23% -1" [ref=e830]:
+                        - cell "Output Mismatch" [ref=e831]
+                        - cell "Moderate" [ref=e832]
+                        - cell "3" [ref=e833]
+                        - cell "23%" [ref=e834]:
+                          - generic [ref=e835]: 23%
+                        - cell "-1" [ref=e836]
+                      - row "Behavioral Anomaly High 2 16% +1" [ref=e837]:
+                        - cell "Behavioral Anomaly" [ref=e838]
+                        - cell "High" [ref=e839]
+                        - cell "2" [ref=e840]
+                        - cell "16%" [ref=e841]:
+                          - generic [ref=e842]: 16%
+                        - cell "+1" [ref=e843]:
+                          - generic [ref=e844]: "+1"
+                      - row "Hardcoding High 1 8% 0" [ref=e845]:
+                        - cell "Hardcoding" [ref=e846]
+                        - cell "High" [ref=e847]
+                        - cell "1" [ref=e848]
+                        - cell "8%" [ref=e849]:
+                          - generic [ref=e850]: 8%
+                        - cell "0" [ref=e851]
+                      - row "Off-By-One Low 1 8% 0" [ref=e852]:
+                        - cell "Off-By-One" [ref=e853]
+                        - cell "Low" [ref=e854]
+                        - cell "1" [ref=e855]
+                        - cell "8%" [ref=e856]:
+                          - generic [ref=e857]: 8%
+                        - cell "0" [ref=e858]
+                      - row "Blank Template Low 1 8% 0" [ref=e859]:
+                        - cell "Blank Template" [ref=e860]
+                        - cell "Low" [ref=e861]
+                        - cell "1" [ref=e862]
+                        - cell "8%" [ref=e863]:
+                          - generic [ref=e864]: 8%
+                        - cell "0" [ref=e865]
+                      - row "Passive Behavior Low 1 8% 0" [ref=e866]:
+                        - cell "Passive Behavior" [ref=e867]
+                        - cell "Low" [ref=e868]
+                        - cell "1" [ref=e869]
+                        - cell "8%" [ref=e870]:
+                          - generic [ref=e871]: 8%
+                        - cell "0" [ref=e872]
+    - region "Notifications alt+T"
+  - generic [ref=e323]: "3"

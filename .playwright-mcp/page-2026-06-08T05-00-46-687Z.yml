@@ -1,0 +1,112 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Reports
+                - paragraph: Class-wide trends and concept-level difficulty across all sections.
+              - generic:
+                - generic:
+                  - generic: Section
+                  - combobox [expanded]:
+                    - generic: All Sections
+                    - img
+                - radiogroup:
+                  - radio: 1w
+                  - radio: 2w
+                  - radio [checked]: 4w
+                  - radio: 12w
+                - button:
+                  - img
+                  - text: Export
+                  - img
+            - generic:
+              - generic:
+                - paragraph: Select a section
+                - heading [level=2]: Choose a section from the filter above to see report data.
+            - generic:
+              - tablist:
+                - tab [selected]: Mastery
+                - tab: Completion
+                - tab: Engagement
+                - tab: Integrity
+              - tabpanel:
+                - generic:
+                  - img
+                  - paragraph: Select a section to view concept mastery data.
+    - region "Notifications alt+T"
+  - listbox [ref=e116]:
+    - option "All Sections" [active] [selected] [ref=e117]:
+      - img [ref=e120]
+      - generic [ref=e122]: All Sections
+    - option "cc · ss" [ref=e123]:
+      - generic [ref=e125]: cc · ss
+    - option "BIST - 4H · CC203" [ref=e126]:
+      - generic [ref=e128]: BIST - 4H · CC203
+    - option "BSCS - 1A · CS102" [ref=e129]:
+      - generic [ref=e131]: BSCS - 1A · CS102
+    - option "BSIT-3H-E2E · CS101" [ref=e132]:
+      - generic [ref=e134]: BSIT-3H-E2E · CS101
+    - option "BSIT - 3H · ITELEC 4" [ref=e135]:
+      - generic [ref=e137]: BSIT - 3H · ITELEC 4

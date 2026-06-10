@@ -1,0 +1,205 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: JD
+          - generic [ref=e70]:
+            - generic [ref=e71]: Juan Dela Cruz
+            - generic [ref=e72]: instructor@psu.edu
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - navigation "Breadcrumb" [ref=e82]:
+            - list [ref=e83]:
+              - listitem [ref=e84]:
+                - link "Sections" [ref=e85] [cursor=pointer]:
+                  - /url: /instructor/sections
+                - img [ref=e86]
+              - listitem [ref=e88]:
+                - generic [ref=e89]: BSCS - 1A
+          - generic [ref=e90]:
+            - generic [ref=e91]:
+              - heading "BSCS - 1A — CS102" [level=1] [ref=e92]
+              - paragraph [ref=e93]: CS102 · Sem 1 · AY 2025 - 2026 · 4 students
+            - generic [ref=e94]:
+              - button "Message at-risk" [ref=e95]:
+                - img [ref=e96]
+                - text: Message at-risk
+              - button "More actions" [active] [ref=e99]:
+                - img [ref=e100]
+        - generic [ref=e104]:
+          - heading "0 students are at risk; 0 have active integrity flags." [level=2] [ref=e106]
+          - link "Schedule intervention" [ref=e108] [cursor=pointer]:
+            - /url: /instructor/integrity?section=5
+            - text: Schedule intervention
+            - img [ref=e109]
+        - group "Supporting evidence" [ref=e111]:
+          - generic [ref=e112]:
+            - paragraph [ref=e113]: At Risk
+            - generic [ref=e114]:
+              - paragraph [ref=e115]: "0"
+              - generic "No change this week" [ref=e116]:
+                - generic [ref=e117]: ■
+                - text: "0"
+            - paragraph [ref=e118]: this week
+            - application [ref=e122]
+          - generic [ref=e123]:
+            - paragraph [ref=e124]: Avg CDS
+            - generic [ref=e125]:
+              - paragraph [ref=e126]: "0.49"
+              - generic "No change current" [ref=e127]:
+                - generic [ref=e128]: ■
+                - text: "0"
+            - paragraph [ref=e129]: current
+            - application [ref=e133]
+          - generic [ref=e134]:
+            - paragraph [ref=e135]: Open Flags
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: "0"
+              - generic "No change this week" [ref=e138]:
+                - generic [ref=e139]: ■
+                - text: "0"
+            - paragraph [ref=e140]: this week
+            - application [ref=e144]
+          - generic [ref=e145]:
+            - paragraph [ref=e146]: Submissions
+            - generic [ref=e147]:
+              - paragraph [ref=e148]: "2"
+              - generic "No change all time" [ref=e149]:
+                - generic [ref=e150]: ■
+                - text: "0"
+            - paragraph [ref=e151]: all time
+            - application [ref=e155]
+        - generic [ref=e156]:
+          - tablist [ref=e157]:
+            - tab "Roster" [ref=e158]
+            - tab "Analytics" [ref=e159]
+            - tab "Submissions" [ref=e160]
+            - tab "Settings" [selected] [ref=e161]:
+              - img [ref=e162]
+              - text: Settings
+          - tabpanel "Settings" [ref=e291]:
+            - generic [ref=e292]:
+              - heading "Section metadata and roster configuration." [level=2] [ref=e295]
+              - generic [ref=e296]:
+                - generic [ref=e297]:
+                  - generic [ref=e298]:
+                    - paragraph [ref=e299]: Settings
+                    - heading "Section metadata" [level=3] [ref=e300]
+                  - generic [ref=e301]:
+                    - generic [ref=e302]:
+                      - text: Section name
+                      - textbox "Section name" [ref=e303]: BSCS - 1A
+                    - generic [ref=e304]:
+                      - text: Course code
+                      - textbox "Course code" [ref=e305]: CS102
+                    - button "Save changes" [ref=e307]:
+                      - img [ref=e308]
+                      - text: Save changes
+                - generic [ref=e312]:
+                  - generic [ref=e314]:
+                    - paragraph [ref=e315]: Settings
+                    - heading "Roster (4)" [level=3] [ref=e316]
+                  - generic [ref=e317]:
+                    - generic [ref=e318]:
+                      - textbox "Add student" [ref=e319]:
+                        - /placeholder: Add student by email…
+                      - button "Add" [ref=e320]:
+                        - img [ref=e321]
+                        - text: Add
+                    - list [ref=e324]:
+                      - listitem [ref=e325]:
+                        - generic [ref=e326]:
+                          - text: Ana Lim
+                          - generic [ref=e327]: (ana@student.psu.edu)
+                        - button "Remove Ana Lim" [ref=e328]:
+                          - img [ref=e329]
+                      - listitem [ref=e332]:
+                        - generic [ref=e333]:
+                          - text: Jose Santos
+                          - generic [ref=e334]: (jose@student.psu.edu)
+                        - button "Remove Jose Santos" [ref=e335]:
+                          - img [ref=e336]
+                      - listitem [ref=e339]:
+                        - generic [ref=e340]:
+                          - text: Maria Reyes
+                          - generic [ref=e341]: (maria@student.psu.edu)
+                        - button "Remove Maria Reyes" [ref=e342]:
+                          - img [ref=e343]
+                      - listitem [ref=e346]:
+                        - generic [ref=e347]:
+                          - text: Student A
+                          - generic [ref=e348]: (student@test.com)
+                        - button "Remove Student A" [ref=e349]:
+                          - img [ref=e350]
+              - generic [ref=e353]:
+                - generic [ref=e354]:
+                  - generic [ref=e355]:
+                    - paragraph [ref=e356]: Settings
+                    - heading "Assigned exercises" [level=3] [ref=e357]
+                  - button "Assign exercise" [ref=e358]:
+                    - img [ref=e359]
+                    - text: Assign exercise
+                - list [ref=e360]:
+                  - listitem [ref=e361]:
+                    - generic [ref=e362]: Variables Practice
+                    - generic [ref=e363]: 2/4 submitted
+                    - generic [ref=e364]: Variables
+                    - button "Unassign Variables Practice" [ref=e365]:
+                      - img [ref=e366]
+                  - listitem [ref=e369]:
+                    - generic [ref=e370]: Basic Datatypes Exercise
+                    - generic [ref=e371]: 1/4 submitted
+                    - generic [ref=e372]: Datatypes
+                    - button "Unassign Basic Datatypes Exercise" [ref=e373]:
+                      - img [ref=e374]
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e397]:
+        - button "Close toast" [ref=e398] [cursor=pointer]:
+          - img [ref=e399]
+        - img [ref=e403]
+        - generic [ref=e406]: Section exported

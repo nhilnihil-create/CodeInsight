@@ -1,0 +1,144 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: JD
+          - generic [ref=e70]:
+            - generic [ref=e71]: Juan Dela Cruz
+            - generic [ref=e72]: instructor@psu.edu
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - navigation "Breadcrumb" [ref=e82]:
+            - list [ref=e83]:
+              - listitem [ref=e84]:
+                - link "Sections" [ref=e85] [cursor=pointer]:
+                  - /url: /instructor/sections
+                - img [ref=e86]
+              - listitem [ref=e88]:
+                - generic [ref=e89]: BSCS - 1A
+          - generic [ref=e90]:
+            - generic [ref=e91]:
+              - heading "BSCS - 1A — CS102" [level=1] [ref=e92]
+              - paragraph [ref=e93]: CS102 · Sem 1 · AY 2025 - 2026 · 4 students
+            - generic [ref=e94]:
+              - button "Message at-risk" [ref=e95]:
+                - img [ref=e96]
+                - text: Message at-risk
+              - button "More actions" [ref=e99]:
+                - img [ref=e100]
+        - generic [ref=e104]:
+          - heading "0 students are at risk; 0 have active integrity flags." [level=2] [ref=e106]
+          - link "Schedule intervention" [ref=e108] [cursor=pointer]:
+            - /url: /instructor/integrity?section=5
+            - text: Schedule intervention
+            - img [ref=e109]
+        - group "Supporting evidence" [ref=e111]:
+          - generic [ref=e112]:
+            - paragraph [ref=e113]: At Risk
+            - generic [ref=e114]:
+              - paragraph [ref=e115]: "0"
+              - generic "No change this week" [ref=e116]:
+                - generic [ref=e117]: ■
+                - text: "0"
+            - paragraph [ref=e118]: this week
+            - application [ref=e122]
+          - generic [ref=e123]:
+            - paragraph [ref=e124]: Avg CDS
+            - generic [ref=e125]:
+              - paragraph [ref=e126]: "0.49"
+              - generic "No change current" [ref=e127]:
+                - generic [ref=e128]: ■
+                - text: "0"
+            - paragraph [ref=e129]: current
+            - application [ref=e133]
+          - generic [ref=e134]:
+            - paragraph [ref=e135]: Open Flags
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: "0"
+              - generic "No change this week" [ref=e138]:
+                - generic [ref=e139]: ■
+                - text: "0"
+            - paragraph [ref=e140]: this week
+            - application [ref=e144]
+          - generic [ref=e145]:
+            - paragraph [ref=e146]: Submissions
+            - generic [ref=e147]:
+              - paragraph [ref=e148]: "2"
+              - generic "No change all time" [ref=e149]:
+                - generic [ref=e150]: ■
+                - text: "0"
+            - paragraph [ref=e151]: all time
+            - application [ref=e155]
+        - generic [ref=e156]:
+          - tablist [ref=e157]:
+            - tab "Roster" [ref=e158]
+            - tab "Analytics" [active] [selected] [ref=e159]
+            - tab "Submissions" [ref=e160]
+            - tab "Settings" [ref=e161]:
+              - img [ref=e162]
+              - text: Settings
+          - tabpanel "Analytics" [ref=e250]:
+            - generic [ref=e251]:
+              - heading "Variables needs improvement concept this term." [level=2] [ref=e254]
+              - generic [ref=e255]:
+                - generic [ref=e256]:
+                  - generic [ref=e257]:
+                    - paragraph [ref=e258]: Details
+                    - heading "Concept mastery" [level=3] [ref=e259]
+                  - list [ref=e261]:
+                    - listitem [ref=e262]:
+                      - generic [ref=e263]: Variables
+                      - generic [ref=e266]: "36"
+                    - listitem [ref=e267]:
+                      - generic [ref=e268]: Datatypes
+                      - generic [ref=e271]: "77"
+                - generic [ref=e272]:
+                  - generic [ref=e273]:
+                    - paragraph [ref=e274]: Details
+                    - heading "Longitudinal progress" [level=3] [ref=e275]
+                  - paragraph [ref=e277]: Not enough data for trend visualization
+  - region "Notifications alt+T"

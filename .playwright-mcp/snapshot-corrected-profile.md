@@ -1,0 +1,104 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: MR
+          - generic [ref=e35]:
+            - generic [ref=e36]: Maria Reyes
+            - generic [ref=e37]: maria@student.psu.edu
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - navigation "Breadcrumb" [ref=e46]:
+            - list [ref=e47]:
+              - listitem [ref=e48]:
+                - link "Student" [ref=e49] [cursor=pointer]:
+                  - /url: /student/dashboard
+                - img [ref=e50]
+              - listitem [ref=e52]:
+                - generic [ref=e53]: My Concept Profile
+          - paragraph [ref=e55]: Concept mastery and difficulty scores across programming topics.
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - heading "What is CDS?" [level=3] [ref=e59]
+            - generic [ref=e60]:
+              - paragraph [ref=e61]: The Concept Difficulty Score (CDS) measures how much you are struggling with a specific programming concept.
+              - list [ref=e62]:
+                - listitem [ref=e63]:
+                  - strong [ref=e64]: "0–25 (Low):"
+                  - text: You have a strong grasp of this concept.
+                - listitem [ref=e65]:
+                  - strong [ref=e66]: "26–50 (Medium):"
+                  - text: Normal learning curve, some mistakes but recovering well.
+                - listitem [ref=e67]:
+                  - strong [ref=e68]: "51–75 (High):"
+                  - text: You are experiencing significant difficulty. Consider reviewing materials.
+                - listitem [ref=e69]:
+                  - strong [ref=e70]: "76–100 (Critical):"
+                  - text: Severe difficulty detected. Reach out to your instructor for help.
+              - paragraph [ref=e71]: CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS), normalized to a 0–100 scale.
+              - paragraph [ref=e72]:
+                - strong [ref=e73]: Mastery = 100 − CDS.
+                - text: The radar chart below shows mastery (larger area = better understanding), not difficulty.
+          - generic [ref=e74]:
+            - generic [ref=e75]:
+              - heading "Concept Mastery Footprint" [level=3] [ref=e76]
+              - paragraph [ref=e77]: 3 concepts, 4 submissions — larger area = better understanding
+            - application [ref=e82]:
+              - generic [ref=e97]:
+                - generic [ref=e100]:
+                  - generic [ref=e102]: "0"
+                  - generic [ref=e104]: "25"
+                  - generic [ref=e106]: "50"
+                  - generic [ref=e108]: "75"
+                  - generic [ref=e110]: "100"
+                - generic [ref=e113]:
+                  - generic [ref=e115]: Datatypes
+                  - generic [ref=e118]: Variables
+                  - generic [ref=e121]: Loops
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - generic [ref=e125]:
+                - heading "Datatypes" [level=3] [ref=e126]
+                - generic [ref=e127]: High
+              - paragraph [ref=e128]: "Mastery: 44% · Difficulty: 0.56 (High)"
+            - paragraph [ref=e130]: "Submissions: 2"
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - heading "Variables" [level=3] [ref=e136]
+                - generic [ref=e137]: Medium
+              - paragraph [ref=e138]: "Mastery: 64% · Difficulty: 0.36 (Medium)"
+            - paragraph [ref=e140]: "Submissions: 1"
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - heading "Loops" [level=3] [ref=e146]
+                - generic [ref=e147]: Medium
+              - paragraph [ref=e148]: "Mastery: 65% · Difficulty: 0.35 (Medium)"
+            - paragraph [ref=e150]: "Submissions: 1"
+  - region "Notifications alt+T"

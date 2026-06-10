@@ -1,0 +1,153 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Integrity
+                - paragraph: Behavioral and structural anomalies requiring instructor review.
+              - generic:
+                - button:
+                  - img
+                - button [disabled]:
+                  - text: Bulk action
+                  - img
+            - generic:
+              - generic:
+                - paragraph: Action required
+                - heading [level=2]: 1 flag awaiting review — highest severity first.
+                - paragraph: High and medium-severity flags are at the top of the queue.
+              - generic:
+                - link:
+                  - /url: /instructor/integrity
+                  - text: Review top flag
+                  - img
+            - group:
+              - generic:
+                - paragraph: High
+                - generic:
+                  - paragraph: "1"
+                - paragraph: total
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Moderate
+                - generic:
+                  - paragraph: "0"
+                - paragraph: total
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Low
+                - generic:
+                  - paragraph: "0"
+                - paragraph: total
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+            - generic:
+              - generic:
+                - img
+                - textbox:
+                  - /placeholder: Search student, exercise, or type…
+              - generic:
+                - combobox [expanded]:
+                  - generic: All severities
+                  - img
+                - combobox:
+                  - generic: All types
+                  - img
+            - generic:
+              - generic:
+                - heading [level=2]: Queue
+                - generic: 1 flag
+              - list:
+                - button:
+                  - generic:
+                    - generic:
+                      - checkbox
+                    - generic: High
+                    - generic: High
+                    - generic: code_paste_detected
+                    - generic: Jose Santos
+                    - generic: Sum 1 to N
+                    - generic: 4d ago
+                    - button:
+                      - text: Review
+                      - img
+    - region "Notifications alt+T"
+  - listbox [ref=e167]:
+    - option "All severities" [active] [selected] [ref=e168]:
+      - img [ref=e171]
+      - generic [ref=e173]: All severities
+    - option "High" [ref=e174]:
+      - generic [ref=e176]: High
+    - option "Moderate" [ref=e177]:
+      - generic [ref=e179]: Moderate
+    - option "Low" [ref=e180]:
+      - generic [ref=e182]: Low

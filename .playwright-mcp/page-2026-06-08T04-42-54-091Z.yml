@@ -1,0 +1,256 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Instructor
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "Dashboard" [ref=e15] [cursor=pointer]:
+            - /url: /instructor/dashboard
+            - img [ref=e16]
+            - generic [ref=e21]: Dashboard
+          - link "Heatmap" [ref=e23] [cursor=pointer]:
+            - /url: /instructor/heatmap
+            - img [ref=e24]
+            - generic [ref=e29]: Heatmap
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /instructor/students
+            - img [ref=e32]
+            - generic [ref=e37]: Students
+          - link "My Sections" [ref=e39] [cursor=pointer]:
+            - /url: /instructor/my-sections
+            - img [ref=e40]
+            - generic [ref=e43]: My Sections
+          - link "Exercises" [ref=e45] [cursor=pointer]:
+            - /url: /instructor/exercises
+            - img [ref=e46]
+            - generic [ref=e48]: Exercises
+          - link "Reports" [ref=e50] [cursor=pointer]:
+            - /url: /instructor/reports
+            - img [ref=e51]
+            - generic [ref=e54]: Reports
+          - link "Integrity" [ref=e56] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - img [ref=e57]
+            - generic [ref=e59]: Integrity
+          - link "Developer" [ref=e61] [cursor=pointer]:
+            - /url: /instructor/developer
+            - img [ref=e62]
+            - generic [ref=e65]: Developer
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e69]: JD
+            - generic [ref=e70]:
+              - generic [ref=e71]: Juan Dela Cruz
+              - generic [ref=e72]: instructor@psu.edu
+          - button "Logout" [ref=e73]:
+            - img [ref=e74]
+            - text: Logout
+      - main [ref=e77]:
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - heading "Reports" [level=1] [ref=e82]
+              - paragraph [ref=e83]: Class-wide trends and concept-level difficulty across all sections.
+            - generic [ref=e84]:
+              - radiogroup "Period" [ref=e85]:
+                - radio "1w" [ref=e86] [cursor=pointer]
+                - radio "2w" [ref=e87] [cursor=pointer]
+                - radio "4w" [checked] [ref=e88] [cursor=pointer]
+                - radio "12w" [ref=e89] [cursor=pointer]
+              - button "Export" [ref=e90]:
+                - img [ref=e91]
+                - text: Export
+                - img [ref=e94]
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - paragraph [ref=e98]: Headline
+              - heading "Class mastery is up 7% over the last 4 weeks." [level=2] [ref=e99]
+              - paragraph [ref=e100]: Driven by Functions (+14%) and OOP (+14%) — Recursion still the highest-CDS concept.
+            - button "Export report" [ref=e102]:
+              - text: Export report
+              - img [ref=e103]
+          - group "Supporting evidence" [ref=e105]:
+            - generic [ref=e106]:
+              - paragraph [ref=e107]: Mastery
+              - generic [ref=e108]:
+                - paragraph [ref=e109]: 64%
+                - generic "Up 7 vs. 4w ago" [ref=e110]:
+                  - generic [ref=e111]: ▲
+                  - text: "7"
+              - paragraph [ref=e112]: vs. 4w ago
+              - application [ref=e116]
+            - generic [ref=e121]:
+              - paragraph [ref=e122]: Completion
+              - generic [ref=e123]:
+                - paragraph [ref=e124]: 78%
+                - generic "Up 3 vs. 4w ago" [ref=e125]:
+                  - generic [ref=e126]: ▲
+                  - text: "3"
+              - paragraph [ref=e127]: vs. 4w ago
+              - application [ref=e131]
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: At Risk
+              - generic [ref=e138]:
+                - paragraph [ref=e139]: 14%
+                - generic "Down 4 improving" [ref=e140]:
+                  - generic [ref=e141]: ▼
+                  - text: "4"
+              - paragraph [ref=e142]: improving
+              - application [ref=e146]
+            - generic [ref=e151]:
+              - paragraph [ref=e152]: Flags
+              - generic [ref=e153]:
+                - paragraph [ref=e154]: 0.3/student
+                - generic "Down 0.1 vs. 4w ago" [ref=e155]:
+                  - generic [ref=e156]: ▼
+                  - text: "0.1"
+              - paragraph [ref=e157]: vs. 4w ago
+              - application [ref=e161]
+          - generic [ref=e169]:
+            - tablist [ref=e170]:
+              - tab "Mastery" [ref=e171]
+              - tab "Completion" [ref=e172]
+              - tab "Engagement" [active] [selected] [ref=e173]
+              - tab "Integrity" [ref=e174]
+            - tabpanel "Engagement" [ref=e567]:
+              - generic [ref=e568]:
+                - generic [ref=e569]:
+                  - generic [ref=e571]:
+                    - paragraph [ref=e572]: Heatmap
+                    - heading "Submission density · day × hour" [level=3] [ref=e573]
+                  - generic [ref=e576]:
+                    - generic [ref=e577]:
+                      - generic [ref=e579]: 00–03
+                      - generic [ref=e580]: 03–06
+                      - generic [ref=e581]: 06–09
+                      - generic [ref=e582]: 09–12
+                      - generic [ref=e583]: 12–15
+                      - generic [ref=e584]: 15–18
+                      - generic [ref=e585]: 18–21
+                      - generic [ref=e586]: 21–24
+                    - generic [ref=e587]:
+                      - generic [ref=e588]: Mon
+                      - generic "Mon 00–03 — 0 submissions" [ref=e589]
+                      - generic "Mon 03–06 — 0 submissions" [ref=e590]
+                      - generic "Mon 06–09 — 14 submissions" [ref=e591]
+                      - generic "Mon 09–12 — 28 submissions" [ref=e592]
+                      - generic "Mon 12–15 — 42 submissions" [ref=e593]
+                      - generic "Mon 15–18 — 28 submissions" [ref=e594]
+                      - generic "Mon 18–21 — 56 submissions" [ref=e595]
+                      - generic "Mon 21–24 — 42 submissions" [ref=e596]
+                    - generic [ref=e597]:
+                      - generic [ref=e598]: Tue
+                      - generic "Tue 00–03 — 0 submissions" [ref=e599]
+                      - generic "Tue 03–06 — 0 submissions" [ref=e600]
+                      - generic "Tue 06–09 — 14 submissions" [ref=e601]
+                      - generic "Tue 09–12 — 28 submissions" [ref=e602]
+                      - generic "Tue 12–15 — 42 submissions" [ref=e603]
+                      - generic "Tue 15–18 — 42 submissions" [ref=e604]
+                      - generic "Tue 18–21 — 56 submissions" [ref=e605]
+                      - generic "Tue 21–24 — 42 submissions" [ref=e606]
+                    - generic [ref=e607]:
+                      - generic [ref=e608]: Wed
+                      - generic "Wed 00–03 — 0 submissions" [ref=e609]
+                      - generic "Wed 03–06 — 0 submissions" [ref=e610]
+                      - generic "Wed 06–09 — 14 submissions" [ref=e611]
+                      - generic "Wed 09–12 — 28 submissions" [ref=e612]
+                      - generic "Wed 12–15 — 42 submissions" [ref=e613]
+                      - generic "Wed 15–18 — 28 submissions" [ref=e614]
+                      - generic "Wed 18–21 — 56 submissions" [ref=e615]
+                      - generic "Wed 21–24 — 28 submissions" [ref=e616]
+                    - generic [ref=e617]:
+                      - generic [ref=e618]: Thu
+                      - generic "Thu 00–03 — 0 submissions" [ref=e619]
+                      - generic "Thu 03–06 — 0 submissions" [ref=e620]
+                      - generic "Thu 06–09 — 14 submissions" [ref=e621]
+                      - generic "Thu 09–12 — 28 submissions" [ref=e622]
+                      - generic "Thu 12–15 — 42 submissions" [ref=e623]
+                      - generic "Thu 15–18 — 42 submissions" [ref=e624]
+                      - generic "Thu 18–21 — 56 submissions" [ref=e625]
+                      - generic "Thu 21–24 — 42 submissions" [ref=e626]
+                    - generic [ref=e627]:
+                      - generic [ref=e628]: Fri
+                      - generic "Fri 00–03 — 0 submissions" [ref=e629]
+                      - generic "Fri 03–06 — 0 submissions" [ref=e630]
+                      - generic "Fri 06–09 — 14 submissions" [ref=e631]
+                      - generic "Fri 09–12 — 28 submissions" [ref=e632]
+                      - generic "Fri 12–15 — 42 submissions" [ref=e633]
+                      - generic "Fri 15–18 — 42 submissions" [ref=e634]
+                      - generic "Fri 18–21 — 42 submissions" [ref=e635]
+                      - generic "Fri 21–24 — 28 submissions" [ref=e636]
+                    - generic [ref=e637]:
+                      - generic [ref=e638]: Sat
+                      - generic "Sat 00–03 — 0 submissions" [ref=e639]
+                      - generic "Sat 03–06 — 0 submissions" [ref=e640]
+                      - generic "Sat 06–09 — 0 submissions" [ref=e641]
+                      - generic "Sat 09–12 — 14 submissions" [ref=e642]
+                      - generic "Sat 12–15 — 28 submissions" [ref=e643]
+                      - generic "Sat 15–18 — 42 submissions" [ref=e644]
+                      - generic "Sat 18–21 — 42 submissions" [ref=e645]
+                      - generic "Sat 21–24 — 28 submissions" [ref=e646]
+                    - generic [ref=e647]:
+                      - generic [ref=e648]: Sun
+                      - generic "Sun 00–03 — 0 submissions" [ref=e649]
+                      - generic "Sun 03–06 — 0 submissions" [ref=e650]
+                      - generic "Sun 06–09 — 0 submissions" [ref=e651]
+                      - generic "Sun 09–12 — 14 submissions" [ref=e652]
+                      - generic "Sun 12–15 — 28 submissions" [ref=e653]
+                      - generic "Sun 15–18 — 42 submissions" [ref=e654]
+                      - generic "Sun 18–21 — 28 submissions" [ref=e655]
+                      - generic "Sun 21–24 — 14 submissions" [ref=e656]
+                    - generic [ref=e657]:
+                      - generic [ref=e658]: Less
+                      - generic [ref=e664]: More
+                - generic [ref=e665]:
+                  - heading "Days · ranked by submissions" [level=3] [ref=e667]
+                  - table [ref=e670]:
+                    - rowgroup [ref=e671]:
+                      - row "Day Submissions Peak hour" [ref=e672]:
+                        - columnheader "Day" [ref=e673]:
+                          - button "Day" [ref=e674]:
+                            - text: Day
+                            - img [ref=e675]
+                        - columnheader "Submissions" [ref=e678]:
+                          - button "Submissions" [ref=e679]:
+                            - text: Submissions
+                            - img [ref=e680]
+                        - columnheader "Peak hour" [ref=e682]:
+                          - button "Peak hour" [ref=e683]:
+                            - text: Peak hour
+                            - img [ref=e684]
+                    - rowgroup [ref=e687]:
+                      - row "Tue 224 18–21" [ref=e688]:
+                        - cell "Tue" [ref=e689]
+                        - cell "224" [ref=e690]
+                        - cell "18–21" [ref=e691]
+                      - row "Thu 224 18–21" [ref=e692]:
+                        - cell "Thu" [ref=e693]
+                        - cell "224" [ref=e694]
+                        - cell "18–21" [ref=e695]
+                      - row "Mon 210 18–21" [ref=e696]:
+                        - cell "Mon" [ref=e697]
+                        - cell "210" [ref=e698]
+                        - cell "18–21" [ref=e699]
+                      - row "Wed 196 18–21" [ref=e700]:
+                        - cell "Wed" [ref=e701]
+                        - cell "196" [ref=e702]
+                        - cell "18–21" [ref=e703]
+                      - row "Fri 196 12–15" [ref=e704]:
+                        - cell "Fri" [ref=e705]
+                        - cell "196" [ref=e706]
+                        - cell "12–15" [ref=e707]
+                      - row "Sat 154 15–18" [ref=e708]:
+                        - cell "Sat" [ref=e709]
+                        - cell "154" [ref=e710]
+                        - cell "15–18" [ref=e711]
+                      - row "Sun 126 15–18" [ref=e712]:
+                        - cell "Sun" [ref=e713]
+                        - cell "126" [ref=e714]
+                        - cell "15–18" [ref=e715]
+    - region "Notifications alt+T"
+  - generic [ref=e323]: 0%

@@ -1,0 +1,223 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Instructor
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "Dashboard" [ref=e15] [cursor=pointer]:
+            - /url: /instructor/dashboard
+            - img [ref=e16]
+            - generic [ref=e21]: Dashboard
+          - link "Heatmap" [ref=e23] [cursor=pointer]:
+            - /url: /instructor/heatmap
+            - img [ref=e24]
+            - generic [ref=e29]: Heatmap
+          - link "Students" [ref=e31] [cursor=pointer]:
+            - /url: /instructor/students
+            - img [ref=e32]
+            - generic [ref=e37]: Students
+          - link "My Sections" [ref=e39] [cursor=pointer]:
+            - /url: /instructor/my-sections
+            - img [ref=e40]
+            - generic [ref=e43]: My Sections
+          - link "Exercises" [ref=e45] [cursor=pointer]:
+            - /url: /instructor/exercises
+            - img [ref=e46]
+            - generic [ref=e48]: Exercises
+          - link "Reports" [ref=e50] [cursor=pointer]:
+            - /url: /instructor/reports
+            - img [ref=e51]
+            - generic [ref=e54]: Reports
+          - link "Integrity" [ref=e56] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - img [ref=e57]
+            - generic [ref=e59]: Integrity
+          - link "Developer" [ref=e61] [cursor=pointer]:
+            - /url: /instructor/developer
+            - img [ref=e62]
+            - generic [ref=e65]: Developer
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e69]: JD
+            - generic [ref=e70]:
+              - generic [ref=e71]: Juan Dela Cruz
+              - generic [ref=e72]: instructor@psu.edu
+          - button "Logout" [ref=e73]:
+            - img [ref=e74]
+            - text: Logout
+      - main [ref=e77]:
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - heading "Reports" [level=1] [ref=e82]
+              - paragraph [ref=e83]: Class-wide trends and concept-level difficulty across all sections.
+            - generic [ref=e84]:
+              - radiogroup "Period" [ref=e85]:
+                - radio "1w" [ref=e86] [cursor=pointer]
+                - radio "2w" [ref=e87] [cursor=pointer]
+                - radio "4w" [checked] [ref=e88] [cursor=pointer]
+                - radio "12w" [ref=e89] [cursor=pointer]
+              - button "Export" [ref=e90]:
+                - img [ref=e91]
+                - text: Export
+                - img [ref=e94]
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - paragraph [ref=e98]: Headline
+              - heading "Class mastery is up 7% over the last 4 weeks." [level=2] [ref=e99]
+              - paragraph [ref=e100]: Driven by Functions (+14%) and OOP (+14%) — Recursion still the highest-CDS concept.
+            - button "Export report" [ref=e102]:
+              - text: Export report
+              - img [ref=e103]
+          - group "Supporting evidence" [ref=e105]:
+            - generic [ref=e106]:
+              - paragraph [ref=e107]: Mastery
+              - generic [ref=e108]:
+                - paragraph [ref=e109]: 64%
+                - generic "Up 7 vs. 4w ago" [ref=e110]:
+                  - generic [ref=e111]: ▲
+                  - text: "7"
+              - paragraph [ref=e112]: vs. 4w ago
+              - application [ref=e116]
+            - generic [ref=e121]:
+              - paragraph [ref=e122]: Completion
+              - generic [ref=e123]:
+                - paragraph [ref=e124]: 78%
+                - generic "Up 3 vs. 4w ago" [ref=e125]:
+                  - generic [ref=e126]: ▲
+                  - text: "3"
+              - paragraph [ref=e127]: vs. 4w ago
+              - application [ref=e131]
+            - generic [ref=e136]:
+              - paragraph [ref=e137]: At Risk
+              - generic [ref=e138]:
+                - paragraph [ref=e139]: 14%
+                - generic "Down 4 improving" [ref=e140]:
+                  - generic [ref=e141]: ▼
+                  - text: "4"
+              - paragraph [ref=e142]: improving
+              - application [ref=e146]
+            - generic [ref=e151]:
+              - paragraph [ref=e152]: Flags
+              - generic [ref=e153]:
+                - paragraph [ref=e154]: 0.3/student
+                - generic "Down 0.1 vs. 4w ago" [ref=e155]:
+                  - generic [ref=e156]: ▼
+                  - text: "0.1"
+              - paragraph [ref=e157]: vs. 4w ago
+              - application [ref=e161]
+          - generic [ref=e169]:
+            - tablist [ref=e170]:
+              - tab "Mastery" [ref=e171]
+              - tab "Completion" [active] [selected] [ref=e172]
+              - tab "Engagement" [ref=e173]
+              - tab "Integrity" [ref=e174]
+            - tabpanel "Completion" [ref=e367]:
+              - generic [ref=e368]:
+                - generic [ref=e369]:
+                  - generic [ref=e371]:
+                    - paragraph [ref=e372]: Composition
+                    - heading "Submission status · per exercise" [level=3] [ref=e373]
+                  - generic [ref=e377]:
+                    - list [ref=e379]:
+                      - listitem [ref=e380]:
+                        - img "Late legend icon" [ref=e381]
+                        - text: Late
+                      - listitem [ref=e383]:
+                        - img "Missing legend icon" [ref=e384]
+                        - text: Missing
+                      - listitem [ref=e386]:
+                        - img "On time legend icon" [ref=e387]
+                        - text: On time
+                    - application [ref=e389]:
+                      - generic [ref=e457]:
+                        - generic [ref=e458]:
+                          - generic [ref=e460]: Basic Loops
+                          - generic [ref=e462]: Function Calculator
+                          - generic [ref=e464]: Array Reversal
+                          - generic [ref=e466]: Loops II
+                          - generic [ref=e468]: Recursion I
+                          - generic [ref=e470]: OOP Basics
+                        - generic [ref=e471]:
+                          - generic [ref=e473]: 0%
+                          - generic [ref=e475]: 25%
+                          - generic [ref=e477]: 50%
+                          - generic [ref=e479]: 75%
+                          - generic [ref=e481]: 100%
+                - generic [ref=e482]:
+                  - heading "Exercises · completion breakdown" [level=3] [ref=e484]
+                  - table [ref=e487]:
+                    - rowgroup [ref=e488]:
+                      - row "Exercise On time Late Missing" [ref=e489]:
+                        - columnheader "Exercise" [ref=e490]:
+                          - button "Exercise" [ref=e491]:
+                            - text: Exercise
+                            - img [ref=e492]
+                        - columnheader "On time" [ref=e495]:
+                          - button "On time" [ref=e496]:
+                            - text: On time
+                            - img [ref=e497]
+                        - columnheader "Late" [ref=e499]:
+                          - button "Late" [ref=e500]:
+                            - text: Late
+                            - img [ref=e501]
+                        - columnheader "Missing" [ref=e504]:
+                          - button "Missing" [ref=e505]:
+                            - text: Missing
+                            - img [ref=e506]
+                    - rowgroup [ref=e509]:
+                      - row "Basic Loops 76% 18% 6%" [ref=e510]:
+                        - cell "Basic Loops" [ref=e511]
+                        - cell "76%" [ref=e512]:
+                          - generic [ref=e513]: 76%
+                        - cell "18%" [ref=e514]:
+                          - generic [ref=e515]: 18%
+                        - cell "6%" [ref=e516]:
+                          - generic [ref=e517]: 6%
+                      - row "Function Calculator 68% 22% 10%" [ref=e518]:
+                        - cell "Function Calculator" [ref=e519]
+                        - cell "68%" [ref=e520]:
+                          - generic [ref=e521]: 68%
+                        - cell "22%" [ref=e522]:
+                          - generic [ref=e523]: 22%
+                        - cell "10%" [ref=e524]:
+                          - generic [ref=e525]: 10%
+                      - row "Array Reversal 54% 28% 18%" [ref=e526]:
+                        - cell "Array Reversal" [ref=e527]
+                        - cell "54%" [ref=e528]:
+                          - generic [ref=e529]: 54%
+                        - cell "28%" [ref=e530]:
+                          - generic [ref=e531]: 28%
+                        - cell "18%" [ref=e532]:
+                          - generic [ref=e533]: 18%
+                      - row "Loops II 48% 31% 21%" [ref=e534]:
+                        - cell "Loops II" [ref=e535]
+                        - cell "48%" [ref=e536]:
+                          - generic [ref=e537]: 48%
+                        - cell "31%" [ref=e538]:
+                          - generic [ref=e539]: 31%
+                        - cell "21%" [ref=e540]:
+                          - generic [ref=e541]: 21%
+                      - row "OOP Basics 41% 33% 26%" [ref=e542]:
+                        - cell "OOP Basics" [ref=e543]
+                        - cell "41%" [ref=e544]:
+                          - generic [ref=e545]: 41%
+                        - cell "33%" [ref=e546]:
+                          - generic [ref=e547]: 33%
+                        - cell "26%" [ref=e548]:
+                          - generic [ref=e549]: 26%
+                      - row "Recursion I 32% 38% 30%" [ref=e550]:
+                        - cell "Recursion I" [ref=e551]
+                        - cell "32%" [ref=e552]:
+                          - generic [ref=e553]: 32%
+                        - cell "38%" [ref=e554]:
+                          - generic [ref=e555]: 38%
+                        - cell "30%" [ref=e556]:
+                          - generic [ref=e557]: 30%
+    - region "Notifications alt+T"
+  - generic [ref=e323]: 0%

@@ -1,0 +1,95 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: MR
+          - generic [ref=e35]:
+            - generic [ref=e36]: Maria Reyes
+            - generic [ref=e37]: maria@student.psu.edu
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - navigation "Breadcrumb" [ref=e46]:
+            - list [ref=e47]:
+              - listitem [ref=e48]:
+                - link "Student" [ref=e49] [cursor=pointer]:
+                  - /url: /student/dashboard
+                - img [ref=e50]
+              - listitem [ref=e52]:
+                - generic [ref=e53]: Exercises
+          - paragraph [ref=e55]: Practice and improve your programming skills.
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - generic [ref=e58]:
+              - generic [ref=e59]:
+                - generic [ref=e60]: Intermediate
+                - generic [ref=e61]: "Due: 5/31/2026"
+              - heading "Test Exercise for Auto-Close" [level=3] [ref=e62]
+            - generic [ref=e63]:
+              - paragraph [ref=e64]: This is a test exercise to verify the auto-close service.
+              - generic [ref=e65]:
+                - generic [ref=e66]: Datatypes
+                - generic [ref=e67]: Completed
+            - link "Review Exercise" [ref=e69] [cursor=pointer]:
+              - /url: /student/exercises/21
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]:
+                - generic [ref=e73]: Beginner
+                - generic [ref=e74]: "Due: 6/7/2026"
+              - heading "Variables Practice" [level=3] [ref=e75]
+            - generic [ref=e76]:
+              - paragraph [ref=e77]: Declare and initialize variables
+              - generic [ref=e78]:
+                - generic [ref=e79]: Variables
+                - generic [ref=e80]: Completed
+            - link "Review Exercise" [ref=e82] [cursor=pointer]:
+              - /url: /student/exercises/20
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e85]:
+                - generic [ref=e86]: Beginner
+                - generic [ref=e87]: "Due: 6/7/2026"
+              - heading "Basic Datatypes Exercise" [level=3] [ref=e88]
+            - generic [ref=e89]:
+              - paragraph [ref=e90]: Learn about int, float, double, char
+              - generic [ref=e91]:
+                - generic [ref=e92]: Datatypes
+                - generic [ref=e93]: Completed
+            - link "Review Exercise" [ref=e95] [cursor=pointer]:
+              - /url: /student/exercises/19
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e99]: Beginner
+              - heading "Sum 1 to N" [level=3] [ref=e100]
+            - generic [ref=e101]:
+              - paragraph [ref=e102]: Calculate sum of 1 to N
+              - generic [ref=e103]:
+                - generic [ref=e104]: Loops
+                - generic [ref=e105]: Completed
+            - link "Review Exercise" [ref=e107] [cursor=pointer]:
+              - /url: /student/exercises/18
+  - region "Notifications alt+T"

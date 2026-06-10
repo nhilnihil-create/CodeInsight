@@ -1,0 +1,12 @@
+[
+  "/api/student/exercises",
+  "/api/student/dashboard",
+  "/api/student/today",
+  "/api/student/sections",
+  "/api/student/recommendations",
+  "/api/student/integrity-flags",
+  "/api/analytics/my-scores",
+  "/api/analytics/command",
+  "/api/sections/students-all",
+  "/api/analytics/integrity-flags/"
+]

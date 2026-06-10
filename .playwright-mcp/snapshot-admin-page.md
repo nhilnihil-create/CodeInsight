@@ -1,0 +1,91 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: DA
+          - generic [ref=e35]:
+            - generic [ref=e36]: Default Admin
+            - generic [ref=e37]: admin@codeinsight.local
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - navigation "Breadcrumb" [ref=e47]:
+            - list [ref=e48]:
+              - listitem [ref=e49]:
+                - link "Admin" [ref=e50] [cursor=pointer]:
+                  - /url: /admin
+                - img [ref=e51]
+              - listitem [ref=e53]:
+                - generic [ref=e54]: System Overview
+          - generic [ref=e55]:
+            - heading "System Overview" [level=1] [ref=e56]
+            - paragraph [ref=e57]: Live deployment snapshot.
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - paragraph [ref=e60]: Total users
+            - paragraph [ref=e61]: "53"
+            - paragraph [ref=e62]: 48 students · 3 instructors · 2 admins
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: Sections
+            - paragraph [ref=e65]: "31"
+            - paragraph [ref=e66]: active
+          - generic [ref=e67]:
+            - paragraph [ref=e68]: Exercises
+            - paragraph [ref=e69]: "26"
+            - paragraph [ref=e70]: 49 submissions
+          - generic [ref=e71]:
+            - paragraph [ref=e72]: Open flags
+            - paragraph [ref=e73]: "0"
+            - paragraph [ref=e74]: 25 flagged CDS
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - heading "Users by role" [level=3] [ref=e78]
+            - generic [ref=e79]:
+              - generic [ref=e81]:
+                - generic [ref=e82]: Students
+                - generic [ref=e83]: "48"
+              - generic [ref=e87]:
+                - generic [ref=e88]: Instructors
+                - generic [ref=e89]: "3"
+              - generic [ref=e93]:
+                - generic [ref=e94]: Admins
+                - generic [ref=e95]: "2"
+          - generic [ref=e98]:
+            - heading "Flagged CDS" [level=3] [ref=e100]
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - generic [ref=e103]: High
+                - generic [ref=e104]: "20"
+              - generic [ref=e105]:
+                - generic [ref=e106]: Moderate
+                - generic [ref=e107]: "5"
+        - generic [ref=e108]:
+          - heading "Evaluation" [level=3] [ref=e110]
+          - paragraph [ref=e112]:
+            - text: 0 ISO/IEC 25010 evaluation responses recorded.
+            - link "View / export →" [ref=e113] [cursor=pointer]:
+              - /url: /admin/evaluation
+  - region "Notifications alt+T"

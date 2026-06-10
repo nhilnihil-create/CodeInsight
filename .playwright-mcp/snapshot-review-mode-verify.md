@@ -1,0 +1,142 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: CodeInsight
+            - generic [ref=e8]: Student
+          - button "Close sidebar" [ref=e9]:
+            - img [ref=e10]
+        - navigation [ref=e13]:
+          - link "My Exercises" [ref=e15] [cursor=pointer]:
+            - /url: /student/dashboard
+            - img [ref=e16]
+            - generic [ref=e18]: My Exercises
+          - link "My Progress" [ref=e20] [cursor=pointer]:
+            - /url: /student/progress
+            - img [ref=e21]
+            - generic [ref=e24]: My Progress
+          - link "My Profile" [ref=e26] [cursor=pointer]:
+            - /url: /student/profile
+            - img [ref=e27]
+            - generic [ref=e30]: My Profile
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - generic [ref=e34]: MR
+            - generic [ref=e35]:
+              - generic [ref=e36]: Maria Reyes
+              - generic [ref=e37]: maria@student.psu.edu
+          - button "Logout" [ref=e38]:
+            - img [ref=e39]
+            - text: Logout
+      - main [ref=e42]:
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - button "Back to exercises" [ref=e110]:
+              - img [ref=e111]
+            - generic [ref=e113]:
+              - heading "Test Exercise for Auto-Close" [level=1] [ref=e114]
+              - generic "Datatypes" [ref=e116]
+            - generic "0 of 0 tests passing" [ref=e118]: 0 / 0 passing
+            - generic [ref=e119]:
+              - generic [ref=e120]:
+                - img [ref=e121]
+                - generic [ref=e124]: "Time remaining:"
+                - generic [ref=e125]: 44:43
+              - generic [ref=e126]:
+                - generic [ref=e127]: Language
+                - combobox "Language" [ref=e128] [cursor=pointer]:
+                  - option "C++" [selected]
+                  - option "Python"
+                  - option "JavaScript"
+                  - option "Java"
+                  - option "Go"
+                - img
+              - button "Run ⌘ ↵" [ref=e129]:
+                - img [ref=e130]
+                - text: Run
+                - generic [ref=e132]:
+                  - generic [ref=e133]: ⌘
+                  - generic [ref=e134]: ↵
+              - generic [ref=e135]: Review Mode
+          - generic [ref=e137]:
+            - generic [ref=e138]:
+              - generic [ref=e141]:
+                - generic [ref=e142]:
+                  - generic [ref=e143]:
+                    - img [ref=e144]
+                    - heading "Instructions" [level=2] [ref=e147]
+                  - generic [ref=e153]:
+                    - generic [ref=e154]:
+                      - paragraph [ref=e155]: Description
+                      - paragraph [ref=e157]: This is a test exercise to verify the auto-close service.
+                    - generic [ref=e158]:
+                      - paragraph [ref=e159]:
+                        - img [ref=e160]
+                        - text: Concepts
+                      - generic "Datatypes" [ref=e164]:
+                        - text: DA
+                        - generic [ref=e165]: Datatypes
+                - generic [ref=e166]:
+                  - generic [ref=e167]:
+                    - img [ref=e168]
+                    - heading "Test Cases" [level=2] [ref=e171]
+                  - paragraph [ref=e177]:
+                    - text: Press
+                    - generic [ref=e178]:
+                      - generic [ref=e179]: ⌘
+                      - generic [ref=e180]: ↵
+                    - text: or click Run to execute the test suite.
+              - separator [ref=e181]
+              - generic [ref=e185]:
+                - code [ref=e191]:
+                  - generic [ref=e192]:
+                    - textbox "Editor content"
+                    - textbox [ref=e193]
+                    - generic [ref=e195]:
+                      - generic [ref=e198]: "1"
+                      - generic [ref=e200]: "2"
+                      - generic [ref=e202]: "3"
+                      - generic [ref=e203]:
+                        - generic [ref=e204] [cursor=pointer]: 
+                        - generic [ref=e205]: "4"
+                      - generic [ref=e207]: "5"
+                      - generic [ref=e209]: "6"
+                      - generic [ref=e211]: "7"
+                      - generic [ref=e213]: "8"
+                    - generic [ref=e225]:
+                      - generic [ref=e227]: "#include <iostream>"
+                      - generic [ref=e229]: using namespace std;
+                      - generic [ref=e232]: "int main() {"
+                      - generic [ref=e234]: // Write code here
+                      - generic [ref=e236]: return 0;
+                      - generic [ref=e238]: "}"
+                - separator [ref=e241]
+                - generic [ref=e245]:
+                  - generic [ref=e246]:
+                    - tab "Output" [selected] [ref=e247]:
+                      - img [ref=e248]
+                      - text: Output
+                    - tab "Errors" [ref=e251]:
+                      - img [ref=e252]
+                      - text: Errors
+                    - tab "Test Results" [ref=e254]:
+                      - img [ref=e255]
+                      - text: Test Results
+                    - button "Clear terminal" [ref=e259]:
+                      - img [ref=e260]
+                      - text: Clear
+                  - generic [ref=e264]: (No output yet — press Run to execute)
+              - separator [ref=e265]
+              - generic [ref=e270]:
+                - generic [ref=e271]: 👁️
+                - paragraph [ref=e272]: Review Mode
+                - paragraph [ref=e273]: Your code changes and test runs won't be saved.
+            - button "Reset panel sizes" [ref=e274]:
+              - img [ref=e275]
+              - text: Reset
+    - region "Notifications alt+T"
+  - generic [ref=e278]:
+    - alert
+    - alert

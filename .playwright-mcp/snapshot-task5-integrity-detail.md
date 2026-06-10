@@ -1,0 +1,79 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: TI
+          - generic [ref=e70]:
+            - generic [ref=e71]: Test Instructor
+            - generic [ref=e72]: inst@test.com
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - link "Back to integrity" [ref=e80] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e81]
+          - text: Back to integrity
+        - generic [ref=e85]:
+          - generic [ref=e86]:
+            - heading [level=1]
+            - paragraph [ref=e87]: · ·
+          - generic [ref=e90]: Low
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - heading "Evidence" [level=3] [ref=e95]
+            - generic [ref=e96]:
+              - paragraph [ref=e97]: No evidence recorded.
+              - generic [ref=e98]:
+                - text: "Severity:"
+                - text: "Confidence: %"
+                - text: "Section:"
+          - generic [ref=e99]:
+            - heading "Suggested Next Action" [level=3] [ref=e101]
+            - generic [ref=e102]:
+              - button "Mark Reviewed" [ref=e103]
+              - button "Request 1:1" [ref=e104]
+              - button "Refer to Registrar" [ref=e105]
+              - button "Dismiss (with reason)" [ref=e106]
+  - region "Notifications alt+T"

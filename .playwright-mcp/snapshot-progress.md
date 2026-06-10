@@ -1,0 +1,146 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "My Exercises" [ref=e15] [cursor=pointer]:
+          - /url: /student/dashboard
+          - img [ref=e16]
+          - generic [ref=e18]: My Exercises
+        - link "My Progress" [active] [ref=e20] [cursor=pointer]:
+          - /url: /student/progress
+          - img [ref=e21]
+          - generic [ref=e24]: My Progress
+        - link "My Profile" [ref=e26] [cursor=pointer]:
+          - /url: /student/profile
+          - img [ref=e27]
+          - generic [ref=e30]: My Profile
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e34]: MR
+          - generic [ref=e35]:
+            - generic [ref=e36]: Maria Reyes
+            - generic [ref=e37]: maria@student.psu.edu
+        - button "Logout" [ref=e38]:
+          - img [ref=e39]
+          - text: Logout
+    - main [ref=e42]:
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - navigation "Breadcrumb" [ref=e72]:
+            - list [ref=e73]:
+              - listitem [ref=e74]:
+                - link "Student" [ref=e75] [cursor=pointer]:
+                  - /url: /student/dashboard
+                - img [ref=e76]
+              - listitem [ref=e78]:
+                - generic [ref=e79]: Progress
+          - generic [ref=e80]:
+            - paragraph [ref=e81]: Mastery, activity, and submissions over the selected window.
+            - generic [ref=e83]:
+              - generic [ref=e84]:
+                - img [ref=e85]
+                - text: 3 concepts · 4/4 done
+              - radiogroup "Period" [ref=e90]:
+                - radio "7d" [ref=e91] [cursor=pointer]
+                - radio "30d" [checked] [ref=e92] [cursor=pointer]
+                - radio "90d" [ref=e93] [cursor=pointer]
+                - radio "All" [ref=e94] [cursor=pointer]
+        - generic [ref=e95]:
+          - generic [ref=e96]:
+            - paragraph [ref=e97]: Trajectory
+            - heading "Datatypes needs attention at 44% mastery. Your overall mastery is 100%." [level=2] [ref=e98]
+            - paragraph [ref=e99]: "Concept CDS: 0.56 · Targets: Datatypes"
+          - link "Practice weakest concept" [ref=e101] [cursor=pointer]:
+            - /url: /student/exercises
+            - text: Practice weakest concept
+            - img [ref=e102]
+        - group "Supporting evidence" [ref=e104]:
+          - generic [ref=e105]:
+            - paragraph [ref=e106]: Mastery
+            - generic [ref=e107]:
+              - paragraph [ref=e108]: 100%
+              - generic "No change 4/4 exercises" [ref=e109]:
+                - generic [ref=e110]: ■
+                - text: "0"
+            - paragraph [ref=e111]: 4/4 exercises
+          - generic [ref=e114]:
+            - paragraph [ref=e115]: Streak
+            - generic [ref=e116]:
+              - paragraph [ref=e117]: 1d
+              - generic "No change consecutive days" [ref=e118]:
+                - generic [ref=e119]: ■
+                - text: "0"
+            - paragraph [ref=e120]: consecutive days
+          - generic [ref=e123]:
+            - paragraph [ref=e124]: Concepts
+            - generic [ref=e125]:
+              - paragraph [ref=e126]: "3"
+              - generic "No change with data" [ref=e127]:
+                - generic [ref=e128]: ■
+                - text: "0"
+            - paragraph [ref=e129]: with data
+          - generic [ref=e132]:
+            - paragraph [ref=e133]: Avg Attempts
+            - generic [ref=e134]:
+              - paragraph [ref=e135]: "9.3"
+              - generic "No change per exercise" [ref=e136]:
+                - generic [ref=e137]: ■
+                - text: "0"
+            - paragraph [ref=e138]: per exercise
+        - generic [ref=e141]:
+          - tablist [ref=e142]:
+            - tab "Mastery" [selected] [ref=e143]
+            - tab "Activity" [ref=e144]
+            - tab "Submissions" [ref=e145]
+          - tabpanel "Mastery" [ref=e146]:
+            - generic [ref=e147]:
+              - generic [ref=e148]:
+                - generic [ref=e150]:
+                  - paragraph [ref=e151]: Coverage
+                  - heading "Concept mastery · 3 tracked concepts" [level=3] [ref=e152]
+                - application [ref=e157]:
+                  - generic [ref=e172]:
+                    - generic [ref=e175]:
+                      - generic [ref=e177]: LP
+                      - generic [ref=e180]: VR
+                      - generic [ref=e183]: DT
+                    - generic [ref=e185]:
+                      - generic [ref=e187]: "0"
+                      - generic [ref=e189]: "25"
+                      - generic [ref=e191]: "50"
+                      - generic [ref=e193]: "75"
+                      - generic [ref=e195]: "100"
+              - generic [ref=e196]:
+                - heading "Per-concept progress" [level=3] [ref=e198]
+                - list [ref=e200]:
+                  - listitem [ref=e201]:
+                    - generic [ref=e203]:
+                      - generic [ref=e204]: Loops
+                      - generic [ref=e205]: moderate
+                    - generic [ref=e208]: 65%
+                    - generic [ref=e209]:
+                      - img [ref=e210]
+                      - text: "0"
+                  - listitem [ref=e211]:
+                    - generic [ref=e213]:
+                      - generic [ref=e214]: Variables
+                      - generic [ref=e215]: moderate
+                    - generic [ref=e218]: 64%
+                    - generic [ref=e219]:
+                      - img [ref=e220]
+                      - text: "0"
+                  - listitem [ref=e221]:
+                    - generic [ref=e223]:
+                      - generic [ref=e224]: Datatypes
+                      - generic [ref=e225]: low
+                    - generic [ref=e228]: 44%
+                    - generic [ref=e229]:
+                      - img [ref=e230]
+                      - text: "0"
+  - region "Notifications alt+T"

@@ -1,0 +1,897 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Class Heatmap
+                - paragraph: Concept mastery across the class.
+              - generic:
+                - generic: Section
+                - combobox [expanded]:
+                  - generic: All Sections
+                  - img
+            - generic:
+              - generic:
+                - heading [level=3]: Concept × Student
+              - generic:
+                - table:
+                  - rowgroup:
+                    - row:
+                      - columnheader: Student
+                      - columnheader: Loops
+                      - columnheader: Arrays
+                      - columnheader: Functions
+                      - columnheader: Pointers
+                      - columnheader: OOP
+                      - columnheader: Variables
+                      - columnheader: Datatypes
+                      - columnheader: Conditionals
+                  - rowgroup:
+                    - row:
+                      - cell: Maria Reyes
+                      - cell:
+                        - generic: "35"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "36"
+                      - cell:
+                        - generic: "35"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Jose Santos
+                      - cell:
+                        - generic: "35"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Ana Lim
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 1
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 2
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 3
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 4
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 5
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 6
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 7
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 8
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 9
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 10
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 11
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 12
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 13
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 14
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 15
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 16
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 17
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 18
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 19
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 20
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 21
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 22
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 23
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 24
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 25
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 26
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 27
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 28
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 29
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 30
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 31
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 32
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 33
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 34
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 35
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 36
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 37
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 38
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 39
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Test Student 40
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                    - row:
+                      - cell: Student A
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "100"
+                      - cell:
+                        - generic: "0"
+                      - cell:
+                        - generic: "0"
+    - region "Notifications alt+T"
+  - listbox [ref=e900]:
+    - option "All Sections" [active] [selected] [ref=e901]:
+      - img [ref=e904]
+      - generic [ref=e906]: All Sections
+    - option "cc · ss" [ref=e907]:
+      - generic [ref=e909]: cc · ss
+    - option "BIST - 4H · CC203" [ref=e910]:
+      - generic [ref=e912]: BIST - 4H · CC203
+    - option "BSCS - 1A · CS102" [ref=e913]:
+      - generic [ref=e915]: BSCS - 1A · CS102
+    - option "BSIT-3H-E2E · CS101" [ref=e916]:
+      - generic [ref=e918]: BSIT-3H-E2E · CS101
+    - option "BSIT - 3H · ITELEC 4" [ref=e919]:
+      - generic [ref=e921]: BSIT - 3H · ITELEC 4

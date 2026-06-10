@@ -1,0 +1,117 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Instructor
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /instructor/dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Heatmap" [ref=e23] [cursor=pointer]:
+          - /url: /instructor/heatmap
+          - img [ref=e24]
+          - generic [ref=e29]: Heatmap
+        - link "Students" [ref=e31] [cursor=pointer]:
+          - /url: /instructor/students
+          - img [ref=e32]
+          - generic [ref=e37]: Students
+        - link "My Sections" [ref=e39] [cursor=pointer]:
+          - /url: /instructor/my-sections
+          - img [ref=e40]
+          - generic [ref=e43]: My Sections
+        - link "Exercises" [ref=e45] [cursor=pointer]:
+          - /url: /instructor/exercises
+          - img [ref=e46]
+          - generic [ref=e48]: Exercises
+        - link "Reports" [ref=e50] [cursor=pointer]:
+          - /url: /instructor/reports
+          - img [ref=e51]
+          - generic [ref=e54]: Reports
+        - link "Integrity" [ref=e56] [cursor=pointer]:
+          - /url: /instructor/integrity
+          - img [ref=e57]
+          - generic [ref=e59]: Integrity
+        - link "Developer" [ref=e61] [cursor=pointer]:
+          - /url: /instructor/developer
+          - img [ref=e62]
+          - generic [ref=e65]: Developer
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e69]: JD
+          - generic [ref=e70]:
+            - generic [ref=e71]: Juan Dela Cruz
+            - generic [ref=e72]: instructor@psu.edu
+        - button "Logout" [ref=e73]:
+          - img [ref=e74]
+          - text: Logout
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - heading "Integrity" [level=1] [ref=e82]
+            - paragraph [ref=e83]: Behavioral and structural anomalies requiring instructor review.
+          - generic [ref=e91]:
+            - button "Refresh" [ref=e92]:
+              - img [ref=e93]
+            - button "Bulk action" [disabled]:
+              - text: Bulk action
+              - img
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - paragraph [ref=e100]: Action required
+            - heading "1 flag awaiting review — highest severity first." [level=2] [ref=e101]
+            - paragraph [ref=e102]: High and medium-severity flags are at the top of the queue.
+          - link "Review top flag" [ref=e206] [cursor=pointer]:
+            - /url: /instructor/integrity
+            - text: Review top flag
+            - img [ref=e207]
+        - group "Supporting evidence" [ref=e107]:
+          - generic [ref=e108]:
+            - paragraph [ref=e109]: High
+            - paragraph [ref=e111]: "1"
+            - paragraph [ref=e112]: total
+            - application [ref=e116]
+          - generic [ref=e121]:
+            - paragraph [ref=e122]: Moderate
+            - paragraph [ref=e124]: "0"
+            - paragraph [ref=e125]: total
+            - application [ref=e129]
+          - generic [ref=e130]:
+            - paragraph [ref=e131]: Low
+            - paragraph [ref=e133]: "0"
+            - paragraph [ref=e134]: total
+            - application [ref=e138]
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - img
+            - textbox "Search student, exercise, or type…" [ref=e141]
+          - generic [ref=e142]:
+            - combobox [active] [ref=e143]:
+              - generic: All severities
+              - img [ref=e144]
+            - combobox [ref=e146]:
+              - generic: All types
+              - img [ref=e147]
+        - generic [ref=e149]:
+          - generic [ref=e211]:
+            - heading "Queue" [level=2] [ref=e212]
+            - generic [ref=e213]: 1 flag
+          - list "Decision list" [ref=e214]:
+            - button "Select code_paste_detected for Jose Santos High High code_paste_detected Jose Santos Sum 1 to N 4d ago Review" [ref=e215] [cursor=pointer]:
+              - generic [ref=e216]:
+                - checkbox "Select code_paste_detected for Jose Santos" [ref=e218]
+                - generic [ref=e219]: High
+                - generic [ref=e220]: High
+                - generic [ref=e221]: code_paste_detected
+                - generic [ref=e222]: Jose Santos
+                - generic [ref=e223]: Sum 1 to N
+                - generic [ref=e224]: 4d ago
+                - button "Review" [ref=e225]:
+                  - text: Review
+                  - img [ref=e226]
+  - region "Notifications alt+T"

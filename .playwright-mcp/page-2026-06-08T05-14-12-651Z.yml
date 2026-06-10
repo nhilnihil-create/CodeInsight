@@ -1,0 +1,241 @@
+- generic:
+  - generic:
+    - generic:
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CodeInsight
+            - generic: Instructor
+          - button:
+            - img
+        - navigation:
+          - generic:
+            - link:
+              - /url: /instructor/dashboard
+              - img
+              - generic: Dashboard
+          - generic:
+            - link:
+              - /url: /instructor/heatmap
+              - img
+              - generic: Heatmap
+          - generic:
+            - link:
+              - /url: /instructor/students
+              - img
+              - generic: Students
+          - generic:
+            - link:
+              - /url: /instructor/my-sections
+              - img
+              - generic: My Sections
+          - generic:
+            - link:
+              - /url: /instructor/exercises
+              - img
+              - generic: Exercises
+          - generic:
+            - link:
+              - /url: /instructor/reports
+              - img
+              - generic: Reports
+          - generic:
+            - link:
+              - /url: /instructor/integrity
+              - img
+              - generic: Integrity
+          - generic:
+            - link:
+              - /url: /instructor/developer
+              - img
+              - generic: Developer
+        - generic:
+          - generic:
+            - generic:
+              - generic: JD
+            - generic:
+              - generic: Juan Dela Cruz
+              - generic: instructor@psu.edu
+          - button:
+            - img
+            - text: Logout
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Reports
+                - paragraph: Class-wide trends and concept-level difficulty across all sections.
+              - generic:
+                - generic:
+                  - generic: Section
+                  - combobox:
+                    - generic: BSCS - 1A · CS102
+                    - img
+                - radiogroup:
+                  - radio: 1w
+                  - radio: 2w
+                  - radio [checked]: 4w
+                  - radio: 12w
+                - button [expanded]:
+                  - img
+                  - text: Export
+                  - img
+            - generic:
+              - generic:
+                - paragraph: Report
+                - heading [level=2]: Class mastery is up 51% over the last 4w.
+                - paragraph: 25% of students are at risk — 0/student flags per student on average.
+              - generic:
+                - button:
+                  - text: Refresh
+                  - img
+            - group:
+              - generic:
+                - paragraph: Mastery
+                - generic:
+                  - paragraph: 51%
+                  - generic:
+                    - generic: ▲
+                    - text: "51"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Completion
+                - generic:
+                  - paragraph: 50%
+                  - generic:
+                    - generic: ▲
+                    - text: "50"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: At Risk
+                - generic:
+                  - paragraph: 25%
+                  - generic:
+                    - generic: ▲
+                    - text: "25"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+              - generic:
+                - paragraph: Flags
+                - generic:
+                  - paragraph: 0/student
+                  - generic:
+                    - generic: ■
+                    - text: "0"
+                - paragraph: vs. 4w ago
+                - generic:
+                  - generic:
+                    - generic:
+                      - application
+            - generic:
+              - tablist:
+                - tab: Mastery
+                - tab [selected]: Completion
+                - tab: Engagement
+                - tab: Integrity
+              - tabpanel "Completion":
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - paragraph: Composition
+                        - heading [level=3]: Submission status · per exercise
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - list:
+                                  - listitem:
+                                    - img
+                                    - text: Late
+                                  - listitem:
+                                    - img
+                                    - text: Missing
+                                  - listitem:
+                                    - img
+                                    - text: On time
+                              - application:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - generic: Variables Practice
+                                    - generic:
+                                      - generic: Basic Datatypes Exercise
+                                  - generic:
+                                    - generic:
+                                      - generic: 0%
+                                    - generic:
+                                      - generic: 25%
+                                    - generic:
+                                      - generic: 50%
+                                    - generic:
+                                      - generic: 75%
+                                    - generic:
+                                      - generic: 100%
+                  - generic:
+                    - generic:
+                      - heading [level=3]: Exercises · completion breakdown
+                    - generic:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - columnheader:
+                                - button:
+                                  - text: Exercise
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: On time
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: Late
+                                  - img
+                              - columnheader:
+                                - button:
+                                  - text: Missing
+                                  - img
+                          - rowgroup:
+                            - row:
+                              - cell: Variables Practice
+                              - cell:
+                                - generic: 25%
+                              - cell:
+                                - generic: 25%
+                              - cell:
+                                - generic: 50%
+                            - row:
+                              - cell: Basic Datatypes Exercise
+                              - cell:
+                                - generic: 25%
+                              - cell:
+                                - generic: 0%
+                              - cell:
+                                - generic: 75%
+    - region "Notifications alt+T"
+  - generic: 0%
+  - menu "Export" [active] [ref=e448]:
+    - menuitem "Export as CSV" [ref=e449]:
+      - img [ref=e450]
+      - text: Export as CSV
+    - menuitem "Export as PDF" [ref=e453]:
+      - img [ref=e454]
+      - text: Export as PDF
+    - menuitem "Copy share link" [ref=e457]:
+      - img [ref=e458]
+      - text: Copy share link

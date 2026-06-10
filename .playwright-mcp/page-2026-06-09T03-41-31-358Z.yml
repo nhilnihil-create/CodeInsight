@@ -1,0 +1,41 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]: CodeInsight
+      - navigation [ref=e6]:
+        - link "Login" [ref=e7] [cursor=pointer]:
+          - /url: /login
+        - link "Get started" [ref=e8] [cursor=pointer]:
+          - /url: /login
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - text: Precision analytics for C++ education · PSU
+      - heading "Precision Analytics for C++ Education" [level=1] [ref=e14]:
+        - text: Precision Analytics for
+        - text: C++ Education
+      - paragraph [ref=e15]: Detect concept-level programming difficulties in real-time. A quiet ally for students, a mission control for educators at Pampanga State University.
+      - generic [ref=e16]:
+        - link "Instructor Portal" [ref=e17] [cursor=pointer]:
+          - /url: /login
+        - link "Student Access" [ref=e18] [cursor=pointer]:
+          - /url: /login
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - img [ref=e22]
+          - generic [ref=e24]: CDS Engine
+          - generic [ref=e25]: Concept Difficulty Score tracks real-time student struggle.
+        - generic [ref=e26]:
+          - img [ref=e28]
+          - generic [ref=e31]: Heatmaps
+          - generic [ref=e32]: See which concepts the class is stuck on this week.
+        - generic [ref=e33]:
+          - img [ref=e35]
+          - generic [ref=e38]: Integrity
+          - generic [ref=e39]: Detect hard-coding, copy-paste, and behavioral anomalies.
+        - generic [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e47]: Sections
+          - generic [ref=e48]: Manage multiple courses and rosters from one place.
+    - contentinfo [ref=e49]: Pampanga State University · College of Computer Studies · 2026
+  - region "Notifications alt+T"
