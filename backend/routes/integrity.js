@@ -23,6 +23,9 @@ router.get('/sections/:sectionId/integrity-flags', verifyToken, requireRole('ins
 router.get('/integrity-flags/exercise/:exerciseId', verifyToken, requireRole('instructor'), analyticsController.getIntegrityFlagsByExercise);
 router.get('/sections/:sectionId/integrity-flags/:exerciseId', verifyToken, requireRole('instructor'), analyticsController.getIntegrityFlagsByExercise);
 
+// 3. Single flag detail
+router.get('/integrity-flags/:flagId', verifyToken, requireRole('instructor'), integrityController.getIntegrityFlagDetail);
+
 // Review or dismiss an integrity flag (instructor only)
 // Supports both 'review' and 'mark-reviewed' for frontend compatibility
 router.put('/integrity-flags/:flagId/review', verifyToken, requireRole('instructor'), integrityController.reviewIntegrityFlag);

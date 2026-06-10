@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
 const { ensureTablesExist } = require('./migrations');
-const { startAutoCloseService } = require('./services/autoCloseService');
+const db = require('./config/db');
+const { startAutoCloseService, stopAutoCloseService } = require('./services/autoCloseService');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -46,6 +47,8 @@ app.use('/api/analytics',   require('./routes/integrity'));
 app.use('/api/evaluation',  require('./routes/evaluation'));
 app.use('/api/admin',       require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/search',        require('./routes/search'));
+app.use('/api/export',        require('./routes/export'));
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -74,3 +77,12 @@ ensureTablesExist().then(() => {
     startAutoCloseService();
   });
 });
+
+// Graceful shutdown
+function shutdown(signal) {
+  console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  stopAutoCloseService();
+  db.end().then(() => process.exit(0)).catch(() => process.exit(1));
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));

@@ -1,5 +1,7 @@
 // Database migrations/setup — verify tables and apply idempotent schema patches
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const db = require('./config/db');
 
 async function columnExists(table, column) {
@@ -212,6 +214,58 @@ async function applySchemaPatches() {
   await Promise.all(patches);
 }
 
+/**
+ * Run v2 migration SQL files idempotently.
+ * Each file is wrapped in a transaction on our end; the files themselves use
+ * IF NOT EXISTS / ADD COLUMN IF NOT EXISTS patterns for safety.
+ */
+async function applyV2Migrations() {
+  const migrationsDir = path.join(__dirname, 'migrations');
+  const v2Files = [
+    '20260610_v2_concepts.sql',
+    '20260610_v2_audit.sql',
+    '20260610_validation_mode.sql',
+  ];
+
+  for (const file of v2Files) {
+    const filePath = path.join(migrationsDir, file);
+    if (!fs.existsSync(filePath)) {
+      console.warn(`⚠ v2 migration file not found: ${file}`);
+      continue;
+    }
+    const sql = fs.readFileSync(filePath, 'utf8');
+    // Check if tables already exist to skip idempotently
+    const baseName = file.replace('.sql', '');
+    const markers = {
+      '20260610_v2_concepts':        { table: 'exercise_concepts', label: 'exercise_concepts + FTS' },
+      '20260610_v2_audit':           { table: 'audit_log',      label: 'audit_log + cds_snapshots' },
+      '20260610_validation_mode':    { table: 'exercises',    col: 'is_validated', label: 'validation mode columns' },
+    };
+    const marker = markers[baseName];
+    if (marker) {
+      if (marker.col && await tableExists(marker.table) && await columnExists(marker.table, marker.col)) {
+        console.log(`✓ ${marker.label} already applied`);
+        continue;
+      }
+      if (!marker.col && await tableExists(marker.table)) {
+        console.log(`✓ ${marker.label} already applied`);
+        continue;
+      }
+    }
+    try {
+      await db.query(sql);
+      console.log(`✓ Applied ${file}`);
+    } catch (err) {
+      // Ignore "already exists" errors for idempotency
+      if (err.code === '42P07' || err.code === '42701') {
+        console.log(`✓ ${marker?.label || file} already exists`);
+      } else {
+        console.warn(`⚠ v2 migration ${file} failed:`, err.message);
+      }
+    }
+  }
+}
+
 async function ensureTablesExist() {
   try {
     console.log('Verifying database tables...');
@@ -237,6 +291,12 @@ async function ensureTablesExist() {
       await applySchemaPatches();
     } catch (patchErr) {
       console.warn('⚠ Schema patches skipped:', patchErr.message);
+    }
+
+    try {
+      await applyV2Migrations();
+    } catch (v2Err) {
+      console.warn('⚠ v2 migrations failed:', v2Err.message);
     }
 
     const criticalTables = ['users', 'sections', 'enrollments', 'concepts', 'exercises', 'submissions'];

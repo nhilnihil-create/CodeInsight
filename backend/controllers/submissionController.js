@@ -3,6 +3,41 @@ const executor = require('../services/executor');
 const astVerifier = require('../services/astVerifier');
 const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
+const { gradeSubmission } = require('../services/streamMatcher');
+
+/**
+ * Token counter for growth velocity monitoring.
+ * Counts C++ identifiers, keywords, operators, literals.
+ */
+function countTokens(code) {
+  if (!code) return 0;
+  const cleaned = code
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/"[^"]*"/g, '""')
+    .replace(/'[^']*'/g, "''");
+  const tokens = cleaned.match(/[a-zA-Z_]\w*|\d+|[+\-*/=<>!&|^~%]+/g) || [];
+  return tokens.length;
+}
+
+/**
+ * Log a behavioral event to the audit_log table.
+ * Non-fatal: logging errors do not break the submission flow.
+ */
+async function logAuditEvent(studentId, exerciseId, eventType, metadata = {}) {
+  try {
+    await db.query(
+      `INSERT INTO audit_log (student_id, exercise_id, event_type, metadata, occurred_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [studentId, exerciseId, eventType, JSON.stringify(metadata)]
+    );
+  } catch (err) {
+    // Silently skip — audit logging is non-blocking
+    if (err.code !== '42P01') { // Ignore "table not found" during dev setup
+      console.warn('Failed to log audit event:', err.message);
+    }
+  }
+}
 
 /**
  * Log performance metrics for ISO 25010 Performance Efficiency evaluation
@@ -41,6 +76,12 @@ exports.run = async (req, res) => {
     if (!ex.rows.length)
       return res.status(404).json({ message: 'Exercise not found' });
     const exercise = ex.rows[0];
+
+    // Log run attempt (audit trail)
+    if (req.user?.id) {
+      await logAuditEvent(req.user.id, exerciseId, 'run_clicked', { code_length: code.length });
+    }
+
     // Run against first visible test case only
     const visibleTC = exercise.test_cases.filter(tc => !tc.hidden);
     if (!visibleTC.length)
@@ -49,8 +90,8 @@ exports.run = async (req, res) => {
       code, visibleTC[0].input, exercise.time_limit_minutes * 60
     );
     const expectedOutput = visibleTC[0].expected || visibleTC[0].expected_output || '';
-    const passed = result.status === 'Success' &&
-                   result.output.trim() === expectedOutput.trim();
+    const grade = gradeSubmission(result.output || '', expectedOutput);
+    const passed = result.status === 'Success' && grade.passed;
 
     // Calculate response latency for performance logging
     const endTime = Date.now();
@@ -66,7 +107,7 @@ exports.run = async (req, res) => {
       userAgent: req.get('User-Agent') || ''
     });
 
-    res.json({ ...result, expected: expectedOutput, passed });
+    res.json({ ...result, expected: expectedOutput, passed, divergence: grade.divergenceIndex });
   } catch (err) {
     // Calculate response latency for performance logging even on error
     const endTime = Date.now();
@@ -108,8 +149,7 @@ exports.submit = async (req, res) => {
     );
     const attemptNumber = attRes.rows[0].next;
 
-    // Calculate Code Growth Delta (Pillar 4: Jadud 2006)
-    // Calculate line-count delta from the previous attempt
+    // ── Code Growth Delta: line-count change from previous attempt ──────
     let codeGrowthDelta = 0;
     if (attemptNumber > 1) {
       const prevRes = await db.query(
@@ -123,12 +163,86 @@ exports.submit = async (req, res) => {
         codeGrowthDelta = currentLines - prevLines;
       }
     } else {
-      // For first attempt, delta is from starter code
+      // First attempt: delta from starter code
       const starterCode = exercise.starter_code || '';
       const currentLines = (code || '').split('\n').length;
       const starterLines = starterCode.split('\n').length;
       codeGrowthDelta = currentLines - starterLines;
     }
+
+    // ── Growth Velocity: token-based integrity check ────────────────────
+    // Compares student's token count against the exercise baseline (starter code).
+    // Triggers integrity flag if growth exceeds 200% in a single attempt.
+    // This is dynamic (not static solution comparison) — monitors how much
+    // the student's code grew relative to what they were given.
+    const starterTokens = countTokens(exercise.starter_code || '');
+    const studentTokens = countTokens(code || '');
+    let growthVelocity = null;
+
+    if (starterTokens > 0 && attemptNumber === 1) {
+      // First attempt: compare against starter code baseline
+      const growthPercent = ((studentTokens - starterTokens) / starterTokens) * 100;
+      growthVelocity = {
+        baselineTokens: starterTokens,
+        studentTokens,
+        growthPercent: Math.round(growthPercent),
+        threshold: 200,
+        flagged: growthPercent > 200,
+      };
+    } else if (attemptNumber > 1) {
+      // Subsequent attempts: compare against PREVIOUS submission (not starter)
+      const prevRes = await db.query(
+        'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+        [studentId, exerciseId, attemptNumber - 1]
+      );
+      if (prevRes.rows.length > 0) {
+        const prevTokens = countTokens(prevRes.rows[0].code || '');
+        if (prevTokens > 0) {
+          const growthPercent = ((studentTokens - prevTokens) / prevTokens) * 100;
+          growthVelocity = {
+            baselineTokens: prevTokens,
+            studentTokens,
+            growthPercent: Math.round(growthPercent),
+            threshold: 200,
+            flagged: growthPercent > 200,
+          };
+        }
+      }
+    }
+
+    // Flag growth velocity anomaly if triggered
+    if (growthVelocity?.flagged) {
+      try {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId,
+          studentId,
+          flagType: 'growth_velocity_anomaly',
+          severity: 'high',
+          evidence: {
+            baseline_tokens: growthVelocity.baselineTokens,
+            student_tokens: growthVelocity.studentTokens,
+            growth_percent: growthVelocity.growthPercent,
+            threshold: growthVelocity.threshold,
+            attempt_number: attemptNumber,
+          },
+          contextBehaviors: [
+            `Code grew ${growthVelocity.growthPercent}% in attempt #${attemptNumber} (${growthVelocity.baselineTokens} → ${growthVelocity.studentTokens} tokens)`,
+          ],
+          status: 'flagged',
+        });
+      } catch (flagErr) {
+        // Non-fatal: don't break submission flow
+        console.warn('Growth velocity flag creation failed:', flagErr.message);
+      }
+    }
+
+    // Log submission attempt (audit trail)
+    await logAuditEvent(studentId, exerciseId, 'submission_attempted', {
+      attempt_number: attemptNumber,
+      code_length: (code || '').length,
+      time_spent_seconds: timeSpentSeconds || 0
+    });
 
     // Handle blank submission (template-only or empty)
     const isBlank = !code || !code.trim() || code === exercise.starter_code;
@@ -136,9 +250,9 @@ exports.submit = async (req, res) => {
       const verification_note = 'Blank or template-only submission';
       const ins = await db.query(
         `INSERT INTO submissions
-         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta)
-         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8) RETURNING id`,
-        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta]
+         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings)
+         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8,$9) RETURNING id`,
+        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta, '[]']
       );
 
       // Log verification failure
@@ -175,6 +289,29 @@ exports.submit = async (req, res) => {
       code, exercise.test_cases, exercise.time_limit_minutes * 60, true
     );
     const allPassed = tcResults.every(r => r.passed);
+
+    // Log pass/fail result
+    if (allPassed) {
+      await logAuditEvent(studentId, exerciseId, 'submission_passed', {
+        attempt_number: attemptNumber,
+        time_spent_seconds: timeSpentSeconds || 0
+      });
+    } else {
+      const failedCount = tcResults.filter(r => !r.passed).length;
+      await logAuditEvent(studentId, exerciseId, 'submission_failed', {
+        attempt_number: attemptNumber,
+        failed_count: failedCount,
+        total_count: tcResults.length
+      });
+    }
+
+    // Run cppcheck (advisory — stored in submission, shown to student)
+    let cppcheckWarnings = [];
+    try {
+      cppcheckWarnings = await executor.runCppcheck(code);
+    } catch (_) {
+      // Non-fatal: cppcheck is advisory
+    }
 
     // Get required nodes from the exercise's concept
     const requiredNodesRes = await db.query(
@@ -241,15 +378,24 @@ exports.submit = async (req, res) => {
 
     const microConceptFeedback = await microConceptEngine.getMicroConceptFeedback(microContext, conceptName);
 
-    // Save submission (include verification fields and code growth delta)
+    // Save submission (include verification fields, code growth delta, cppcheck warnings)
     const insRes = await db.query(
       `INSERT INTO submissions
-       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta]
+       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta, JSON.stringify(cppcheckWarnings)]
     );
 
     const submissionId = insRes.rows[0].id;
+
+    // Log exercise_completed on first correct submission (triggers Practice Mode in frontend)
+    if (allPassed && attemptNumber === 1) {
+      await logAuditEvent(studentId, exerciseId, 'exercise_completed', {
+        attempt_number: attemptNumber,
+        time_spent_seconds: timeSpentSeconds || 0,
+        cppcheck_warning_count: cppcheckWarnings.length
+      });
+    }
 
     // If verification failed, record a verification_log row
     if (!is_verified) {
@@ -336,13 +482,15 @@ exports.submit = async (req, res) => {
       console.warn('Error calculating or saving live CDS:', liveErr.message);
     }
 
-    // Prepare response with micro-concept feedback and code growth delta
+    // Prepare response with micro-concept feedback, cppcheck warnings, code growth delta, and growth velocity
     const responseData = {
       attemptNumber,
       allPassed,
       results: visibleResults,
       hidden: hiddenSummary,
       codeGrowthDelta,
+      growthVelocity,
+      cppcheckWarnings: cppcheckWarnings.length > 0 ? cppcheckWarnings : undefined,
       liveCDS,
       verification: {
         is_verified: is_verified,
@@ -353,6 +501,14 @@ exports.submit = async (req, res) => {
     // Add micro-concept feedback if available
     if (microConceptFeedback.hasFeedback) {
       responseData.microConceptFeedback = microConceptFeedback;
+    }
+
+    // If assessment mode, compute rubric score
+    if (exercise.mode === 'assessment') {
+      const rubricScorer = require('../services/rubricScorer');
+      responseData.rubricScore = await rubricScorer.scoreSubmission(
+        submissionId, exerciseId, exercise.rubric_config
+      );
     }
 
     // Calculate response latency for performance logging

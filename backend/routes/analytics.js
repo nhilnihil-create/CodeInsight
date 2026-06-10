@@ -27,7 +27,23 @@ router.get('/sections/:sectionId/longitudinal', verifyToken, requireRole('instru
 router.get('/longitudinal/:studentId', verifyToken, requireRole('instructor'), ctrl.longitudinalReport);
 router.get('/longitudinal/:studentId/:conceptId', verifyToken, requireRole('instructor'), ctrl.longitudinalReport);
 
+// Command Center — cross-section analytics overview
+router.get('/command', verifyToken, requireRole('instructor'), ctrl.getCommandCenter);
+
 // Hub endpoint (spec §12)
 router.get('/section/:id/hub', verifyToken, requireRole('instructor'), ctrl.getSectionHub);
+
+// Reports endpoints
+router.get('/reports/:sectionId/summary', verifyToken, requireRole('instructor'), ctrl.getReportSummary);
+router.get('/reports/:sectionId/concept-mastery', verifyToken, requireRole('instructor'), ctrl.getConceptMasteryReport);
+router.get('/reports/:sectionId/completion', verifyToken, requireRole('instructor'), ctrl.getCompletionReport);
+router.get('/reports/:sectionId/engagement', verifyToken, requireRole('instructor'), ctrl.getEngagementReport);
+router.get('/reports/:sectionId/integrity-trends', verifyToken, requireRole('instructor'), ctrl.getIntegrityTrends);
+
+// Instructor Dashboard aggregate endpoint
+router.get('/instructor/dashboard/:sectionId', verifyToken, requireRole('instructor'), ctrl.getInstructorDashboard);
+
+// Student detail (instructor view) — submissions across all exercises in section
+router.get('/student/:studentId/submissions', verifyToken, requireRole('instructor'), ctrl.getStudentSubmissions);
 
 module.exports = router;

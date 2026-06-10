@@ -5,6 +5,9 @@
     "pg": "^8.21.0"
   },
   "dependencies": {
-    "dotenv": "^17.4.2"
+    "@nick-vi/opencode-type-inject": "^1.5.2",
+    "dotenv": "^17.4.2",
+    "oh-my-openagent": "^4.7.5",
+    "opencode-pty": "^0.3.4"
   }
 }
