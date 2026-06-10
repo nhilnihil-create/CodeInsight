@@ -200,7 +200,11 @@ describe('Academic Integrity Engine', () => {
     });
 
     test('should flag behavioral anomaly when all conditions met', async () => {
-      mockDb.query.mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.15, exercise_count: 4 }] }); // z-score = (0.9-0.5)/0.15 = 2.67
+      // V2 FIX: zScore < -2.0 flags sudden improvement (cheating shows as better performance)
+      // avg_cds = 0.7 (usually struggles), current cds = 0.1 (suddenly perfect)
+      // zScore = (0.1 - 0.7) / 0.15 = -4.0 < -2.0 → FLAGGED
+      mockDb.query.mockResolvedValueOnce({ rows: [{ avg_cds: 0.7, stddev_cds: 0.15, exercise_count: 4 }] });
+      submission.cds = 0.1; // Much better than usual
 
       const flag = await academicIntegrityEngine.checkBehavioralAnomaly(
         studentId, exerciseId, submission, mockCdsEngine
@@ -210,7 +214,7 @@ describe('Academic Integrity Engine', () => {
       expect(flag.type).toBe('BEHAVIORAL_ANOMALY');
       expect(flag.severity).toBe('MEDIUM');
       expect(flag.evidence).toContain('Solved in 20s on first attempt');
-      expect(flag.evidence).toContain('z-score: 2.67');
+      expect(flag.evidence).toContain('z-score: -4.00');
       expect(flag.evidence).toContain('4 prior exercises');
     });
 
@@ -365,7 +369,7 @@ describe('Academic Integrity Engine', () => {
       jest.clearAllMocks();
 
       mockDb.query
-        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.15, exercise_count: 4 }] })
+        .mockResolvedValueOnce({ rows: [{ avg_cds: 0.7, stddev_cds: 0.15, exercise_count: 4 }] })
         .mockResolvedValueOnce({ rows: [] });
       const behavioralFlags = await academicIntegrityEngine.evaluateIntegrity({
         ...params,
@@ -374,7 +378,7 @@ describe('Academic Integrity Engine', () => {
           ...params.submission,
           time_spent_seconds: 20,
           is_correct: true,
-          cds: 0.9
+          cds: 0.1 // Much better than usual → zScore < -2.0
         }
       });
       jest.clearAllMocks();

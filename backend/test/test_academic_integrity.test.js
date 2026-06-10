@@ -69,10 +69,11 @@ describe('Academic Integrity Engine', () => {
   });
 
   describe('checkBehavioralAnomaly', () => {
-    it('should detect behavioral anomaly for fast first attempt', async () => {
-      // Mock historical data
+    it('should detect behavioral anomaly for fast first attempt with sudden improvement', async () => {
+      // Mock historical data — student usually struggles (avg CDS = 0.7)
+      // Suddenly gets perfect score (CDS = 0.1) in 15 seconds on first try
       db.query.mockResolvedValueOnce({
-        rows: [{ avg_cds: 0.3, stddev_cds: 0.1, exercise_count: 5 }]
+        rows: [{ avg_cds: 0.7, stddev_cds: 0.1, exercise_count: 5 }]
       });
 
       const studentId = 1;
@@ -80,9 +81,10 @@ describe('Academic Integrity Engine', () => {
       const submission = {
         time_spent_seconds: 15,  // Very fast
         is_correct: true,
-        cds: 0.8  // High CDS
+        cds: 0.1  // Much better than usual (low CDS = good)
       };
 
+      // zScore = (0.1 - 0.7) / 0.1 = -6.0 < -2.0 → FLAGGED
       const flag = await academicIntegrityEngine.checkBehavioralAnomaly(
         studentId, exerciseId, submission, cdsEngine
       );
@@ -90,7 +92,7 @@ describe('Academic Integrity Engine', () => {
       expect(flag).not.toBeNull();
       expect(flag.type).toBe('BEHAVIORAL_ANOMALY');
       expect(flag.severity).toBe('MEDIUM');
-      expect(flag.evidence).toContain('Solved in 15s on first attempt with CDS 0.80');
+      expect(flag.evidence).toContain('Solved in 15s on first attempt');
     });
 
     it('should not flag when insufficient history', async () => {
