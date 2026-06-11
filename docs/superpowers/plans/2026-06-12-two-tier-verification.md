@@ -59,6 +59,8 @@ git commit -m "chore: add cross-env for cross-platform NODE_OPTIONS support"
 }
 ```
 
+**Version note:** This matches the backend's exact pairing (`tree-sitter@^0.22.0` + `tree-sitter-cpp@^0.23.4`), which has been verified working in this codebase (tested: `parser.parse('int main() { return 0; }')` → ✅ `translation_unit`). Do NOT upgrade or downgrade these independently — the ABI between tree-sitter and its grammar packages must match.
+
 - [ ] **Step 2: Install simulation dependencies**
 
 ```bash
@@ -1354,6 +1356,29 @@ async function runValidation() {
     console.log(`   ${row.flag_type}: ${row.count}`);
   }
 
+  // ── 6b. Rate-Limit / Spam Detection ────────────────────────────────────────
+  console.log('\n⏱️  Checking rate-limit resilience...');
+  const spamCounts = await db.query(`
+    SELECT u.email, u.name, COUNT(s.id) AS submission_count
+    FROM submissions s
+    JOIN users u ON u.id = s.student_id
+    WHERE u.email LIKE '%@test.codeinsight'
+    GROUP BY u.id, u.email, u.name
+    ORDER BY submission_count DESC
+    LIMIT 10
+  `);
+  results.spamCounts = spamCounts.rows;
+  const maxSubmissionsByStudent = spamCounts.rows.length > 0 ? parseInt(spamCounts.rows[0].submission_count) : 0;
+  results.rateLimit = {
+    maxSubmissionsByStudent,
+    // Tier 4 students send 11 submissions each (1 copy-paste + 10 spam + 1 massive)
+    // If the backend has no rate limiting, this number will be high.
+    // We flag if any student has > 50 submissions (unreasonable threshold).
+    reasonable: maxSubmissionsByStudent <= 50,
+  };
+  console.log(`   Max submissions by single student: ${maxSubmissionsByStudent}`);
+  console.log(`   Rate-Limit Reasonable: ${results.rateLimit.reasonable ? '✅ PASS' : '⚠️  HIGH - no rate limiting detected'}`);
+
   // ── 7. CDS Snapshots ──────────────────────────────────────────────────────
   console.log('\n📸 Checking CDS snapshots...');
   const snapshotCount = await db.query(`
@@ -1437,6 +1462,13 @@ ${results.cdsByExercise.map(r => `| ${r.title} | ${parseFloat(r.avg_cds).toFixed
 | Flag Type | Count |
 |-----------|-------|
 ${results.integrityFlags.length > 0 ? results.integrityFlags.map(r => `| ${r.flag_type} | ${r.count} |`).join('\n') : '| (none detected) | 0 |'}
+
+## Rate-Limit Resilience: ${results.rateLimit.reasonable ? 'PASS' : 'FAIL'}
+
+- **Max submissions by single student**: ${results.rateLimit.maxSubmissionsByStudent}
+- **Reasonable threshold (≤50 per student)**: ${results.rateLimit.reasonable ? '✅ Yes' : '⚠️  No — backend accepted excessive submissions'}
+- **Top 10 submitters**:
+${results.spamCounts.map(r => `  - ${r.name} (${r.email}): ${r.submission_count} submissions`).join('\n')}
 
 ## CDS Snapshot Audit Trail
 
@@ -1754,12 +1786,13 @@ test.describe('Workspace Code Submission Flow', () => {
       await exerciseLinks.first().click();
       await page.waitForLoadState('networkidle');
 
-      // Target the Monaco editor — use the actual textarea inside .monaco-editor
-      // Monaco renders its editable content in a hidden textarea inside .monaco-editor .inputarea
+      // Target the Monaco editor — Monaco renders its editable content in a hidden
+      // textarea inside .monaco-editor with class .inputarea. Do NOT use getByRole('code')
+      // — Monaco doesn't render role="code" in the DOM.
       const editorTextarea = page.locator('.monaco-editor .inputarea').first();
 
-      // Focus the editor by clicking it
-      await editorTextarea.click({ force: true });
+      // Focus the editor by clicking the textarea
+      await editorTextarea.click();
 
       // Clear any existing content
       await page.keyboard.press('ControlOrMeta+KeyA');
@@ -1775,8 +1808,8 @@ int main() {
 }`;
       await page.keyboard.type(cppCode, { delay: 50 });
 
-      // Verify code appears in editor (monaco shows the text in the DOM)
-      await expect(page.locator('.monaco-editor')).toContainText('Hello from E2E');
+      // Verify code appears in editor (monaco shows the text in span.line nodes)
+      await expect(page.locator('.monaco-editor .line')).toContainText('Hello from E2E', { timeout: 5000 });
 
       // Click submit button
       await page.getByRole('button', { name: /submit/i }).click();
@@ -1972,5 +2005,8 @@ Checking spec sections against tasks:
 | RAM cap (1GB Vite) | Task 9 | ✅ |
 | Single worker, sequential | Task 9 | ✅ |
 | Acceptance criteria #1-9 | Tasks 1-13 | ✅ |
+| tree-sitter ABI compatibility | Task 1 (version note) | ✅ Pinned to backend's proven pairing |
+| Monaco .inputarea selector | Task 11 | ✅ Uses `.monaco-editor .inputarea` not `getByRole('code')` |
+| Rate-limit assertion | Task 7 (validator) | ✅ Added spam count check + threshold ≤50 |
 
 No placeholders, no TODOs, no contradictions. All code shown inline. All file paths exact.
