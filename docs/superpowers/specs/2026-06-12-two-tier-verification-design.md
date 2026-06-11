@@ -273,12 +273,14 @@ module.exports = defineConfig({
 ```json
 {
   "scripts": {
-    "test:simulation": "npm test --prefix simulation",
+    "test:simulation": "npm run test --prefix simulation",
     "test:e2e": "npx playwright test --config=playwright.config.js",
-    "test:full": "npm run test:simulation -- --no-cleanup && npm run test:e2e"
+    "test:full": "npm run test:simulation && npm run test:e2e"
   }
 }
 ```
+
+**Note:** Both modes use cleanup-at-start, so `test:full` naturally works — simulation cleans old data, runs, leaves data in DB; E2E then sees that data. No `--no-cleanup` flag needed because cleanup happens before running, not after.
 
 ### 4.2 Cleanup-at-Start Strategy
 
@@ -371,9 +373,11 @@ This ensures Playwright's `webServer` waits for full backend readiness before la
 
 ## Acceptance Criteria
 
-1. `npm run test:simulation` completes all 3 cycles, generates `SYSTEM_HEALTH_REPORT.md`
+1. `npm run test:simulation` completes all 3 cycles, generates `simulation/SYSTEM_HEALTH_REPORT.md`
 2. `npm run test:e2e` runs 4 test blocks, all passing
-3. `npm run test:full` runs simulation then E2E, E2E sees simulation data on instructor dashboard
+3. `npm run test:full` runs simulation then E2E sequentially — E2E sees simulation-populated data on instructor dashboard (CDS scores, student roster, integrity flags)
 4. Report shows CDS consistency PASS, data parity PASS, resilience score > 95%
-5. No production data affected (prefix-scoped only)
-6. RAM usage stays under 2GB during full run
+5. No production data affected (all simulation data uses `sim_tier*` prefix)
+6. RAM usage stays under 2GB during full run (Vite capped at 1GB, Playwright single worker)
+7. All `127.0.0.1` references consistent — no `localhost` in config or test code
+8. Monaco Editor interactions use `getByRole('code')` + `keyboard.type()` — no `page.fill()`
