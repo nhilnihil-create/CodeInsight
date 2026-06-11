@@ -34,13 +34,9 @@ function getNormalizedValue(value, allValues, capFactor = 2) {
   return { normalized, effectiveMax };
 }
 
-function classify(cds, isPreliminary = false) {
-  if (cds === null || cds === undefined) return 'Unscored';
-  const prefix = isPreliminary ? 'Preliminary - ' : '';
-  if (cds <= 0.33) return prefix + 'Low';
-  if (cds <= 0.66) return prefix + 'Moderate';
-  return prefix + 'High';
-}
+// Import the real classify and thresholds from cdsEngine
+// NOTE: These MUST match the authoritative source — no local copies!
+const { classify, CDS_THRESHOLDS } = require('../services/cdsEngine');
 
 // ── Classification Tests ─────────────────────────────────────────────────────
 
@@ -57,20 +53,20 @@ describe('CDS Engine — Classification', function() {
     assert.strictEqual(classify(0), 'Low');
   });
 
-  it('classifies 0.33 as Low (boundary)', function() {
-    assert.strictEqual(classify(0.33), 'Low');
+  it('classifies 0.31 as Low (exact boundary)', function() {
+    assert.strictEqual(classify(0.31), 'Low');
   });
 
-  it('classifies 0.34 as Moderate', function() {
-    assert.strictEqual(classify(0.34), 'Moderate');
+  it('classifies 0.32 as Moderate (just above Low)', function() {
+    assert.strictEqual(classify(0.32), 'Moderate');
   });
 
-  it('classifies 0.66 as Moderate (boundary)', function() {
-    assert.strictEqual(classify(0.66), 'Moderate');
+  it('classifies 0.50 as Moderate (exact boundary)', function() {
+    assert.strictEqual(classify(0.50), 'Moderate');
   });
 
-  it('classifies 0.67 as High', function() {
-    assert.strictEqual(classify(0.67), 'High');
+  it('classifies 0.51 as High', function() {
+    assert.strictEqual(classify(0.51), 'High');
   });
 
   it('classifies 1.0 as High', function() {
@@ -387,12 +383,39 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
 // ── Classification Boundary Mismatch (document the bug) ──────────────────────
 
 describe('CDS Engine — Classification Boundary Audit', function() {
-  it('cdsEngine classification boundaries now harmonized with analytics (0.33, 0.66)', function() {
-    // V2 FIX: cdsEngine now uses 0.33 and 0.66, matching analytics controller
-    const cdsEngineLow = classify(0.32); // Now 'Low' (was 'Moderate' with 0.31 boundary)
+  it('cdsEngine classification boundaries harmonized with analytics (0.31, 0.50)', function() {
+    // V2 FIX: Centralized thresholds — LOW=0.31, MODERATE=0.50
+    const cdsEngineLow = classify(0.31);
     assert.strictEqual(cdsEngineLow, 'Low');
-    const cdsEngineModerate = classify(0.55); // Now 'Moderate' (was 'High' with 0.50 boundary)
+    const cdsEngineModerate = classify(0.50);
     assert.strictEqual(cdsEngineModerate, 'Moderate');
+    const cdsEngineHigh = classify(0.51);
+    assert.strictEqual(cdsEngineHigh, 'High');
+  });
+
+  it('classifies at exact boundary: 0.31 → Low', function() {
+    assert.strictEqual(classify(0.31), 'Low');
+  });
+
+  it('classifies just above low boundary: 0.311 → Moderate', function() {
+    assert.strictEqual(classify(0.311), 'Moderate');
+  });
+
+  it('classifies at exact moderate boundary: 0.50 → Moderate', function() {
+    assert.strictEqual(classify(0.50), 'Moderate');
+  });
+
+  it('classifies just above moderate boundary: 0.501 → High', function() {
+    assert.strictEqual(classify(0.501), 'High');
+  });
+
+  it('adds Preliminary prefix when isPreliminary=true', function() {
+    assert.strictEqual(classify(0.4, true), 'Preliminary - Moderate');
+  });
+
+  it('exports match centralized CDS_THRESHOLDS', function() {
+    assert.strictEqual(CDS_THRESHOLDS.LOW, 0.31);
+    assert.strictEqual(CDS_THRESHOLDS.MODERATE, 0.50);
   });
 });
 
