@@ -3,6 +3,14 @@ const jwt    = require('jsonwebtoken');
 const db     = require('../config/db');
 const { AppError, codes } = require('../lib/AppError');
 
+const COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: 'strict',
+  secure: process.env.NODE_ENV === 'production',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: '/',
+};
+
 const generateToken = (user) =>
   jwt.sign(
     { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -23,7 +31,9 @@ exports.register = async (req, res, next) => {
       [name, email, hash, role]
     );
     const user = result.rows[0];
-    res.status(201).json({ token: generateToken(user), user });
+    const token = generateToken(user);
+    res.cookie('ci_token', token, COOKIE_OPTS);
+    res.status(201).json({ user });
   } catch (err) { next(err); }
 };
 
@@ -41,7 +51,9 @@ exports.login = async (req, res, next) => {
     if (!valid) throw new AppError('Invalid credentials', 401, codes.UNAUTHORIZED);
 
     const { password_hash, ...safeUser } = user;
-    res.json({ token: generateToken(safeUser), user: safeUser });
+    const token = generateToken(safeUser);
+    res.cookie('ci_token', token, COOKIE_OPTS);
+    res.json({ user: safeUser });
   } catch (err) { next(err); }
 };
 
@@ -55,8 +67,8 @@ exports.me = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports.logout = async (_req, res) => {
-  // Stateless JWT — client discards token. Endpoint exists for symmetry
-  // and to give the client a clear 200 to attach any cleanup to.
+exports.logout = async (req, res) => {
+  // Clear the httpOnly auth cookie so the server actively invalidates the session.
+  res.clearCookie('ci_token', { path: '/' });
   res.json({ loggedOut: true });
 };

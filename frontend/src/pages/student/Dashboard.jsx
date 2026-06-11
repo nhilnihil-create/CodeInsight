@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import EmptyState from "@/components/ui/empty-state";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import StudentDashboardShell from "@/components/student-dashboard-shell";
@@ -106,14 +107,6 @@ export default function StudentDashboard() {
   const due = data.dueExercises;
   const dueCount = due?.count ?? 0;
   const nearest = due?.nearestDeadline;
-  const insightEyebrow = dueCount > 0 ? "Due soon" : "All clear";
-  const insightText = nearest
-    ? `Exercise ${nearest.id} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
-    : "You're all caught up on your exercises.";
-  const insightDesc = nearest
-    ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
-    : "No deadlines approaching.";
-
   const mastery = data.mastery;
   const completion = data.completion;
   const streak = data.streak;
@@ -121,6 +114,26 @@ export default function StudentDashboard() {
   const weakest = data.weakestConcepts ?? [];
   const feedback = data.recentFeedback ?? [];
   const recs = data.recommended ?? [];
+
+  // Empty-state gate: no enrolled exercises at all → show EmptyState once.
+  const hasAnyData = mastery?.percentage > 0 || completion?.completed > 0 || streak?.current > 0 || weakest.length > 0 || feedback.length > 0 || recs.length > 0 || dueCount > 0;
+  if (!hasAnyData && !nearest) {
+    return (
+      <StudentDashboardShell>
+        <EmptyState
+          icon={<Sparkles />}
+          title="Welcome to CodeInsight!"
+          description="You're not enrolled in any exercises yet. Your instructor will add you to a section to get started."
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link to="/student/sections">Browse sections</Link>
+            </Button>
+          }
+          footnote="Check back once your instructor publishes exercises."
+        />
+      </StudentDashboardShell>
+    );
+  }
 
   return (
     <StudentDashboardShell>
@@ -147,9 +160,13 @@ export default function StudentDashboard() {
       {/* ---------- Insight ---------- */}
       {nearest ? (
         <InsightHeader
-          eyebrow={insightEyebrow}
-          insight={insightText}
-          description={insightDesc}
+          eyebrow={dueCount > 0 ? "Due soon" : "All clear"}
+          insight={nearest
+            ? `Exercise ${nearest.id} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
+            : "You're all caught up on your exercises."}
+          description={nearest
+            ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
+            : "No deadlines approaching."}
           action={
             <Button asChild size="sm" className="font-medium">
               <Link to={`/student/exercises/${nearest.id}`}>
@@ -234,9 +251,11 @@ export default function StudentDashboard() {
                 </div>
               );
             }) : (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                Complete exercises to see your progress
-              </p>
+              <EmptyState
+                icon={<Sparkles />}
+                title="No progress yet"
+                description="Complete exercises to see your concept breakdown here."
+              />
             )}
           </CardContent>
         </Card>
@@ -287,11 +306,11 @@ export default function StudentDashboard() {
                 ))}
               </ul>
             ) : (
-              <div className="px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No feedback yet
-                </p>
-              </div>
+              <EmptyState
+                icon={<MessageSquare />}
+                title="No feedback yet"
+                description="Your instructor will share feedback here after reviewing your submissions."
+              />
             )}
           </CardContent>
         </Card>
@@ -351,11 +370,11 @@ export default function StudentDashboard() {
               ))}
             </ul>
           ) : (
-            <div className="px-4 py-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No exercises available yet
-              </p>
-            </div>
+            <EmptyState
+              icon={<Sparkles />}
+              title="No exercises available yet"
+              description="When your instructor publishes exercises, they'll appear here as recommendations."
+            />
           )}
         </CardContent>
       </Card>

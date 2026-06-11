@@ -4,6 +4,9 @@ import {
   Download,
   ArrowRight,
   ChevronDown,
+  BarChart3,
+  ShieldAlert,
+  TrendingUp,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -35,6 +38,7 @@ import EvidenceRow from "@/components/ui/evidence-row";
 import PeriodSelector from "@/components/ui/period-selector";
 import RiskBadge from "@/components/ui/risk-badge";
 import SectionFilter from "@/components/SectionFilter";
+import EmptyState from "@/components/ui/empty-state";
 import api from "@/services/api";
 
 const TOOLTIP_STYLE = {
@@ -258,9 +262,11 @@ export default function InstructorDashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                    No trend data available yet.
-                  </div>
+                  <EmptyState
+                    icon={<TrendingUp />}
+                    title="No trend data yet"
+                    description="Submit some exercises and CDS metrics will populate this chart over time."
+                  />
                 )}
               </div>
             </CardContent>
@@ -315,9 +321,11 @@ export default function InstructorDashboard() {
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                      No concept data available yet.
-                    </div>
+                    <EmptyState
+                      icon={<BarChart3 />}
+                      title="No concept data yet"
+                      description="Student submissions will generate concept-level analytics here."
+                    />
                   )}
                 </div>
               </CardContent>
@@ -363,9 +371,11 @@ export default function InstructorDashboard() {
                     ))}
                   </ul>
                 ) : (
-                  <div className="py-8 text-center text-sm text-muted-foreground">
-                    No recent integrity flags.
-                  </div>
+                  <EmptyState
+                    icon={<ShieldAlert />}
+                    title="All clear"
+                    description="No integrity flags detected. Student submissions are being monitored automatically."
+                  />
                 )}
               </CardContent>
             </Card>

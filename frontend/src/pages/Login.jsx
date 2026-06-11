@@ -44,7 +44,7 @@ export default function Login() {
 
     try {
       const res = await api.post('/api/auth/login', { email, password });
-      login(res.data.token, res.data.user);
+      login(res.data.user);
 
       const dest = res.data.user.role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
       navigate(dest, { replace: true });

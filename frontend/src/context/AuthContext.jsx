@@ -1,46 +1,54 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // On mount, fetch current user — the httpOnly cookie proves the session.
   useEffect(() => {
-    const t = localStorage.getItem('ci_token');
-    const u = localStorage.getItem('ci_user');
-    if (t && u) {
-      setToken(t);
-      setUser(JSON.parse(u));
-      setIsLoggedIn(true);
-    }
-    setLoading(false);
+    let cancelled = false;
+    api
+      .get('/api/auth/me')
+      .then((res) => {
+        if (!cancelled) {
+          setUser(res.data);
+          setIsLoggedIn(true);
+        }
+      })
+      .catch(() => {
+        // No valid cookie — user is unauthenticated
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
-  const login = (newToken, newUser) => {
-    localStorage.setItem('ci_token', newToken);
-    localStorage.setItem('ci_user', JSON.stringify(newUser));
-    setToken(newToken);
+  const login = useCallback((newUser) => {
+    // The backend already set the httpOnly cookie on the login response.
+    // We only update client-side state here.
     setUser(newUser);
     setIsLoggedIn(true);
-  };
+  }, []);
 
-  const logout = () => {
-    localStorage.removeItem('ci_token');
-    localStorage.removeItem('ci_user');
-    setToken(null);
+  const logout = useCallback(async () => {
+    // Call the backend logout endpoint to clear the httpOnly cookie,
+    // then wipe client-side state.
+    try { await api.post('/api/auth/logout'); } catch { /* best-effort */ }
     setUser(null);
     setIsLoggedIn(false);
-  };
+  }, []);
 
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
