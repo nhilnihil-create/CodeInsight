@@ -1,3 +1,0 @@
-#include<bits/stdc++.h>
-#define REP(i,n)for(int i=0;i<n;i++)
-using namespace std;int n,k,a,u,v;vector<int>e[2010];int t(int x,int p,int d,int m){if(d==m)return 1;int s=1;for(int i:e[x])if(i!=p)s+=t(i,x,d+1,m);return s;}int main(){cin>>n>>k;REP(i,n-1)cin>>u>>v,e[u-1].push_back(v-1),e[v-1].push_back(u-1);if(k&1)REP(i,n)for(int j:e[i])a=max(a,t(i,j,0,k/2)+t(j,i,0,k/2));else REP(i,n)a=max(a,t(i,-1,0,k/2));cout<<n-a;}

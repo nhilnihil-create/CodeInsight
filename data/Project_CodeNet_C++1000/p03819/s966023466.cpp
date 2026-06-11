@@ -1,2 +1,0 @@
-#include<bits/stdc++.h>
-using namespace std;vector<int>A['   '];int N,M,S['   '],B,L,R,I,X;void U(int z,int u){while(z<=N)S[z]+=u,z+=z&-z;}int main(){cin>>M>>N;for(I=1;I<=M;I++)cin>>L>>R,A[R-L+1].push_back(L);for(L=1;L<=N;L++){B=M;for(I=L;I<=N;I+=L){R=0,X=I;while(X)R+=S[X],X-=X&-X;B+=R;}for(int u:A[L])U(u,1),U(u+L,-1),M--;cout<<B<<endl;}}

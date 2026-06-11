@@ -1,9 +1,0 @@
-#include <iostream>
-using namespace std;
-int main(void){
-    
-    string s;
-    cin >> s;
-    
-    cout << s.at(0) << s.at(1) << s.at(2) << endl;
-}

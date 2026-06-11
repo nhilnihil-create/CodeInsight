@@ -1,9 +1,0 @@
-#include <iostream>
-using namespace std;
-
-signed main()
-{
-  long long a, b;
-  cin >> a >> b;
-  cout << a*b << '\n';
-}

@@ -1,9 +1,0 @@
-#include <bits/stdc++.h>
-using namespace std;
-int main(int argc, char const *argv[])
-{
-	int x;
-	cin>>x;
-	cout<<360 / __gcd(360,x)<<endl;
-	return 0;
-}

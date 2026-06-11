@@ -1,2 +1,0 @@
-#include<bits/stdc++.h>
-using namespace std;main(){double r;cin>>r;cout<<fixed<<setprecision(9)<<M_PI*r*r<<" "<<2*M_PI*r<<endl;}

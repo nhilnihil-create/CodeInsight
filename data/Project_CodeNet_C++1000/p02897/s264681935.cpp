@@ -1,9 +1,0 @@
-#include <bits/stdc++.h>
-using namespace std;
-
-int main(void){
-  int n;
-  cin >> n;
-  cout << (double)(n-n/2) / (double)n << endl;
-  return 0;
-}

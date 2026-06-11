@@ -1,2 +1,0 @@
-#include<bits/stdc++.h>
-const int MAXN=1e6+10,Mod=1e9+7;long long n,f[MAXN],s;int main(){scanf("%lld",&n);f[1]=n;f[2]=n*n%Mod;for(int i=3;i<=n;++i)f[i]=(((f[i-1]+s)%Mod+(n-1)*(n-1)%Mod)%Mod+(n-i+2))%Mod,(s+=f[i-2])%=Mod;printf("%lld\n",f[n]);return 0; }

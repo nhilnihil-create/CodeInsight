@@ -1,8 +1,0 @@
-#include <stdio.h>
-#define PI  3.1415926535897
-
-int main(){
-    double r;
-    scanf("%lf",&r);
-    printf("%lf %lf\n",PI*r*r,2*PI*r);
-}

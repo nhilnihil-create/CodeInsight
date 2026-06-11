@@ -1,8 +1,0 @@
-#include<iostream>
-using namespace std;
-
-main(){
-	int tate,yoko;
-	cin>>tate>>yoko;
-	cout<<""<<tate*yoko<<" "<<2*tate+2*yoko<<endl;
-}

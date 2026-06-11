@@ -47,3 +47,8 @@ SESSION_SUMMARY.md
 
 # Misc
 gemini.md
+
+# CodeNet dataset (too large for git)
+data/Project_CodeNet_C++1000/
+data/Project_CodeNet_C++1000.tar.gz
+data/_*.json
