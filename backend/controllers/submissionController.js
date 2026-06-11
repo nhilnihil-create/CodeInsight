@@ -130,7 +130,25 @@ exports.run = async (req, res) => {
 // Submit → — official submission, SAVES to database
 exports.submit = async (req, res) => {
   const startTime = Date.now();
-  const { exerciseId, code, timeSpentSeconds } = req.body;
+  const { exerciseId, code, timeSpentSeconds, behavioralData, behavioralEvents } = req.body;
+
+  // GAP #3: Normalize behavioral data from both sources
+  // frontend sends behavioralEvents array; extract summary counts
+  const behavioralSummary = {
+    tabSwitchCount: 0,
+    pasteCount: 0,
+    idleTimeSeconds: 0,
+  };
+  if (behavioralData) {
+    Object.assign(behavioralSummary, behavioralData);
+  }
+  if (Array.isArray(behavioralEvents)) {
+    for (const ev of behavioralEvents) {
+      if (ev.type === 'tab_blur' || ev.type === 'tab_focus') behavioralSummary.tabSwitchCount++;
+      if (ev.type === 'paste') behavioralSummary.pasteCount++;
+      if (ev.type === 'idle_start') behavioralSummary.idleTimeSeconds += 30; // approximate
+    }
+  }
   const studentId = req.user.id;
   try {
     const ex = await db.query(
@@ -250,9 +268,9 @@ exports.submit = async (req, res) => {
       const verification_note = 'Blank or template-only submission';
       const ins = await db.query(
         `INSERT INTO submissions
-         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings)
-         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8,$9) RETURNING id`,
-        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta, '[]']
+         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings,tab_switch_count,paste_count,idle_time_seconds)
+         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta, '[]', behavioralSummary.tabSwitchCount, behavioralSummary.pasteCount, behavioralSummary.idleTimeSeconds]
       );
 
       // Log verification failure
@@ -321,9 +339,17 @@ exports.submit = async (req, res) => {
     const requiredNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
 
     // Run AST verifier before saving submission
-    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code });
+    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code, concept_name: conceptName });
     const is_verified = !!verifyRes.is_verified;
     const verification_note = (verifyRes.reasons || []).map(r => r.message || JSON.stringify(r)).join('; ');
+
+    // GAP #7: Extract compiler errors from test results for micro-concept analysis
+    const compilerErrors = [];
+    for (const tc of tcResults) {
+      if (tc.error && (tc.status === 'Compile Error' || tc.status === 'Runtime Error')) {
+        compilerErrors.push(tc.error);
+      }
+    }
 
     // Run micro-concept analysis for specific feedback
     const microConceptEngine = require('../services/microConceptEngine');
@@ -336,9 +362,9 @@ exports.submit = async (req, res) => {
         passed: r.passed,
         error: r.error
       })),
-      compilerErrors: [], // Would need to extract from executor output
+      compilerErrors: compilerErrors, // GAP #7: populated from executor output
       code: code,
-      timeLimitHit: false, // Would need to check if execution timed out
+      timeLimitHit: tcResults.some(r => r.status === 'Time Limit Exceeded'),
       exercise: {
         concept_name: exercise.title, // Simplified - would need concept name from concepts table
         required_ast_nodes: exercise.ast_nodes || [],
@@ -378,12 +404,13 @@ exports.submit = async (req, res) => {
 
     const microConceptFeedback = await microConceptEngine.getMicroConceptFeedback(microContext, conceptName);
 
-    // Save submission (include verification fields, code growth delta, cppcheck warnings)
+    // Save submission (include verification fields, code growth delta, cppcheck warnings, behavioral data)
+    const bd = behavioralData || {};
     const insRes = await db.query(
       `INSERT INTO submissions
-       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta, JSON.stringify(cppcheckWarnings)]
+       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings,tab_switch_count,paste_count,idle_time_seconds)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta, JSON.stringify(cppcheckWarnings), behavioralSummary.tabSwitchCount, behavioralSummary.pasteCount, behavioralSummary.idleTimeSeconds]
     );
 
     const submissionId = insRes.rows[0].id;
@@ -523,6 +550,20 @@ exports.submit = async (req, res) => {
     // Add micro-concept feedback if available
     if (microConceptFeedback.hasFeedback) {
       responseData.microConceptFeedback = microConceptFeedback;
+
+      // GAP #10: Generate alerts from micro-concept findings
+      try {
+        const alertEngine = require('../services/alertEngine');
+        await alertEngine.generateMicroConceptAlert({
+          studentId,
+          exerciseId,
+          sectionId: exercise.section_id,
+          conceptName,
+          detectedIssues: microConceptFeedback.detected || []
+        }, db);
+      } catch (alertErr) {
+        console.warn('Micro-concept alert generation failed:', alertErr.message);
+      }
     }
 
     // If assessment mode, compute rubric score

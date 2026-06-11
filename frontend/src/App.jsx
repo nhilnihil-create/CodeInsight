@@ -17,6 +17,8 @@ import InstructorIntegrity from './pages/instructor/Integrity';
 import InstructorSections from './pages/instructor/Sections';
 import SectionDetail from './pages/instructor/SectionDetail';
 import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
+import StructureViolations from './pages/instructor/StructureViolations';
+import ClassMicroConceptReport from './pages/instructor/ClassMicroConceptReport';
 import InstructorCommand from './pages/instructor/Command';
 import InstructorDeveloper from './pages/instructor/Developer';
 import StudentDashboard from './pages/student/Dashboard';
@@ -205,6 +207,16 @@ function AppContent() {
         <Route path="/instructor/sections/:sectionId/academic-integrity" element={
           <ProtectedRoute requiredRole="instructor">
             <AcademicIntegrityFlags />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/sections/:sectionId/structure-violations" element={
+          <ProtectedRoute requiredRole="instructor">
+            <StructureViolations />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/sections/:sectionId/micro-concepts" element={
+          <ProtectedRoute requiredRole="instructor">
+            <ClassMicroConceptReport />
           </ProtectedRoute>
         } />
         <Route path="/instructor/my-sections" element={

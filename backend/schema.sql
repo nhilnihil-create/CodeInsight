@@ -135,7 +135,7 @@ CREATE INDEX IF NOT EXISTS idx_exercise_bank_concept ON exercise_bank(concept);
 CREATE INDEX IF NOT EXISTS idx_exercise_bank_difficulty ON exercise_bank(difficulty);
 
 -- ── Submissions ─────────────────────────────────────────────────────────────
--- V2 additions: is_practice, cppcheck_warnings, submitted_at
+-- V2 additions: is_practice, cppcheck_warnings, submitted_at, behavioral tracking
 
 CREATE TABLE IF NOT EXISTS submissions (
   id                SERIAL PRIMARY KEY,
@@ -155,6 +155,9 @@ CREATE TABLE IF NOT EXISTS submissions (
   code_growth_delta INT DEFAULT 0,
   is_practice       BOOLEAN DEFAULT false,
   cppcheck_warnings JSONB DEFAULT '[]',
+  tab_switch_count  INT DEFAULT 0,
+  paste_count       INT DEFAULT 0,
+  idle_time_seconds INT DEFAULT 0,
   submitted_at      TIMESTAMP DEFAULT NOW(),
   created_at        TIMESTAMP DEFAULT NOW()
 );

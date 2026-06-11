@@ -43,6 +43,12 @@ router.get('/reports/:sectionId/integrity-trends', verifyToken, requireRole('ins
 // Instructor Dashboard aggregate endpoint
 router.get('/instructor/dashboard/:sectionId', verifyToken, requireRole('instructor'), ctrl.getInstructorDashboard);
 
+// GAP #4: Structure Violations Report
+router.get('/sections/:sectionId/structure-violations', verifyToken, requireRole('instructor'), ctrl.getStructureViolations);
+
+// GAP #9: Class-Wide Micro-Concept Report
+router.get('/sections/:sectionId/micro-concept-report', verifyToken, requireRole('instructor'), ctrl.getClassMicroConceptReport);
+
 // Student detail (instructor view) — submissions across all exercises in section
 router.get('/student/:studentId/submissions', verifyToken, requireRole('instructor'), ctrl.getStudentSubmissions);
 

@@ -1475,3 +1475,97 @@ exports.getIntegrityTrends = async (req, res, next) => {
     next(err);
   }
 };
+
+// GAP #4: Structure Violations Report
+exports.getStructureViolations = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const instructorId = req.user.id;
+
+    const secCond = sectionId === 'all'
+      ? 's.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)'
+      : 's.section_id = $1';
+    const params = sectionId === 'all' ? [String(instructorId)] : [sectionId];
+
+    const result = await db.query(`
+      SELECT
+        u.name AS student_name,
+        e.title AS exercise_title,
+        c.name AS concept_name,
+        vl.reason,
+        vl.verification_type,
+        s.attempt_number,
+        s.submitted_at,
+        CASE
+          WHEN vl.reason LIKE '%Required%' OR vl.reason LIKE '%Syntax%' THEN 'error'
+          ELSE 'warning'
+        END AS severity
+      FROM verification_logs vl
+      JOIN submissions s ON s.id = vl.submission_id
+      JOIN users u ON u.id = vl.student_id
+      JOIN exercises e ON e.id = vl.exercise_id
+      LEFT JOIN concepts c ON c.id = e.concept_id
+      WHERE ${secCond}
+        AND vl.verification_type = 'ast_verifier'
+      ORDER BY s.submitted_at DESC
+      LIMIT 200
+    `, params);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('getStructureViolations error:', err);
+    next(err);
+  }
+};
+
+// GAP #9: Class-Wide Micro-Concept Report
+exports.getClassMicroConceptReport = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const instructorId = req.user.id;
+
+    const secCond = sectionId === 'all'
+      ? 'e.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)'
+      : 'e.section_id = $1';
+    const params = sectionId === 'all' ? [String(instructorId)] : [sectionId];
+
+    const result = await db.query(`
+      SELECT
+        c.name AS concept_name,
+        COUNT(DISTINCT vl.student_id) AS student_count,
+        json_agg(DISTINCT vl.reason) AS issues
+      FROM verification_logs vl
+      JOIN submissions s ON s.id = vl.submission_id
+      JOIN exercises e ON e.id = vl.exercise_id
+      LEFT JOIN concepts c ON c.id = e.concept_id
+      WHERE ${secCond}
+        AND vl.verification_type = 'micro_concept'
+      GROUP BY c.name
+      ORDER BY student_count DESC
+    `, params);
+
+    const concepts = result.rows.map(row => ({
+      name: row.concept_name || 'Unknown',
+      studentCount: parseInt(row.student_count),
+      issueCount: row.issues ? row.issues.length : 0,
+      issues: (row.issues || []).map(issueText => {
+        // Parse the issue summary format: "name: recommendation; name: recommendation"
+        const parts = (issueText || '').split('; ').filter(Boolean);
+        return parts.map(part => {
+          const [name, ...rest] = part.split(': ');
+          return {
+            name: name?.trim() || 'Unknown Issue',
+            recommendation: rest.join(': ').trim(),
+            severity: 'medium',
+            studentCount: 1,
+          };
+        });
+      }).flat(),
+    }));
+
+    res.json({ concepts });
+  } catch (err) {
+    console.error('getClassMicroConceptReport error:', err);
+    next(err);
+  }
+};
