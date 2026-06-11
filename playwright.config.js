@@ -1,88 +1,49 @@
-import { defineConfig, devices } from '@playwright/test';
-
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
+ * playwright.config.js
+ *
+ * Root E2E config for Tier B: CodeInsight V2 classroom workflow tests.
+ * Spins up both Vite frontend (port 5173) and Express backend (port 5000).
+ * RAM-capped to prevent OOM during full test sweeps.
+ *
+ * IMPORTANT: Uses 127.0.0.1 everywhere (not localhost) to avoid WSL2 IPv6 trap.
  */
-// require('dotenv').config();
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
-export default defineConfig({
-  testDir: './tests',
-  /* Run tests in files that end with .spec.js or .spec.ts */
-  testMatch: '**/*.spec.js',
-  /* Run a single test file. */
-  // testMatch: process.env.DEBUG_SINGLE_TEST,
+const { defineConfig, devices } = require('@playwright/test');
 
-  /* Failed test will not contribute to the test result. */
-  fullyParallel: true,
-
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+module.exports = defineConfig({
+  testDir: './e2e',
+  fullyParallel: false,
+  workers: 1,
   reporter: 'html',
+  retries: 1,
 
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:5173',
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+    baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
-    /* Increase timeout to 60 seconds for all tests */
-    timeout: 60000,
+    screenshot: 'only-on-failure',
   },
 
-  /* Configure projects for major browsers */
+  webServer: [
+    {
+      command: 'cross-env NODE_OPTIONS="--max-old-space-size=1024" npm run dev --prefix frontend -- --host 127.0.0.1 --port 5173',
+      url: 'http://127.0.0.1:5173',
+      reuseExistingServer: false,
+      timeout: 60000,
+    },
+    {
+      command: 'npm run start --prefix backend',
+      url: 'http://127.0.0.1:5000/api/health',
+      reuseExistingServer: false,
+      timeout: 60000,
+    },
+  ],
+
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  outputDir: 'e2e/test-results/',
 });
