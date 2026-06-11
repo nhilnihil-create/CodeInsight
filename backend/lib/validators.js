@@ -86,6 +86,7 @@ const joinByCode = Joi.object({
 });
 
 const submitCode = Joi.object({
+  exerciseId: Joi.number().integer().positive().required(),
   code: Joi.string().required(),
   timeSpentSeconds: Joi.number().integer().min(0).max(86400).default(0),
   behavioralEvents: Joi.array().items(

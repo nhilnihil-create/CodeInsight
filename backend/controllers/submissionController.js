@@ -338,6 +338,13 @@ exports.submit = async (req, res) => {
     );
     const requiredNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
 
+    // Get concept name from database (needed by AST verifier and micro-concept analysis)
+    const conceptRes = await db.query(
+      'SELECT c.name FROM concepts c JOIN exercises e ON c.id = e.concept_id WHERE e.id = $1',
+      [exerciseId]
+    );
+    const conceptName = conceptRes.rows.length > 0 ? conceptRes.rows[0].name : 'Unknown';
+
     // Run AST verifier before saving submission
     const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code, concept_name: conceptName });
     const is_verified = !!verifyRes.is_verified;
@@ -371,13 +378,6 @@ exports.submit = async (req, res) => {
         time_limit_minutes: exercise.time_limit_minutes
       }
     };
-
-    // Get concept name from database
-    const conceptRes = await db.query(
-      'SELECT c.name FROM concepts c JOIN exercises e ON c.id = e.concept_id WHERE e.id = $1',
-      [exerciseId]
-    );
-    const conceptName = conceptRes.rows.length > 0 ? conceptRes.rows[0].name : 'Unknown';
 
     // Update micro concept context with actual concept name and better AST data
     microContext.exercise.concept_name = conceptName;
