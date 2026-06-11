@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "cross-env": "^10.1.0",
     "jest": "^30.4.2",
     "pg": "^8.21.0",
     "tree-sitter": "^0.21.1",
