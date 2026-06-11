@@ -205,13 +205,13 @@ module.exports = defineConfig({
 
   webServer: [
     {
-      command: 'NODE_OPTIONS="--max-old-space-size=1024" cd frontend && npm run dev -- --host 127.0.0.1 --port 5173',
+      command: 'cross-env NODE_OPTIONS="--max-old-space-size=1024" npm run dev --prefix frontend -- --host 127.0.0.1 --port 5173',
       url: 'http://127.0.0.1:5173',
       reuseExistingServer: false,
       timeout: 60000,
     },
     {
-      command: 'cd backend && npm run start',
+      command: 'npm run start --prefix backend',
       url: 'http://127.0.0.1:5000/api/health',
       reuseExistingServer: false,
       timeout: 60000,
@@ -250,7 +250,7 @@ module.exports = defineConfig({
 
 **Test 3: Workspace Code Submission Flow**
 - Navigate to workspace
-- Target Monaco Editor: `page.getByRole('code').nth(0)`
+- Target Monaco Editor: `page.locator('.monaco-editor .inputarea').first()` — reliable CSS selector for Monaco's actual textarea inside the layered div structure (`getByRole('code')` does NOT match Monaco's DOM)
 - Click to focus → `ControlOrMeta+KeyA` → `Backspace` (clear starter code)
 - `page.keyboard.type(cppCode, { delay: 50 })` — simulated human typing
 - Click submit → assert loading spinner visible
@@ -285,9 +285,21 @@ module.exports = defineConfig({
 ### 4.2 Cleanup-at-Start Strategy
 
 Both tiers perform cleanup **before** running, not after:
-- Identify all users matching `sim_tier*` prefix
-- Delete their: `behavioral_events`, `audit_log`, `submissions`, `cds_scores`, `cds_snapshots`, `integrity_flags`, `enrollments`, `users` entries
-- This ensures clean slate for current run AND leaves data available for post-run inspection
+
+**FK Cascade Verification (schema.sql confirmed):**
+All child tables reference `users.id` with `ON DELETE CASCADE`. This means:
+```sql
+DELETE FROM users WHERE name LIKE 'Sim_%';
+```
+This single query cascades to: `enrollments`, `submissions`, `cds_scores`, `cds_snapshots`, `alerts`, `integrity_flags`, `notifications`, `verification_logs`, `performance_logs`, `audit_log`, `behavioral_events`, `section_memberships`. No FK violations.
+
+**Additionally:** Delete simulation-created sections:
+```sql
+DELETE FROM sections WHERE name LIKE 'Sim_%';
+```
+This cascades to: `exercises`, which cascades to all exercise-linked tables.
+
+This ensures clean slate for current run AND leaves data available for post-run inspection.
 
 **Standalone mode** (`test:simulation` or `test:e2e`):
 1. Clean old `sim_tier*` data
@@ -362,12 +374,13 @@ This ensures Playwright's `webServer` waits for full backend readiness before la
 ```json
 {
   "devDependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.60.0",
+    "cross-env": "^7.0.3"
   }
 }
 ```
 
-`@playwright/test` already exists at root level — no new root dependency needed.
+`@playwright/test` already exists at root level — `cross-env` is the only new root devDependency. It ensures `NODE_OPTIONS` syntax works across WSL2, Windows CMD, and PowerShell.
 
 ---
 
@@ -380,4 +393,5 @@ This ensures Playwright's `webServer` waits for full backend readiness before la
 5. No production data affected (all simulation data uses `sim_tier*` prefix)
 6. RAM usage stays under 2GB during full run (Vite capped at 1GB, Playwright single worker)
 7. All `127.0.0.1` references consistent — no `localhost` in config or test code
-8. Monaco Editor interactions use `getByRole('code')` + `keyboard.type()` — no `page.fill()`
+8. Monaco Editor interactions use `.monaco-editor .inputarea` + `keyboard.type()` — no `page.fill()`, no `getByRole('code')`
+9. Playwright `webServer` commands use `cross-env` + `npm run --prefix` for WSL2/Windows cross-platform compatibility
