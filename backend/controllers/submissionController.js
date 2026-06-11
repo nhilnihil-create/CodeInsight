@@ -439,6 +439,28 @@ exports.submit = async (req, res) => {
           submissionId: submissionId
         });
       }
+
+      // Run code paste detection (requires reference solution on the exercise)
+      try {
+        if (exercise.reference_solution) {
+          const pasteResult = await integrityFlagEngine.detectCodePaste(code, exerciseId);
+          if (pasteResult.detected) {
+            await integrityFlagEngine.createFlag({
+              sectionId: exercise.section_id,
+              exerciseId: exerciseId,
+              studentId: studentId,
+              flagType: 'code_paste_detected',
+              severity: 'high',
+              evidence: { matchPercent: pasteResult.matchPercent, details: pasteResult.details },
+              contextBehaviors: [],
+              status: 'flagged',
+              submissionId: submissionId
+            });
+          }
+        }
+      } catch (pasteErr) {
+        console.warn('Code paste detection failed:', pasteErr.message);
+      }
     } catch (integrityError) {
       // Don't let integrity check errors break the submission flow
       console.warn('Academic integrity check failed:', integrityError.message);

@@ -43,12 +43,18 @@ const normalized = Math.min(value / effectiveMax, 1.0);
 return { normalized, effectiveMax };
 }
 
+// ── Authoritative CDS Classification Thresholds ─────────────────────────────
+// Single source of truth — all callers MUST use these, not hardcode.
+// Rationale: ≤0.31 = Low (bottom third), ≤0.50 = Moderate (middle third),
+// >0.50 = High (top third). Defense-documented in capstone spec §4.2.
+const CDS_THRESHOLDS = { LOW: 0.31, MODERATE: 0.50 };
+
 function classify(cds, isPreliminary = false) {
 if (cds === null || cds === undefined) return 'Unscored';
 const prefix = isPreliminary ? 'Preliminary - ' : '';
-if (cds <= 0.31) return 'Low';
-if (cds <= 0.50) return 'Moderate';
-return 'High';
+if (cds <= CDS_THRESHOLDS.LOW) return `${prefix}Low`;
+if (cds <= CDS_THRESHOLDS.MODERATE) return `${prefix}Moderate`;
+return `${prefix}High`;
 }
 
 // ── Batch CDS Computation ───────────────────────────────────────────────────
@@ -178,7 +184,7 @@ for (const student of students.rows) {
       ner = 1; nrs = 1; nts = 1; cds = 1.0;
       classification = 'High';
     } else {
-      cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
+      cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * nts));
       cds = Math.round(cds * 10000) / 10000;
       classification = classify(cds, isPreliminaryClass);
     }
@@ -350,4 +356,4 @@ try {
 }
 }
 
-module.exports = { computeBatchCDS, getLivePeerRanking, calculateCDS, calculateLiveCDS };
+module.exports = { computeBatchCDS, getLivePeerRanking, calculateCDS, calculateLiveCDS, classify, CDS_THRESHOLDS };

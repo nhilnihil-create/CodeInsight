@@ -1,11 +1,20 @@
 const db        = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
+const { classify, CDS_THRESHOLDS } = cdsEngine;
 const classMisconceptionReport = require('../services/classMisconceptionReport');
 const longitudinalReportEngine = require('../services/longitudinalReportEngine');
 const { wilsonScore, confidenceLevel } = require('../lib/wilsonScore');
 const { evaluateRules } = require('../lib/insightTemplates');
 
 const CONCEPT_ORDER = ['Datatypes','Variables','Conditionals','Loops','Functions','Arrays','OOP'];
+
+// Helper: distribution count labels using authoritative thresholds
+const countLabel = (cds) => {
+  if (cds === null || cds === undefined) return 'Unscored';
+  if (cds <= CDS_THRESHOLDS.LOW) return 'Low';
+  if (cds <= CDS_THRESHOLDS.MODERATE) return 'Moderate';
+  return 'High';
+};
 
 /** CDS distribution + avg for one exercise in a section (after batch compute). */
 async function fetchExerciseCdsStats(exerciseId, sectionId) {
@@ -17,13 +26,13 @@ async function fetchExerciseCdsStats(exerciseId, sectionId) {
           AND student_id IN (SELECT student_id FROM enrollments WHERE section_id = $2)) AS submitted_count,
        (SELECT AVG(cs.cds) FROM cds_scores cs
         WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS avg_cds,
-       (SELECT COUNT(CASE WHEN cs.cds <= 0.33 THEN 1 END)::INTEGER FROM cds_scores cs
+       (SELECT COUNT(CASE WHEN cs.cds <= $3 THEN 1 END)::INTEGER FROM cds_scores cs
         WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS low_count,
-       (SELECT COUNT(CASE WHEN cs.cds > 0.33 AND cs.cds <= 0.66 THEN 1 END)::INTEGER FROM cds_scores cs
+       (SELECT COUNT(CASE WHEN cs.cds > $3 AND cs.cds <= $4 THEN 1 END)::INTEGER FROM cds_scores cs
         WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS moderate_count,
-       (SELECT COUNT(CASE WHEN cs.cds > 0.66 THEN 1 END)::INTEGER FROM cds_scores cs
+       (SELECT COUNT(CASE WHEN cs.cds > $4 THEN 1 END)::INTEGER FROM cds_scores cs
         WHERE cs.exercise_id = $1 AND cs.section_id = $2) AS high_count`,
-    [exerciseId, sectionId]
+    [exerciseId, sectionId, CDS_THRESHOLDS.LOW, CDS_THRESHOLDS.MODERATE]
   );
   return statsRes.rows[0] || {};
 }
@@ -90,7 +99,7 @@ exports.heatmap = async (req, res, next) => {
         .map(s => parseFloat(s.cds));
       if (vals.length) {
         const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
-        const cl = avg<=0.33?'Low':avg<=0.66?'Moderate':'High';
+        const cl = countLabel(avg);
         avgMap[concept] = { avgCDS: Math.round(avg*10000)/10000, classification: cl };
       } else {
         avgMap[concept] = { avgCDS: null, classification: 'Unscored' };
@@ -211,8 +220,7 @@ exports.liveCDS = async (req, res, next) => {
       rankedCds.length > 0 ? rankedCds.reduce((a, b) => a + b, 0) / rankedCds.length : 0;
     const classMinFromSubmitters = rankedCds.length > 0 ? Math.min(...rankedCds) : 0;
     const classMaxFromSubmitters = rankedCds.length > 0 ? Math.max(...rankedCds) : 0;
-    const classAvgClassification =
-      classAvgFromSubmitters <= 0.33 ? 'Low' : classAvgFromSubmitters <= 0.66 ? 'Moderate' : 'High';
+    const classAvgClassification = countLabel(classAvgFromSubmitters);
 
     res.json({
       exercise: { id: exercise.id, title: exercise.title, timeLimitMinutes: exercise.time_limit_minutes },
@@ -278,12 +286,7 @@ exports.recentActivity = async (req, res, next) => {
       `SELECT
         al.id, al.student_id, al.cds_score as cds, al.exercise_id, al.created_at,
         u.name AS student_name, ex.title AS exercise_title, ex.concept_id,
-        c.name AS concept_name,
-        CASE
-          WHEN al.cds_score > 0.66 THEN 'High'
-          WHEN al.cds_score > 0.33 THEN 'Moderate'
-          ELSE 'Low'
-        END AS difficulty
+        c.name AS concept_name
        FROM alerts al
        JOIN users u ON u.id=al.student_id
        JOIN exercises ex ON ex.id=al.exercise_id
@@ -293,7 +296,11 @@ exports.recentActivity = async (req, res, next) => {
        LIMIT 5`,
       [sectionId]
     );
-    res.json(r.rows);
+    // Classify using authoritative thresholds
+    res.json(r.rows.map(row => ({
+      ...row,
+      difficulty: countLabel(parseFloat(row.cds))
+    })));
   } catch (err) { next(err); }
 };
 

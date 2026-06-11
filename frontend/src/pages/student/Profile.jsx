@@ -29,7 +29,7 @@ import api from '../../services/api';
  * PRESERVED FUNCTIONALITY:
  *   - Real data source: /api/analytics/my-scores
  *   - Polling pattern (5s) — same as the rest of the app
- *   - CDS classification thresholds: 0-25 Low, 26-50 Medium, 51-75 High, 76+ Critical
+ *   - CDS classification thresholds: 0–31 Low, 32–50 Moderate, 51+ High (aligned with backend classify())
  *
  * REPLACED (visual layer only):
  *   - Design's MOCK_RADAR_DATA → aggregated real CDS by concept
@@ -39,11 +39,12 @@ import api from '../../services/api';
  * getDifficultyBadge — takes CDS as a 0–1 value (the raw API format).
  * Converts to 0–100 scale for classification.
  * CDS measures difficulty, so lower = better.
+ * Thresholds aligned with backend classify() in cdsEngine.js.
  */
 const getDifficultyBadge = (cds01) => {
   if (cds01 == null) return null;
   const cds100 = cds01 * 100; // convert 0–1 to 0–100 scale
-  if (cds100 <= 25)
+  if (cds100 <= 31)
     return (
       <Badge variant="secondary" className="bg-green-500/10 text-green-700">
         Low
@@ -52,16 +53,12 @@ const getDifficultyBadge = (cds01) => {
   if (cds100 <= 50)
     return (
       <Badge variant="secondary" className="bg-blue-500/10 text-blue-700">
-        Medium
+        Moderate
       </Badge>
     );
-  if (cds100 <= 75)
-    return (
-      <Badge variant="secondary" className="bg-orange-500/10 text-orange-700">
-        High
-      </Badge>
-    );
-  return <Badge variant="destructive">Critical</Badge>;
+  return (
+    <Badge variant="destructive">High</Badge>
+  );
 };
 
 const aggregateByConcept = (scores) => {
@@ -135,22 +132,17 @@ export default function StudentProfile() {
             </p>
             <ul className="list-disc space-y-2 pl-5">
               <li>
-                <strong className="text-foreground">0–25 (Low):</strong> You have
+                <strong className="text-foreground">0–31 (Low):</strong> You have
                 a strong grasp of this concept.
               </li>
               <li>
-                <strong className="text-foreground">26–50 (Medium):</strong>{' '}
+                <strong className="text-foreground">32–50 (Moderate):</strong>{' '}
                 Normal learning curve, some mistakes but recovering well.
               </li>
               <li>
-                <strong className="text-foreground">51–75 (High):</strong> You
+                <strong className="text-foreground">51–100 (High):</strong> You
                 are experiencing significant difficulty. Consider reviewing
-                materials.
-              </li>
-              <li>
-                <strong className="text-foreground">76–100 (Critical):</strong>{' '}
-                Severe difficulty detected. Reach out to your instructor for
-                help.
+                materials and reaching out to your instructor.
               </li>
             </ul>
             <p>
@@ -213,7 +205,7 @@ export default function StudentProfile() {
           {radarData.map((data) => {
             const masteryScore = data.mastery;
             const cdsScore = data.cds;
-            const difficultyLabel = cdsScore <= 0.25 ? 'Low' : cdsScore <= 0.50 ? 'Medium' : cdsScore <= 0.75 ? 'High' : 'Critical';
+            const difficultyLabel = cdsScore <= 0.31 ? 'Low' : cdsScore <= 0.50 ? 'Moderate' : 'High';
             return (
               <Card key={data.subject}>
                 <CardHeader className="pb-2">
