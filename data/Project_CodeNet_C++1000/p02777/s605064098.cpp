@@ -1,0 +1,10 @@
+#include <iostream>
+using namespace std;
+int main(){
+  string s,t,u;
+  int a,b;
+  cin >> s >> t >> a >> b >> u;
+  if(s==u) cout << a-1 << " " << b << "\n";
+  else cout << a << " " << b-1 << "\n";
+  return 0;
+}  

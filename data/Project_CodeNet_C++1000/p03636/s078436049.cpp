@@ -1,0 +1,23 @@
+#define _GIBCXX_DEBUG
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i, n) for (int i = 0; i < (n); ++i)
+#define all(v) v.begin(), v.end()
+using namespace std;
+using ll = long long;
+using P = pair<int, int>;
+
+
+int main(void) {
+  string s;
+  cin >> s;
+
+  string ans = "";
+  ans += s.front();
+  ans += to_string(s.length() - 2);
+  ans += s.back();
+
+  cout << ans << endl;
+  
+  return 0;
+}

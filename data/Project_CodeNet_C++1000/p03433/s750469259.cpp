@@ -1,0 +1,16 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+  int N,A;
+  cin >> N >> A;
+  if(N % 1000 > A){
+  cout << "No" << endl;
+  }
+  else{
+  cout << "Yes" << endl;
+  }
+  
+}
+
+

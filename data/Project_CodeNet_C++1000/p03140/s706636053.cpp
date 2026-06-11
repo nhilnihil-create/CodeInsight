@@ -1,0 +1,25 @@
+#include <bits/stdc++.h>
+using namespace std;
+ 
+int main() {
+  int N;
+  cin >> N;
+  string A, B, C;
+  cin >> A >> B >> C;
+  int ans = 0;
+  for (int i = 0; i < N; i++) {
+    if (A.at(i) == B.at(i) && B.at(i) != C.at(i)) {
+      ans++;
+    }
+    else if (A.at(i) == C.at(i) && B.at(i) != C.at(i)) {
+      ans++;
+    }
+    else if (B.at(i) == C.at(i) && B.at(i) != A.at(i)) {
+      ans++;
+    }
+    else if (A.at(i) != B.at(i) && B.at(i) != C.at(i) && A.at(i) != C.at(i)) {
+      ans += 2;
+    }
+  }
+  cout << ans << endl;
+}

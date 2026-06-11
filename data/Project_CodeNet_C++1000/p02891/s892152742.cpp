@@ -1,0 +1,29 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+  string S;
+  long K;
+  cin >> S >> K;
+
+  int N = S.size();
+  string s = S;
+  s.erase(unique(s.begin(), s.end()), s.end());
+  if (s.size() == 1) return cout << N * K / 2 << "\n", 0;
+
+  string T = S + ' ';
+  int t = 0;
+  for (int i = 0, cnt = 1; i + 1 < T.size(); i++) {
+    if (T.at(i) != T.at(i + 1)) t += cnt / 2, cnt = 1;
+    else cnt++;
+  }
+
+  string R = S + S + ' ';
+  int r = 0;
+  for (int i = 0, cnt = 1; i + 1 < R.size(); i++) {
+    if (R.at(i) != R.at(i + 1)) r += cnt / 2, cnt = 1;
+    else cnt++;
+  }
+
+  cout << ((K == 1) ? t : t + (r - t) * (K - 1)) << "\n";
+}

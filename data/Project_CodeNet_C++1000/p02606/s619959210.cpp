@@ -1,0 +1,10 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+  int l, r, d;
+  cin >> l >> r >> d;
+  int ans = r / d;
+  ans -= (l - 1) / d;
+  cout << ans;
+}

@@ -1,0 +1,27 @@
+#include <bits/stdc++.h>
+#define rep(i,n) for (int (i) = 0; (i) < (n); i++)
+#define ll long long
+using namespace std;
+
+int main() {
+  ll N = 0;
+  cin >> N;
+  map <ll,ll> mp;
+  rep(i,N){
+    ll a; cin >> a;
+    mp[a]++;
+  }
+  ll M = 0;
+  cin >> M;
+  rep(i,M){
+    ll b; cin >> b;
+    if(mp[b] == 0){
+      cout << "NO";
+      return 0;
+    }
+    else{
+      mp[b]--;
+    }
+  }
+  cout << "YES";
+}

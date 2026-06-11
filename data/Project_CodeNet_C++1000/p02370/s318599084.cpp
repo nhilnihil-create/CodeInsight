@@ -1,0 +1,35 @@
+#include<bits/stdc++.h>
+using namespace std;
+static const int MAX=100000;
+static const int INFTY=(1<<29);
+
+vector<int> G[MAX];
+list<int> out;
+bool V[MAX];
+int N;
+
+void dfs(int s){
+	V[s]=true;
+	for (int i = 0; i < G[s].size(); ++i) {
+		int v=G[s][i];
+		if(!V[v])dfs(v);
+	}
+	out.push_front(s);
+}
+
+int main(){
+	int s,t,M;
+	cin>>N>>M;
+	for (int i = 0; i < N; ++i) {V[i]=false;}
+	for (int i = 0; i < M; ++i) {
+		cin>>s>>t;
+		G[s].push_back(t);
+	}
+	for (int u = 0; u < N; ++u) {
+			//?¨?????????????????????????????????\?¬???°?????????????????????list?????\?????????
+			if(!V[u])dfs(u);}
+	for (list<int>::iterator it=out.begin();it !=out.end();it++) {
+		cout<<*it<<endl;
+	}
+	return 0;
+}

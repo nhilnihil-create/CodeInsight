@@ -1,0 +1,38 @@
+
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+using ld = long double;
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+//二項係数の計算
+int nCr(int A, int B) {
+    ll ans = 1;
+    for (int i = 0; i < B; i++) {
+        ans *= A - i;
+    }
+    for (int i = 0; i < B; i++) {
+        ans /= i + 1;
+    }
+    return ans;
+}
+int main() {
+    int N;
+    cin>>N;
+    bool ans=false;
+    for(int i=0; i<100; i++){
+        for(int j=0; j<100; j++){
+            if(i*4+j*7==N){
+                ans=true;
+                break;
+            }
+        }
+    }
+    if(ans==false){
+        cout<<"No"<<endl;
+    }
+    else
+    {
+        cout<<"Yes"<<endl;
+    }
+    
+}

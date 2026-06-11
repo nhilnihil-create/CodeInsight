@@ -1,0 +1,17 @@
+#include<bits/stdc++.h>
+using namespace std;
+int main() {
+  int n;
+  cin >> n;
+  if (n % 2 == 0) {
+    cout << "No";
+    return 0;
+  }
+  cin >> n;
+  if (n % 2 == 0) {
+    cout << "No";
+    return 0;
+  }
+  cout << "Yes";
+  return 0;
+}

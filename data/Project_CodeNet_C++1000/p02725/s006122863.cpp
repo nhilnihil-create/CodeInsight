@@ -1,0 +1,55 @@
+#include<iostream>
+using namespace std;
+int main()
+{
+    long long k,n,a[200005],b[200005],i,x,y,min;
+    cin>>k>>n;
+    for(i=1;i<=n;i++)
+    {
+        cin>>a[i];
+    }
+    x=a[n]-a[1];
+    y=(k-a[2])+a[1];
+    if(x<y)
+    {
+        b[1]=x;
+    }
+    else
+    {
+        b[1]=y;
+    }
+    min=b[1];
+    for(i=2;i<n;i++)
+    {
+        x=(k-a[i])+a[i-1];
+        y=a[i]+(k-a[i+1]);
+        if(x<y)
+        {
+            b[i]=x;
+        }
+        else
+        {
+            b[i]=y;
+        }
+        if(b[i]<min)
+        {
+            min=b[i];
+        }
+    }
+    x=a[n]-a[1];
+    y=(k-a[n])+a[n-1];
+    if(x<y)
+    {
+        b[n]=x;
+    }
+    else
+    {
+        b[n]=y;
+    }
+    if(b[n]<min)
+    {
+        min=b[n];
+    }
+    cout<<min<<endl;
+    return 0;
+}

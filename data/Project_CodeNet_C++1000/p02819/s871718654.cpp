@@ -1,0 +1,76 @@
+#include <bits/stdc++.h>
+#define FASTIO ios::sync_with_stdio(false);cin.tie(0);
+#define ADD +
+#define SUBTRACT -
+#define MULTIPLY *
+#define DIVIDE /
+#define MOD %
+#define INCREMENT(x) ++x
+#define DECREMENT(x) --x
+#define in(a,b) cin>>a>>b;
+#define out(a,b) cout<<a<<endl<<b<<endl;
+#define scan(a) scanf("%d",&a);
+#define print(a) printf("%d\n",a);
+#define scanii(a,b) scanf("%d %d",&a,&b);
+#define printii(a,b) printf("%d\n%d\n",a,b);
+#define scaniii(a,b,c) scanf("%d %d %d",&a,&b,&c);
+#define pub push_back
+#define pob pop_back
+#define puf push_front
+#define pof pop_front
+#define ll long long
+#define ull unsigned long long
+#define sll signed long long
+#define pi acos(-1)
+#define mod 1000000007
+#define TRUE 1
+#define FALSE 0
+#define ZERO 0
+#define MP make_pair
+#define F first
+#define S second
+#define FOR(i,a,b) for(int i=a;i<=b;++i)
+#define END puts("");
+#define elif else if
+typedef ll int lli;
+typedef sll int slli;
+typedef ull int ulli;
+const int sz=10000;
+using namespace std;
+
+int clue();
+int result();
+void show();
+bool check(int);
+
+int main() {
+    clue();
+    return 0;
+}
+int clue() {
+    int n;
+    cin>>n;
+    for(int i=n;;++i) {
+        if(check(i)) {
+            cout<<i<<endl;
+            break;
+        }
+    }
+    return 0;
+}
+bool check(int n) {
+    if(n>=2 && n<=29) {
+        if(n==2 || n==3 || n==5 || n==7 || n==11 || n==13 ||n==17 || n==19 || n==23 || n==29) {
+            return true;
+        }
+        return false;
+    }
+    else {
+        for(int i=2;i<=sqrt(n);++i) {
+            if(n%i==0) {
+                return false;
+            }
+        }
+        return true;
+    }
+}

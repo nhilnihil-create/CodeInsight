@@ -1,0 +1,88 @@
+#include <iostream>
+#include <bits/stdc++.h>
+using namespace std;
+#define int         long long   
+#define double      long double
+#define endl        "\n"
+#define pb          push_back
+#define PI          3.1415926535897932384626433832795l
+#define F           first
+#define S           second
+#define mp          make_pair
+#define f(i,n)      for(int i=0;i<n;i++)
+#define fastio      ios::sync_with_stdio(0);cin.tie(0);cout.tie(0);
+#define all(v)      (v).begin(),(v).end()
+#define rall(v)     (v).rbegin(),(v).rend()
+#define gcd(a,b)    __gcd((a),(b))
+#define fill(a,value) memset(a,value,sizeof(a));
+#define minn(v)     *min_element(v.begin(), v.end());
+#define maxx(v)     *max_element(v.begin(), v.end());
+#define print(x)    cout<<(x)<<endl;
+#define sum(v)+x    accumulate(v.begin(), v.end(),x);
+typedef pair<int,int> pii;  
+typedef vector<int> vi;
+int lowerBound(vi a,int n,int key){
+    int s =0,e=n-1;
+    int ans = -1;
+    while(s<=e){
+        int mid = (s+e)/2;
+
+        if(a[mid]==key){
+            ans = mid;
+            e = mid - 1;
+        }
+        else if(a[mid]>key){
+            ans=mid;
+            e = mid - 1;
+        }
+        else{
+            
+            s = mid + 1;
+        }
+    }
+
+    return ans;
+}
+int upperBound(vi a,int n,int key)
+{
+    int s =0,e=n-1;
+    int ans = -1;
+
+    while(s<=e){
+        int mid = (s+e)/2;
+
+        if(a[mid]==key){
+            ans = mid;
+            s = mid+1;
+        }
+        else if(a[mid]>key){
+            e = mid - 1;
+            ans = mid;
+        }
+        else{
+            s = mid + 1;
+        }
+    }
+    return ans;
+}
+signed main() 
+{
+    fastio;
+    cout << fixed << setprecision(12);
+    int n;
+    cin>>n;
+    int a[n];
+    f(i,n)cin>>a[i];
+    sort(a,a+n);
+    int ans=0;
+    for(int i=0;i<n;i++)
+    {
+        for(int j=i+1;j<n;j++)
+        {
+            int x=lower_bound(a,a+n,a[i]+a[j])-a;
+            ans+=max(0ll,x-j-1);
+        }
+    }
+    cout<<ans<<endl;
+    return 0;
+}

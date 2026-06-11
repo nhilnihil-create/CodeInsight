@@ -1,0 +1,3 @@
+#include <iostream>
+using namespace std;using ll=long long;const ll M=1e9+7;void add(ll& x,ll y){x+=y; x%=M;}
+int main() {int n,m;cin>>n>>m;m++;int s[n],t[m];t[0]=-1;for(int i=0;i<n;i++)cin>>s[i];for(int i=1;i<m;i++)cin>>t[i];ll sm[m]={1};for(int i=0;i<n;i++){ll su=0;for(int j=0;j<m;j++){ll tm=sm[j];if(s[i]==t[j])sm[j]+=su,sm[j]%=M;su+=tm;}}ll an=0;for(int i=0;i<m;i++){an+=sm[i];an%=M;}cout<<an<<endl;}

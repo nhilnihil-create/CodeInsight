@@ -1,0 +1,23 @@
+#include <iostream>                                                                                                                                                                                                
+#include <cstdio>                                                                                                                                                                                                  
+#include <string>                                                                                                                                                                                                  
+#include <cstring>                                                                                                                                                                                                 
+#include <algorithm>                                                                                                                                                                                               
+#include <vector>                                                                                                                                                                                                  
+#include <queue>                                                                                                                                                                                                   
+// #define int long long                                                                                                                                                                                           
+#define mod (int)(1e9 + 7)                                                                                                                                                                                         
+#define pb push_back                                                                                                                                                                                               
+#define ll long long int                                                                                                                                                                                           
+using namespace std;                                                                                                                                                                                               
+typedef pair<int,int> pii;                                                                                                                                                                                         
+                                                                                                                                                                                                                   
+int main(){                                                                                                                                                                                                        
+                                                                                                                                                                                                                   
+  int n;                                                                                                                                                                                                           
+  cin>>n;                                                                                                                                                                                                          
+                                                                                                                                                                                                                   
+  cout<<(n-1)/2<<endl;                                                                                                                                                                                             
+  return 0;                                                                                                                                                                                                        
+}                                                                                                                                                                                                                  
+    

@@ -1,0 +1,57 @@
+#include <bits/stdc++.h>
+#define ALL(obj) begin(obj), end(obj)
+#define debug(x) cerr << #x << ": " << x << '\n'
+using namespace std;
+template <class T>
+vector<T> make_vec(size_t a) {
+    return vector<T>(a);
+}
+template <class T, class... Ts>
+auto make_vec(size_t a, Ts... ts) {
+    return vector<decltype(make_vec<T>(ts...))>(a, make_vec<T>(ts...));
+}
+template <class T>
+bool chmax(T &a, const T &b) {
+    if (a < b) {
+        a = b;
+        return 1;
+    }
+    return 0;
+}
+template <class T>
+bool chmin(T &a, const T &b) {
+    if (b < a) {
+        a = b;
+        return 1;
+    }
+    return 0;
+}
+
+using ll = long long;
+using ull = unsigned long long;
+const int INF = 1e9;
+// const int MOD = 1e9 + 7;
+
+int main() {
+    vector<ll> L(4);
+    ll N;
+    for (int i = 0; i < 4; i++) {
+        cin >> L.at(i);
+    }
+    cin >> N;
+    N *= 4;
+    for (int i = 0; i < 4; i++) {
+        for (int j = i + 1; j < 4; j++) {
+            ll tmp = L[i] * (1 << (j - i));
+            chmin(L[j], tmp);
+        }
+    }
+
+    ll ans = 0;
+    for (int i = 4 - 1; i >= 0; i--) {
+        ll s = N / (1LL << (i));
+        ans += L[i] * s;
+        N -= s * (1LL << i);
+    }
+    cout << ans << endl;
+}

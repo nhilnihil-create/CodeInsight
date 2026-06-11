@@ -1,0 +1,18 @@
+#include <iostream>
+using namespace std;
+
+int main( void )
+{
+    int x;
+    cin >> x;
+    if ( x < 1200 )
+    {
+        cout << "ABC";
+    }
+    else
+    {
+        cout << "ARC";
+    }
+
+    return 0;
+}

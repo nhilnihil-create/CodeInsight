@@ -1,0 +1,35 @@
+#include<bits/stdc++.h>
+using namespace std;
+int main()
+{
+    int a,b;
+    cin>>a>>b;
+    if(a==1||a==5||a==3||a==7||a==8||a==10||a==12)
+    {
+        if(b==1||b==5||b==3||b==7||b==8||b==10||b==12)
+            cout<<"Yes"<<endl;
+            else
+                cout<<"No"<<endl;
+    }
+    else if(a==4||a==9||a==6||a==11)
+    {
+        if(b==4||b==9||b==6||b==11)
+            cout<<"Yes"<<endl;
+            else
+                cout<<"No"<<endl;
+    }
+    else if(a==7||a==8||a==9)
+    {
+        if(b==7||b==8||b==9)
+            cout<<"Yes"<<endl;
+            else
+                cout<<"No"<<endl;
+    }
+    else if(a==2)
+    {
+        if(b==2)
+            cout<<"Yes"<<endl;
+            else
+                cout<<"No"<<endl;
+    }
+}

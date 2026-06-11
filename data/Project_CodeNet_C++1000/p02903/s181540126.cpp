@@ -1,0 +1,25 @@
+#include <bits/stdc++.h>
+#define rep(i,n) for (int i = 0;i < (n);i++)
+#define rrep(i,n) for (int i = (n - 1);i >= 0;i--)
+#define all(v) v.begin(),v.end()
+using namespace std;
+using ll = long long;
+using P = pair<int,int>;
+using vi = vector<int>;
+using vvi = vector<vi>;
+
+int main(){
+    cin.tie(0);
+    ios::sync_with_stdio(false);
+    int h,w,a,b;
+    cin >> h >> w >> a >> b;
+    rep(i,h){
+        rep(j,w){
+            if((i<b)^(j<a))
+                cout<<1;
+            else 
+                cout<<0;
+        }
+        cout<<endl;
+    }
+}

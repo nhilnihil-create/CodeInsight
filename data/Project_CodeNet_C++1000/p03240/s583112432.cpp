@@ -1,0 +1,42 @@
+#include <iostream>
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <functional>
+#include <bitset>
+#include <cmath>
+#include <stack>
+#include <iomanip>
+#include <map>
+#include <math.h>
+typedef long long ll;
+using namespace std;
+const int MOD = 1000000007;
+
+ll GCD(ll a, ll b) { return b ? GCD(b, a%b) : a; }
+
+int main() {
+    int N; cin >> N;
+    vector<long long> vx(N), vy(N), vh(N);
+    int si = -1;
+    for (int i = 0; i < N; ++i) {
+        cin >> vx[i] >> vy[i] >> vh[i];
+        if (vh[i] > 0) si = i;
+    }
+
+    long long resx = -1, resy = -1, resh = -1;
+    for (long long x = 0; x <= 100; ++x) {
+        for (long long y = 0; y <= 100; ++y) {
+            long long h = vh[si] + abs(x - vx[si]) + abs(y - vy[si]);
+            bool ok = true;
+            for (int i = 0; i < N; ++i) {
+                if (vh[i] > 0 && h - vh[i] != abs(x - vx[i]) + abs(y - vy[i]))
+                    ok = false;
+                if (vh[i] == 0 && h > abs(x - vx[i]) + abs(y - vy[i]))
+                    ok = false;
+            }
+            if (ok) resx = x, resy = y, resh = h;
+        }
+    }
+    cout << resx << " " << resy << " " << resh << endl;
+}

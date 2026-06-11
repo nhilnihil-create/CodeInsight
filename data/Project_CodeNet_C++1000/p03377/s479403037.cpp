@@ -1,0 +1,12 @@
+#include <iostream>
+using namespace std;
+int main(){
+    int a, b, x;
+    scanf("%d%d%d",&a,&b,&x);
+    if(x-a<=b&&x>=a){
+        puts("YES");
+    }else{
+        puts("NO");
+    }
+    return 0;
+}

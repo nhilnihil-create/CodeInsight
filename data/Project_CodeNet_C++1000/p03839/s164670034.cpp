@@ -1,0 +1,69 @@
+// #include <bits/stdc++.h>
+#include<climits>
+#include<cmath>
+#include<cstdio>
+#include<deque>
+#include<map>
+#include<set>
+#include<vector>
+#include<iostream>
+#include<sstream>
+#include<algorithm>
+#include<numeric>
+#include<string>
+#include<tuple>
+using namespace std;
+// #include <boost/multiprecision/cpp_int.hpp>
+// using namespace boost::multiprecision;
+#define BEGIN ios_base::sync_with_stdio(false);cin.tie(NULL);cout.tie(NULL)
+#define END return EXIT_SUCCESS
+#define rep(I,N) for(auto I=0;I<(N);++I)
+#define up(I,A,B) for(auto I=(A);I<=(B);++I)
+#define dw(I,A,B) for(auto I=(A);I>=(B);--I)
+#define all(C) (C).begin(),(C).end()
+#define rall(C) (C).rbegin(),(C).rend()
+#define ft first
+#define sd second
+#define mp make_pair
+#define mt make_tuple
+#define pf push_front
+#define pb push_back
+#define pt pop_front
+#define pk pop_back
+#define lb lower_bound
+#define ub upper_bound
+#define rs resize
+template<class T>inline bool chmax(T& a,T b){if(a<b){a=b;return true;}return false;}
+template<class T>inline bool chmin(T& a,T b){if(a>b){a=b;return true;}return false;}
+template<class T>inline void                                      in(T &p){cin>>p;}
+template<class T1,class T2>inline void                            in(T1 &p1,T2 &p2){cin>>p1>>p2;}
+template<class T1,class T2,class T3>inline void                   in(T1 &p1,T2 &p2,T3 &p3){cin>>p1>>p2>>p3;}
+template<class T1,class T2,class T3,class T4>inline void          in(T1 &p1,T2 &p2,T3 &p3,T4 &p4){cin>>p1>>p2>>p3>>p4;}
+template<class T1,class T2,class T3,class T4,class T5>inline void in(T1 &p1,T2 &p2,T3 &p3,T4 &p4,T5 &p5){cin>>p1>>p2>>p3>>p4>>p5;}
+template<class T>inline void                             out(T p){cout<<p<<endl;}
+template<class T1,class T2>inline void                   out(T1 p1,T2 p2){cout<<p1<<" "<<p2<<endl;}
+template<class T1,class T2,class T3>inline void          out(T1 p1,T2 p2,T3 p3){cout<<p1<<" "<<p2<<" "<<p3<<endl;}
+template<class T1,class T2,class T3,class T4>inline void out(T1 p1,T2 p2,T3 p3,T4 p4){cout<<p1<<" "<<p2<<" "<<p3<<" "<<p4<<endl;}
+
+inline void solve(void){
+  long N,K;
+  in(N,K);
+  vector<long> a(N),b(N),A(N+1),B(N+1);
+  rep(i,N){
+    in(a[i]);
+    A[i+1]=A[i]+a[i];
+    b[i]=max(0L,a[i]);
+    B[i+1]=B[i]+b[i];
+  }
+  long ans=0,tmp;
+  rep(i,N-K+1){
+    tmp=B[i]+max(A[i+K]-A[i],0L)+B[N]-B[i+K];
+    chmax(ans,tmp);
+  }
+  out(ans);
+}
+int main(int argc,char**argv){
+  BEGIN;
+  solve();
+  END;
+}

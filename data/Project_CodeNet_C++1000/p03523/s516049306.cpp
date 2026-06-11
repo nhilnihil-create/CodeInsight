@@ -1,0 +1,9 @@
+#include <iostream>
+#include <regex>
+using namespace std;
+
+int main() {
+	string S;
+	cin >> S;
+	cout << (regex_match(S, regex("A?KIHA?BA?RA?")) ? "YES" : "NO") << endl;
+}

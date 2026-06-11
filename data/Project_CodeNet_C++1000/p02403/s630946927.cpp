@@ -1,0 +1,20 @@
+#include<iostream>
+#include<cstdio>
+using namespace std;
+
+int main() {
+    int H, W;
+    while (true) {
+        scanf("%d %d", &H, &W);
+        if (H == 0 && W == 0) break;
+
+        for (int h = 0; h < H; h++) {
+            for (int w = 0; w < W; w++) {
+                printf("#");
+            }
+            printf("\n");
+        }
+
+        printf("\n");
+    }
+}

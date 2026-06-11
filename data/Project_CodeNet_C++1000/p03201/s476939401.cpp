@@ -1,0 +1,43 @@
+#pragma GCC optimize("Ofast,unroll-loops")
+#include<bits/stdc++.h>
+#define int long long
+#define F first
+#define S second
+#define P pair
+#define FOR(i,a,b) for(int i=a;i<=b;i++)
+#define rep(i,a,b) for(int i=a;i<b;i++)
+#define V vector
+#define RE return
+#define ALL(a) a.begin(),a.end()
+#define MP make_pair
+#define PB push_back
+#define PF push_front
+#define FILL(a,b) memset(a,b,sizeof(a))
+using namespace std;
+int n,er[40],x,a[200005]; 
+map<int,int> m;
+signed main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);
+	cin>>n;
+	FOR(i,1,n){
+		cin>>a[i];
+		m[a[i]]++;
+	}
+	sort(a+1,a+n+1,greater<int>());
+	er[0]=1;
+	rep(i,1,40)er[i]=er[i-1]*2;
+	int ans=0,t;
+	FOR(i,1,n){
+		if(!m[a[i]])continue;
+		t=(*upper_bound(er,er+40,a[i]));
+		t=t-a[i];
+		if(m[t]){
+			m[t]--;m[a[i]]--;
+			if(m[t]>=0)ans++;
+		}
+	}
+	cout<<ans;
+	RE 0;
+}
+

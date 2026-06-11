@@ -75,16 +75,29 @@ const students = await db.query(
 const MIN_CLASS_SIZE = 3;
 const isPreliminaryClass = students.rows.length < MIN_CLASS_SIZE;
 
-// Fetch all submissions with integrity flag info
+// GAP #8: Fetch students with integrity flags that exclude from normalization
+// HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics
+const excludedRes = await db.query(
+  `SELECT DISTINCT student_id FROM integrity_flags
+   WHERE exercise_id=$1
+   AND flag_type IN ('HARDCODING', 'BLANK_TEMPLATE')
+   AND status = 'flagged'`,
+  [exerciseId]
+);
+const excludedStudents = new Set(excludedRes.rows.map(r => r.student_id));
+
+// GAP #6: Only count verified submissions (is_verified = true)
+// Unverified submissions (structure_valid = false) are excluded from CDS
 const subsRes = await db.query(
   `SELECT s.student_id, s.attempt_number, s.is_correct, s.time_spent_seconds, s.code,
+          s.is_verified,
           (SELECT id FROM integrity_flags i
             WHERE i.student_id = s.student_id
             AND i.exercise_id = s.exercise_id
             AND i.status = 'flagged'
             LIMIT 1) AS flag_id
     FROM submissions s
-    WHERE s.exercise_id=$1
+    WHERE s.exercise_id=$1 AND s.is_verified = true
     ORDER BY s.student_id, s.attempt_number ASC`,
   [exerciseId]
 );
@@ -125,9 +138,17 @@ for (const [sid, info] of Object.entries(perStudent)) {
 }
 
 // ── Outlier-capped normalization for class-wide metrics ───────────────────
-const failedValues = Object.values(subMap).map(s => s.failed_attempts);
-const totalValues = Object.values(subMap).map(s => s.total_attempts);
-const timeValues = Object.values(subMap).map(s => s.max_time);
+// GAP #8: Exclude flagged students (HARDCODING/BLANK_TEMPLATE) from normalization
+const filteredSubMap = {};
+for (const [sid, data] of Object.entries(subMap)) {
+  if (!excludedStudents.has(sid)) {
+    filteredSubMap[sid] = data;
+  }
+}
+
+const failedValues = Object.values(filteredSubMap).map(s => s.failed_attempts);
+const totalValues = Object.values(filteredSubMap).map(s => s.total_attempts);
+const timeValues = Object.values(filteredSubMap).map(s => s.max_time);
 
 const { effectiveMax: maxFailed } = getNormalizedValue(
   Math.max(...failedValues, 0), failedValues
@@ -278,15 +299,17 @@ try {
   const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
   if (!exRes.rows.length) return null;
 
+  // GAP #6: Only count verified submissions in live CDS
   const subsRes = await db.query(
     `SELECT s.student_id, s.attempt_number, s.is_correct, s.time_spent_seconds,
+            s.is_verified,
             (SELECT id FROM integrity_flags i
               WHERE i.student_id = s.student_id
               AND i.exercise_id = s.exercise_id
               AND i.status = 'flagged'
               LIMIT 1) AS flag_id
       FROM submissions s
-      WHERE s.exercise_id=$1
+      WHERE s.exercise_id=$1 AND s.is_verified = true
       ORDER BY s.student_id, s.attempt_number ASC`,
     [exerciseId]
   );

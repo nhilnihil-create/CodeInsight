@@ -1,0 +1,75 @@
+#include<algorithm>
+#include<bitset>
+#include<cmath>
+#include<complex>
+#include<deque>
+#include<functional>
+#include<iomanip>
+#include<iostream>
+#include<iterator>
+#include<map>
+#include<numeric>
+#include<queue>
+#include<set>
+#include<stack>
+#include<string>
+#include<unordered_map>
+#include<unordered_set>
+#include<utility>
+#include<vector>
+using namespace std;
+#define rep(i,n) for(int i=0; i<(n); i++)
+#define FOR(i,x,n) for(int i=x; i<(n); i++)
+#define ALL(n) begin(n),end(n)
+#define RALL(n) rbegin(n),rend(n)
+#define MOD (1000000007)
+#define INF (2e9)
+#define INFL (2e18)
+
+typedef long long ll;
+typedef unsigned int ui;
+typedef unsigned long long ull;
+using vint=vector<int>;
+using vll=vector<ll>;
+using vbool=vector<bool>;
+template<class T>using arr=vector<vector<T>>;
+template<class T>int popcount(T &a){int c=0; rep(i, 8*(int)sizeof(a)){if((a>>i)&1) c++;} return c;}
+template<class T>void pr(T x){cout << x << endl;}
+template<class T>void prvec(vector<T>& a){rep(i, a.size()-1){cout << a[i] << " ";} pr(a[a.size()-1]);}
+template<class T>void prarr(arr<T>& a){rep(i, a.size()) if(a[i].empty()) pr(""); else prvec(a[i]);}
+template<class T>bool chmax(T &a, const T &b) { if (a<b) { a=b; return 1; } return 0; }
+template<class T>bool chmin(T &a, const T &b) { if (b<a) { a=b; return 1; } return 0; }
+
+int main()
+{
+    string s; cin >> s;
+    vbool v(26, false);
+    rep(i, s.size()){
+        v[s[i] - 'a'] = true;
+    }
+    // prvec(v);
+
+    string ans;
+    if(s.size()<26){
+        rep(i, 26){
+            if(v[i]) continue;
+            ans = s + char(i+'a');
+            pr(ans);
+            return 0;
+        }
+    }else{
+        for(int i=25; i>=0; i--){
+            FOR(j, s[i]-'a'+1, 26){
+                if(!v[j]){
+                    rep(k, i) cout << s[k];
+                    cout << char(j+'a');
+                    cout << endl;
+                    return 0;
+                }
+            }
+            v[s[i] - 'a'] = false;
+        }
+    }
+
+    pr(-1);
+    return 0;}

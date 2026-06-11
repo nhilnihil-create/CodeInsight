@@ -1,0 +1,88 @@
+/*
+ *  Author  : StelaYuri
+ * Language : GNU G++ 14
+ */
+
+//#pragma comment(linker,"/STACK:1024000000,1024000000")
+//#pragma GCC optimize(3)
+#include<cstdio>
+#include<cstring>
+#include<cmath>
+#include<cctype>
+#include<iostream>
+#include<sstream>
+#include<algorithm>
+#include<map>
+#include<vector>
+#include<set>
+#include<stack>
+#include<queue>
+#include<string>
+#include<utility>
+#include<functional>
+#include<iomanip>
+//#include<unordered_map>
+//#include<ext/pb_ds/assoc_container.hpp>
+//#include<ext/pb_ds/hash_policy.hpp>
+#define closeSync ios::sync_with_stdio(0);cin.tie(0);cout.tie(0)
+#define multiCase int T;cin>>T;for(int t=1;t<=T;t++)
+#define rep(i,a,b) for(int i=(a);i<=(b);i++)
+#define repp(i,a,b) for(int i=(a);i<(b);i++)
+#define per(i,a,b) for(int i=(a);i>=(b);i--)
+#define perr(i,a,b) for(int i=(a);i>(b);i--)
+#define pb push_back
+#define eb emplace_back
+#define mst(a,b) memset(a,b,sizeof(a))
+using namespace std;
+//using namespace __gnu_pbds;
+typedef long long ll;
+typedef unsigned long long ull;
+typedef pair<int,int> P;
+const int INF=0x3f3f3f3f;
+const ll LINF=0x3f3f3f3f3f3f3f3f;
+const double eps=1e-12;
+const double PI=acos(-1.0);
+const double angcst=PI/180.0;
+const ll mod=1e9+7;
+ll max_3(ll a,ll b,ll c){if(a>b&&a>c)return a;if(b>c)return b;return c;}
+ll min_3(ll a,ll b,ll c){if(a<b&&a<c)return a;if(b<c)return b;return c;}
+ll gcd(ll a,ll b){return b==0?a:gcd(b,a%b);}
+ll qmul(ll a,ll b){ll r=0;while(b){if(b&1)r=(r+a)%mod;b>>=1;a=(a+a)%mod;}return r;}
+ll qpow(ll a,ll n){ll r=1;while(n){if(n&1)r=(r*a)%mod;n>>=1;a=(a*a)%mod;}return r;}
+ll qpow(ll a,ll n,ll p){ll r=1;while(n){if(n&1)r=(r*a)%p;n>>=1;a=(a*a)%p;}return r;}
+
+ll dp[2010];
+
+void solve()
+{
+    ll n;
+    cin>>n;
+    if(n<3)
+    {
+        cout<<0<<'\n';
+        return;
+    }
+    per(i,n-3,0)
+    {
+        dp[i]=1;
+    }
+    int p=n-3;
+    while(p>0)
+    {
+        per(i,p-3,0)
+        {
+            dp[i]=(dp[i]+dp[p])%mod;
+        }
+        p--;
+    }
+    cout<<dp[0]<<'\n';
+}
+int main()
+{
+    closeSync;
+    //multiCase
+    {
+        solve();
+    }
+    return 0;
+}

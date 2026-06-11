@@ -1,0 +1,16 @@
+#include <iostream>
+
+using namespace std;
+
+int main(int argc, char const *argv[]){
+   int a,b,p;
+   cin >> a >> b;
+   if(a <= 0 && b >= 0){
+      cout << "Zero" << endl;
+   }else if((a < 0 && b < 0) && ((a+b)%2 == 0)){
+      cout << "Negative" << endl;
+   }else{
+      cout << "Positive" << endl;
+   }
+   return 0;
+}

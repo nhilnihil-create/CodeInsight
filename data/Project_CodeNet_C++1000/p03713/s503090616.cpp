@@ -1,0 +1,118 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define int long long
+#define vi vector<int>
+#define ff first
+#define ss second
+#define pb push_back
+#define mp make_pair
+#define pi 3.141592653589793238
+#define eb emplace_back
+#define rep(i,a,b) for (int i = a; i <= b; i++)
+#define zip(i,a,b) for(int i=a;i<b;i++)
+#define rzip(i,a,b) for(int i=a;i>=b;i--)
+#define ll unsigned int
+#define test int t;cin>>t; while(t--)
+#define um unordered_map
+#define en '\n'
+#define us unordered_set
+typedef pair<int, int>     pii;
+typedef pair<char, int>    pci;
+typedef pair<char, char>   pcc;
+typedef vector<pii>       vii;
+typedef long double ld;
+#define all(v) v.begin(), v.end()
+#define rall(v) v.rbegin(),v.rend()
+#define sz(x) (int)x.size()
+#define INF (1e18+5)
+#define inf (1e9+5)
+#define mod 1000000007
+
+
+void __print(int x) {cerr << x;}
+void __print(float x) {cerr << x;}
+void __print(double x) {cerr << x;}
+void __print(long double x) {cerr << x;}
+void __print(char x) {cerr << '\'' << x << '\'';}
+void __print(const char *x) {cerr << '\"' << x << '\"';}
+void __print(const string &x) {cerr << '\"' << x << '\"';}
+void __print(bool x) {cerr << (x ? "true" : "false");}
+// You should only debug a pair of simple data types. For example,
+// the debug won't work if one of pair's elements is collection type
+// (std::vector, std::map, std::set...).
+template<typename T, typename V>
+void __print(const pair<T, V> &x) {cerr << '{'; __print(x.first); cerr << ','; __print(x.second); cerr << '}';}
+template<typename T>
+void __print(const T &x) {int f = 0; cerr << '{'; for (auto &i : x) cerr << (f++ ? "," : ""), __print(i); cerr << "}";}
+void _print() {cerr << "]\n";}
+template <typename T, typename... V>
+void _print(T t, V... v) {__print(t); if (sizeof...(v)) cerr << ", "; _print(v...);}
+#ifndef ONLINE_JUDGE
+#define debug(x...) cerr << "[" << #x << "] = ["; _print(x)
+#else
+#define debug(x...)
+#endif
+
+
+// bool check_prime(int n)  return whether a number is prime or not O(sqrt(N));
+// int BE(int x,int n,int m)  return x^n%m; O(logN);
+// void sieve()  from number 1-1000001 saare prime store kar lega  in bool is_prime[1000001] array
+// vector<int> z_array(string s)  return vector which is Z-array of string s;
+// vector<int> lps(string s)      return vector which is lps array of string s;
+// int power(int x,int n) return x^n; O(logN);
+// using_ordered_set (template for using ordered set , replace first 2 lines of this page with this code..);
+const int fs = 1e6 + 9;
+
+int32_t main()
+{
+	ios_base::sync_with_stdio(false);
+	cin.tie(NULL);
+	cout.tie(0);
+#ifndef ONLINE_JUDGE
+	if (fopen("input.txt", "r"))
+	{
+		freopen ("input.txt" , "r" , stdin);
+		freopen ("output.txt" , "w" , stdout);
+	}
+#endif
+	//_______________________________-code starts-_______________________________________________
+
+	int h, w;
+	cin >> h >> w;
+	int ans = INF;
+
+	rep(i, 1, h - 1)
+	{
+		int a1 = i * w;
+		//
+		int x = h - i;
+		int b1 = (x) / 2 * w;
+		int b2 = (x + 1) / 2 * w;
+		if (b1 && b2)
+			ans = min(ans, max({a1, b1, b2}) - min({a1, b1, b2}));
+		int a2 = (w / 2) * x;
+		int a3 = (w + 1) / 2 * x;
+		if (a2 && a3)
+			ans = min(ans, max({a1, a2, a3}) - min({a1, a2, a3}));
+	}
+	swap(w, h);
+	rep(i, 1, h - 1)
+	{
+		int a1 = i * w;
+		//
+		int x = h - i;
+		int b1 = (x) / 2 * w;
+		int b2 = (x + 1) / 2 * w;
+		if (b1 && b2)
+			ans = min(ans, max({a1, b1, b2}) - min({a1, b1, b2}));
+		int a2 = (w / 2) * x;
+		int a3 = (w + 1) / 2 * x;
+		if (a2 && a3)
+			ans = min(ans, max({a1, a2, a3}) - min({a1, a2, a3}));
+	}
+	cout << ans << en;
+
+	return 0;
+}
+
+

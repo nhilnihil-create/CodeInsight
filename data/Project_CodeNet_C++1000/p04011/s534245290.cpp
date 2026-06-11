@@ -1,0 +1,15 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+
+int main()
+{
+	typedef long l;
+	l n,k,x,y;  cin>>n>>k>>x>>y;
+	
+	if(n<=k)   cout<<n*x<<endl;
+	
+	else  cout<<k*x+(n-k)*y<<endl;
+
+}
+

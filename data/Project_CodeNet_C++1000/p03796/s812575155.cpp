@@ -1,0 +1,19 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+using ll = long long;
+ll GetDigit(ll num){ return log10(num)+1; } //numの桁数を求める
+
+int main()
+{
+    ll MOD = 1e9+7;
+    ll ans = 1;
+    ll n;
+    cin >> n;
+    for (int i = 1; i <= n; i++){
+        ans *= i % MOD;
+        ans %= MOD;
+    }
+    cout << ans << endl;
+    return 0;
+}

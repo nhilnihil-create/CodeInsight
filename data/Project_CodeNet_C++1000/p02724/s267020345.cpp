@@ -1,0 +1,21 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+#define all(a)a.begin(),a.end()
+using ll=long long;
+const int INF = 1<<30;
+const ll INFll =1LL<<62;
+const int mod= int(1e9)+7;
+//const int mod=998244353;
+using P = pair<int,int>;
+using Pll = pair<ll,ll>;
+using ld=long double;
+
+int main() {
+   ll x;cin >>x;
+   ll ans=0;
+   ans+=(x/500)*1000;
+   x%=500;
+   ans+=(x/5)*5;
+   cout <<ans <<endl;
+}

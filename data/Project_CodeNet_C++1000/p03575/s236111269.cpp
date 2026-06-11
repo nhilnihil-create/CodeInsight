@@ -1,0 +1,190 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// def
+#define debug(x) cout << #x << ": " << x << endl
+#define out(x) cout << x << endl
+#define repeat(i, a, b) for (int i = (a); i < (b); i++)
+#define revrepeat(i, a, b) for (int i = (b)-1; i >= (a); i--)
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+#define revrep(i, n) for (int i = (n)-1; i >= 0; i--)
+#define foreach(e, v) for (auto &e : v)
+#define all(x) (x).begin(), (x).end()
+#define CYES cout << "Yes" << endl
+#define CNO cout << "No" << endl
+#define SPC(x) cout << fixed << setprecision(x)
+#define ZERO(a) memset(a, 0, sizeof(a))
+#define MINUS(a) memset(a, 0xff, sizeof(a))
+
+typedef long long ll;
+typedef long double ld;
+typedef vector<int> vi;
+typedef vector<vector<int>> vii;
+typedef vector<ll> vl;
+typedef vector<vector<ll>> vll;
+typedef pair<int, int> P;
+typedef complex<ld> Point;
+const int MOD = 1e9 + 7;
+const int INF = 1e9;
+const int MAX_V = 1e5 + 5;
+const int MAX_N = 1e5 + 5;
+const double PI = acos(-1);
+
+template <class T>
+inline bool chmin(T &a, T b) {
+    if (a > b) {
+        a = b;
+        return true;
+    }
+    return false;
+}
+template <class T>
+inline bool chmax(T &a, T b) {
+    if (a < b) {
+        a = b;
+        return true;
+    }
+    return false;
+}
+
+// make vector of divisor O(sqrt(n))
+vector<long long> divisor(long long n) {
+    vector<long long> res;
+    for (long long i = 1; i * i <= n; i++) {
+        if (n % i == 0) {
+            res.push_back(i);
+            if (i != n / i) res.push_back(n / i);
+        }
+    }
+    return res;
+}
+bool is_prime(long long n) {
+    for (long long i = 2; i * i <= n; i++) {
+        if (n % i == 0) return false;
+    }
+    return n != 1; // exclude 1
+}
+
+// factorization O(sqrt(n))
+map<long long, long long> prime_factor(long long n) {
+    map<long long, long long> res;
+    for (long long i = 2; i * i <= n; i++) {
+        while (n % i == 0) {
+            ++res[i];
+            n /= i;
+        }
+    }
+    if (n != 1) res[n] = 1;
+    return res;
+}
+// https://qiita.com/drken/items/cce6fc5c579051e64fab
+// UnionFind<int> uf(n);
+template <class Abel>
+struct UnionFind {
+    vector<int> par;
+    vector<int> rank;
+    vector<int> size;
+    vector<Abel> diff_weight;
+
+    UnionFind(int n = 1, Abel SUM_UNITY = 0) {
+        init(n, SUM_UNITY);
+    }
+
+    void init(int n = 1, Abel SUM_UNITY = 0) {
+        par.resize(n);
+        rank.resize(n);
+        size.resize(n);
+        diff_weight.resize(n);
+        for (int i = 0; i < n; ++i)
+            par[i] = i, rank[i] = 0, size[i] = 1, diff_weight[i] = SUM_UNITY;
+    }
+
+    int root(int x) {
+        if (par[x] == x) {
+            return x;
+        } else {
+            int r = root(par[x]);
+            diff_weight[x] += diff_weight[par[x]]; // path compression
+            return par[x] = r;
+        }
+    }
+    // returns size of connected-tree number
+    int get_size(int x) {
+        return size[root(x)];
+    }
+
+    Abel weight(int x) {
+        root(x);
+        return diff_weight[x];
+    }
+
+    bool is_same(int x, int y) {
+        return root(x) == root(y);
+    }
+
+    bool merge(int x, int y, Abel w) {
+        w += weight(x);
+        w -= weight(y);
+        x = root(x);
+        y = root(y);
+        if (x == y) return false;
+        if (rank[x] < rank[y]) swap(x, y), w = -w;
+        if (rank[x] == rank[y]) ++rank[x];
+        par[y] = x;
+        size[x] = size[y] = size[x] + size[y];
+        diff_weight[y] = w;
+        return true;
+    }
+
+    Abel diff(int x, int y) {
+        return weight(y) - weight(x);
+    }
+};
+long long fac[MAX_N], finv[MAX_N], inv[MAX_N];
+// テーブルを作る前処理 from: https://qiita.com/drken/items/3b4fdf0a78e7a138cd9a
+void COMinit() {
+    fac[0] = fac[1] = 1;
+    finv[0] = finv[1] = 1;
+    inv[1] = 1;
+    for (int i = 2; i < MAX_N; i++) {
+        fac[i] = fac[i - 1] * i % MOD;
+        inv[i] = MOD - inv[MOD % i] * (MOD / i) % MOD;
+        finv[i] = finv[i - 1] * inv[i] % MOD;
+    }
+}
+// 二項係数計算
+long long COM(int n, int k) {
+    if (n < k) return 0;
+    if (n < 0 || k < 0) return 0;
+    return fac[n] * (finv[k] * finv[n - k] % MOD) % MOD;
+}
+// factorial
+long long fact(int n) {
+    if (n == 1) return fac[n] = 1;
+    if (fac[n]) return fac[n];
+    return fac[n] = (fact(n - 1) * n) % MOD;
+}
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<P> g;
+    rep(i, m) {
+        int a, b;
+        cin >> a >> b;
+        a--, b--;
+        g.emplace_back(a, b);
+    }
+    int ans = 0;
+    rep(i, m) {
+        UnionFind<int> uf(n);
+        rep(j, i) {
+            uf.merge(g[j].first, g[j].second, 1);
+        }
+        repeat(j, i + 1, m) {
+            uf.merge(g[j].first, g[j].second, 1);
+        }
+        if (!uf.is_same(g[i].first, g[i].second)) ans++;
+    }
+    out(ans);
+}

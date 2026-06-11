@@ -1,0 +1,43 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+#define FLASH ios::sync_with_stdio(false); cin.tie(0); cout.tie(0)
+#define int long long
+#define ld long double
+#define fi first
+#define se second
+#define mp make_pair
+#define pb push_back
+#define eb emplace_back
+#define vpp vector<pair< int, int > >  
+#define pll pair<int , int >
+#define ppll pair < pll , pll >
+#define debug(n1) cout << n1 << endl
+#define len(a) ((int) (a).size())
+#define endl "\n"
+
+int32_t main()
+{
+   int x;
+   cin>>x;
+   while(1)
+   {
+   int f=0;
+   for(int i=2;i<x;i++)
+   {
+   	if(x%i==0)
+   	{
+   		f=1;
+   		break;
+   	}
+   }
+   if(f==1){
+   x++;
+   }
+   else{
+   	break;
+   }
+   }
+   cout<<x<<endl;
+}
+//do somethimg instead of nothing! never give up!

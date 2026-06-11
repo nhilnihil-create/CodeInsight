@@ -1,0 +1,12 @@
+#include<iostream>
+using namespace std;
+int main()
+{
+int a,b,c;
+cin>>a;
+b=a/10;
+c=a%10;
+if(b==9||c==9)
+cout<<"Yes";
+else cout<<"No";
+}

@@ -1,0 +1,10 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+  int A = 0,B = 0;
+  
+  cin >> A;
+  
+  cout << 24+(24-A) << endl;
+}

@@ -1,0 +1,27 @@
+#include <bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+#define rep(i, n) for(int i = 0; i < (int)(n); i++)
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return 1; } return 0; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return 1; } return 0; }
+template<typename T> using min_priority_queue = priority_queue<T, vector<T>, greater<T>>;
+const ll INF = 1LL<<60;
+const ll MOD = 1e9 + 7;
+
+ll N;
+void dfs(string s,char c) {
+    if (s.length() == N) {
+        cout << s << endl;
+    }
+    else {
+        for (char i = 'a';i<=c+1;i++) {
+            dfs(s + i,max(i,c));
+        }
+    }
+
+}
+
+int main() {
+    cin >> N;
+    dfs("",'a'-1);
+}

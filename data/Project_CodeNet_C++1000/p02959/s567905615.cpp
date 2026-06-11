@@ -1,0 +1,63 @@
+
+  /********************************************************
+  **░██████╗██╗░░░░░░█████╗░██╗░░░██╗██╗░█████╗░░██████╗░**
+  **██╔════╝██║░░░░░██╔══██╗██║░░░██║██║██╔══██╗██╔════╝░**
+  **╚█████╗░██║░░░░░███████║╚██╗░██╔╝██║██║░░╚═╝██║░░██╗░**
+  **░╚═══██╗██║░░░░░██╔══██║░╚████╔╝░██║██║░░██╗██║░░╚██╗**
+  **██████╔╝███████╗██║░░██║░░╚██╔╝░░██║╚█████╔╝╚██████╔╝**
+  **╚═════╝░╚══════╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░╚════╝░░╚═════╝░**
+  *********************************************************/
+ 
+#include <bits/stdc++.h>
+using namespace std;
+ 
+ 
+#define ll                          long long
+#define ld                          long double
+ 
+#define forn(i,n)                   for(int i=0;i<n;++i)
+#define all(v)                      v.begin(), v.end()
+#define rall(v)                     v.rbegin(),v.rend()
+#define isSubstring(s1,s2)          s1.find(s2) != std::string::npos
+	
+#define pb                          push_back
+#define pf                          push_front
+#define mp                          make_pair
+#define fr                          first
+#define sc                          second
+ 
+#define vpi                         vector<pair<int,int>>
+#define vi                          vector<int>
+#define sz(a)                       (int)a.size()
+ 
+#define   endl                       "\n"
+#define     nl                       cout<<"\n";
+#define fastio                       ios_base::sync_with_stdio(false);cin.tie(0);cout.tie(0);
+ 
+#define  MN                           INT_MIN
+#define  MX                           INT_MAX
+#define int long long
+bool isPrime(ll n){if(n<2)return false;for(ll x = 2;x*x <=n;x++){if(n%x == 0)return false;}return true;}
+bool isPerfectSquare(long double x){long double sr=sqrt(x);return((sr-floor(sr))==0);}
+int gcd(int a, int b){if(a==0)return b;if(b==0) return a;if(a==b)return a;if(a>b)return gcd(a-b,b);return gcd(a,b-a);}
+
+int dp[100001];
+int32_t main()
+{
+	int n;
+	cin >> n;
+	int a[n+1],b[n];
+	for(int i = 0;i<n+1;i++)
+		cin >> a[i];
+	for(int i = 0;i<n;i++)
+		cin >> b[i];
+	int ans = 0;
+	for(int i = 0;i<n;i++)
+	{
+		ans += min(a[i],b[i]);
+		b[i] -= min(a[i],b[i]);
+		ans+= min(a[i+1], b[i]);
+		a[i+1] -= min(a[i+1],b[i]);
+	}
+	cout << ans << endl;
+}

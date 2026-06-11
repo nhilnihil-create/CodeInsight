@@ -1,0 +1,16 @@
+#include <iostream>
+#include <vector>
+#include <cstdlib>  
+#include <algorithm>
+#include <string>
+
+using namespace std;
+ 
+int main() {
+   int a;
+   string s;
+   cin>>a>>s;
+   if(a<3200) cout<<"red";
+   else cout<<s;
+    return 0;
+}

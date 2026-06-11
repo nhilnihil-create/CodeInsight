@@ -1,0 +1,53 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define fastIO ios::sync_with_stdio(0), cin.tie(0)
+#define endl '\n'
+#define F first
+#define S second
+#define all(x) (x).begin(), (x).end()
+#define rall(x) (x).rbegin, (x).rend()
+typedef long long ll;
+typedef pair<int,int> pii;
+
+void A(){
+	int a,b; cin>>a>>b;
+	int cnt=0;
+	while(a>0){
+		a-=b;
+		cnt++;
+	}
+	cout<<cnt<<endl;
+	
+}
+
+void B(){
+	int a,b,x,t=0;
+	cin>>a>>b;
+	while(b--){
+		cin>>x;
+		t+=x;
+	}
+	cout<<(t>=a?"Yes":"No")<<endl;
+}void C(){
+	int n,k; cin>>n>>k;
+	int arr[n];
+	for(int i=0; i<n; i++){
+		cin>>arr[i];
+	}
+	sort(arr, arr+n);
+	ll ans = 0;
+	for(int i=0; i<(n-k); i++){
+		ans+=arr[i];
+	}
+	cout<<ans<<endl;
+}
+
+int main(){
+	ll h,cnt=0; cin>>h;
+	while(h>0){
+		h/=2; 
+		cnt++;
+	}
+	ll ans = pow(2, cnt)-1;
+	cout<<ans<<endl;
+}

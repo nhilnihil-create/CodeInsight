@@ -1,0 +1,10 @@
+#include<bits/stdc++.h>
+using namespace std;
+int main (){
+    int c,d,a,b;
+    cin>>a>>b;
+
+    cout<<max({a*b,a+b,a-b});
+    return 0;
+}
+

@@ -1,0 +1,33 @@
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+typedef vector<ll> vec;
+typedef vector<vec> mat;
+typedef pair<ll,ll> pll;
+const ll mod=1e9+7;
+//const ll mod=998244353;
+const ll inf=1LL<<61;
+
+int main() {
+  ll n,m;
+  cin >> n >> m;
+  vector<pll> c(n);
+  for(ll i=0;i<n;i++) {
+    ll a,b;
+    cin >> a >> b;
+    c[i]={a,b};
+  }
+  sort(c.begin(),c.end());
+  ll ans=0;
+  for(ll i=0;i<n;i++) {
+    if(c[i].second<=m) {
+      ans+=c[i].first*c[i].second;
+      m-=c[i].second;
+    }
+    else if(m) {
+      ans+=c[i].first*m;
+      m=0;
+    }
+  }
+  cout << ans << endl;
+}

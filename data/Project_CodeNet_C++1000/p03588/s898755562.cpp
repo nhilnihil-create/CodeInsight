@@ -1,0 +1,25 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for(int i = 0; i < (n); i++)
+#define ALL(v) (v).begin(),(v).end()
+using ll = long long;
+using P = pair<int, int>;
+const int INF = 1e9;
+const long long LINF = 1e18;
+const long long MOD = 1e9 + 7;
+
+signed main(){
+    int n;
+    cin >> n;
+    ll mn = LINF, t;
+    ll a[n],b[n];
+    rep(i,n){
+        cin >> a[i] >> b[i];
+        if(b[i] < mn){
+            mn = b[i];
+            t = a[i];
+        }
+    }
+    cout << mn + t << endl;
+    return 0;
+}

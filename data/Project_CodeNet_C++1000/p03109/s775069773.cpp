@@ -1,0 +1,26 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+#define FOR(i, a, b) for(int i=(a);i<(b);++i)
+#define rep(i, n) FOR(i, 0, n)
+#define whole(x) (x).begin(),(x).end()
+#define UNIQUE(v) v.erase(unique(v.begin(), v.end()), v.end())
+using P = pair<int, int>;
+#define debug(var) cerr << "[" << #var << "] " << var << endl
+#define chmin(x, y) x = min(x, y)
+const ll mod = 1000000007;
+const int dx[] = {-1,0,1,0};
+const int dy[] = {0,-1,0,1};
+
+
+int main(){
+    string s;
+    cin >> s;
+    int a = s[5] - '0';
+    int b = s[6] - '0';
+    string ans = "TBD";
+    if (a==0 && b<=4) ans = "Heisei";
+    
+    cout << ans << endl;
+    return 0;
+}

@@ -1,0 +1,15 @@
+#include <iostream>
+using namespace std;
+
+int count = 0;
+char N[4];
+int main() {
+    cin >> N;
+    if(N[0] == N[1] && N[1] == N[2]) {
+        cout << "Yes" << endl;
+    } else if(N[1] == N[2] && N[2] == N[3]) {
+        cout << "Yes" << endl;       
+    } else {
+        cout << "No" << endl;       
+    }
+}

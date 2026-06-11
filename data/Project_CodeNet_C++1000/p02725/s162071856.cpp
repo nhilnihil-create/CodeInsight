@@ -1,0 +1,47 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <set>
+#include <queue>
+#include <algorithm>
+#include <utility>
+#include <cmath>
+using namespace std;
+using ll=long long;
+using pint=pair<int,int>;
+#define rep(i,a,b) for(ll i=a;i<ll(b);i++)
+#define repr(i,a,b) for(ll i=a;i>=ll(b);i--)
+#define el '\n'
+#define ALL(x) x.begin(),x.end()
+#define ALLR(x) x.rbegin(),x.rend()
+#define INF 1e9
+#define DEBUG(x) cout<<"debug: "<<x<<endl
+#define $in(v,n) ;rep(II,0,n)cin>>v[II]
+inline void IN(void){return;}
+template<typename F,typename... R>inline void IN(F& f, R&... r){cin>>f;IN(r...);}
+template<class T>inline bool chmin(T& a,T b){if(a>b){a=b;return 1;}return 0;}
+template<class T>inline bool chmax(T& a,T b){if(a<b){a=b;return 1;}return 0;}
+
+int main(){
+    int k, n;
+    IN(k, n);
+    vector<int> a(n+1);
+    int f; cin >> f; a[0] = 0;
+    rep(i, 1, n){
+        int t; cin >> t;
+        t -= f;
+        a[i] = t;
+    }
+    a[n] = k;
+
+    ll tot = 0;
+    int maxL = 0;
+    rep(i, 1, n+1){
+        int t = a[i] - a[i-1];
+        chmax(maxL, t);
+        tot += t;
+    }
+
+    cout << tot-maxL << el;
+    return 0;
+}

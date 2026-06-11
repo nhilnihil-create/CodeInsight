@@ -1,0 +1,75 @@
+#include<algorithm>
+#include<bitset>
+#include<cmath>
+#include<complex>
+#include<deque>
+#include<functional>
+#include<iomanip>
+#include<iostream>
+#include<iterator>
+#include<map>
+#include<numeric>
+#include<queue>
+#include<set>
+#include<stack>
+#include<string>
+#include<unordered_map>
+#include<unordered_set>
+#include<utility>
+#include<vector>
+
+using namespace std;
+typedef long long ll;
+
+// i: index, n: size, a: start, b: end
+#define REP(i,n) for(ll i=0;i<(ll)(n);i++)
+#define REPD(i,n) for(ll i=n-1;i>=0;i--)
+#define FOR(i,a,b) for(ll i=a;i<=(ll)(b);i++)
+#define FORD(i,a,b) for(ll i=a;i>=(ll)(b);i--)
+
+// x: container(array, vector etc..)
+#define ALL(x) (x).begin(),(x).end()
+#define SIZE(x) ((ll)(x).size())
+#define MAX(x) *max_element(ALL(x))
+#define MIN(x) *min_element(ALL(x))
+
+#define INF 1000000000000 //10^12
+#define MOD 10000007 //10^9+7
+#define MAXR 100000 //10^5
+
+#define PB push_back
+#define MP make_pair
+#define F first
+#define S second
+
+signed main() {
+  int n, a, b;
+  cin >> n >> a >> b;
+  string s;
+  cin >> s;
+
+  int f_rank = 1;
+  int passed = 0;
+  REP(i, s.length()) {
+    if (s[i] == 'a') {
+      if (passed < a + b) {
+        cout << "Yes" << endl;
+        passed++;
+      } else {
+        cout << "No" << endl;
+      }
+    } else if (s[i] == 'b') {
+      if (passed < a + b && f_rank <= b) {
+        cout << "Yes" << endl;
+        f_rank++;
+        passed++;
+      } else {
+        cout << "No" << endl;
+      }
+    } else {
+      cout << "No" << endl;
+    }
+  }
+
+  return 0;
+}

@@ -1,0 +1,149 @@
+#include <bits/stdc++.h>
+#define rep(i, n) for (ll i = 0; i < (ll)(n); ++i)
+#define rep2(i, s, n) for (ll i = s; i < (ll)(n); i++)
+#define repr(i, n) for (ll i = n; i >= 0; i--)
+#define pb push_back
+#define COUT(x) cout << (x) << endl
+#define COUTF(x) cout << setprecision(15) << (x) << endl
+#define ENDL cout << endl
+#define DF(x) x.erase(x.begin())  // 先頭文字削除
+#define ALL(x) x.begin(), x.end()
+#define SORT(x) sort(ALL(x))
+#define REVERSE(x) reverse(ALL(x))
+#ifdef _DEBUG
+#define debug(x) cout << "[debug] " << #x << ": " << x << endl
+#else
+#define debug(x)
+#endif
+using namespace std;
+using ll = long long;
+using ld = long double;
+using vll = vector<ll>;
+using P = pair<ll, ll>;
+constexpr ll INF = 0x3f3f3f3f3f3f3f3f;
+constexpr double PI = 3.141592653589793238462643383279;
+ll getDigit(ll x) {
+  return x == 0 ? 1 : log10(x) + 1;
+}
+
+ll gcd(ll x, ll y) {
+  return y ? gcd(y, x % y) : x;
+}
+
+ll lcm(ll a, ll b) {
+  return a / gcd(a, b) * b;
+}
+
+vector<P> factorize(ll n) {
+  vector<P> result;
+  for (ll i = 2; i * i <= n; ++i) {
+    if (n % i == 0) {
+      result.pb({i, 0});
+      while (n % i == 0) {
+        n /= i;
+        result.back().second++;
+      }
+    }
+  }
+  if (n != 1) {
+    result.pb({n, 1});
+  }
+  return result;
+}
+
+template <class T>
+inline bool chmin(T& a, T b) {
+  if (a > b) {
+    a = b;
+    return true;
+  }
+  return false;
+}
+template <class T>
+inline bool chmax(T& a, T b) {
+  if (a < b) {
+    a = b;
+    return true;
+  }
+  return false;
+}
+
+template <typename T>
+void debugV(const vector<T> v) {
+#ifdef _DEBUG
+  rep(i, v.size()) {
+    cout << i << ":" << v[i] << " ";
+  }
+  cout << endl;
+#else
+  (void)v;
+#endif
+}
+
+// ll N, M, Q;
+// vll a, b, c, d;
+// ll ans;
+// void dfs(vll A) {
+//   if ((ll)A.size() == N + 1) {
+//     ll now = 0;
+//     rep(i, Q) {
+//       if (A[b[i]] - A[a[i]] == c[i]) {
+//         now += d[i];
+//       }
+//       ans = max(ans, now);
+//     }
+//     return;
+//   }
+
+//   A.pb(A.back());
+//   while (A.back() <= M) {
+//     dfs(A);
+//     A.back()++;
+//   }
+// }
+
+signed main() {
+  ll N, M, Q;
+  ll ans = 0;
+  cin >> N >> M >> Q;
+  vll a(Q), b(Q), c(Q), d(Q);
+  // a = b = c = d = vll(Q);
+  rep(i, Q) {
+    cin >> a[i] >> b[i] >> c[i] >> d[i];
+  }
+
+  // dfs(vll(1, 1));
+  // COUT(ans);
+
+  queue<vll> q;
+  q.push(vll(0));
+  while (!q.empty()) {
+    vll v = q.front();
+    q.pop();
+
+    if ((ll)v.size() == N) {
+      ll now = 0;
+      rep(i, Q) {
+        if (v[b[i] - 1] - v[a[i] - 1] == c[i]) {
+          now += d[i];
+        }
+      }
+      ans = max(ans, now);
+
+    } else {
+      if (v.size() == 0) {
+        v.pb(1);
+      } else {
+        ll b = v.back();
+        v.pb(b);
+      }
+
+      while (v.back() <= M) {
+        q.push(v);
+        v.back()++;
+      }
+    }
+  }
+  COUT(ans);
+  return 0;
+}

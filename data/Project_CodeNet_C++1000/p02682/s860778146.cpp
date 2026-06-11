@@ -1,0 +1,49 @@
+#include<bits/stdc++.h>
+/* #define int long long */
+/* #define double long double */
+#define rep(i, n) for(int i = 0; i < (int)n; i++)
+#define repa(i, s, n) for(int i = s; i < (int)n; i++)
+#define MOD 1000000007
+using namespace std;
+using ll = long long;
+typedef vector<int> vi;
+typedef pair<int, int> P;
+#define rrep(i,a,b) for(int i=a;i>=b;i--)
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return true; } return false; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return true; } return false; }
+
+signed main(){
+    ll a, b, c, k;
+    cin >> a >> b >> c >> k;
+
+    ll ans = 0;
+    while(a > 0){
+        if(k == 0){
+            cout << ans << endl;
+            return 0;
+        }
+        ans++;
+        k--;
+        a--;
+    }
+
+    while(b > 0){
+        if(k == 0){
+            cout << ans << endl;
+            return 0;
+        }
+        k--;
+        b--;
+    }
+
+    while(c > 0){
+        if(k == 0){
+            cout << ans << endl;
+            return 0;
+        }
+        k--;
+        c--;
+        ans--;
+    }
+    cout << ans << endl;
+}

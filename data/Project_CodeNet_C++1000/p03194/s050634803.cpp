@@ -1,0 +1,95 @@
+// ConsoleApplication1.cpp : Defines the entry point for the console application.
+//
+
+#include <vector>
+#include <iostream>
+#include <set>
+#include <map>
+#include <string>
+#include <cmath>
+
+using namespace std;
+
+const long long bigNum = 1000000007;
+
+int gcd(int a, int b)
+{
+	int buffer = a;
+	if (b > a)
+	{
+		a = b;
+		b = buffer;
+	}
+
+	int remainder = a%b;
+	while (remainder != 0)
+	{
+		a = b;
+		b = remainder;
+		remainder = a%b;
+	}
+	return b;
+}
+
+long long comb(int n, int k)
+{
+	vector<int> setofNums;
+	long long ret = 1;
+	for (int i = 1; i <= k; i++)
+	{
+		setofNums.push_back(i);
+	}
+	for (int i = 0; i < k; i++)
+	{
+		ret = ret * (n - i);
+		for (auto it : setofNums)
+		{
+			if (ret % it == 0)
+			{
+				ret /= it;
+				it = bigNum;
+			}
+		}
+		if (ret > bigNum)
+			ret %= bigNum;
+	}
+	return ret;
+}
+
+map<long long, long long> factors;
+
+int main()
+{
+	long long N;
+	long long P;
+	cin >> N >> P;
+
+	long long remainder = P;
+	long long output = 1;
+
+	if (N == 1)
+	{
+		cout << P << endl;
+		return 0;
+	}
+
+	for (long long i = 2; remainder != 1 && i < sqrt(P); i++)
+	{
+		while (remainder % i == 0)
+		{
+			factors[i] += 1;
+			remainder /= i;
+		}
+	}
+
+	for (auto it = factors.begin(); it != factors.end(); it++)
+	{
+		long long a = it->second / N;
+		if (a == 0)
+			continue;
+		output *= pow(it->first, a);
+	}
+
+	cout << output << endl;
+	return 0;
+}

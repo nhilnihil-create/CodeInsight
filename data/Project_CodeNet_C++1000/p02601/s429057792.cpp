@@ -1,0 +1,39 @@
+#include<bits/stdc++.h>
+using namespace std;
+int main()
+{
+	int a,b,c,k,turn;
+	scanf("%d%d%d%d",&a,&b,&c,&k);
+	for(;;)
+	{
+		if(b<=a)
+		{
+			b*=2;
+			turn++;
+		}
+		else
+		{
+			break;
+		}
+	}
+	for(;;)
+	{
+		if(c<=b)
+		{
+			c*=2;
+			turn++;
+		}
+		else
+		{
+			break;
+		}
+	}
+	if(turn<=k)
+	{
+		printf("Yes");
+	}
+	else
+	{
+		printf("No");
+	}
+}

@@ -1,0 +1,25 @@
+#include <bits/stdc++.h>
+#define f first
+#define s second
+#define pb push_back
+#define rep(j, n) for(int j = 0; j < (n); j++)
+typedef long long ll;
+typedef long double ld;
+using namespace std;
+
+
+int main() {
+  ios::sync_with_stdio(0);
+  cin.tie(0); cout.tie(0);
+
+  int a, b, c;
+  cin >> a >> b >> c;
+
+  if ((a < c && c < b) || (b < c && c < a)) {
+    cout << "Yes\n";
+  } else {
+    cout << "No\n";
+  }
+
+  return 0;
+}

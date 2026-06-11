@@ -1,0 +1,20 @@
+#include <iostream>
+#include <string>
+
+using namespace std;
+
+int main() {
+    int n;
+    string s;
+    cin >> s;   n = s.length();
+    int ans = 0;
+    for (int i = 0; i < n; i++) {
+        if (i % 2 == 0 && s[i] == 'p')
+            ans--;
+        else if (i % 2 && s[i] == 'g')
+            ans++;
+    }
+
+    cout << ans << endl;
+    return 0;
+}

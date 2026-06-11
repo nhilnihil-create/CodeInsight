@@ -1,0 +1,33 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define ll long long
+#define rep(i, n) for (ll i = 0; i < n; ++i)
+#define P pair<ll, ll>
+#define Graph vector<vector<ll>>
+#define fi first
+#define se second
+constexpr ll mod = 1000000007;
+constexpr ll INF = (1ll << 60);
+constexpr double pi = 3.14159265358979323846;
+template <typename T>
+inline bool chmax(T &a, T b){if (a < b){a = b;return 1;}return 0;}
+template <typename T>
+inline bool chmin(T &a, T b){if (a > b){a = b;return 1;}return 0;}
+
+int main(){
+    ll n,t,a;cin>>n>>t>>a;
+    vector<ll> h(n);
+    rep(i,n) cin>>h[i];
+
+    ll ABS=INF,ans;
+    rep(i,n){
+        if(ABS>abs(1000*a-(1000*t-6*h[i]))){
+            ans=i;
+            ABS = abs(1000 * a - (1000 * t - 6 * h[i]));
+        }
+    }
+
+    cout<<ans+1<<endl;
+
+    return 0;
+}

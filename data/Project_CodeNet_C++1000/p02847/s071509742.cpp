@@ -1,0 +1,21 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+typedef long long int ll;
+#define rep(i,n) for (int i = 0; i < (n); i++)
+#define all(v) (v).begin(), (v).end()
+#define sz(x) int(x.size())
+const ll mod = 1000000007;
+const ll INF = 1001001001001001;
+
+int main() {
+    string s; cin >> s;
+    if (s == "SUN") cout << 7 << endl;
+    if (s == "MON") cout << 6 << endl;
+    if (s == "TUE") cout << 5 << endl;
+    if (s == "WED") cout << 4 << endl;
+    if (s == "THU") cout << 3 << endl;
+    if (s == "FRI") cout << 2 << endl;
+    if (s == "SAT") cout << 1 << endl;
+    return 0;
+}

@@ -1,0 +1,89 @@
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long unsigned int ll;
+
+// definition {{{ 1
+
+// scaning {{{ 2
+#define Scd(x) scanf("%d", &x)
+#define Scd2(x,y) scanf("%d%d", &x, &y)
+#define Scd3(x,y,z) scanf("%d%d%d", &x, &y, &z)
+
+#define Scll(x) scanf("%llu", &x)
+#define Scll2(x,y) scanf("%llu%llu", &x, &y)
+#define Scll3(x,y,z) scanf("%llu%llu%llu", &x, &y, &z)
+
+#define Scc(c) scanf("%c", &c);
+#define Scs(s) scanf("%s", s);
+#define Scstr(s) scanf("%s", &s);
+// }}} 2
+
+// constants {{{ 2
+#define EPS (1e-7)
+#define INF (1e9)
+#define PI (acos(-1))
+// }}} 2
+
+// systems {{{ 2
+#define Rep(x,y) for(int x = 0; x < y; x++)
+#define Repe(x,y,z) for(int x = z; x < y; x++)
+// }}} 2
+
+// output {{{ 2
+#define YesNo(a) (a)?printf("Yes\n"):printf("No\n");
+// }}} 2
+
+// }}} 1
+
+int main() {
+
+    ll h,w,n;
+    Scll3(h,w,n);
+    ll ans[10] = {};
+    ans[0] = (h-2)*(w-2);
+    int a,b;
+    multiset< pair<int,int> > s;
+    set< pair<int,int> > r;
+    Rep(i,n){
+        Scd2(a,b);
+        s.insert(make_pair(a,b));
+        a++;
+        s.insert(make_pair(a,b));
+        b++;
+        s.insert(make_pair(a,b));
+        a--;
+        s.insert(make_pair(a,b));
+        a--;
+        s.insert(make_pair(a,b));
+        b--;
+        s.insert(make_pair(a,b));
+        b--;
+        s.insert(make_pair(a,b));
+        a++;
+        s.insert(make_pair(a,b));
+        a++;
+        s.insert(make_pair(a,b));
+    }
+
+    int x,y;
+    while(!s.empty()){
+        y = (*s.begin()).first;
+        x = (*s.begin()).second;
+        int num = s.count(make_pair(y,x));
+        if( !(x < 2 || y < 2 || x > w-1 || y > h-1) )
+        ans[num]++;
+        s.erase(make_pair(y,x));
+    }
+
+    Repe(i,10,1){
+        ans[0] -= ans[i];
+    }
+
+    Rep(i,10){
+        printf ("%llu\n", ans[i]);
+    }
+
+
+    return 0;
+}
+

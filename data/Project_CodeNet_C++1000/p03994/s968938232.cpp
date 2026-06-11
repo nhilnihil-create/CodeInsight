@@ -1,0 +1,78 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// 型定義
+typedef long long ll;
+typedef pair<ll, ll> P;
+
+// forループ
+#define REP(i,n) for(ll i=0; i<(ll)(n); ++i)
+
+// 定数宣言
+const int INF = 1e9;
+const int MOD = 1e9+7;
+const ll LINF = 1e18;
+
+// グラフ表現
+using Graph = vector<vector<int>>;
+
+// グラフの辺表現
+using Edge = map<pair<int,int>,int>;
+
+// n次元配列の初期化。第２引数の型のサイズごとに初期化していく。
+template<typename A, size_t N, typename T>
+void Fill(A (&array)[N], const T &val){
+    std::fill( (T*)array, (T*)(array+N), val );
+}
+
+// 最大公約数
+ll gcd(ll a,ll b){
+   if (a%b == 0) return(b);
+   else return(gcd(b, a%b));
+}
+
+// 最小公倍数
+ll lcm(ll a, ll b){
+    return a*b/gcd(a, b);
+}
+
+int main()
+{
+    cout << fixed << setprecision(15);
+    string S;
+    ll K;
+    cin >> S;
+    cin >> K;
+
+    ll N;
+    N = S.length();
+    vector<ll> A(N);
+
+    REP(i, N){
+        A[i] = ('z' - S[i] + 1)%26;
+    }
+  
+    REP(i, N-1){
+        if(K-A[i] >= 0){
+            K = K - A[i]; 
+            cout << 'a';
+            // S[i] = 'a';
+        }
+        else{
+            cout << S[i];
+        }
+        
+    }
+
+    K = K % 26;
+    // cout << K << endl;
+    ll t = (S[N-1] -'a' + K)%26;
+    // S[N-1] = char('a'+t);
+    cout << char('a'+t) << endl;
+    // S[N-1] += K;
+    // if(S[N-1]>'z'){
+    //     S[N-1] -= 26;
+    // }
+    // cout << S << endl;
+    return 0;
+}

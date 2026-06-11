@@ -1,0 +1,13 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+
+int a, b;
+
+int main()
+{
+	scanf("%d %d",&a,&b);
+
+	if(a%b == 0) printf("-1\n");
+	else printf("%d\n",a);
+}

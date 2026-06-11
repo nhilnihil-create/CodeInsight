@@ -1,0 +1,173 @@
+//{{{
+#include <bits/stdc++.h>
+using namespace std;
+//types
+typedef long long ll;
+typedef pair<int,int> pii;
+//input
+bool SR(int &_x){return scanf("%d",&_x)==1;}bool SR(ll &_x){return scanf("%lld",&_x)==1;}
+bool SR(double &_x){return scanf("%lf",&_x)==1;}bool SR(char *_s){return scanf("%s",_s)==1;}
+bool RI(){return true;}
+template<typename I,typename... T>bool RI(I &_x,T&... _tail){return SR(_x) && RI(_tail...);}
+//output
+void SP(const int _x){printf("%d",_x);}void SP(const ll _x){printf("%lld",_x);}
+void SP(const double _x){printf("%.16lf",_x);}void SP(const char *s){printf("%s",s);}
+void PL(){puts("");}
+template<typename I,typename... T>void PL(const I _x,const T... _tail)
+{SP(_x);if(sizeof...(_tail)) putchar(' ');PL(_tail...);}
+//macro
+#define SZ(x) ((int)(x).size())
+#define ALL(x) (x).begin(),(x).end()
+#define REP(i,n) for(int i=0;i<int(n);i++)
+#define REP1(i,a,b) for(int i=(a);i<=int(b);i++)
+#define PER1(i,a,b) for(int i=(a);i>=int(b);i--)
+#define pb push_back
+#define mkp make_pair
+#define F first
+#define S second
+//debug
+#ifdef darry140
+template<typename A,typename B>
+ostream& operator <<(ostream&_s, const pair<A,B> &_p){return _s<<"("<<_p.F<<","<<_p.S<<")";}
+template<typename It>
+ostream& _OUTC(ostream &_s,It _b,It _e)//container
+{
+    _s<<"{";
+    for(auto _it=_b;_it!=_e;_it++) _s<<(_it==_b?"":" ")<<*_it;
+    _s<<"}";
+    return _s;
+}
+template<typename A,typename B>
+ostream& operator <<(ostream&_s, const map<A,B> &_c){return _OUTC(_s,ALL(_c));}
+template<typename T>
+ostream& operator <<(ostream&_s, const set<T> &_c){return _OUTC(_s,ALL(_c));}
+template<typename T>
+ostream& operator <<(ostream&_s, const vector<T> &_c){return _OUTC(_s,ALL(_c));}
+template<typename I>
+void _DOING(const char *_s,I&& _x){cerr<<_s<<"="<<_x<<endl;}//without ','
+template<typename I,typename... T>
+void _DOING(const char *_s,I&& _x,T&&... _tail)//with ','
+{
+    int _c=0;
+    static const char _bra[]="({[";
+    static const char _ket[]=")}]";
+    while(*_s!=',' || _c!=0)//eg. mkp(a,b)
+    {
+        if(strchr(_bra,*_s)) _c++;
+        if(strchr(_ket,*_s)) _c--;
+        cerr<<*_s++;
+    }
+    cerr<<"="<<_x<<", ";
+    _DOING(_s+1,_tail...);
+}
+#define debug(...) do{\
+    fprintf(stderr,"%s:%d - ",__PRETTY_FUNCTION__,__LINE__);\
+    _DOING(#__VA_ARGS__,__VA_ARGS__);\
+}while(0)
+#else
+#define debug(...)
+#endif
+//}}}
+const int maxn=1e5+5;
+int n,a[maxn];
+void read()
+{
+    RI(n);
+    REP1(i,1,n) RI(a[i]);
+}
+void build()
+{
+}
+void sol()
+{
+    int f=0;
+    while(1)
+    {
+        debug(vector<int>(a+1,a+n+1));
+        int c1=count_if(a+1,a+n+1,[&](int x){return x%2==1;});
+        if(c1>1 || count_if(a+1,a+n+1,[&](int x){return x==1;}))
+        {
+            int det=(accumulate(a+1,a+n+1,0LL)-n)%2;
+            if(det==f) PL("Second");
+            else PL("First");
+            return;
+        }
+        if(c1==0)
+        {
+            vector<int> cnt(50,0);
+            REP1(i,1,n) cnt[__lg(a[i]&-a[i])]++;
+            static int l[maxn],r[maxn];
+            l[0]=a[1];
+            REP1(i,1,n) l[i]=__gcd(l[i-1],a[i]);
+            r[n+1]=a[n];
+            PER1(i,n,1) r[i]=__gcd(r[i+1],a[i]);
+            REP1(i,1,n)
+            {
+                int val=a[i],ori=__lg(val&-val);
+                cnt[ori]--;
+                val--;val/=__gcd(__gcd(l[i-1],r[i+1]),val);
+                val--;
+                cnt[__lg(val&-val)]++;
+                int h=find_if(ALL(cnt),[&](int x){return x>0;})-cnt.begin();
+                int det=((cnt[h]-n)%2+2)%2;
+                if(det==1){PL(f==0?"First":"Second");exit(0);}
+                cnt[__lg(val&-val)]--;
+                cnt[ori]++;
+            }
+            PL(f==0?"Second":"First");
+            return; 
+        }
+        REP1(i,1,n) if(a[i]%2==1)
+            a[i]--;
+        int g=a[1];
+        REP1(i,1,n) g=__gcd(g,a[i]);
+        REP1(i,1,n) a[i]/=g;
+        f^=1;
+    }
+}
+int main()
+{
+    read();
+    build();
+    sol();
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*End Of File*/
+
+

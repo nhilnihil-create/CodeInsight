@@ -1,0 +1,60 @@
+#include <bits/stdc++.h>
+#define rep(i,n) for (ll i = 0; i < n; ++i)
+#define sz(x) int(x.size())
+#define ALL(c) (c).begin(), (c).end()
+#define SUM(x) std::accumulate(ALL(x), 0LL)
+#define MIN(v) *std::min_element(v.begin(), v.end())
+#define MAX(v) *std::max_element(v.begin(), v.end())
+#define EXIST(v, x) (std::find(v.begin(), v.end(), x) != v.end())
+#define FORV(i, v) for (auto i = v.begin(); i != v.end(); i++)
+using namespace std;
+
+typedef int64_t ll;
+
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return true; } return false; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return true; } return false; }
+const int INF = 1001001001;
+const long long INFL = (1LL<<60);
+const double eps = (1e-9);
+
+
+int main() {
+  cin.tie(0);
+  ios::sync_with_stdio(false);
+
+  int n, k;
+  cin >> n >> k;
+  vector<ll> a(n);
+  rep(i, n) cin >> a[i];
+
+  ll mx = 0;
+  for (auto& v : a) {
+    if (v > 0) mx += v;
+  }
+
+  ll ans = 0;
+  ll tmp1 = 0;  // 長さ k の区間で正の数だけ黒にした
+  ll tmp2 = 0;  // 長さ k の区間で全部黒の場合
+  rep(i, k) {
+    if (a[i] > 0) tmp1 += a[i];
+    tmp2 += a[i];
+  }
+
+  chmax(ans, mx - tmp1 + tmp2);
+  chmax(ans, mx - tmp1);
+
+  for (int i = k; i < n; i++) {
+    if (a[i-k] > 0) tmp1 -= a[i-k];
+    tmp2 -= a[i-k];
+
+    if (a[i] > 0) tmp1 += a[i];
+    tmp2 += a[i];
+
+    chmax(ans, mx - tmp1 + tmp2);
+    chmax(ans, mx - tmp1);
+  }
+
+  cout << ans << endl;
+
+  return 0;
+}

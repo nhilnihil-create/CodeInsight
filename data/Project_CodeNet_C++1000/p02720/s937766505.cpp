@@ -1,0 +1,56 @@
+#include<bits/stdc++.h>
+//#include <ext/pb_ds/assoc_container.hpp> 
+//#include <ext/pb_ds/tree_policy.hpp>
+//#include <functional> // for less
+//using namespace __gnu_pbds;
+using namespace std;
+typedef long long  L;
+
+#define max_(x, y) (((x) > (y)) ? (x) : (y))
+#define min_(x, y) (((x) < (y)) ? (x) : (y))
+#define ___ ios_base::sync_with_stdio(false);cin.tie(NULL);
+#define Mx 200001
+#define inf 1e15
+const L MOD = 1e9+7;
+const double pi = 2 * acos (0.0);
+
+/*------------------------------Graph Moves----------------------------*/
+//const int fx[]={+1,-1,+0,+0};
+//const int fy[]={+0,+0,+1,-1};
+//const int fx[]={+0,+0,+1,-1,-1,+1,-1,+1};   // Kings Move
+//const int fy[]={-1,+1,+0,+0,+1,+1,-1,-1};  // Kings Move
+//const int fx[]={-2, -2, -1, -1,  1,  1,  2,  2};  // Knights Move
+//const int fy[]={-1,  1, -2,  2, -2,  2, -1,  1}; // Knights Move
+/*---------------------------------------------------------------------*/
+
+
+//typedef tree<L,null_type,less<L>,rb_tree_tag,tree_order_statistics_node_update> ordered_set;
+
+L a1,a2,a3,a,b,b1,b2,b3,c,c1,c2,c3,d,d1,d2,d3,d4,d5,e1,e2,e3,f,h,k,l,m,n,m1,m2,n1,n2,o,p,p1,p2,p3,p4,
+q,q1,q2,q3,q4,r,s,t,u,v,x,y,z,sum,mx=-inf,mn=inf,flg,flg1,flg2,id1,id2,id3,id4,lim;
+
+queue<L>Q;
+
+void solve(){
+    Q.push(1);Q.push(2);Q.push(3);Q.push(4);Q.push(5);Q.push(6); Q.push(7);Q.push(8);Q.push(9);
+    c1=0;
+    while(c1<k){
+        c=Q.front();
+        Q.pop();
+        c1++;
+        
+        if(c%10!=0)Q.push(c*10+c%10-1);
+        Q.push(c*10+c%10);
+        if(c%10!=9)Q.push(c*10+c%10+1);
+    }
+    printf("%lld\n",c);
+}
+
+int main()
+{
+    scanf("%lld",&k);
+    solve();
+    return 0;
+}
+
+/// empty() lld lld push_back() top() pop() insert() upper_bound() lower_bound() memset() max() min() scanf continue

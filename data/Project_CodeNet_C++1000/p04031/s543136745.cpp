@@ -1,0 +1,63 @@
+#include <vector>
+#include <stack>
+#include <queue>
+#include <list>
+#include <bitset>
+#include <set>
+#include <map>
+#include <unordered_set>
+#include <unordered_map>
+#include <algorithm>
+#include <numeric>
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <chrono>
+#include <random>
+#include <cmath>
+#include <cassert>
+#include <climits>
+#include <cstring>
+#include <cstdlib>
+#include <functional>
+#include <sstream>
+
+using namespace std;
+
+
+int main(int argc, char** argv) {
+    ios::sync_with_stdio(false);
+    cin.tie(0);
+    cout << fixed << setprecision(12);
+
+    int n;
+    cin >> n;
+    vector<int> A(n);
+    for (int i = 0; i < n; ++i) {
+        cin >> A[i];
+    }
+
+    long long P = 0;
+    long long S = 0;
+
+    for (auto x : A) {
+        P += x * x;
+        S += x;
+    }
+
+    long long res = 1LL << 60;
+
+    auto mm = minmax_element(A.begin(), A.end());
+    int l = *mm.first;
+    int r = *mm.second;
+
+    for (int i = l; i <= r; ++i) {
+        long long ans = P + n * 1LL * i * i - 2LL * S * i;
+        res = min(res, ans);
+    }
+
+    cout << res << '\n';
+
+
+    return 0;
+}

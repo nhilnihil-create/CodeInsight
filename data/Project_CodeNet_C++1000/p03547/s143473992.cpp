@@ -1,0 +1,9 @@
+#include <iostream>
+using namespace std;
+int main() {
+	char x;
+	char y;
+	cin >> x >> y;
+	if(int(x) > int(y)) cout << ">"; else if(int(x) == int(y)) cout << "="; else cout << "<";
+	return 0;
+}

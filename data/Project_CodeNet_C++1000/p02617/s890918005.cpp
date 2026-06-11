@@ -1,0 +1,28 @@
+
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i, n) for(ll i = 0, i##_len = (n); i < i##_len; ++i)
+#define rep2(i, x, n) for(ll i = x, i##_len = (n); i < i##_len; ++i)
+#define all(n) begin(n), end(n)
+using ll = long long;
+using P = pair<ll, ll>;
+using vi = vector<int>;
+using vl = vector<ll>;
+using vs = vector<string>;
+using vc = vector<char>;
+using vb = vector<bool>;
+using vd = vector<double>;
+
+int main() {
+  ll n;
+  cin >> n;
+  ll ans = 0;
+  rep(i, n) ans += (i + 1) * (n - i);
+  rep(i, n - 1) {
+    ll u, v;
+    cin >> u >> v;
+    if(u > v) swap(u, v);
+    ans -= u * (n - v + 1);
+  }
+  cout << ans << endl;
+}

@@ -1,0 +1,12 @@
+#include <cstdio>
+#include <iostream>
+using namespace std;
+
+int main(int argc, char const* argv[]) {
+	int A, B, C, D;
+	scanf("%d %d %d %d", &A, &B, &C, &D);
+	if (A + B > C + D) printf("Left\n");
+	else if (A + B < C + D) printf("Right\n");
+	else printf("Balanced\n");
+	return 0;
+}

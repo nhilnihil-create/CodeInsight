@@ -1,0 +1,36 @@
+#include<bits/stdc++.h>
+
+using namespace std;
+
+int main(){
+  int N;
+  cin >> N;
+  
+  vector<int> A(N);
+  for(int i = 0; i < N; i++) cin >> A[i];
+  
+  sort(A.begin(), A.end());
+  
+  int sum = -A[0];
+  for(int i = 1; i < N - 1; i++){
+    sum += abs(A[i]);
+  }
+  sum += A[N - 1];
+  
+  cout << sum << endl;
+  
+  int k = 0;
+  for(int i = N - 2; i > 0 && A[i] >= 0; i--){
+    cout << A[0] << ' ' << A[i] << endl;
+    A[0] -= A[i];
+    k++;
+  }
+  
+  for(int i = 0; k < N - 1; i++){
+    cout << A[N - 1] << ' ' << A[i] << endl;
+    A[N - 1] -= A[i];
+    k++;
+  }
+  
+  return 0;
+}

@@ -1,0 +1,45 @@
+#include <bits/stdc++.h>
+using namespace std;
+int main(){
+    long long N, M;
+    cin >> N >> M;
+    vector<long long> x(N), y(N), z(N);
+    for(int i = 0; i < N; i++) cin >> x[i] >> y[i] >> z[i];
+    vector<long long> a(N);
+    vector<long long> ans(8, 0);
+    int j = 0;
+    for(int i = 0; i < N; i++) a[i] = x[i] + y[i] + z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = x[i] + y[i] - z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = x[i] - y[i] + z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = -x[i] + y[i] + z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = x[i] - y[i] - z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = -x[i] + y[i] - z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = -x[i] - y[i] + z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    j++;
+    for(int i = 0; i < N; i++) a[i] = -x[i] - y[i] - z[i];
+    sort(a.begin(), a.end());
+    for(int i = 0; i < M; i++) ans[j] += a[N - 1 - i];
+    long long res = ans[0];
+    for(int i = 1; i < 8; i++) res = max(res, ans[i]);
+    cout << res << endl;
+}

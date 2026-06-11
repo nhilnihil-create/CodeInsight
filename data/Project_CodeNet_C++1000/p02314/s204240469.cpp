@@ -1,0 +1,35 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+using namespace std;
+
+int n,m;
+int main(){
+	while(cin >> n >> m && n>0){
+		vector<int> C;
+		int P[m+5][n+5] = {0};
+		for(int i=0;i<m;i++){
+			int c;
+			cin >> c;
+			C.push_back(c);
+		}
+		sort(C.begin(),C.end());
+		for(int i=0;i<m;i++){
+			for(int j=0;j<n+1;j++){
+				if(i==0){
+					P[i][j] = j;
+				}else if(C[i]>j){
+					P[i][j] = P[i-1][j];
+				}else{
+					P[i][j] = min(P[i][j-C[i]]+1 , min(P[i-1][j-C[i]]+1,P[i-1][j]));
+				}
+			}
+		}
+		cout << P[m-1][n] << endl;
+	}
+}
+
+#if 0
+所要時間は30分程度。漸化式はすぐにたったが，実装での凡ミスが多かった。(C[i]<jとしていたなど)
+#endif

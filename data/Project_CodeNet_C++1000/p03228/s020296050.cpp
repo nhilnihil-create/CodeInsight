@@ -1,0 +1,32 @@
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+int gcd(int a, int b) {  
+  return b != 0 ? gcd(b, a % b) : a;
+}//MAX
+int lcm(int a, int b) { 
+   return a * b / gcd(a, b);
+   }
+//MIN
+
+ main() {
+int a,b,k;
+cin >> a >> b >> k;
+for(int i=0;i<k;i++){
+   if(i%2==0){
+      if(a%2==1){
+         a--;
+      }
+      b+=a/2;
+      a/=2;
+   }
+   else{
+      if(b%2==1){
+         b--;
+      }
+      a+=b/2;
+      b/=2;
+   }
+}
+cout << a << " "<<b<<endl;
+ }

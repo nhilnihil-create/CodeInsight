@@ -1,0 +1,43 @@
+#include <bits/stdc++.h>
+
+#define rep(i,n) for(int i=0; i<(n); i++)
+#define reps(i,x,n) for(int i=x; i<(n); i++)
+#define rrep(i,n) for(int i=(n)-1; i>=0; i--)
+#define all(X) (X).begin(),(X).end()
+#define X first
+#define Y second
+#define pb push_back
+#define eb emplace_back
+
+using namespace std;
+typedef long long int ll;
+typedef pair<int,int> pii;
+typedef pair<ll,ll> pll;
+
+template<class T> bool chmax(T &a, const T &b) { if (a<b) { a=b; return 1; } return 0; }
+template<class T> bool chmin(T &a, const T &b) { if (a>b) { a=b; return 1; } return 0; }
+
+template<class A, size_t N, class T> void Fill(A (&a)[N], const T &v){ fill( (T*)a, (T*)(a+N), v ); }
+
+const ll INF = 1e9+7;
+
+
+int main(){
+	//ios_base::sync_with_stdio(false);
+	string s;
+	int cnt[255]={};
+
+	cin >> s;
+	for(auto c: s) cnt[c]++;
+
+	int d = 0;
+	chmax(d, abs(cnt['a'] - cnt['b']));
+	chmax(d, abs(cnt['b'] - cnt['c']));
+	chmax(d, abs(cnt['c'] - cnt['a']));
+
+	bool ans = (d <= 1);
+
+	cout << (ans?"YES":"NO") << endl;
+
+	return 0;
+}

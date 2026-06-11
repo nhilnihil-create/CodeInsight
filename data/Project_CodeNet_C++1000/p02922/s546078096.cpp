@@ -1,0 +1,29 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for(int i=0;i<n;i++)
+#define repe(i,n) for(int i=0;i<n;i++)
+#define repa(i,j,n) for(int i=j;i<n;i++)
+//#define v.all() v.begin(),v.end()
+#define repr(i,n) for(int i=n;i>=0;i--)
+#define int long long int
+#define vi vector<int>
+#define vpi vector<pair<int,int>>
+
+signed  main(){
+	int test=1;
+	//cin>>test;
+	rep(tt,test) {
+		int a,b;
+		cin>>a>>b;
+		int ans=0;
+		int soc=1;
+		while(soc<b){
+			soc+=a;
+			soc--;
+			ans++;
+		}
+		cout<<ans<<endl;
+		
+	}
+	return 0;
+}

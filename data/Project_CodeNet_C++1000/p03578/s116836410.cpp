@@ -1,0 +1,41 @@
+#include <bits/stdc++.h>
+#define rep(i,n) for(int i = 0; i < (int)(n); i++)
+using namespace std;
+using ll = long long;
+using P = pair<int, int>;
+using vi = vector<int>;
+using vc = vector<char>;
+using vs = vector<string>;
+using vll = vector<long long>;
+using vvi = vector<vector<int>>;
+using vvc = vector<vector<char>>;
+using vvll = vector<vector<long long>>;
+template<class T> inline bool chmax(T &a, T b) { if (a<b) {a=b; return 1;} return 0;}
+template<class T> inline bool chmin(T &a, T b) { if (b<a) {a=b; return 1;} return 0;}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(0);
+    
+    int n;
+    cin >> n;
+    map<int, int> mp;
+    rep(i, n) {
+        int d;
+        cin >> d;
+        mp[d]++;
+    }
+    int m;
+    cin >> m;
+    rep(i, m) {
+        int t;
+        cin >> t;
+        if (!mp.count(t) || mp[t] == 0) {
+            cout << "NO" << endl;
+            return 0;
+        } else {
+            mp[t]--;
+        }
+    }
+    cout << "YES" << endl;
+}

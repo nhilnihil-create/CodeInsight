@@ -1,0 +1,97 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+#define _overload3(_1,_2,_3,name,...) name
+#define _rep(i,n) repi(i,0,n)
+#define repi(i,a,b) for(int i=int(a);i<int(b);++i)
+#define rep(...) _overload3(__VA_ARGS__,repi,_rep,)(__VA_ARGS__)
+
+typedef long long ll;
+typedef pair<ll, ll> P;
+const ll INF = 1LL<<60;
+
+ll gcd(ll a, ll b) {
+  if(b == 0) return a;
+  return gcd(b, a % b);
+}
+
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return true; } return false; }
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return true; } return false; }
+
+ll modpow(ll a, ll n, ll mod) {
+  ll res = 1;
+  while (n > 0) {
+    if (n & 1) res = res * a % mod;
+    a = a * a % mod;
+    n >>= 1;
+  }
+  return res;
+}
+
+int solve(vector<int> A){
+
+  int N = A.size();
+
+  int ret = 0;
+  rep(i, N){
+
+    if(((N-1) & i) == i) ret += A[i];
+
+    ret = ret % 2;
+
+  }
+
+  return ret;
+
+}
+
+int main(){
+  cin.tie(0);
+  ios::sync_with_stdio(false);
+
+  int N;
+  cin >> N;
+  string s;
+  vector<int> a(N);
+  cin >> s;
+  rep(i, N){
+    a[i] = int(s[i] - '0') - 1;
+  }
+
+  int ans1 = solve(a);
+
+  if(ans1 == 1){
+    cout << 1 << endl;
+    return 0;
+  }else{
+
+    rep(i, N){
+      if(a[i] == 1){
+        cout << 0 << endl;
+        return 0;
+      }
+    }
+
+    rep(i, N){
+      a[i] /= 2;
+    }
+
+    int ans2 = solve(a);
+
+    if(ans2 == 1){
+      cout << 2 << endl;
+    }else{
+      cout << 0 << endl;
+    }
+
+
+
+  }
+  
+
+
+
+
+
+  return 0;
+}

@@ -1,0 +1,20 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+#define rep2(i, s, n) for (int i = (s); i < (int)(n); i++)
+const int INF = 1001001001;
+using ll = long long;
+
+int main(){
+    int N,X,T;
+    cin >> N >> X >> T;
+    int turn;
+    turn = N / X;
+    if(N%X!=0){
+        cout << (turn+1) * T << endl;
+    }
+    else{
+        cout << turn * T << endl;
+    }
+    return 0;
+}

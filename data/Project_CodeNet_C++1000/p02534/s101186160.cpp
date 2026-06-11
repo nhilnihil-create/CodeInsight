@@ -1,0 +1,10 @@
+#include <bits/stdc++.h>
+using namespace std;
+int main()
+{
+	int k; cin>>k;
+	string s="";
+	while (k--) s+="ACL";
+	cout<<s;
+	return 0;
+}

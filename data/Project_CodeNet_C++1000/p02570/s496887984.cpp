@@ -1,0 +1,12 @@
+#include<iostream>
+using namespace std;
+int main()
+{
+  int d,t,s;
+  cin>>d>>t>>s;
+  if(d<=t*s)
+    cout<<"Yes";
+  else
+    cout<<"No";
+  return 0;
+}

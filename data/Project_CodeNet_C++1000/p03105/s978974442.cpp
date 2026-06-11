@@ -1,0 +1,10 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main()
+{
+	int a,b,c,ans;
+	scanf("%d %d %d",&a,&b,&c);
+	printf("%d",min(b/a,c));
+	return 0;
+}

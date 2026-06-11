@@ -1,0 +1,9 @@
+#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+	string S;
+	cin >> S;
+	cout << S.substr(0, 4) << " " << S.substr(4, 12) << endl;
+}

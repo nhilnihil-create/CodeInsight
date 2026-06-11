@@ -1,0 +1,21 @@
+#include<iostream>
+#include<iomanip>
+using namespace std;
+
+int main(){
+	int a,b;
+	string op;
+	cin >> a >> op >> b;
+	while(op != "?"){
+		if (op == "+"){
+			cout << a+b << endl;
+		}else if(op == "-"){
+			cout << a-b << endl;
+		}else if(op == "*"){
+			cout << a*b << endl;
+		}else if(op == "/"){
+			cout << a/b << endl;
+		}
+		cin >> a >> op >> b;
+	}
+}

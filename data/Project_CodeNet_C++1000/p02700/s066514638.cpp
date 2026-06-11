@@ -1,0 +1,21 @@
+#include <iostream>
+
+int main(){
+ int A,B,C,D;
+ std::cin>>A>>B>>C>>D;
+
+ while(1){
+  C-=B;
+  if(C<=0){
+    std::cout<<"Yes\n";
+    return 0;
+  }
+  A-=D;
+  if(A<=0){
+   std::cout<<"No\n";
+   return 0;
+  }
+ }
+
+ return 0;
+}

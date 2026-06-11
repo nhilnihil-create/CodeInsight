@@ -1,0 +1,63 @@
+//kalyanchirla
+//#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <set>
+#include <map>
+#include <string>
+#include <cstdio>
+#include <cstdlib>
+#include <climits>
+#include <utility>
+#include <algorithm>
+#include <cmath>
+#include <queue>
+#include <stack>
+#include <iomanip>
+//setbase - cout << setbase (16)a; cout << 100 << endl; Prints 64
+//setfill -   cout << setfill ('x') << setw (5); cout << 77 <<endl;prints xxx77
+//setprecision - cout << setprecision (14) << f << endl; Prints x.xxxx
+//cout.precision(x)  cout<<fixed<<val;  // prints x digits after decimal in val
+using namespace std;
+#define int long long
+#define f(i,a,b) for(i=a;i<b;i++)
+#define rep(i,n) f(i,0,n)
+#define csl ios_base::sync_with_stdio(false);cin.tie(NULL)
+#define ff first
+#define ss second
+#define pb push_back
+#define mp make_pair
+#define pii pair<int,int>
+#define vi vector<int>
+#define mii map<int,int>
+#define setbits(x) __builtin_popcountll(x)
+#define zrobits(x) __builtin_ctzll(x)
+#define mod 1000000007
+
+int32_t main()
+{ 
+    csl;
+
+    string s;
+    cin >> s;
+
+    int freq[26];
+    for(int i=0;i<26;i++)
+    {
+        freq[i]=0;
+    }
+    for(int i=0;i<s.length();i++)
+    {
+        int a = s[i]-97;
+        if(freq[a]==0)
+        {
+            freq[a]++;
+        }
+        else
+        {
+            cout << "no" << "\n";
+            return 0;
+        }
+    }
+    cout<< "yes" << "\n";
+}

@@ -1,0 +1,184 @@
+/*
+  Creator :  bizarre
+*/
+#include <bits/stdc++.h>
+#include <math.h>
+using namespace std;
+#define bizarre  ios_base::sync_with_stdio(0);cin.tie(0);cout.tie(0);
+#define file freopen("input.txt","r",stdin); freopen("output.txt","w",stdout);
+#define ll long long
+#define ld long double
+#define pi acos(-1)
+#define point complex<double>
+const ll N = 3e5 + 5, inf = 1e6, mod = 998244353;
+/*
+vector<int> prime_Numbers;
+bool primes[305];
+double dot(point a, point b)
+{
+    return (conj(a) * b).real();
+}
+double cross(point a, point b)
+{
+    return (conj(a) * b).imag();
+}
+void prime()
+{
+    primes[1]=primes[0]=0;
+    for(int i=2; i<=N; i++)
+        primes[i]=true;
+    for(int i=2; i<=N; i++)
+    {
+        if(primes[i]==true)
+        {
+            prime_Numbers.push_back(i);
+            for(int j=i+i; j<=N; j+=i)
+                primes[j]=false;
+        }
+    }
+}
+void move1step(long long& a, long long& b, long long q)
+{
+    long long c= a-q*b;
+    a=b;
+    b=c;
+}
+long long egcd(long long r0,long long r1,long long& x0,long long& y0)
+{
+    long long x1=0,y1=1;
+    x0=1;
+    y0=0;
+    while(r1)
+    {
+        long long q=r0/r1;
+        move1step(r0,r1,q);
+        move1step(x0,x1,q);
+        move1step(y0,y1,q);
+    }
+    return r0;
+}
+bool  solve (long long a, long long b, long long c,long long&x, long long& y)
+{
+    long long g=egcd(a,b,x,y);
+    int m=c/g;
+    x*=m;
+    y*=m;
+    return c%g==0;
+}
+int gcd(int a, int b)
+{
+    if(b==0)
+        return a;
+    return gcd(b,a%b);
+}
+long long ncrtane(long long n, long long r)
+{
+    long long ans=1,cntr=1;
+    for(int i=n; i>n-r; i--)
+    {
+        ans*=i;
+        ans/=cntr;
+        cntr++;
+    }
+    return ans;
+}
+int ncr(long long n, long long r)
+{
+    return (((fact[n] * inv[n - r]) % mod) * inv[r]) % mod;
+}
+
+int npr(long long n, long long r)
+{
+    return (fact[n] * inv[n - r]) % mod;
+}
+long long fact[N], inv[N];
+void pre(long long n)
+{
+    fact[0] = 1;
+    inv[0] = 1;
+    for (long long i = 1; i <= n; i++)
+    {
+        fact[i] = (i * fact[i - 1]) % mod;
+        inv[i] = fp(fact[i], mod - 2);
+    }
+}
+*/
+/*
+ll lfts,lftw;
+ll p,f,cnts,cntw,s,w;
+ll ss(ll cnts, ll cntw, ll mxmp)
+{
+     for(int i = 0;i<=cnts;i++)
+        {
+            ll var = i*s,s = 0,e = cntw,mid,ans;
+            if(var>p)break;
+            while(s<=e)
+            {
+                mid = (s+e)/2;
+                if((mid*w)+var<=p)ans = mid,s = mid+1;
+                else e = mid-1;
+            }
+            if(mxmp<i+mid)mxmp = i+mid,lfts-=i,lftw-=mid;
+        }
+        return mxmp;
+}
+ll ww(ll cnts, ll cntw, ll mxmp)
+{
+    for(int i = 0;i<=cnts;i++)
+        {
+            ll var = i*s,s = 0,e = cntw,mid,ans;
+            if(var>f)break;
+            while(s<=e)
+            {
+                mid = (s+e)/2;
+                if((mid*w)+var<=f)ans = mid,s = mid+1;
+                else e = mid-1;
+            }
+
+            if(mxmp<i+mid)mxmp = i+mid;
+        }
+        return mxmp;
+}
+void PrimeFactorization(int n)
+{
+    for(int i=2; i*i<=n; i++)
+    {
+        int c=0;
+        if(n%i==0)
+        {
+            int cntr = 0;
+            while(n%i==0)
+            {
+                n/=i;
+                cntr++;
+            }
+         if(cnt[i]<cntr)cnt[i] = cntr;
+        }
+    }
+    if(n>1)
+    {
+        if(cnt[n]<1)cnt[n]=1;
+    }
+}
+ll fp(ll base, ll exp)
+{
+    if (exp == 0)
+        return 1;
+    ll ans = fp(base, exp / 2);
+    ans = (ans * ans) % mod;
+    if (exp % 2 != 0)
+        ans = (ans * (base % mod)) % mod;
+    return ans;
+}
+*/
+
+int main()
+{
+    bizarre
+    string s,t;
+    cin >> s >> t;
+    reverse(t.begin(),t.end());
+    if(s == t)cout << "YES";
+    else cout << "NO";
+    return 0;
+}

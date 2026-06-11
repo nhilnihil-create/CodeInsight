@@ -1,0 +1,74 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+
+/* エイリアス */
+#define ll long long
+#define ld long double
+#define vi vector<int>
+#define vll vector<ll>
+#define pii pair<int,int>
+#define pll pair<ll,ll>
+#define vpi vector<pii>
+#define vpll vector<pll>
+#define endl '\n'
+
+#define fi first
+#define se second
+#define pb push_back
+#define eb emplace_back
+#define em emplace
+#define mp make_pair
+
+
+/* 関数マクロ */
+#define rep(i, n) for (ll i = 0; i < n; ++i)
+#define rep2(i, n, m) for (ll i = n; i <= m; ++i)
+#define rep3(i, n, m) for (ll i = n; i >= m; --i)
+#define all(v) v.begin(), v.end()
+#define si(v) int(v.size())
+#define UNIQUE(v) sort(all(v)), v.erase(unique(all(v)),v.end())
+
+
+/* 定数 */
+const ll mod = 1e9 + 7;
+const ll infll = (1LL << 62) - 1;
+const ll inf = (1LL << 30) - 1;
+
+
+/* その他 */
+template<class S, class T> inline bool chmax(S &a, T b) { if (a < b) { a = b; return 1; } return 0; }
+template<class S, class T> inline bool chmin(S &a, T b) { if (a > b) { a = b; return 1; } return 0; }
+template<class T> using pq = priority_queue<T>;
+template<class T> using pqg = priority_queue<T, vector<T>, greater<T>>;
+
+vector<bool> sieve(int n)
+{
+  vector<bool> prime(n+1, true);
+  prime[0] = prime[1] = false;
+
+  for (int i = 2; i <= n; ++i) {
+    if (!prime[i]) continue;
+
+    for (int j = 2; i * j <= n; ++j) prime[i * j] = false;
+  }
+
+  return prime;
+}
+
+signed main() {
+  ios_base::sync_with_stdio(0), cin.tie(0), cout.tie(0);
+  cout << fixed << setprecision(15);
+
+  auto prime = sieve(100005);
+  int a[100005] = {};
+
+  for (int i = 3; i < 100005; i += 2) if (prime[i] && prime[(i+1)/2]) a[i] = 1;
+  rep(i, 100004) a[i+1] += a[i];
+  
+  int q; cin >> q;
+  while (q --> 0) {
+    int l, r; cin >> l >> r;
+    cout << a[r] - a[l-1] << endl;
+  }
+}

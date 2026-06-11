@@ -1,0 +1,6946 @@
+{
+  "p00000": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00001": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00002": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00003": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00004": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00005": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00006": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00007": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00008": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00009": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00011": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00012": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p00013": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00014": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00018": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00019": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p00021": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p00022": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00025": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00027": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00028": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00029": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00030": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00033": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00118": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00168": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00189": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p00423": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00424": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00433": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p00434": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00438": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00439": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00444": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00448": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00480": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00481": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p00710": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00711": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00718": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00722": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00723": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p00728": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00734": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00740": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00741": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00746": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00748": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00753": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00754": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00760": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00761": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p00767": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p00773": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p00774": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01085": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01093": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01125": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01131": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01137": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p01138": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01140": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01143": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p01144": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p01267": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p01314": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p01369": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p01554": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p01694": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02233": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02234": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02235": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02237": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02238": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02239": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02240": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02241": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02242": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02255": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02256": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02257": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02258": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02259": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02260": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02261": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02262": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02263": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02264": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02265": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02266": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02267": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02269": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02270": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02271": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02272": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02273": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "oop"
+  ],
+  "p02274": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02275": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02276": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02277": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02279": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02281": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02283": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02284": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02287": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02288": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02289": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02314": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02315": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02317": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02318": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02343": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02346": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02361": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02362": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02363": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02364": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02370": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02379": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02380": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02381": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02382": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02383": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02384": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02388": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02389": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02390": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02391": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02392": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02393": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02394": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02396": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02397": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02398": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02399": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02400": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02401": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02402": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02403": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02404": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02405": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02406": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02407": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02408": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02409": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02410": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02411": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02412": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02413": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02414": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02415": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02416": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02417": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02418": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02419": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02420": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02421": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02422": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02467": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02468": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02534": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02536": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02546": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02547": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02548": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02550": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02552": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02553": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02554": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02555": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02556": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02558": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "oop"
+  ],
+  "p02559": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02570": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02571": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02572": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02573": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02574": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02576": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02577": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02578": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02580": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02582": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02583": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02584": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02585": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02594": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02595": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02596": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02597": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02598": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02600": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02601": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02602": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02603": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02606": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02607": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02608": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02612": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02613": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02614": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02615": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02617": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02619": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02621": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02622": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02623": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02624": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02627": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02628": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02629": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02630": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02631": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02633": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02639": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02640": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02641": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02642": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02645": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02646": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02647": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02651": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02657": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02658": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02659": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02660": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02661": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02662": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02663": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02664": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02665": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02675": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02676": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02677": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02678": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02681": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02682": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02683": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02684": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02687": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02688": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02689": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02690": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02691": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02693": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02694": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02695": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02696": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02697": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02699": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02700": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02701": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02702": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02705": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02706": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02707": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02708": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02709": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02711": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02712": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02713": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02714": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02715": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02716": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02717": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02718": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02719": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02720": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02721": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02722": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02723": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02724": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02725": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02726": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02727": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02729": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02730": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02731": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02732": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02734": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02735": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02736": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02741": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02742": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02743": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02744": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02747": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02748": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02753": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02754": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02755": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02756": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02757": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02759": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02760": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02761": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02765": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02766": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02767": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02768": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02770": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02771": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02772": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02773": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02775": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02777": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02778": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02779": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02780": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02781": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02783": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02784": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02785": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02786": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02787": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02788": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02789": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02790": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02791": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02792": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02795": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02796": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02797": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02801": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02802": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02806": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02811": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02812": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02813": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02814": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02817": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02818": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02819": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02820": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02823": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02824": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02829": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02830": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02831": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02832": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02833": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02835": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02836": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02837": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02838": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02841": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02842": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02843": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02844": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02845": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02846": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02847": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02848": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02850": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02851": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02852": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02853": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02854": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02856": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02859": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02860": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02861": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02862": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p02863": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02864": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02865": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02866": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02873": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02879": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02880": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02881": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02882": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02883": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02885": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02886": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02887": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02888": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02890": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02891": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02897": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02898": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02899": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02900": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02901": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02903": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02909": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02910": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02911": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02912": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02913": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02914": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02916": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02917": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02918": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02919": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02920": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02921": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02922": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02923": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02924": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02925": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02926": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02927": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02928": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02929": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02930": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02933": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02934": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02935": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02936": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02937": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02939": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02941": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02946": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p02947": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p02948": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02951": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02952": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02953": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02954": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02955": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02957": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02958": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02959": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02960": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02963": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02970": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02971": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02972": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02973": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02975": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02977": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02982": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02983": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02984": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02985": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02987": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02988": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02989": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p02990": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02991": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p02993": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02994": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p02995": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p02996": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p02997": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p02999": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03000": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03001": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03003": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03005": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03006": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03007": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03011": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03012": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03013": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03014": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03015": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03017": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03018": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03023": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03024": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03026": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03029": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03030": [
+    "datatypes",
+    "variables",
+    "functions",
+    "oop"
+  ],
+  "p03031": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03032": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03035": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03036": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03037": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03038": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03041": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03042": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03043": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03044": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03045": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03046": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03047": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03048": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03049": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03050": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03053": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03054": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03055": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03059": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03060": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03061": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03062": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03067": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03068": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03069": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03071": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03072": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03073": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03074": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03075": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03076": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03077": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03078": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03079": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03080": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03081": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03085": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03086": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03087": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03089": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03090": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03092": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03095": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03096": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03101": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03102": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03103": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03104": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03105": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03106": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03107": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03108": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03109": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03110": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03111": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03112": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03125": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03126": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03127": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03128": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03129": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03130": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03131": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03135": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03136": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03137": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03138": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03139": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03140": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03141": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03142": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03145": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03146": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03147": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03148": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03149": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03150": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03151": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03155": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03156": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03160": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03161": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03162": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03165": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03166": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03167": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03168": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03169": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03170": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03171": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03172": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03173": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03174": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03175": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03176": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03178": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03179": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03180": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03183": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03186": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03192": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03193": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03194": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03200": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03201": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03202": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03203": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03206": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03207": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03208": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03209": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03210": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03211": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03212": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03213": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03214": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03215": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03216": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03219": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03220": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03221": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03224": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03227": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03228": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03229": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03231": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03232": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03238": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03239": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03240": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03241": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03242": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03243": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03244": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03247": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03248": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03249": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03250": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03251": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03252": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03254": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03255": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03256": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03260": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03261": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03262": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03263": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03264": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03265": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03266": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03269": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "oop"
+  ],
+  "p03272": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03273": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03274": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03277": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03280": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03281": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03282": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03283": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03284": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03285": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03286": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03287": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03288": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03289": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03290": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03291": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03292": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03293": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03294": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03295": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03296": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03297": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03298": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03302": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03303": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03304": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03307": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03308": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03309": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03312": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03313": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03315": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03317": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03320": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03323": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03324": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03325": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03326": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03327": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03328": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03329": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03330": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03331": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03332": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03333": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03337": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03338": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03339": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03340": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03343": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03345": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03346": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03347": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03351": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03352": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03353": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03354": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03359": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03360": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03361": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03362": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03363": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03364": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03369": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03370": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03373": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03374": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03377": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03378": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03379": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03382": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03385": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03386": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03387": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03390": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03391": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03393": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03394": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03399": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03400": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03401": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03402": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03407": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03408": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03409": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03412": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03415": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03416": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03417": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03418": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03421": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03423": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03424": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03425": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03426": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03427": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03430": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03433": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03434": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03435": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03436": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03437": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03438": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03439": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03448": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03449": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03452": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03455": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03457": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03463": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03464": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03465": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03469": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03470": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03471": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03472": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03473": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03474": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03475": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03476": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03477": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03478": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03479": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03480": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03485": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03486": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03487": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03490": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03493": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03494": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03495": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03496": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03501": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03502": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03503": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03504": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03523": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03525": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03534": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03543": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03544": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03545": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03546": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03547": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03548": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03549": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03550": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03555": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03556": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03557": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03558": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03563": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03564": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03565": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03566": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03567": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03568": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03569": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03570": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03573": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03574": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03575": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03576": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03577": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03578": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03579": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03583": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03584": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03588": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03591": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03592": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03593": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03594": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03597": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03598": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03599": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03602": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03605": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03606": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03607": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03608": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03609": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03610": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03611": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03614": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03617": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03618": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03623": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03624": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03625": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03626": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03629": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03631": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03632": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03633": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03634": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03636": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03637": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03638": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03643": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03644": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03645": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03648": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03649": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03651": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03652": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03657": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03658": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03661": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03662": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03663": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03665": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03666": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03668": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03671": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03672": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03673": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03676": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03677": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03679": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03680": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03681": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03687": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03688": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03689": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03693": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03695": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03696": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03697": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03698": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03699": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03702": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03703": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03705": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03711": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03712": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03713": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03714": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03719": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03720": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03721": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03722": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03723": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03724": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03726": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03729": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03730": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03731": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03732": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03737": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03738": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03739": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03742": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03745": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03746": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03747": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03752": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03759": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03760": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03761": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03764": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03765": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03766": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03767": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03768": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03769": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03773": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03774": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03775": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03776": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03777": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03778": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03780": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03781": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03785": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03786": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03787": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03791": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03795": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03796": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03797": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03800": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03801": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03803": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03804": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03805": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03806": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03807": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03808": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03809": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03810": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03813": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03814": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03815": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03816": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03819": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03821": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03822": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03826": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03827": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03828": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03829": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03834": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03835": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03836": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03837": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03838": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03839": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03840": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03841": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03844": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03845": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03846": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03850": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03852": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03853": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03854": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03857": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p03860": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03861": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03862": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03863": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03889": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03912": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03919": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03920": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03938": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03943": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03944": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03945": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03948": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03951": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03952": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03953": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03954": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03958": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03959": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03962": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03963": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03964": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p03965": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03970": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03971": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p03972": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03973": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p03986": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03987": [
+    "datatypes",
+    "variables",
+    "functions",
+    "arrays"
+  ],
+  "p03988": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03992": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03993": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions",
+    "arrays"
+  ],
+  "p03994": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p03997": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p03998": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04001": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p04002": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p04005": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p04006": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04008": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p04011": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p04012": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04013": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04017": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04019": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p04020": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions"
+  ],
+  "p04021": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04028": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04029": [
+    "datatypes",
+    "variables",
+    "functions"
+  ],
+  "p04030": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p04031": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04032": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04033": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p04034": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04035": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04037": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04038": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04040": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p04043": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p04044": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions"
+  ],
+  "p04045": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04047": [
+    "datatypes",
+    "variables",
+    "loops",
+    "functions",
+    "arrays"
+  ],
+  "p04048": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "functions"
+  ],
+  "p04049": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays",
+    "oop"
+  ],
+  "p04050": [
+    "datatypes",
+    "variables",
+    "conditionals",
+    "loops",
+    "functions",
+    "arrays"
+  ]
+}

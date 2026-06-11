@@ -1,0 +1,29 @@
+#include <iostream>
+#include <stdio.h>
+#include <algorithm>
+using namespace std;
+
+int main(void)
+{
+	int H,W;
+	int i,j;
+
+	while (1) {
+		cin >> H;
+		cin >> W;
+
+		if ((H==0) && (W==0)) {
+			break;
+		}
+
+		for (i = 0; i < H; i++) {
+			for ( j = 0; j < W; j++) {
+				cout << "#";
+			}
+			cout << endl;
+		}
+		cout << endl;
+	}
+	return 0;
+}
+

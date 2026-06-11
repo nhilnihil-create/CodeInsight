@@ -1,0 +1,30 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+#define int long long
+
+#define ii pair<int,int>
+#define fi first
+#define sc second
+
+#define all(x) (x).begin(),(x).end()
+
+void solve() {
+  string s, t;
+  cin >> s >> t;
+  sort(all(s));
+  sort(all(t), greater<char>());
+  if (s < t) cout << "Yes" << '\n';
+  else cout << "No" << '\n';
+}
+
+signed main() {
+#ifdef _DEBUG
+  // freopen("in" , "r", stdin );
+  // freopen("out", "w", stdout);
+#endif
+  ios::sync_with_stdio(0); cin.tie(0);
+  int T = 1;
+  // cin >> T;
+  while (T--) solve();
+}

@@ -1,0 +1,64 @@
+#define _GLIBCXX_DEBUG
+#include<bits/stdc++.h>
+#include<algorithm>//next_permutation
+#define rep(i,n) for (int i = 0;i < (n);i++)
+#define all(v) v.begin(),v.end()
+#define dec(n) cout << fixed << setprecision(n);
+#define large "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#define small "abcdefghijklmnopqrstuvwxyz"
+using namespace std;
+using ll = long long;
+using P = pair<ll,ll>;
+using vl = vector<ll>;
+using vvl = vector<vl>;
+
+ll gcd(ll a,ll b){
+  if(b == 0) return a;
+  return gcd(b , a % b);
+}
+
+ll mod(ll a){
+  return (a % 1000000007);
+}
+
+ll lcm(ll a,ll b){
+  return (a*b)/gcd(a,b);
+}
+
+ll nCr(ll n,ll r){
+  if(r == 1) return n;
+  else if(r == 0) return 1;
+  else return nCr(n-1,r-1)*n/r;
+}
+
+int main(){
+  ll n; string s; cin >> s; n = s.size(); vl num(n+1);
+  
+  if(s[0] == '<') num[0] = 0;
+  
+  for(ll i=0; i < n; i++){
+    if(s[i] == '>' && s[i+1] == '<'){
+      num[i+1] = 0;
+    }
+    else if(s[i] == '<'){
+      num[i+1] = num[i] + 1;
+    }
+    
+  }
+  
+  
+  for(ll i=n-1; i >= 0; i--){
+    if(s[i] == '>'){
+      if(num[i] <= num[i+1] + 1) num[i] = num[i+1] + 1;
+    }
+  }
+ 
+  
+  ll ans = 0;
+  rep(i,n+1){
+    ans += num[i];
+  }
+  
+  cout << ans << endl;
+  
+}

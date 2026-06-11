@@ -1,0 +1,17 @@
+#include <iostream>
+
+using namespace std;
+
+int main()
+{  int a,b;
+   cin>>a>>b;
+   if (a+b<24)
+   {
+       cout<<a+b<<"\n";
+   }
+   else
+   {
+       cout<<(a+b)-24<<"\n";
+   }
+    return 0;
+}

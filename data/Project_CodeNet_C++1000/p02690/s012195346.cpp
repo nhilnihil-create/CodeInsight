@@ -1,0 +1,29 @@
+#include <bits/stdc++.h>
+#define loop2(i, s, n, a) for (int i = int(s); i < int(n); i += a)
+#define loop(i, s, n) loop2(i, s, n, 1)
+#define rep(i, n) loop(i, 0, n)
+
+#define pb push_back
+#define all(in) in.begin(),in.end()
+
+using ll = long long;
+using ull = unsigned long long;
+using namespace std;
+
+int main(){
+    int x; cin >> x;
+    int aa, bb;
+    bool gogo = false;
+    for(ll a = -120; a <= 120; a++){
+        for(ll b = -120; b <= 120; b++){
+            ll ans = a*a*a*a*a - b*b*b*b*b;
+            if(ans == x){
+                aa = a; bb = b;
+                gogo = true; break;
+            }
+        }
+        if(gogo) break;
+    }
+    cout << aa << " " << bb << endl;
+}
+

@@ -1,0 +1,35 @@
+//#define _GLIBCXX_DEBUG
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+#define pp pair<int,int>
+#define rep(i,n) for(int (i)=0;(i)<(n);(i)++)
+#define ld long double
+#define al(a) (a).begin(),(a).end()
+#define mk make_pair
+#define check cout<<"?"<<endl;
+
+ll MOD=1000000007;
+ll mod=998244353;
+int inf=1000001000;
+ll INF=1e18+5;
+
+
+int main() {
+    int n,k,s; cin>>n>>k>>s;
+    if(n==k){
+        rep(i,k-1) cout<<s<<" ";
+        cout<<s<<endl;
+    }
+    else{
+        rep(i,k) cout<<s<<" ";
+        if(s>=3){
+            rep(i,n-k-1) cout<<s-1<<" ";
+            cout<<s-1<<endl;
+        }
+        else{
+            rep(i,n-k-1) cout<<3<<" ";
+            cout<<3<<endl;
+        }
+    }
+}

@@ -1,0 +1,76 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <numeric>
+#include <unordered_map>
+ 
+using namespace std;
+using ll = long long;
+// constexpr int MOD = 1e9+7;
+ 
+void _cin(){} template <class Head, class... Tail> void _cin(Head&& head, Tail&&... tail){ cin >> head; _cin(forward<Tail>(tail)...); }
+void _cout(){ cout << "\n"; } template <class Head, class... Tail> void _cout(Head&& head, Tail&&... tail){ cout << head; _cout(forward<Tail>(tail)...); }
+ll gcd(ll a, ll b){ return (b == 0) ? a : gcd(b, a % b); }
+ll lcm(ll a, ll b){ return a/gcd(a, b)*b; };
+ 
+#define Sq(x) (x)*(x)
+#define For(i, n) for(int i = 0; i < (n); i ++)
+#define Rep(n) For(_, n)
+#define Range(c) c.begin(), c.end()
+#define RevRange(c) c.rbegin(), c.rend()
+#define Contains(c, x) (find(Range(c), x) != c.end())
+#define Search(rb, re, x) distance(rb, find(rb, re, x))
+#define Sort(a) sort(Range(a))
+#define DeSort(a) sort(RevRange(a))
+#define Unique(a) a.erase(unique(Range(a)), a.end())
+#define RemoveIf(a, f) a.erase(remove_if(Range(a), f), a.end())
+#define Reverse(c) reverse(Range(c))
+#define Vec2(T, n, m, xs) vector<vector<T>> xs(n, vector<T>(m))
+#define Sum(a) accumulate(Range(a), 0)
+#define Cusum(T, xs, sxs) vector<T> sxs(xs.size()+1); For(i, (int)xs.size()) sxs[i+1] = sxs[i] + xs[i]
+#define Cin(T, ...) T __VA_ARGS__; _cin(__VA_ARGS__)
+#define Cins(T, n, xs) vector<T> xs(n); For(i, n) cin >> xs[i]
+#define Cins2(T, n, xs, ys) vector<T> xs(n), ys(n); For(i, n) cin >> xs[i] >> ys[i]
+#define Cins3(T, n, xs, ys, zs) vector<T> xs(n), ys(n), zs(n); For(i, n) cin >> xs[i] >> ys[i] >> zs[i]
+#define Cinss(T, n, m, xs) Vec2(T, n, m, xs); For(i, n) For(j, m) cin >> xs[i][j]
+#define Cinm(T, n, map) unordered_map<T, int> map; Rep(n){ Cin(T, x); map[x] ++; }
+#define Cout(...) _cout(__VA_ARGS__)
+#define Couts(xs) for(const auto &e : xs) cout << e << " "; cout << "\n"
+#define Coutyn(cond) Cout((cond) ? "yes" : "no")
+#define CoutYn(cond) Cout((cond) ? "Yes" : "No")
+#define CoutYN(cond) Cout((cond) ? "YES" : "NO")
+#define Tie(T, ...)  T __VA_ARGS__; tie(__VA_ARGS__)
+
+#include <queue>
+
+int main(void){
+    Cin(int, n);
+    Cins(int, 3*n, a);
+
+    vector<ll> u(n+1);
+    {
+        priority_queue<int, vector<int>, greater<int>> q;
+        For(i, n) q.push(a[i]), u[0] += a[i];
+        For(i, n){
+            q.push(a[n+i]);
+            u[i+1] = u[i] + a[n+i] - q.top();
+            q.pop();
+        }
+    }
+    Reverse(a);
+    vector<ll> l(n+1);
+    {
+        priority_queue<int> q;
+        For(i, n) q.push(a[i]), l[0] += a[i];
+        For(i, n){
+            q.push(a[n+i]);
+            l[i+1] = l[i] + a[n+i] - q.top();
+            q.pop();
+        }
+    }
+    ll ans = u[n] - l[0];
+    For(i, n) ans = max(ans, u[i] - l[n-i]);
+    Cout(ans);
+}
+

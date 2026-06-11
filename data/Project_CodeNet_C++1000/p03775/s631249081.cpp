@@ -1,0 +1,2 @@
+#include<bits/stdc++.h>
+using namespace std;int k(int64_t n){int c=0;while(n!=0){n/=10;c++;}return c;}int main(){int64_t n;cin>>n;vector<int> d;for(int64_t i=1;i<=sqrt(n);i++)if(n%i==0)d.push_back(i);cout<<k(n/d.back())<<endl;}

@@ -1,0 +1,51 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <utility>
+#include <tuple>
+#include <cstdint>
+#include <cstdio>
+#include <map>
+#include <queue>
+#include <set>
+#include <stack>
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <bitset>
+#include <cctype>
+#include <random>
+#include <cassert>
+#include <numeric>
+#define ll long long int
+#define LL unsigned long long
+#define pb push_back
+#define rep(i,n) for(int i=0;i<(n);i++)
+#define REP(i,n) for(int i=1;i<=(n);i++)
+using namespace std;
+
+int mx8[] = {0,0,1,-1,-1,1,-1,1};
+int my8[] = {-1,1,0,0,-1,-1,1,1};
+int mx4[] = {1,-1,0,0};
+int my4[] = {0,0,-1,1};
+const int MOD = 1000000007;
+
+
+
+int main() {
+    ll n, a, b; cin >> n >> a >> b;
+
+    ll ans = 0;
+    for(ll i = 1; i <= n; i++){
+        string s = to_string(i);
+        int si = s.size();
+        int check = 0;
+        rep(j,si){
+            check += (ll) s[j] - 48;
+            //cout << (ll) s[j] << endl;
+        }
+        if(a <= check && check <= b) ans += i;
+    }
+    cout << ans << endl;
+}

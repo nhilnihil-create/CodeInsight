@@ -1,0 +1,14 @@
+#include<iostream>
+#include<string>
+#include<algorithm>
+#include<vector>
+#include<set>
+#include<iomanip>
+#define rep(i, a, n) for(int i = a; i < n; i++)
+using namespace std;
+int main(){
+  char a;
+  cin >> a;
+  char b = a + 1;
+  cout << b << "\n";
+}

@@ -1,0 +1,27 @@
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <cmath>
+#include <array>
+#include <vector>
+#include <set>
+#include <unordered_set>
+#include <map>
+#include <unordered_map>
+#include <utility>
+#include <iomanip>
+#include <numeric>
+#include <climits>
+#include <algorithm>
+#include <cstdint>
+using namespace std;
+
+int main()
+{
+    int n, k;
+    string str;
+    cin >> n >> k >> str;
+
+    str[k-1] = tolower(str[k-1]);
+    cout << str;
+}

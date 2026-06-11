@@ -1,0 +1,13 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define int long long
+
+signed main(){
+
+  string s;
+
+  cin >> s;
+
+  cout << s[0] << s.length()-2 << s[s.length()-1]<< endl;
+
+}

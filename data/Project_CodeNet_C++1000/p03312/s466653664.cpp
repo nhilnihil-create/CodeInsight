@@ -1,0 +1,44 @@
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+typedef long double ld;
+#define REP(i, n) for (int i = 0; i < (n); ++i)
+#define REPR(i, n) for (int i = n - 1; i >= 0; --i)
+#define FOR(i, m, n) for (int i = m; i < n; ++i)
+#define FORR(i, m, n) for (int i = m; i >= n; --i)
+#define ALL(v) (v).begin(),(v).end()
+template<class T>bool chmax(T &a, const T &b) { if (a<b) { a=b; return 1; } return 0; }
+template<class T>bool chmin(T &a, const T &b) { if (b<a) { a=b; return 1; } return 0; }
+const ll INF=1LL<<60;
+const int inf=(1<<30)-1;
+const int mod=1e9+7;
+int dx[8]={1,0,-1,0,-1,-1,1,1};
+int dy[8]={0,1,0,-1,-1,1,-1,1};
+int main(){
+    cin.tie(0);
+    ios::sync_with_stdio(false);
+    ll n;cin >> n;
+    vector<ll> a(n),sm(n+1);
+    REP(i,n){
+        cin >> a[i];
+        sm[i+1]=sm[i]+a[i];
+    }
+    ll ans=INF;
+    REP(i,n-1){
+        ll sm1=sm[i+1],sm2=sm[n]-sm[i+1];
+        int p=lower_bound(ALL(sm),sm1/2)-sm.begin();
+        int r=lower_bound(ALL(sm),sm1+sm2/2)-sm.begin();
+        REP(j,2){
+            REP(k,2){
+                vector<ll> d(4);
+                d[0]=sm[p-j];
+                d[1]=sm1-sm[p-j];
+                d[2]=sm[r-k]-sm1;
+                d[3]=sm[n]-sm[r-k];
+                sort(ALL(d));
+                chmin(ans,d[3]-d[0]);
+            }
+        }
+    }
+    cout << ans << endl;
+}

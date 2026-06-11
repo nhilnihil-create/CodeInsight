@@ -1,0 +1,2 @@
+#include <bits/stdc++.h>
+int main(){std::string S;std::cin>>S;int64_t ans=0;std::vector<int>A(S.size()+1);for(int i=0;i<S.size();i++)if(S.at(i)=='<')A[i+1]=std::max(A[i+1],A[i]+1);for(int i=S.size()-1;i>=0;i--)if(S.at(i)=='>')A[i]=std::max(A[i],A[i+1]+1);for(int i=0;i<=S.size();i++)ans+=A[i];std::cout<<ans<<std::endl;}

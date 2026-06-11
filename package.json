@@ -2,7 +2,9 @@
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "jest": "^30.4.2",
-    "pg": "^8.21.0"
+    "pg": "^8.21.0",
+    "tree-sitter": "^0.21.1",
+    "tree-sitter-cpp": "^0.23.4"
   },
   "dependencies": {
     "@nick-vi/opencode-type-inject": "^1.5.2",

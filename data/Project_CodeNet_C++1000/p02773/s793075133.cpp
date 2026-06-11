@@ -1,0 +1,63 @@
+#include <bits/stdc++.h>
+//#define DEBUG
+#define REP( i , nn ) for(int i = 0 ; i < (int) nn; i++)
+using namespace std;
+typedef long long ll;
+typedef vector<int> vi;
+typedef vector<ll> vl;
+template <class T>
+void print_vect(std::vector<T> v){
+    for(int i = 0 ; i < v .size(); i++) cout << v[i] << " ";
+    cout << endl;
+}
+
+
+void solve(){
+    int n;
+    cin >> n;
+    map<string, int> mp;
+    for(int i = 0 ; i < n ; i++){
+        string s;
+        cin >> s;
+        mp[s]++;
+    }
+    int maxVote = 0;
+    vector<string> ans;
+    for(auto it = mp.begin() ; it!= mp.end() ;it++){
+        int v = (*it).second;
+        if( v > maxVote){
+            maxVote = v;
+            ans.clear();
+            ans.push_back((*it).first);
+        }else if ( v == maxVote){
+            ans.push_back((*it).first);
+        }
+    }
+    for( int i = 0 ; i < ans.size() ; i++){
+        cout << ans[i] << "\n";
+    }
+} 
+
+int main()
+{
+    //making data IO Fast
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+    /****************************/
+
+    #ifdef DEBUG
+    int TEST_CASES = 2;
+    while(TEST_CASES--){
+    #endif // DEBBUG
+
+    solve();
+
+    #ifdef DEBUG
+    }
+    #endif // DEBUG
+    
+    return 0;
+}
+
+//Thanks to CSES problemset
+// I am trained with this kind of problem

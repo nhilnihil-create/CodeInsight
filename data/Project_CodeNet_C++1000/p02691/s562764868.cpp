@@ -1,0 +1,26 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i, n) for (int i = 0; i < n; i++)
+#define repr(i, n) for (int i = n-1; i >= 0; i--)
+#define all(x) x.begin(), x.end()
+using ll = long long;
+using pii = pair<int, int>;
+const int mod = 1e9+7;
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> a(n);
+    rep(i, n) {
+        cin >> a[i];
+    }
+    map<int, int> m;
+    ll cnt = 0;
+    rep(i, n) {
+        m[i+a[i]]++;
+        if (i > 0) {
+            cnt += m[i-a[i]];
+        }
+    }
+    cout << cnt << endl;
+}

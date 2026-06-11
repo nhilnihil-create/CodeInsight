@@ -1,0 +1,44 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll=long long;
+using ld=long double;
+using st=string;
+using ch=char;
+typedef pair<ll,ll> P;
+typedef vector<ll> vl;
+typedef vector<vl> vvl;
+typedef vector<P> vP;
+typedef vector<ch> vc;
+typedef vector<vc> vvc;
+#define FOR(i,a,b) for(ll i=a;i<b;i++)
+#define rep(i,n) FOR(i,0,n)
+#define ROF(i,a,b) for(ll i=a;i>=b;i--)
+#define per(i,a) ROF(i,a,0)
+const ll MOD=1000000007;
+const ll MOD2=998244353;
+const ld PI=acos(-1);
+const ll INF=1e18;
+st abc="abcdefghijklmnopqrstuvwxyz";
+st ABC="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+struct edge{ll to,cost;};
+
+int main() {
+  ll n;
+  bool b=true;
+  cin >> n;
+  ll nowx=0,nowy=0,nowt=0;
+  rep(i,n){
+    ll t,x,y;
+    cin >> t >> x >> y;
+    if(!(abs(x-nowx)+abs(y-nowy)<=t-nowt&&((t-nowt)-abs(x-nowx)-abs(y-nowy))%2==0)){
+      b=false;
+    }
+    nowx=x;nowy=y;nowt=t;
+  }
+  if(b){
+    cout << "Yes" << endl;
+  }
+  else{
+    cout << "No" << endl;
+  }
+}

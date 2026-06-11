@@ -1,0 +1,22 @@
+#include <bits/stdc++.h>
+using namespace std;
+ 
+#define ll long long
+#define all(aaa) aaa.begin(), aaa.end()
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    int n;
+    string s;
+    cin >> n >> s;
+
+    int x = 0;
+    for (const char &c : s)
+        x += (c == 'R');
+
+    cout << (x * 2 > s.size() ? "Yes" : "No");
+    
+    return 0;
+}

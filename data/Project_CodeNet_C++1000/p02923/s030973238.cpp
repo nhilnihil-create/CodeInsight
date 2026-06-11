@@ -1,0 +1,85 @@
+#include<bits/stdc++.h>
+#define ll long long
+#define ull unsigned long long
+#define mod 1000000007
+using namespace std;
+ll binpow(ll x,ll y)/* (x^y)%p in O(log y) */{ll res=1;while (y > 0){if(y&1)res=(res*x);y = y>>1;x=(x*x);}return res;}
+ll binpowmod(ll x,ll y,ll p)/* (x^y)%p in O(log y) */{ll res=1;x=x%p;while (y > 0){if(y&1)res=(res*x)%p;y = y>>1;x=(x*x)%p;}return res;}
+ll mod_inverse(ll n,ll p)/* Returns n^(-1) mod p */{return binpowmod(n,p-2,p);}
+ull gcd(ull x,ull y)
+{
+    if(y==0)
+        return x;
+    return gcd(y,x%y);
+}
+bool comp(pair<ll,ll> x,pair<ll,ll> y)
+{
+    return x.first>y.first;
+}
+bool comp_pairs_by_s(pair<ll,ll> &x ,pair<ll,ll> &y)
+{
+    return x.second<y.second;
+}
+bool isPowerOfTwo (ll x)  
+{  
+    /* First x in the below expression is for the case when x is 0 */
+    return x && (!(x&(x-1)));  
+}
+
+class cmp      //comparator for priority_queue 
+{               //declaration: priority_queue<int,vector<int>,cmp>
+public:         
+    bool operator()(pair<int,int> A,pair<int,int> B)
+    {
+        if(abs(A.first-A.second)==abs(B.first-B.second))
+            return A.first>B.first;
+        return abs(A.first-A.second)<abs(B.first-B.second);
+    }
+};
+// int prime[100005]={0};
+// void sieve(void)
+// {
+//  int i,j;
+//  for(i=0;i<100005;i++)
+//         prime[i]=1;
+//  prime[0]=0,prime[1]=0;
+//  for(i=2;i<=sqrt(100005);i++){
+//      if(prime[i]){
+//          for(j=i*i;j<100005;j+=i){
+//              prime[j]=0;
+//          }
+//      }
+//  }
+    
+// }
+void swap(int &x,int &y){
+    int temp=x;
+    x=y;
+    y=temp;
+}
+vector<ll> dp(100001);
+void solve()
+{   
+    int n;
+    cin>>n;
+    vector<ll> h(n);
+    for(auto &it :h)
+        cin>>it;
+    dp[n-1]=0;
+    for(int i=n-2;i>=0;i--){
+        if(h[i]>=h[i+1])
+            dp[i]=dp[i+1]+1;
+        else
+            dp[i]=0;
+    }
+    ll ans=INT_MIN;
+    for(int i=0;i<n;i++)
+        ans=max(ans,dp[i]);
+    cout<<ans;
+}
+int main()
+{
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+    solve();
+}

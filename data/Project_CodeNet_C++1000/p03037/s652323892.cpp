@@ -1,0 +1,58 @@
+#include <bits/stdc++.h>
+//#define DEBUG
+using namespace std;
+typedef long long ll;
+typedef vector<int> vi;
+typedef vector<ll> vl;
+template <class T>
+void print_vect(std::vector<T> v){
+    for(int i = 0 ; i < v .size(); i++) cout << v[i] << " ";
+    cout << endl;
+}
+
+void solve(){
+    int n , m;
+    cin >> n >> m;
+    vi acc(n + 1);
+    for(int i = 0 ; i < m ; i++){
+        int l, r;
+        cin >> l >> r;
+        l--;
+        r--;
+        acc[l]++;
+        acc[r+1]--;
+    }
+    int ans = 0;
+    int num_gate = 0;
+    for(int i = 0 ; i < n; i++){
+        num_gate = num_gate + acc[i];
+        if( num_gate == m){
+            ans++;
+        }
+    }
+    cout << ans << endl;
+}
+
+int main()
+{
+    //making data IO Fast
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+    /****************************/
+
+    #ifdef DEBUG
+    int TEST_CASES = 2;
+    while(TEST_CASES--){
+    #endif // DEBBUG
+
+    solve();
+
+    #ifdef DEBUG
+    }
+    #endif // DEBUG
+    
+    return 0;
+}
+
+//Thanks to CSES problemset
+// I am trained with this kind of problem

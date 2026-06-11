@@ -1,0 +1,24 @@
+#include<iostream>
+#include<vector>
+using namespace std;
+using ll = long long;
+
+int main(){
+    int n;
+    cin>>n;
+    vector<ll> a(n);
+    for(int i=0;i<n;i++) cin>>a[i];
+    
+    ll ans=1000,c=0;
+    for(int i=0;i<n-1;i++){
+        if(a[i]<a[i+1]){
+            c+=ans/a[i];
+            ans%=a[i];
+        }else if(a[i]>a[i+1]){
+            ans+=c*a[i];
+            c=0;
+        }
+    }
+    ans+=c*a[n-1];
+    cout<<ans<<endl;
+}

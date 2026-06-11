@@ -1,0 +1,48 @@
+
+#include<iostream>
+#include<string>
+#include<iomanip>
+#include<cmath>
+#include<vector>
+
+#define rep(i,start,n) for(int i=start ; i<n ; i++)
+
+using namespace std;
+
+int main(){
+
+  int count=0;
+  double sum=0;
+  double ave=0;
+  double hen=0,hen1=0,hen2=0;
+
+while(1){
+
+cin >> count;
+vector<double> V(count);                     //???????????¢???????¢????
+
+if(count == 0) break;                        //????????????????????¶
+sum = 0;
+rep(i,0,count){
+cin >> V[i];
+sum += V[i];                                //??\???????¨?
+}
+
+ave = sum/count;                               //??????
+
+hen = 0;
+rep(i,0,count){
+hen += (V[i]-ave)*(V[i]-ave);                   //??????????¨??????????
+}
+
+hen1 = hen/count;                              //?¨??????????
+
+hen2 = sqrt(hen1);
+
+cout <<  fixed << setprecision(8) << hen2 << endl;
+
+}
+
+return 0;
+
+}

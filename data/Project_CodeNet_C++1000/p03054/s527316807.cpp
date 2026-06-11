@@ -1,0 +1,70 @@
+#include<iostream>
+using namespace std;
+int main(){
+	ios::sync_with_stdio(0);
+	cin.tie(0);
+	int n,m,i,j,k,l,r,l1,r1,pos,pos1,len;
+	string s,s1;
+	cin>>n>>m>>len>>pos>>pos1>>s>>s1;
+	l=1;
+	l1=1;
+	r=m;
+	r1=n;
+	for(i=len-1;i>=0;i--){
+		if(s1[i]=='L'||s1[i]=='R'){
+			if(s1[i]=='L'){
+				r++;
+				if(r>m){
+					r=m;
+				}
+			}
+			else{
+				l--;
+				if(l<1){
+					l=1;
+				}
+			}
+		}
+		else{
+			if(s1[i]=='U'){
+				r1++;
+				if(r1>n){
+					r1=n;
+				}
+			}
+			else{
+				l1--;
+				if(l1<1){
+					l1=1;
+				}
+			}
+		}
+		if(s[i]=='L'||s[i]=='R'){
+			if(s[i]=='L'){
+				l++;	
+			}
+			else{
+				r--;
+			}
+		}
+		else{
+			if(s[i]=='U'){
+				l1++;
+			}
+			else{
+				r1--;
+			}
+		}
+		//cout<<l<<" "<<r<<" "<<l1<<" "<<r1<<endl;
+		if(l1>r1||l>r){
+			cout<<"NO";
+			return 0;
+		}
+	}
+	if(pos>=l1&&pos<=r1&&pos1>=l&&pos1<=r){
+		cout<<"YES";
+	}
+	else{
+		cout<<"NO";
+	}
+}

@@ -1,0 +1,58 @@
+// ABC132-D
+#include <bits/stdc++.h>
+#define endl "\n"
+#define rep(i,n) for(int i=0;i<int(n);i++)
+#define SZ(x) ((int)(x).size())
+#define all(x) (x).begin(),(x).end()
+using namespace std;
+typedef long long ll;
+template <class T>ostream &operator<<(ostream &o,const vector<T>&v)
+{o<<"{";for(int i=0;i<(int)v.size();i++)o<<(i>0?", ":"")<<v[i];o<<"}";return o;}
+namespace you {
+    std::string to_string(char val) {
+        return std::string(1, val);
+        // return std::string{val};
+        // you::to_string(char)
+    }
+}
+
+ll mod=pow(10,9)+7;
+ll num=3*pow(10,3);
+vector<ll> fact(num);
+vector<ll> invfact(num);
+
+ll modpow(ll x,ll y,ll mod){ //x^y
+    if(y==0) return 1;
+    if(y==1) return x%mod;
+    if(y%2==1) return x*modpow(x,y-1,mod)%mod;
+    ll t=modpow(x,y/2,mod);
+    return (t*t)%mod;
+}
+ll nck(ll n,ll k,ll mod){
+    return fact[n]*invfact[k]%mod*invfact[n-k]%mod;
+}
+int main() {
+    cin.tie(0);
+    ios::sync_with_stdio(false);
+    cout << fixed << setprecision(12);
+
+    ll n,k;
+    cin>>n>>k;
+    //if(k==1) cout<<n-k+1<<endl;
+//else{
+    fact[0]=1;
+    for(int i=1;i<num;i++){
+        fact[i]=fact[i-1]*i%mod;
+    }
+    invfact[num-1]=modpow(fact[num-1],mod-2,mod);
+    for(int i=num-2;i>-1;i=i-1){
+        invfact[i]=invfact[i+1]*(i+1)%mod;
+    }
+    for(int i=1;i<=k;i++){
+        ll ans=0;
+        if(i<=n-k+1) ans=nck(n-k+1,i,mod)*nck(k-1,i-1,mod)%mod;
+        cout<<ans<<endl;
+    }
+//}
+    return 0;
+}

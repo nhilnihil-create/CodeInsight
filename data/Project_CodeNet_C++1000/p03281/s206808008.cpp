@@ -1,0 +1,22 @@
+#include <bits/stdc++.h>
+#define rep(i, n) for (int i = 0; i < (n); i++)
+#define irep(i, n) for (int i = n; i >= 0; i++)
+using namespace std;
+using ll = long long;
+using P = pair<int, int>;
+const int INF = 1 << 30;
+ 
+int main() {
+	int n;
+	cin >> n;
+	int ans = 0;
+	for (int i = 3; i <= n; i += 2) {
+		int cnt = 0;
+		for (int j = 1; j <= i; j++) {
+			if (i % j == 0) cnt++;
+		}
+		if (cnt == 8) ans++;
+	} 
+	cout << ans << endl;
+	return 0;
+}

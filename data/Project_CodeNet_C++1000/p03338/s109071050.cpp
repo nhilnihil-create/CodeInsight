@@ -1,0 +1,28 @@
+#include "bits/stdc++.h"
+#define rep(i,n) for(int i = 0; i < (n); ++i)
+using namespace std;
+typedef long long int ll;
+typedef pair<int, int> P;
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return 1; } return 0; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return 1; } return 0; }
+
+int main(){
+	cin.tie(0);
+	ios::sync_with_stdio(false);
+	int n;
+	string s;
+	cin >> n >> s;
+	int ans = 0;
+	rep(i,n){
+		set<char> st, st2;
+		for(int j = 0; j < i; ++j) st.insert(s[j]);
+		for(int j = i; j < n; ++j) st2.insert(s[j]);
+		int score = 0;
+		for(auto p : st){
+			if(st2.find(p) != st2.end()) ++score;
+		}
+		chmax(ans, score);
+	}
+	cout << ans << endl;
+	return 0;
+}

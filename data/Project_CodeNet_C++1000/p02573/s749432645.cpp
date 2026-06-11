@@ -1,0 +1,88 @@
+#include<bits/stdc++.h>
+using namespace std;
+/*******  All Required define Pre-Processors and Constants    *******/
+
+#define int long long
+#define ull unsigned long long 
+#define ld long double
+#define mem(a, b) memset(a, (b), sizeof(a))
+#define rep(i, j, k) for (int i = j ; i < k ; ++i)
+#define rrep(i, j, k) for (int i = j; i > k; --i)
+#define all(cont) cont.begin(), cont.end()
+#define rall(cont) cont.end(), cont.begin()
+#define foreach(i, a) for(auto i: a)
+#define forEach(it, l) for (auto it = l.begin(); it != l.end(); it++)
+#define in(A, B, C) assert( B <= A && A <= C)
+#define debug(a) cout << #a << ": " << a << endl
+#define Flag(n) cout << "here " << n << endl
+#define w(x) int x;cin>>x;while(t--)
+#define mp make_pair
+#define pb push_back
+
+#define endl '\n';
+#define io ios_base::sync_with_stdio(false); cin.tie(NULL); cout.tie(NULL);
+
+ 
+
+#define TRACE
+#ifdef TRACE
+#define see(...) __f(#__VA_ARGS__,__VA_ARGS__);
+template <typename Arg1>
+void __f(const char* name, Arg1&& arg1){
+    cerr<<name<<" : "<<arg1<<endl;
+}
+template <typename Arg1, typename... Args>
+void __f(const char* names, Arg1&& arg1, Args&&... args){
+    const char* comma=strchr(names+1,',');cerr.write(names,comma-names)<<" : "<<arg1<<" | ";__f(comma+1, args...);
+}
+#else
+#endif
+
+const int POSITIVE_INFINITY = 9223372036854775807;
+const int NEGATIVE_INFINITY = -9223372036854775807;
+const int MOD = 1000000007;
+const ld PI = acos(-1.0);
+const int INF = 1e18;
+const int MX = 1000001;
+bool visited[MX];
+map<int,int>cnt;
+int mx = -1;
+set<int>graph[MX];
+int c  = 0;
+
+void dfs(int node, int c){
+    // see(node,c)
+    visited[node]=true;
+    // cc[node]=c;
+    cnt[c]++;
+    mx=max(mx,cnt[c]);
+    for(auto child: graph[node]){
+        if(!visited[child])
+            dfs(child,c);
+    }
+
+
+
+}
+
+int32_t main() {
+    io;
+    // freopen("input.txt","r",stdin); 
+    // freopen("output.txt","w",stdout);
+    int n,m,x,y;
+    cin>>n>>m;
+    set<pair<int,int>>st;
+    for(int i =0;i<m;i++){
+        cin>>x>>y;
+        graph[x].insert(y),graph[y].insert(x);
+    }
+    for(int i = 1;i<=n;i++){
+        if(!visited[i]){
+            dfs(i,c);
+            c++;
+        }
+    }
+    // see(mx);
+    cout<<mx<<endl;
+    return 0;
+}

@@ -1,0 +1,34 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for (int i = 0; i < (n); ++i)
+#define ALL(x) (x).begin(), (x).end()
+typedef long long ll;
+typedef pair<int, int> pii;
+const double EPS = 1e-10;
+const int INF = 1e9;
+const ll LINF = 1e15;
+const int MOD = 1000000007;
+const double PI = acos(-1);
+int dx[4] = {0,1,0,-1};
+int dy[4] = {1,0,-1,0};
+
+int main() {
+	int n;
+	cin >> n;
+	vector<ll> a(n), b(n);
+	rep(i,n) cin >> a[i];
+	rep(i,n) cin >> b[i];
+	ll x = 0;
+	rep(i,n) {
+		if (a[i] == b[i]) continue;
+		if (a[i] < b[i]) {
+			ll t = (b[i] - a[i]) / 2;
+			x += t;
+		} else {
+			ll t = a[i] - b[i];
+			x -= t;
+		}
+	}
+	if (x < 0) cout << "No" << endl;
+	else cout << "Yes" << endl;
+}

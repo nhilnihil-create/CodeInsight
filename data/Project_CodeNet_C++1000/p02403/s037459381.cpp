@@ -1,0 +1,21 @@
+#include <iostream>
+using namespace std;
+
+int main(){
+	int H, W;
+	int i = 1;
+	while (1){
+		cin >> H >> W;
+		if (H == 0 && W == 0)break;
+		if (i)i = 0;
+		else cout << endl;
+		for (int i = 0; i < H; i++){
+			for (int j = 0; j < W; j++){
+				cout << '#';
+			}
+			cout << endl;
+		}
+	}
+	cout << endl;
+	return 0;
+}

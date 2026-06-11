@@ -1,0 +1,24 @@
+#include <bits/stdc++.h>
+#include <numeric>
+#include <algorithm>
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <iomanip>
+#define REP(i, n) for(int i = 0; i < n; i++)
+#define REP1(i, n) for(int i = 2; i < n; i++)
+#define REPR(i, n) for(int i = n; i >= 0; i--)
+#define FOR(i, m, n) for(int i = m; i < n; i++)
+#define INF 2e9
+#define ALL(v) v.begin(), v.end()
+using namespace std;
+typedef long long ll;
+
+int main() {
+	int n; cin >> n;
+	string s, t; cin >> s >> t;
+	string a;
+	REP(i, n) {
+		cout <<  s.at(i) << t.at(i);
+	}
+	cout << a << endl;
+}

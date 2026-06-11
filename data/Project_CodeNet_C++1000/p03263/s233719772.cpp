@@ -1,0 +1,27 @@
+#include<bits/stdc++.h>
+#define int long long
+using namespace std;
+signed main(){
+  int H,W;
+  cin>>H>>W;
+  vector<vector<int>> A(H,vector<int>(W));
+  for(int i=0;i<H;i++)
+    for(int &j:A[i])
+      cin>>j;
+  vector<vector<int>> B(0);
+  for(int i=0;i<H;i++){
+    for(int j=0;j<W-1;j++){
+      if(A[i][j]%2){
+        A[i][j+1]++;
+        B.push_back({i+1,j+1,i+1,j+2});
+      }
+    }
+    if(H-1!=i && A[i][W-1]%2){
+      A[i+1][W-1]++;
+      B.push_back({i+1,W,i+2,W});
+    }
+  }
+  cout<<B.size()<<endl;
+  for(vector<int> &v:B)
+    cout<<v[0]<<' '<<v[1]<<' '<<v[2]<<' '<<v[3]<<endl;
+}

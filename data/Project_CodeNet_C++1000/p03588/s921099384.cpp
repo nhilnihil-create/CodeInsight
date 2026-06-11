@@ -1,0 +1,17 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main(){
+  int N;
+  cin>>N;
+  int ans=2147483647;
+  for(int i=0;i<N;i++){
+    int a,b;
+    cin >> a >> b;
+    ans = min(ans, a+b);
+  }
+  
+  cout << ans << endl;
+}
+
+

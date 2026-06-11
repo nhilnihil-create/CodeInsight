@@ -1,0 +1,20 @@
+#include <iostream>
+using namespace std;
+
+int main(){
+	int H,W;
+	while(cin >> H >> W){
+		if(H==0&&W==0) break;	
+
+		for(int i=0;i<H;i++){
+			for(int j=0; j<W; j++){
+				if(H==0&&W==0) break;
+				cout <<"#";
+			}
+				cout <<"\n";
+	
+		}
+		cout << "\n";
+	}
+		
+}

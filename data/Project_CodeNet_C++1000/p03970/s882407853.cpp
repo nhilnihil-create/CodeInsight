@@ -1,0 +1,23 @@
+#include<cstdio>
+int main(){
+	char a[16];
+	scanf("%s",&a);
+	int ans=0;
+	if(a[0]!='C')ans++;
+	if(a[1]!='O')ans++;
+	if(a[2]!='D')ans++;
+	if(a[3]!='E')ans++;
+	if(a[4]!='F')ans++;
+	if(a[5]!='E')ans++;
+	if(a[6]!='S')ans++;
+	if(a[7]!='T')ans++;
+	if(a[8]!='I')ans++;
+	if(a[9]!='V')ans++;
+	if(a[10]!='A')ans++;
+	if(a[11]!='L')ans++;
+	if(a[12]!='2')ans++;
+	if(a[13]!='0')ans++;
+	if(a[14]!='1')ans++;
+	if(a[15]!='6')ans++;
+	printf("%d\n",ans);
+}

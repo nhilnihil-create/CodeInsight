@@ -1,0 +1,116 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i, n) for (int i = 0; i < (n); i++)
+#define rep2(i, x, n) for (int i = x; i < (n); i++)
+#define all(n) begin(n), end(n)
+struct cww
+{
+    cww()
+    {
+        ios::sync_with_stdio(false);
+        cin.tie(0);
+    }
+} star;
+const long long INF = numeric_limits<long long>::max();
+typedef long long ll;
+typedef vector<int> vint;
+typedef vector<char> vchar;
+typedef vector<vector<int>> vvint;
+typedef vector<ll> vll;
+typedef vector<vector<ll>> vvll;
+typedef unsigned long long ull;
+template <class T>
+bool chmax(T &a, const T &b)
+{
+    if (a < b)
+    {
+        a = b;
+        return 1;
+    }
+    return 0;
+}
+template <class T>
+bool chmin(T &a, const T &b)
+{
+    if (b < a)
+    {
+        a = b;
+        return 1;
+    }
+    return 0;
+}
+template <typename T>
+vector<T> make_v(size_t a) { return vector<T>(a); }
+
+template <typename T, typename... Ts>
+auto make_v(size_t a, Ts... ts)
+{
+    return vector<decltype(make_v<T>(ts...))>(a, make_v<T>(ts...));
+}
+template <typename T, typename V>
+typename enable_if<is_class<T>::value == 0>::type
+fill_v(T &t, const V &v) { t = v; }
+
+template <typename T, typename V>
+typename enable_if<is_class<T>::value != 0>::type
+fill_v(T &t, const V &v)
+{
+    for (auto &e : t)
+        fill_v(e, v);
+}
+bool ok(string S)
+{
+    map<char, int> cnt;
+    rep(i, S.size())
+    {
+        cnt[S[i]]++;
+    }
+    rep(i, S.size())
+    {
+        if (cnt[S[i]] > 1)
+            return false;
+    }
+    return true;
+}
+int main()
+{
+    string S;
+    cin >> S;
+    if (S == "zyxwvutsrqponmlkjihgfedcba")
+    {
+        cout << -1;
+        return 0;
+    }
+    int n = S.size();
+    map<char, int> cnt;
+    rep(i, n)
+    {
+        cnt[S[i]]++;
+    }
+    string ans;
+    for (char c = 'a'; c <= 'z'; c++)
+    {
+        if (cnt[c] == 0)
+        {
+            cout << S + c;
+            return 0;
+        }
+    }
+    for (int i = n - 1; i >= 0; i--)
+    {
+        for (char c = S[i] + 1; c <= 'z'; c++)
+        {
+            if (find(S.begin(), S.begin() + i, c) >= S.begin() + i)
+            {
+                for (int k = 0; k < i; k++)
+                {
+                    ans.push_back(S[k]);
+                }
+                ans.push_back(c);
+                cout << ans;
+                return 0;
+            }
+        }
+    }
+    return 0;
+}

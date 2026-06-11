@@ -1,0 +1,55 @@
+#include <bits/stdc++.h>
+
+#define si(v) int(v.size())
+#define all(v) v.begin(), v.end()
+#define rep(i, n) for (ll i = 0; i < (n); ++i)
+#define rep2(i, n, m) for (ll i = n; i <= (m); ++i)
+#define rep3(i, n, m) for (ll i = n; i >= (m); --i)
+
+template<class T, class U> void chmax(T &a, U b) { if (a < b) a = b; }
+template<class T, class U> void chmin(T &a, U b) { if (b < a) a = b; }
+
+using ll = long long;
+using ld = long double;
+using namespace std;
+
+signed main()
+{
+  cout << fixed << setprecision(20);
+  ios::sync_with_stdio(false);
+  cin.tie(0);
+  
+  string a, b, c; cin >> a >> b >> c;
+
+  reverse(all(a));
+  reverse(all(b));
+  reverse(all(c));
+
+  int turn = 0;
+  while (true) {
+    if (turn == 0) {
+      if (a.empty()) {
+        cout << "A\n";
+        return (0);
+      }
+      turn = a.back() - 'a';
+      a.pop_back();
+    } else if (turn == 1) {
+      if (b.empty()) {
+        cout << "B\n";
+        return (0);
+      }
+      turn = b.back() - 'a';
+      b.pop_back();
+    } else {
+      if (c.empty()) {
+        cout << "C\n";
+        return (0);
+      }
+      turn = c.back() - 'a';
+      c.pop_back();
+    }
+  }
+  
+  return (0);
+}

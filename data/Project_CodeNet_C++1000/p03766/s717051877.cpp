@@ -1,0 +1,5 @@
+#include<bits/stdc++.h>
+using namespace std; 
+#define For(i , j , k) for (register int i = (j) , i##_end_ = (k) ; i <= i##_end_ ; ++ i) 
+#define Mod (1000000007)
+typedef long long LL; int _ , __; char c_; inline int read() { for (_ = 0 , __ = 1 , c_ = getchar() ; !isdigit(c_) ; c_ = getchar()) if (c_ == '-') __ = -1; for ( ; isdigit(c_) ; c_ = getchar()) _ = (_ << 1) + (_ << 3) + (c_ ^ 48); return _ * __; } const int maxn = 1000010; int n, dp[maxn], Ans, pre[maxn]; inline void mod(int &x) { if (x >= Mod) x -= Mod; } int main() { n = read(); dp[0] = 1; pre[0] = 1; Ans = (LL)(n - 1) * (LL)(n - 1) % Mod; For(i, 1, n - 1) { dp[i]  = dp[i - 1] + (i - 3 >= 0 ? pre[i - 3] : 0); mod(dp[i]); pre[i] = pre[i - 1] + dp[i]; mod(pre[i]); if (i < n - 1) Ans += (LL)dp[i] * (LL)(n - 1) % Mod * (LL)(n - 1) % Mod, mod(Ans); else Ans += (LL)dp[i] * (LL)(n - 1) % Mod, mod(Ans); } For(i, 0, n - 2) { int x = i + 3, y = i + n + 1, z; if (x <= n) z = y - n + 1; else z = y - x + 1; dp[n] += (LL)dp[i] * z % Mod, mod(dp[n]); } dp[n] += dp[n - 1]; mod(dp[n]); Ans += dp[n]; mod(Ans); printf("%d\n", Ans); return 0; }

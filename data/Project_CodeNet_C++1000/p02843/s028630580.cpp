@@ -1,0 +1,32 @@
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for(int i=0;i<(int)n;i++)
+using Graph = vector<vector<int> >;
+using GraphC = vector<vector<char> >;
+const int INF = 1000000000;
+typedef pair<int, int> P;
+const int MAX_N = 1000000000;
+const int MAX_E = 100000000;
+const int MAX_V = 100000000;
+typedef int64_t ll;
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return 1; } return 0; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return 1; } return 0; }
+
+int X;
+bool dp[100011];
+
+void MAIN(int x) {
+	
+	dp[0] = true;
+	rep(i, x)if (dp[i]) {
+		rep(t, 6) dp[i + 100 + t] = true;
+	}
+	cout << dp[x] << endl;
+
+}
+
+int main() {
+	cin >> X;
+	MAIN(X);
+	return 0;
+}

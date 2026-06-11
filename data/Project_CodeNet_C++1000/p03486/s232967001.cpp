@@ -1,0 +1,40 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define F first
+#define S second
+#define PB push_back
+#define MP make_pair
+#define REP(i,a,b) for(inti=a;i<=b;i++)
+
+#define MOD 1000000007
+typedef long long int ll;
+typedef vector<int>vi;
+typedef pair<int,int>pi;
+
+
+int main(){
+   std::ios::sync_with_stdio(false);
+   cin.tie(0);
+
+string s ,t;
+cin>>s>>t;
+
+bool ans = true;
+
+int sum=0;
+for(char c : s)
+{
+    for(char l:t)
+        if(c<l)
+    {
+        cout<<"Yes"<<endl;
+        return 0;
+    }else if(c==l)
+    sum++;
+}
+if(sum==t.size()*s.size()&&s.size()<t.size())
+    cout<<"Yes"<<endl;
+else
+cout<<"No"<<endl;
+ return 0;
+}

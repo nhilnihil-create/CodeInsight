@@ -1,0 +1,10 @@
+#include <bits/stdc++.h>
+using namespace std;
+int main(){
+    int n,a,b,A;
+    cin>>n>>a>>b;
+  A=n*a;
+  if(A>b) cout<<b<<endl;
+  else cout<<A<<endl;
+  
+}

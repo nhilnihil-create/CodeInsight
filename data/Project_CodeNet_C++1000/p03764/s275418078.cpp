@@ -1,0 +1,50 @@
+#include <bits/stdc++.h>
+#include <stdio.h>
+#include <math.h>
+using namespace std;
+
+#define INF 1.1e9
+#define LINF 1.1e18
+#define FOR(i,a,b) for (int i = (a); i < (b); ++i)
+#define REP(i,n) FOR(i,0,n)
+#define ALL(v) (v).begin(), (v).end()
+#define pb push_back
+#define pf push_front
+#define fi first
+#define se second
+#define BIT(x,n) bitset<n>(x)
+
+typedef long long ll;
+typedef pair<ll,ll> P;
+typedef pair<int,P> PP;
+
+struct edge {
+	int to,cost;
+	edge(int t,ll c):to(t),cost(c) {}
+};
+
+int dx[]={1,-1,0,0},dy[]={0,0,1,-1};
+int ddx[]={1,1,1,0,-1,-1,-1,0},ddy[]={1,0,-1,-1,-1,0,1,1};
+
+//-----------------------------------------------------------------------------
+
+int n,m;
+ll x[100000],y[100000];
+const int MOD=1e9+7;
+
+int main() {
+	cin.tie(0);
+	ios::sync_with_stdio(false);
+
+	cin>>n>>m;
+	REP(i,n) cin>>x[i];
+	REP(i,m) cin>>y[i];
+
+	ll sumx=0,sumy=0;
+	REP(i,n) (sumx+=i*x[i]-(n-i-1)*x[i])%=MOD;
+	REP(i,m) (sumy+=i*y[i]-(m-i-1)*y[i])%=MOD;
+
+	cout<<(sumx*sumy)%MOD<<endl;
+
+	return 0;
+}

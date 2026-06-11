@@ -1,0 +1,37 @@
+#include <bits/stdc++.h>
+ 
+using namespace std;
+ 
+#define ll long long
+#define ld long double
+ 
+const int MOD = 1e9 + 7;
+#define INF 2e9
+ 
+#define REPS(i, a, n) for (ll i = (a); i < (ll)(n); ++i)
+#define REP(i, n) REPS(i, 0, n)
+#define RREP(i, n) REPS(i, 1, n + 1)
+#define DEPS(i, a, n) for (ll i = (a); i >= (ll)(n); --i)
+#define DEP(i, n) DEPS(i, n, 0)
+#define EACH(i, n) for (auto&& i : n)
+ 
+#define MATCH(_str, _ptn) regex_match(_str, regex(_ptn))
+#define REPLACE(_str, _ptn, _replacement) regex_replace(_str, regex(_ptn), _replacement)
+ 
+# define pb push_back
+ 
+# define INIT() cin.tie(0); ios::sync_with_stdio(false); cout << fixed << std::setprecision(20)
+ 
+template<class T>bool chmax(T &a, const T &b) { if (a<b) { a=b; return 1; } return 0; }
+template<class T>bool chmin(T &a, const T &b) { if (b<a) { a=b; return 1; } return 0; }
+ 
+string s;
+int main() {
+    INIT();
+    cin >> s;
+    s = REPLACE(s, "P\\?", "PD");
+    s = REPLACE(s, "\\?D", "PD");
+    s = REPLACE(s, "\\?", "D");
+    cout << s;
+    return 0;
+}

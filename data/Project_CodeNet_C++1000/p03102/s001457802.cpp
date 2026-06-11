@@ -1,0 +1,33 @@
+#include <iostream>
+#include <algorithm>
+#include <utility>
+#include <vector>
+#include <string>
+
+using namespace std;
+typedef long long ll;
+typedef pair<int, int> pii;
+typedef pair<ll, ll> pll;
+#define REP(i, n) for (int i = 0; i < (n); i++)
+#define RREP(i, n) for (int i = (n) - 1; i >= 0; i--)
+#define FOR(i, a, b) for (int i = (a); i < (b); i++)
+#define RFOR(i, a, b) for (int i = (a); i > (b); i--)
+#define ALL(a) (a).begin(), (a).end()
+
+int main() {
+    int N, M, C;
+    cin >> N >> M >> C;
+    int B[M], ans = 0;
+    REP(i, M) cin >> B[i];
+    REP(i, N) {
+        int sum = C;
+        REP(j, M) {
+            int A;
+            cin >> A;
+            sum += A * B[j];
+        }
+        if (sum > 0) ans++;
+    }
+    cout << ans << endl;
+    return 0;
+}

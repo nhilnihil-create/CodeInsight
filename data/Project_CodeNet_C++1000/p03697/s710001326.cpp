@@ -1,0 +1,16 @@
+#include<bits/stdc++.h>
+using namespace std;
+int main()
+{
+    int n,m;
+    cin>>n>>m;
+    if(n+m>=10)
+    {
+        cout<<"error"<<endl;
+    }
+    else
+    {
+        cout<<n+m<<endl;
+    }
+return 0;
+}

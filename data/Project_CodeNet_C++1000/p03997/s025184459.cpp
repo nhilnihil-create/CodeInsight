@@ -1,0 +1,14 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+#define REP(i, n) for (int i = 0; i < (int)(n); i++)
+#define ALL(x) (x).begin(), (x).end()
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(0);
+
+    int a, b, h;
+    cin >> a >> b >> h;
+    cout << (a + b) * h / 2 << endl;
+}

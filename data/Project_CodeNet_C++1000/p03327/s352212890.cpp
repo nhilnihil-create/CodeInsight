@@ -1,0 +1,20 @@
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+#define REP(i, n) for(int i = 0; i < (int)(n); i++)
+
+int main(){
+ int n;
+ cin>>n;
+ if (n>=1000)
+ {
+     cout<<"ABD"<<endl;
+ }
+ else
+ {
+     cout<<"ABC"<<endl;
+ }
+ 
+ 
+
+}

@@ -1,0 +1,9 @@
+#include <iostream>
+#include <cmath>
+
+int main() {
+    int r;
+    std::cin >> r;
+
+    std::cout << 2 * r * M_PI << std::endl;
+}

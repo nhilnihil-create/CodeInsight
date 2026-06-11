@@ -1,0 +1,27 @@
+#include <bits/stdc++.h>
+#include <climits>
+#include <sstream>
+using namespace std;
+
+int main(){
+        
+    int N;
+    cin >> N;
+    long long A[N];
+    for(int i = 0; i < N;i++)cin >> A[i];
+    sort(A,A+N);
+    
+    long long ans = 0;
+    long long sum = 0;
+    for(int i = 0; i < N;i++){
+        
+        if(sum*2<A[i]){
+            ans = 0;
+        }
+        sum += A[i];
+        ++ans;
+    }
+    cout << ans << endl;
+    return 0;
+}
+

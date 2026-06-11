@@ -1,0 +1,24 @@
+#include<iostream>
+using namespace std;
+
+int main() {
+    int n, m, k, t;
+    int a[40] = {};
+    cin >> n >> m;
+
+    for (int i = 0; i < n; i++) {
+        cin >> k;
+        for (int j = 0; j < k; j++) {
+            cin >> t;
+            a[t-1]++;
+        }
+    }
+
+
+    int ans = 0;
+    for (int i = 0; i < m; i++) {
+        if (a[i] == n) ans++;
+    }
+
+    cout << ans << endl;
+}

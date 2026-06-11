@@ -1,0 +1,31 @@
+#include<iostream>
+#include<string>
+#include<cstdlib>
+template<typename T>
+void fin(T const& t){ std::cout << t << std::endl; exit(0); }
+
+int const MAXN = 3e5;
+int const MAXA = 6.4e5;
+int N, m[MAXN], d[MAXN+1];
+
+int main() {
+  std::cin >> N;
+  std::fill_n(m, N, 0);
+  for(int i = 0; i < N; ++i) { int A; std::cin >> A; ++m[A-1]; }
+  std::fill_n(d, N+1, 0);
+  for(int i = 0; i < N; ++i) ++d[m[i]];
+
+  std::string ans_s;
+  ans_s.reserve(MAXA);
+  int sum_D = 0, sum_iD = N, k = 1;
+  for(int ans = N; ans >= 1; --ans) {
+    sum_D += d[ans];
+    sum_iD -= d[ans]*ans;
+    int next_k = sum_iD/ans + sum_D + 1;
+    for(int i = k; i < next_k; ++i) ans_s += std::to_string(ans) + "\n";
+    k = next_k;
+  }
+  while(k <= N) { ans_s += "0\n"; ++k; }
+  fin(ans_s);
+  return 0;
+}

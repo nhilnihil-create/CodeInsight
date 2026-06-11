@@ -1,0 +1,50 @@
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+#include <utility>
+#include <iostream>
+#include <functional>
+#include <bitset>
+#include <algorithm>
+#include <vector>
+#include <forward_list>
+#include <set>
+#include <map>
+#include <queue>
+#include <deque>
+#include <stack>
+#include <numeric>
+#define ll long long int
+#define rep(i,n) for(int i=0;i<(n);i++)
+using namespace std;
+int mx4[] = {0,1,0,-1};
+int my4[] = {1,0,-1,0};
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+int main(){
+    int n; cin >> n;
+    string s; cin >> s;
+    vector<int> w(n),e(n);
+
+    if(s[0] == 'W') w[0] = 1;
+    else e[0] = 1;
+    
+    for(int i=1;i<n;i++){
+        if(s[i] == 'W'){
+            w[i] = w[i-1] + 1; 
+            e[i] = e[i-1];
+        }else{
+            e[i] = e[i-1] + 1;
+            w[i] = w[i-1];
+        }
+    }
+    int ans = 1e6;
+    rep(i,n){
+        int a = w[i-1]; 
+        int b = e[n-1] - e[i];
+        ans = min(ans,a+b);
+    }
+    cout << ans << endl;
+}

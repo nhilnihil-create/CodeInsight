@@ -1,0 +1,26 @@
+#include <algorithm>
+#include <cmath>
+#include <deque>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <queue>
+#include <set>
+#include <stack>
+#include <tuple>
+#include <vector>
+using namespace std;
+typedef long long ll;
+ll const INF = 1LL << 60;
+
+int main() {
+  string S;
+  cin >> S;
+  string X = "CODEFESTIVAL2016";
+  ll ans = 0;
+  for (int i = 0; i < S.size(); i++) {
+    if (S[i] != X[i]) ans++;
+  }
+  cout << ans << endl;
+  return 0;
+}

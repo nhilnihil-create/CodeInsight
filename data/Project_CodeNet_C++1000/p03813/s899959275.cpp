@@ -1,0 +1,14 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int mod = 1000000007;
+
+int main()
+{
+    int x;
+    cin >> x;
+    if (x < 1200)
+        cout << "ABC";
+    else
+        cout << "ARC";
+}

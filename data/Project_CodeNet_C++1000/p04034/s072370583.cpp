@@ -1,0 +1,65 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <utility>
+#include <tuple>
+#include <cstdint>
+#include <cstdio>
+#include <map>
+#include <queue>
+#include <set>
+#include <stack>
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <bitset>
+#include <cctype>
+#include <random>
+#include <cassert>
+#include <numeric>
+#define ll long long int
+#define LL unsigned long long
+#define pb push_back
+#define rep(i,n) for(int i=0;i<(n);i++)
+#define REP(i,n) for(int i=1;i<=(n);i++)
+using namespace std;
+
+int mx8[] = {0,0,1,-1,-1,1,-1,1};
+int my8[] = {-1,1,0,0,-1,-1,1,1};
+int mx4[] = {1,-1,0,0};
+int my4[] = {0,0,-1,1};
+const int MOD = 1000000007;
+
+ll y[10000005];
+
+int main() {
+    int n, m; cin >> n >> m;
+    vector<int> ko(n,1);
+    vector<bool> ball(n,false);
+    ball[0] = true;
+
+    rep(i,m){
+        int x,y;
+        cin >> x >> y;
+        x--; y--;
+        if(ball[x] && ko[x] > 1){
+            ball[y] = true;
+            ko[y]++;
+            ko[x]--;
+        }else if(ball[x] && ko[x] == 1){
+            ball[y] = true;
+            ball[x] = false;
+            ko[y]++;
+            ko[x]--;
+        }else{
+            ko[y]++;
+            ko[x]--;
+        }
+    }
+    int ans = 0;
+    rep(i,n) {
+        if(ball[i]) ans++;
+    }
+    cout << ans << endl;
+}

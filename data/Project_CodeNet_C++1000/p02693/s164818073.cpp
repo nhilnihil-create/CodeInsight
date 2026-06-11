@@ -1,0 +1,45 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+using ii = pair<int, int>;
+using iii = pair<ii, int>;
+#define vt vector
+#define pq priority_queue
+#define pb push_back
+#define pf push_front
+#define mp make_pair
+#define fi first
+#define se second
+#define __lcm(a, b) a * b / __gcd(a, b)
+// #define multicase
+const int MOD = 1e6;
+const int INF = 2e9;
+// const int N = ;
+
+int k, a, b;
+
+void solve() {
+    int T = 1;
+  #ifdef multicase
+    cin >> T;
+  #endif
+    while(T--) {
+        cin >> k >> a >> b;
+        for(int i = a; i <= b; i++) {
+            if(i % k == 0) {
+                cout << "OK\n";
+                return;
+            }
+        }
+        cout << "NG\n";
+    }
+}
+
+int main() {
+
+    ios_base::sync_with_stdio(0);
+    cin.tie(0); cout.tie(0);
+
+    solve();
+    
+}

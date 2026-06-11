@@ -1,0 +1,18 @@
+#include<iostream>
+#include<vector>
+using namespace std;
+
+int main() {
+  int A, B, C, X;
+  cin >> A >> B >> C >> X;
+
+  int ans = 0;
+  for(int i = 0; i <= A; ++i) {
+    for(int j = 0; j <= B; ++j) {
+      int r = X - 500*i - 100*j;
+      if (0 <= r && r/50 <= C) ans++;
+    }
+  }
+      
+  cout << ans << endl;
+}

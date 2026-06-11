@@ -1,0 +1,25 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+#define rep(i, n) for(int i = 0; i < (int)(n); i++)
+#define MIN(a,b) ((a)>(b)? (b): (a))
+#define MAX(a,b) ((a)<(b)? (b): (a))
+
+const long long INF = 1LL << 60;
+typedef unsigned long long ll;
+const long long MOD = 1000000000 + 7;
+
+int main(){
+    int w, a, b;
+    cin >> w >> a >> b;
+ 
+    if(b+w < a){
+        cout << a-(b+w) << endl;
+    }else if(b > a+w){
+        cout << b-(a+w) << endl;
+    }else{
+        cout << 0 << endl;
+    }
+ 
+    return 0;
+}

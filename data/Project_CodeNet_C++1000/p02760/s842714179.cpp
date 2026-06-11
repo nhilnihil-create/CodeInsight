@@ -1,0 +1,51 @@
+#include<iostream>
+using namespace std;
+int main()
+{
+    long long i,j,a[5][5],n,k,x,r[5]={0},c[5]={0},l,f=0,h=0,d=0;
+    for(i=1;i<=3;i++)
+    {
+        for(j=1;j<=3;j++)
+        {
+            cin>>a[i][j];
+        }
+    }
+    cin>>n;
+    for(k=1;k<=n;k++)
+    {
+        cin>>x;
+        for(i=1;i<=3;i++)
+        {
+            for(j=1;j<=3;j++)
+            {
+                if(a[i][j]==x)
+                {
+                    r[i]=r[i]+1;
+                    c[j]=c[j]+1;
+                    if(i==j)
+                    {
+                        h++;
+                    }
+                    if((i==1&&j==3)||(i==2&&j==2)||(i==3&&j==1))
+                    {
+                        d++;
+                    }
+                }
+            }
+        }
+    }
+    for(l=1;l<=3;l++)
+    {
+        if(r[l]==3||c[l]==3||h==3||d==3)
+        {
+            f++;
+            cout<<"Yes"<<endl;
+            break;
+        }
+    }
+    if(f==0)
+    {
+        cout<<"No"<<endl;
+    }
+    return 0;
+}

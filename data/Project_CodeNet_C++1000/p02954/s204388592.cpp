@@ -1,0 +1,75 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+using ll = long long;
+using ull = unsigned long long;
+using ld = long double;
+
+#define MOD 1000000007
+
+#define rep(i, n) for(ll (i) = 0LL;(i) < (ll)(n);(i)++)
+#define rep2(i, s, e) for(ll (i) = (ll)(s);(i) < (ll)(e);(i)++)
+#define repi(i, n) for(ll (i) = 0LL;(i) <= (ll)(n);(i)++)
+#define repi2(i, s, e) for(ll (i) = (ll)(s);(i) <= (ll)(e);(i)++)
+#define per(i, n) for(ll (i) = (ll)(n) - 1LL;(i) >= 0LL;(i)--)
+#define per2(i, s, e) for(ll (i) = (ll)(s) - 1LL;(i) >= (ll)(e);(i)--)
+#define peri(i, n) for(ll (i) = (ll)(n);(i) >= 0LL;(i)--)
+#define peri2(i, s, e) for(ll (i) = (ll)(s);(i) >= (ll)(e);(i)--)
+#define iter(i, it) for(auto &(i): (it))
+
+template<typename T, typename U> ostream& operator<<(ostream &s, const pair<T, U> m) {
+    cout << "(" << m.first << ", " << m.second << ")";
+    return s;
+}
+template<typename T, typename U> ostream& operator<<(ostream &s, const map<T, U> m) {
+    ll c = 0;
+    cout << "{ ";
+    iter(i, m) cout << i << (c++ == m.size() - 1 ? " " : ", ");
+    cout << "}";
+    return s;
+}
+template<typename T> ostream& operator<<(ostream &s, const vector<T> &v) {
+    cout << "{ ";
+    rep(i, v.size()) cout << v[i] << (i == v.size() - 1 ? " " : ", ");
+    cout << "}";
+    return s;
+}
+template<typename T> ostream& operator<<(ostream &s, const list<T> &v) {
+    ll c = 0;
+    cout << "{ ";
+    iter(i, v) cout << i << (c++ == v.size() - 1 ? " " : ", ");
+    cout << "}";
+    return s;
+}
+
+int main(void) {
+    string S;
+    vector<ll> ans;
+    ll L = 0, R = 0;
+    ll cp = 0;
+    cin >> S;
+    ans.resize(S.size());
+    rep(i, S.size()) {
+        if(S[i] == 'R') {
+            if(L > 0) {
+                if(cp > 0) ans[cp - 1] = (R - 1) / 2 + L / 2 + 1;
+                ans[cp] = R / 2 + (L - 1) / 2 + 1;
+                R = 0;
+                L = 0;
+            }
+            R++;
+        } else {
+            if(L == 0) cp = i;
+            L++;
+        }
+    }
+    if(L > 0) {
+        if(cp > 0) ans[cp - 1] = (R - 1) / 2 + L / 2 + 1;
+        ans[cp] = R / 2 + (L - 1) / 2 + 1;
+    } else if(R > 0) {
+        ans.back() = R;
+    }
+    iter(a, ans) cout << a << ' ';
+    cout << endl;
+    return 0;
+}

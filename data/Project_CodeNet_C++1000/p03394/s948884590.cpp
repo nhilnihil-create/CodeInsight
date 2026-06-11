@@ -1,0 +1,78 @@
+
+#include<bits/stdc++.h>
+using namespace std;
+#define inf INT_MAX
+#define INF LLONG_MAX
+#define ll long long
+#define ull unsigned long long
+#define M (int)(1e9+7)
+#define P pair<int,int>
+#define PLL pair<ll,ll>
+#define FOR(i,m,n) for(int i=(int)m;i<(int)n;i++)
+#define RFOR(i,m,n) for(int i=(int)m;i>=(int)n;i--)
+#define rep(i,n) FOR(i,0,n)
+#define rrep(i,n) RFOR(i,n,0)
+#define all(a) a.begin(),a.end()
+#define IN(a,n) rep(i,n){ cin>>a[i]; }
+const int vx[4] = {0,1,0,-1};
+const int vy[4] = {1,0,-1,0};
+#define PI 3.14159265
+#define F first
+#define S second
+#define PB push_back
+#define EB emplace_back
+#define int ll
+#define vi vector<int>
+#define IP pair<int,P>
+#define PP pair<P,P>
+
+
+signed main(){
+  cin.tie(0);
+  ios::sync_with_stdio(false);
+  cout<<fixed<<setprecision(20);
+
+  int n;
+  cin>>n;
+  int s=0;
+  vi v;
+
+  if(n<6){
+    cout<<2<<' '<<5<<' '<<63;
+    if(n>3) cout<<' '<<20;
+    if(n>4) cout<<' '<<30;
+    cout<<endl;
+    return 0;
+  }
+
+
+  int i=2;
+  while(v.size()<n){
+    if(i%2==0||i%3==0){
+      s+=i;
+      v.PB(i);
+    }
+    i++;
+  }
+
+  if(s%6==2){
+    v.erase(find(all(v),8));
+    while(i%6) i++;
+    v.PB(i);
+  }else if(s%6==3){
+    v.erase(find(all(v),9));
+    while(i%6) i++;
+    v.PB(i);
+  }else if(s%6==5){
+    v.erase(find(all(v),9));
+    while(i%6!=4) i++;
+    v.PB(i);
+  }
+
+  rep(i,v.size()){
+    cout<<v[i]<<' ';
+  }
+  cout<<endl;
+
+
+}

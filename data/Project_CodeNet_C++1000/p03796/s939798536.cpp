@@ -1,0 +1,17 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+#define rep2(i, s, n) for (int i = (s); i < (int)(n); i++)
+#define MOD 1000000007
+
+int main(void) {
+  ll n;
+  cin >> n;
+  ll ans=1;
+  for(ll i = 1; i <= n; i++) {
+    ans *= i;
+    ans %= MOD;
+  }
+  cout << ans << endl;
+}

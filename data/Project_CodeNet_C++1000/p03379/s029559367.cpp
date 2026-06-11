@@ -1,0 +1,43 @@
+#include <iostream>
+#include <vector>
+#include <climits>
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <set>
+#include <string>
+#include <bitset>
+#include <utility>
+#include <numeric>
+#include <queue>
+#include <stack>
+
+using ll = long long;
+using namespace std;
+
+constexpr int MOD = 1e9 + 7;
+constexpr ll MOD_LL = ll(1e9) + 7;
+
+int main(void) {
+	int n;
+	cin >> n;
+	
+	vector<int> a(n);
+	for(int i = 0; i < n; ++i) {
+		cin >> a[i];
+	}
+	
+	vector<int> b;
+	b = a;
+	sort(b.begin(), b.end());
+	
+	int med1 = b[n / 2 - 1];
+	int med2 = b[n / 2];
+	
+	for(int i = 0; i < n; ++i) {
+		if( a[i] <= med1 ) cout << med2 << endl;
+		else cout << med1 << endl;
+	}
+	
+	return 0;
+}

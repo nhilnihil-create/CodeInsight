@@ -1,0 +1,49 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+using ll = long long;
+using vec = vector<ll>;
+using mat = vector<vec>;
+
+#define INF (1LL << 60)
+#define MOD 1000000007
+#define PI 3.14159265358979323846
+
+#define REP(i,m,n) for(ll (i)=(m),(i_len)=(n);(i)<(i_len);++(i))
+#define FORR(i,v) for(auto (i):v)
+#define ALL(x) (x).begin(), (x).end()
+#define PR(x) cout << (x) << endl
+#define PS(x) cout << (x) << " "
+#define SZ(x) ((ll)(x).size())
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define ASC(x) sort(ALL((x)))
+#define DESC(x) sort(ALL((x)),greater<ll>())
+#define REV(x) reverse(ALL((x)))
+#define pb push_back
+
+int main()
+{
+    ll N;
+    cin >> N;
+    
+    if(N % 2 == 1) PR(0);
+    else {
+        N /= 2;
+        ll d = 1, cnt = 0;
+        while(N / d > 0) {
+            d *= 5;
+            cnt += N / d;
+        }
+        PR(cnt);
+    }
+
+    return 0;
+}
+
+/*
+
+f(2n) = (2n) * (2n-2) * ... * 4 * 2
+      = (2^n) * n * (n-1) * ... * 2 * 1
+
+*/

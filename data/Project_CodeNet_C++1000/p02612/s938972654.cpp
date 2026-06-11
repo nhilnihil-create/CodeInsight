@@ -1,0 +1,12 @@
+#include <bits/stdc++.h>
+using namespace std; 
+
+int main(){
+  int N;
+  cin >> N;
+  N=1000-N;
+  while(N<0){
+    N+=1000;
+  }
+  cout << N << endl;
+}

@@ -1,0 +1,57 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define FOR(i,l,r) for(long long i=(l);i<(r);++i)
+#define REP(i,n) FOR(i,0,n)
+#define REPS(i,n) FOR(i,1,n+1)
+#define RFOR(i,l,r) for(long long i=(l);i>=(r);--i)
+#define RREP(i,n) RFOR(i,N-1,0)
+#define RREPS(i,n) RFOR(i,N,1)
+#define int long long
+#define mp make_pair
+#define pb push_back
+#define eb emplace_back
+#define SZ(x) ((int)(x).size())
+#define all(x) (x).begin(),(x).end()
+template<class T> inline bool chmin(T& a, T b) {
+    if (a > b) {
+        a = b;
+        return true;
+    }
+    return false;
+}
+template<class T> inline bool chmax(T& a, T b) {
+    if (a < b) {
+        a = b;
+        return true;
+    }
+    return false;
+}
+const int INF=1e18;
+const int MOD=1e9+7;
+const int MAX_N=1e5;
+
+
+signed main(){
+    int N,M;cin>>N>>M;
+    vector<int>Graph[3*N];
+    REP(i,M){
+        int a,b;cin>>a>>b;a--;b--;
+        Graph[3*a].pb(3*b+1);
+        Graph[3*a+1].pb(3*b+2);
+        Graph[3*a+2].pb(3*b);
+    }
+  	vector<int>depth(3*N,INF);
+    int S,T;cin>>S>>T;S--;T--;
+    queue<int>q;
+    q.push(3*S);
+  	depth[3*S]=0;
+    while(q.size()){
+        int now=q.front();q.pop();
+        for(auto v:Graph[now]){
+            if(depth[v]!=INF)continue;
+            depth[v]=depth[now]+1;
+            q.push(v);
+        }
+    }
+    cout<<(depth[3*T]==INF?-1:depth[3*T]/3)<<endl;
+}

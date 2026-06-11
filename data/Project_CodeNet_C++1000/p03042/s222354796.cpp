@@ -1,0 +1,2 @@
+#include<bits/stdc++.h>
+using namespace std;int a[5],pd1,pd2;string s;int main() {cin >> s;for (int i = 0; i < 4; i++) a[i] = s[i] - '0';if (a[2]*10+a[3]<=12&&a[2]+a[3]!=0) pd1=1;if (a[0]*10+a[1]<=12&&a[0]+a[1]!=0) pd2=1;if (pd1&&!pd2) cout << "YYMM\n";else if (!pd1&&pd2) cout << "MMYY\n";else if (pd1&&pd2) cout << "AMBIGUOUS\n";else if (!pd1&&!pd2) cout << "NA\n";return 0;}

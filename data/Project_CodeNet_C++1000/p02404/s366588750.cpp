@@ -1,0 +1,27 @@
+#include <iostream>
+
+using namespace std;
+
+int main()
+{
+	ios::sync_with_stdio(false);
+	cin.tie(0);
+	int h, w;
+	while(true) {
+		cin>>h>>w;
+		if(h==0&&w==0) break;
+		for(int j=0; j<w; j++) cout<<'#';
+		cout<<'\n';
+		for(int i=2; i<h; i++) {
+			cout<<'#';
+			for(int j=2; j<w; j++) {
+				cout<<'.';
+			}
+			cout<<"#\n";
+		}
+		for(int j=0; j<w; j++) cout<<'#';
+		cout<<"\n\n";
+	}
+	return 0;
+}
+

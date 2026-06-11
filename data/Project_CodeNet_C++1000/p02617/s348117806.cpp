@@ -1,0 +1,39 @@
+#include<cstdio>
+#define N 200005
+#define LL long long
+using namespace std;
+
+struct node
+{
+	int s,nxt;
+}p[N<<1];
+int h[N];
+LL f[N];
+int n,tot;
+void adeg(int x,int y)
+{
+	p[++tot].s=y; p[tot].nxt=h[x]; h[x]=tot;
+}
+int main()
+{
+	int i,j;
+	scanf("%d",&n);
+	for(i=1;i<n;i++)
+	{
+		int u,v;
+		scanf("%d%d",&u,&v);
+		adeg(u,v); adeg(v,u);
+	}
+	f[n]=1;
+	for(i=n-1;i>=1;i--)
+	{
+		f[i]=f[i+1]+n-i+1;
+		for(j=h[i];j;j=p[j].nxt)
+			if(p[j].s>i) f[i]-=(n-p[j].s+1);
+	}
+	LL ans=0;
+	for(i=1;i<=n;i++)
+		ans+=f[i];
+	printf("%lld\n",ans);
+	return 0;
+}

@@ -1,0 +1,22 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll=long long;
+using vi = vector<int>;
+using vvi = vector<vector<int>>;
+using vl = vector<ll>;
+using vvl = vector<vector<ll>>;
+#define all(x) x.begin(),x.end()
+#define rep(i,j,n) for (long long i = j; i < (long long)(n); i++)
+#define _GLIBCXX_DEBUG
+#define MOD 1000000007
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return 1; } return 0; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return 1; } return 0; }
+//(a+b-1)/b
+
+signed main(){
+	vl v={1, 1, 1, 2, 1, 2, 1, 5, 2, 2, 1, 5, 1, 2, 1, 14, 1, 5, 1, 5, 2, 2, 1, 15, 2, 2, 5, 4, 1, 4, 1, 51};
+	int n; cin>>n;
+	--n;
+	cout<<v[n]<<endl;
+	return 0;
+}

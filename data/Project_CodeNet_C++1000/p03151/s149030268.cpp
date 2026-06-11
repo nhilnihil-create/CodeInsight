@@ -1,0 +1,39 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <queue>
+#include <string>
+#include <functional>
+#include <set>
+#define DB cerr<<"D"<<endl
+#define pb push_back
+using namespace std; using ll=long long; using ld=long double; const int INF=1e9; const ll LINF=1e18; const double dINF = 1e18; const ld ldINF = 1e18; const double EPS = 1e-6;
+template<typename T, typename U, typename O> void caut(T a, U b, O c){cout<<"("<<a<<","<<b<<","<<c<<") ";} template<typename T, typename U> void caut(T a, U b){cout<<"("<<a<<","<<b<<") ";} template<typename T> void caut(T a){cout<<"("<<a<<") ";}
+using P=pair<double,int>;
+const ll M = 998244353;
+void add(ll& x, ll y) {x+=y; x%=M;}
+void chmax(ll& x, ll y) {if (x<y) x=y;}
+
+int main() {
+  int n; cin>>n;
+  ll a[n],b[n];
+  for(int i=0;i<n;i++) cin>>a[i];
+  for(int i=0;i<n;i++) cin>>b[i];
+
+  int an=0; ll fu=0;
+  ll c[n];
+  for(int i=0;i<n;i++) {
+    c[i]=a[i]-b[i];
+    if (c[i] < 0) an++,fu+=-c[i];
+  }
+  sort(c,c+n,greater<ll>());
+  for(int i=0;i<=n && fu>0;i++) {
+    if (i==n || c[i]<0) {
+      cout<<-1<<endl;
+      return 0;
+    }
+    fu -= c[i];
+    an++;
+  }
+  cout<<an<<endl;
+}

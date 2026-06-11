@@ -1,0 +1,26 @@
+#include <bits/stdc++.h>
+#define MAXN 200100
+#define pii pair<int,int>
+#define ff first
+#define ss second
+#define ll long long
+#define in_range(x, y, n) (x >= 0 and x<n and y >=0 and y<n)
+using namespace std;
+const ll mod = 1e9 + 7;
+
+
+int main (){
+    ios_base::sync_with_stdio(false);
+    int n, k;
+
+    cin >> n >> k;
+
+    int ini = max(-1000000, k - n + 1);
+
+    for (int i = ini; i <= ini+n+n-2; i++){
+        if (i - ini) cout << " ";
+        cout << i ;
+    }
+    cout << "\n";
+    return 0;
+}

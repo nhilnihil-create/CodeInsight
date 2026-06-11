@@ -1,0 +1,15 @@
+#include <iostream>
+#include <cstdio>
+using namespace std;
+
+int n, sum, t[55];
+string x, s[55];
+int main() {
+	int i;
+	cin >> n;
+	for(i=0; i<n; i++) cin >> s[i] >> t[i], sum += t[i];
+	cin >> x;
+	for(i=0; s[i]!=x; i++) sum -= t[i];
+	cout << sum - t[i];
+	return 0;
+}

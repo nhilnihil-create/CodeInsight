@@ -1,0 +1,141 @@
+/*THERE'S ALWAYS SOMETHING , NOT THAT YOU WOULD UNDERSTAND . YOU ARE LIKE MY SISTER ,
+ EVERYTHING ALWAYS CAME EASY TO HER .
+ SHE'S A FIRE BENDING PRODIGY AND EVERY ONE ADORE HER . MY FATHER SAYS
+ SHE WAS BORN LUCKY ,HE SAYS I WAS LUCKY TO BE BORN . I DON'T NEED LUCK THOUGH .
+ I DON'T WANT IT . I'VE ALWAYS HAD TO STRUGGLE AND FIGHT
+ AND THAT'S MADE ME STRONG . IT MADE ME WHO I AM .*/
+#include<bits/stdc++.h>
+#define prdouble(x) cout<<fixed<<setprecision(10)<<x;
+using namespace std;
+double dp[3005][3005];
+
+double solve(vector<double>& a,int i,int x)
+{
+    if(x==0)return 1;
+    if(i==0)return 0;
+    if(dp[i][x]>-0.9)return dp[i][x];
+    return dp[i][x]=a[i]*solve(a,i-1,x-1)+(1-a[i])*solve(a,i-1,x);
+}
+main()
+{
+    int n;
+    cin>>n;
+    memset(dp,-1,sizeof dp);
+    vector<double> a(n+1);
+    for(int i=1;i<=n;i++)cin>>a[i];
+    prdouble(solve(a,n,(n+1)/2));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* WHATEVER DOESNT KILL ME ONLY MAKES ME STRONGER .*/

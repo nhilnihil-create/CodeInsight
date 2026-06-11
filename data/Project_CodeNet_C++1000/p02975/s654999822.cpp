@@ -1,0 +1,69 @@
+#include <bits/stdc++.h>
+#define pb push_back
+#define pll pair <ll, ll>
+#define mp make_pair
+#define pyshnapyshnakaa ios_base :: sync_with_stdio(0); cin.tie(0); cout.tie(0);
+#define x first
+#define y second
+#pragma GCC optimize("O3")
+// #pragma GCC optimize("Ofast")
+// #pragma GCC optimize("unroll-loops")
+#define plll pair <ll, pair <ll, ll>>
+#define pllll pair <pair <ll, ll>, pair <ll, ll> >
+#define psl pair <string, ll>
+#define pld pair <ld, ld>
+#define all(a) a.begin(), a.end()
+#define vvl vector <vector <ll> >
+ 
+typedef long long ll;
+ 
+typedef long double ld;
+ 
+using namespace std;
+ 
+const ll maxn = 1e6 + 100;
+const ll inf = 1e15;
+
+ll n, m, k, t;
+
+void no() {
+    cout << "No";
+    exit(0);
+}
+
+void yes() {
+    cout << "Yes";
+    exit(0);
+}
+
+int main() {
+    pyshnapyshnakaa;
+    ll q, w, e, a, b;
+    map <ll, ll> M;
+    cin >> n;
+    ll xr = 0;
+    for (q = 0; q < n; q++) {
+        cin >> a;
+        xr ^= a;
+        M[a]++;
+    }
+    if (xr != 0) {
+        no();
+    }
+    if (M.size() > 3) {
+        no();
+    }
+    if (M.size() == 1 && a == 0) {
+        yes();
+    }
+    if (n % 3 != 0) {
+        no();
+    }
+    for (auto p : M) {
+        if (p.second % (n / 3) != 0) {
+            no();
+        }
+    }
+    yes();
+    return 0;
+}

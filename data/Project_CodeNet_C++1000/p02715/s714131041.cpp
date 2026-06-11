@@ -1,0 +1,111 @@
+#include<algorithm>//sort,二分探索,など
+#include<bitset>//固定長bit集合
+#include<cmath>//pow,logなど
+#include<complex>//複素数
+#include<deque>//両端アクセスのキュー
+#include<functional>//sortのgreater
+#include<iomanip>//setprecision(浮動小数点の出力の誤差)
+#include<iostream>//入出力
+#include<iterator>//集合演算(積集合,和集合,差集合など)
+#include<map>//map(辞書)
+#include<numeric>//iota(整数列の生成),gcdとlcm(c++17)
+#include<queue>//キュー
+#include<set>//集合
+#include<stack>//スタック
+#include<string>//文字列
+#include<unordered_map>//イテレータあるけど順序保持しないmap
+#include<unordered_set>//イテレータあるけど順序保持しないset
+#include<utility>//pair
+#include<vector>//可変長配列
+
+using namespace std;
+typedef long long ll;
+
+//マクロ
+//forループ関係
+//引数は、(ループ内変数,動く範囲)か(ループ内変数,始めの数,終わりの数)、のどちらか
+//Dがついてないものはループ変数は1ずつインクリメントされ、Dがついてるものはループ変数は1ずつデクリメントされる
+#define REP(i,n) for(ll i=0;i<(ll)(n);i++)
+#define REPD(i,n) for(ll i=n-1;i>=0;i--)
+#define FOR(i,a,b) for(ll i=a;i<=(ll)(b);i++)
+#define FORD(i,a,b) for(ll i=a;i>=(ll)(b);i--)
+//xにはvectorなどのコンテナ
+#define ALL(x) (x).begin(),(x).end() //sortなどの引数を省略したい
+#define SIZE(x) ((ll)(x).size()) //sizeをsize_tからllに直しておく
+#define MAX(x) *max_element(ALL(x)) //最大値を求める
+#define MIN(x) *min_element(ALL(x)) //最小値を求める
+//定数
+#define INF 9000000000000000000 //9e18:極めて大きい値
+#define MOD 1000000007 //10^9+7:合同式の法
+#define MAXR 100000 //10^5:配列の最大のrange(素数列挙などで使用)
+#define LOGMAXR 18 // floor(log2(10^5)) + 1: 配列の最大のrangeのlog
+//略記
+//#define PB push_back //vectorヘの挿入
+//#define MP make_pair //pairのコンストラクタ
+//#define F first //pairの一つ目の要素
+//#define S second //pairの二つ目の要素
+
+ll gcd(ll a, ll b){
+  a = abs(a);
+  b = abs(b);
+  if(b < a) swap(a, b);
+  if(a == 0) return b;
+  return gcd(b % a, a);
+}
+
+// n ^ p
+ll modpow(ll n, ll p, ll mod){
+  ll ret = 1;
+  while(p){
+    if(p & 1){
+      ret *= n;
+      ret %= mod;
+    }
+    p >>= 1;
+    n = n * n;
+    n %= mod;
+  }
+  return ret;
+}
+
+int main(){
+  ll N, K;
+  cin >> N >> K;
+  ll ret[K];
+  REPD(i, K){
+    ll x = i + 1;
+    ret[i] = modpow(K / x, N, MOD);
+    FOR(j, 2, K){
+      if(j * x > K) break;
+      ret[i] -= ret[j * x - 1];
+      while(ret[i] < 0) ret[i] += MOD;
+      ret[i] %= MOD;
+    }
+  }
+  ll ans = 0;
+  REP(i, K){
+    ans += ret[i] * (i + 1);
+    ans %= MOD;
+  }
+  cout << ans << endl;
+  return 0;
+}
+
+int main_back(){
+  ll N, K;
+  cin >> N >> K;
+  ll G[N][20];
+  REP(i, N) G[i][0] = 1;
+  REP(r, 19){
+    REP(i, N) G[i][r + 1] = 0;
+    REP(i, N) REP(j, N){
+      ll newg = G[i][r] * G[j][r];
+      newg %= MOD;
+      G[gcd(i + 1, j + 1) - 1][r + 1] += newg;
+      G[gcd(i + 1, j + 1) - 1][r + 1] %= MOD;
+    }
+  }
+
+  cout << G[0][19] << endl;
+  return 0;
+}

@@ -1,0 +1,51 @@
+#include <cstdio>
+#include <functional>
+#include <vector>
+using namespace std;
+
+int main() {
+  int n, m;
+  scanf("%d%d", &n, &m);
+  vector<vector<int>> g(n);
+  for (int i = 0; i < m; ++i) {
+    int u, v;
+    scanf("%d%d", &u, &v);
+    u--, v--;
+    g[u].push_back(v);
+    g[v].push_back(u);
+  }
+  vector<int> color(n, -1);
+
+  int sz = 0;
+  function<bool(int, int)> Dfs = [&](int x, int c) {
+    color[x] = c;
+    sz++;
+    bool res = true;
+    for (int u : g[x]) {
+      if (color[u] == -1) {
+        if (!Dfs(u, c ^ 1)) res = false;
+      } else {
+        if (color[u] == color[x]) res = false;
+      }
+    }
+    return res;
+  };
+
+  int iso = 0, bip = 0, oth = 0;
+  for (int i = 0; i < n; ++i) {
+    if (color[i] >= 0) continue;
+    sz = 0;
+    if (g[i].empty()) {
+      ++iso;
+    } else if (Dfs(i, 0)) {
+      ++bip;
+    } else {
+      ++oth;
+    }
+  }
+  long long ans = oth + 2 * bip + 1LL * oth * (oth - 1) +
+                  1LL * bip * (2 * bip - 2) + 2LL * oth * bip +
+                  1LL * iso * iso + 2LL * iso * (n - iso);
+  printf("%lld\n", ans);
+  return 0;
+}

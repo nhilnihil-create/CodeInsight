@@ -1,0 +1,36 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define ll long long
+const int M = 1000000007;
+ll mod(ll x){
+        return ((x%M + M)%M);
+    }
+ll add(ll a, ll b){
+        return mod(mod(a)+mod(b));
+    }
+ll mul(ll a, ll b){
+        return mod(mod(a)*mod(b));
+    }
+ll minu(ll a, ll b){
+        return mod(mod(a)-mod(b));
+    }
+ll power(ll a, ll b){
+    ll res=1;
+    while(b>0){
+        if(b&1) res=mul(res,a);
+        b = b>>1;
+        a=mul(a,a);
+    }
+    return res;
+}
+int main(){
+    ll x,k,d;
+    cin>>x>>k>>d;
+    x=abs(x);
+    ll l = min(k,x/d);
+    x-=(l*d);
+    k-=l;
+    if(k%2==0) cout<<x;
+    else cout<<abs(x-d);
+    return 0; 
+}

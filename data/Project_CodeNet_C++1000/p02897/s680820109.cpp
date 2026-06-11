@@ -1,0 +1,30 @@
+#include <bits/stdc++.h>
+using namespace std;
+int main(void){
+    
+    //*
+    double a;
+    cin >> a ;
+    //*/
+
+    /*
+    vector<int> vec(3);
+    cin >> vec.at(0) >> vec.at(1) >> vec.at(2) ;
+
+    sort(vec.begin(), vec.end());
+    //*/
+    
+    /*
+    if( a < 10 && b < 10 ){
+        cout << a * b << endl;
+    } else {
+        cout << -1 << endl;
+    }
+    //*/
+    
+    cout << ((floor(a / 2) + fmod(a, 2)) / a) << endl;
+    
+    //printf("%lf\n", ((a / 2 + a % 2) / a));
+
+    return 0; 
+}

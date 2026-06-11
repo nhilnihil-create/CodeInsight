@@ -1,0 +1,27 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#define MAX(a, b) ((a) < (b) ? (b) : (a))
+
+const long long INF = 1LL << 60;
+typedef unsigned long long ll;
+const long long MOD = 1000000000 + 7;
+
+int main() {
+  string s;
+  cin >> s;
+  int seen[27] = {0};
+  rep(i, s.size()) {
+    char unit;
+    unit = s[i] - 'a';
+    if (seen[unit] != 0) {
+      cout << "no" << endl;
+      return 0;
+    }
+    seen[unit]++;
+  }
+  cout << "yes" << endl;
+  return 0;
+}

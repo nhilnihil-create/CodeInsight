@@ -1,0 +1,36 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+typedef long long int ll;
+typedef pair<int, int> ii;
+#define DEBUG freopen("in.txt", "r", stdin);
+
+struct fastio {
+    fastio() {
+        ios::sync_with_stdio(false);
+        cout << setprecision(10) << fixed;
+        cin.tie(0);
+    }
+};
+
+fastio _fast_io;
+
+const int N = 1e5 + 5;
+int n, m, k, ans;
+
+string s;
+int main() {
+    cin >> s;
+    int n = s.length();
+    string ans;
+    for (int i = 0; i < n; ++i) {
+        if (s[i] != 'B') {
+            ans.push_back(s[i]);
+        } else {
+            if (!ans.empty())
+                ans.pop_back();
+        }
+    }
+    cout << ans << endl;
+    return 0;
+}

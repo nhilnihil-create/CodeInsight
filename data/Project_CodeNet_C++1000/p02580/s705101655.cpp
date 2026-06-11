@@ -1,0 +1,43 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#define rep(i,N) for(int i=0;i<(int)N;i++)
+#pragma GCC optimize("O3")
+#pragma GCC target("sse,sse2,sse3,ssse3,sse4,popcnt,abm,mmx,avx,tune=native")
+static inline char GET(void)
+{
+  static char buf[1<<17],*s1=buf,*s2=buf;
+  return s1==s2&&(s2=(s1=buf)+fread(buf,1,1<<17,stdin),s1==s2)?EOF:*s1++;
+}
+static inline void PUT(char c)
+{
+  static char buf[1<<15],*ptr=buf;
+  if(ptr==buf+strlen(buf)||c==0){fwrite(buf,1,ptr-buf,stdout),ptr=buf;}*ptr++=c;
+}
+static inline int IN(void)
+{
+  int x=0,f=0,c=GET();while(c<48||c>57){f^=c==45,c=GET();}
+  while(c>47&&c<58){x=x*10+c-48,c=GET();}return f?-x:x;
+}
+static inline void OUT(int a)
+{
+  if(a<0)PUT('-'),a=-a;
+  int d[40],i=0;do{d[i++]=a%10;}while(a/=10);
+  while(i--){PUT(d[i]+48);}PUT('\n');
+}
+static inline int Max(int x,int y){return x>y?x:y;}
+int main(void)
+{
+  int H=IN(),W=IN(),M=IN(),row[H],col[W],bombY[M],bombX[M],
+      idh=0,idw=0,hmax=0,wmax=0,obj=0;
+  memset(row,0,sizeof(row));memset(col,0,sizeof(col));
+  rep(i,M)
+  {
+    bombY[i]=IN()-1,bombX[i]=IN()-1;
+    row[bombY[i]]++;col[bombX[i]]++;
+    hmax=Max(hmax,row[bombY[i]]);wmax=Max(wmax,col[bombX[i]]);
+  }
+  rep(i,H){if(hmax==row[i]){idh++;}}rep(j,W){if(wmax==col[j]){idw++;}}
+  rep(i,M){obj+=(row[bombY[i]]==hmax&&col[bombX[i]]==wmax);}
+  return OUT(hmax+wmax-(1l*obj==1l*idh*idw)),0;
+}

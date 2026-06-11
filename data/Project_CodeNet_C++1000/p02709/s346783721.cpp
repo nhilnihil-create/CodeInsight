@@ -1,0 +1,49 @@
+// 2020-06-27 18:33:04
+#include<bits/stdc++.h>
+#ifdef LOCAL
+#include "lib/debug.hpp"
+#else
+#define debug(...) 1
+#endif
+#define ALL(a) (a).begin(), (a).end()
+#define rep(i, n) REP(i, 0, (n))
+#define repc(i, n) REPC(i, 0, (n))
+#define REP(i, n, m) for (int i = (int)(n); i < (int)(m); i++)
+#define REPC(i, n, m) for (int i = (int)(n); i <= (int)(m); i++)
+#define REPCM(i, n, m) for (int i = (int)(n); i >= (int)(m); i--)
+using namespace std;
+using ll = int_fast64_t;
+using pr = pair<ll, ll>;
+using vll = vector<ll>;
+using vpr = vector<pr>;
+template<class T> inline bool chmin(T& a, const T& b) { if (a > b) { a = b; return true; } else return false; }
+template<class T> inline bool chmax(T& a, const T& b) { if (a < b) { a = b; return true; } else return false; }
+
+void answer() {
+  int n;
+  cin >> n;
+  vector<pair<ll, int> > a(n);
+  rep(i, n) {
+    ll a_;
+    cin >> a_;
+    a[i] = make_pair(a_, i+1);
+  }
+  sort(ALL(a), greater<pair<ll, int>>());
+  vector<vector<ll> > dp(n+1, vector<ll>(n+1, 0));
+  ll ans = 0;
+  REPC(i, 1, n) {
+    repc(j, i) {
+      int l = i - j, r = j;
+      if(l) chmax(dp[l][r], dp[l-1][r] + a[i-1].first * abs(a[i-1].second - l));
+      if(r) chmax(dp[l][r], dp[l][r-1] + a[i-1].first * abs(a[i-1].second - (n-r+1)));
+      chmax(ans, dp[l][r]);
+    }
+  }
+  cout << ans << "\n";
+}
+int main() {
+  std::ios::sync_with_stdio(false);
+  std::cin.tie(0);
+  answer();
+  return 0;
+}

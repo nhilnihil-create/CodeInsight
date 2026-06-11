@@ -1,0 +1,2 @@
+#include<iostream>
+int c[(int)2e5],a[(int)2e5],n,d,r,x,i;main(){std::cin>>n;for(;n--;){std::cin>>x;if(x!=d)a[r++]=x;d=x;}d=1;for(i=0;i<r;++i){x=a[i];c[x]+=d;if(c[x]>=1e9+7)c[x]-=1e9+7;d=c[x];}std::cout<<d;}

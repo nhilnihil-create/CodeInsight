@@ -1,0 +1,46 @@
+#include <bits/stdc++.h>
+ 
+using namespace std;
+
+#define repr(i,a,b) for (int i=a; i<b; i++)
+#define rep(i,n) for (int i=0; i<  n; i++)
+ 
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return true; } return false; }
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return true; } return false; }
+ 
+const long long INF = 1LL << 60;
+#define PI 3.14159265359 
+
+template<typename T>
+void remove(std::vector<T>& vector, unsigned int index)
+{
+    vector.erase(vector.begin() + index);
+}
+
+int gcd(int a, int b){
+    if(b == 0) return a;
+    else return gcd(b, a%b);
+}
+
+long long lcm (int a, int b){
+    return  (long long) a*b /gcd(a,b);
+}
+
+
+
+int main(){
+    int N;
+    string S;
+    cin >> N >> S;
+
+    int ans = 0;
+    for(int i = 0; i< N ;){
+        while(S[i] == S[i+1] && i+1 < N){
+            i++;
+        }
+        ans +=1;
+        i++ ;
+    }
+    cout << ans << endl;
+
+}

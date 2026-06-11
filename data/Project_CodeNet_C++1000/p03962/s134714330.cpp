@@ -1,0 +1,44 @@
+/*.....Bismillahir Rahmanir Rahim.....*/
+#include <iostream>
+#include <algorithm>
+#include <stdio.h>
+#include <cmath>
+#include <vector>
+#include <set>
+#include <map>
+#include <cstring>
+#include <unordered_map>
+#include <queue>
+#define   mod  998244353
+#define   int  long long 
+#define   ld long double
+#define   pb push_back
+#define   sz(x)  (int)x.size()
+#define   ff first
+#define   ss second
+#define   pii  pair<int,int> 
+#define   pb  push_back
+#define   eb  emplace_back
+using namespace std;
+
+void solve(){
+	int  a[3],c=3;
+	cin >> a[0] >> a[1] >> a[2] ; 
+	sort (a,a+3);
+	if (a[0] == a[1]) c--;
+	if (a[1]==a[2]) c--;
+	cout << c << endl; 
+}
+
+signed main()
+{
+	int  n=1; // cin >> n;
+	while (n--) 
+	solve();
+    return 0;
+}
+/*
+4 
+10 30 40 20
+
+*/

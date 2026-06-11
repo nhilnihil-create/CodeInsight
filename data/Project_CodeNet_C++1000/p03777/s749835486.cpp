@@ -1,0 +1,14 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+using ll=long long;
+const ll MOD=1000000007;
+
+int main() {
+  string a,b;
+  cin >> a >> b;
+  if(a==b)
+    cout << "H" << endl;
+  else
+    cout << "D" << endl;
+}

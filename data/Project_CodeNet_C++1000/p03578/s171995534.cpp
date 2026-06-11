@@ -1,0 +1,55 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for(int i=0;i<(int)(n);i++)
+#define pb push_back
+#define mt make_tuple
+#define ALL(a) (a).begin(),(a).end()
+#define FST first
+#define SEC second
+#define DEB cerr<<"!"<<endl
+#define SHOW(a,b) cerr<<(a)<<" "<<(b)<<endl
+#define vi vector<int>
+
+using ll = long long;
+const int INF = (INT_MAX/2);
+const ll LLINF = (LLONG_MAX/2);
+const double eps = 1e-8;
+const ll DIV =1e9+7;
+//const double PI = M_PI;
+inline ll pow(ll x,ll n,ll m){ll r=1;while(n>0){if((n&1)==1)r=r*x%m;x=x*x%m;n>>=1;}return r%m;}
+inline ll lcm(ll d1, ll d2){return d1 / __gcd(d1, d2) * d2;}
+inline ll inv(ll x, ll div){return pow(x, div - 2, div);}
+#define chmax(a,b) a=max(a,b)
+int gcj_out_cnt = 1;
+#define gcj_put cout<<"Case #"<<gcj_out_cnt++<<": ";
+
+/*Coding Space*/
+
+int main(){
+  int n; cin >> n;
+  vector<int> d(n); rep(i,n) cin >> d[i];
+  int m; cin >> m;
+  vector<int> t(m); rep(i,m) cin >> t[i];
+  sort(ALL(d));
+  sort(ALL(t));
+  int indexn = 0;
+  int indexm = 0;
+  while(1){
+    if(indexm == m){
+      cout << "YES" << endl;
+      return 0;
+    }else{
+      if(d[indexn] == t[indexm]){
+        indexn++;
+        indexm++;
+      }else if(d[indexn] < t[indexm]){
+        indexn++;
+        continue;
+      }else{
+        //cerr << indexn << " " << indexm << endl;
+        cout << "NO" << endl;
+        return 0;
+      }
+    }
+  }
+}

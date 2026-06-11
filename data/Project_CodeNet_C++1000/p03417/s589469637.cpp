@@ -1,0 +1,23 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+struct Fast {Fast(){cin.tie(0);ios::sync_with_stdio(0);}} fast;
+
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+#define reps(i, n, m) for (int i = (int)(n); i <= (int)(m); i++)
+#define ALL(obj) (obj).begin(), (obj).end()
+#define rALL(obj) (obj).rbegin(), (obj).rend()
+#define ceiv(a, b) (1 + (int)((a) - 1)/(int)(b))
+//#define int long long
+
+signed main() {
+    int n, m;
+    cin >> n >> m;
+    if(n == 1 && m == 1){
+        cout << 1 << endl;
+    }else if(n == 1 || m == 1){
+        cout << n * m - 2 << endl;
+    }else{
+        cout << max(0LL, (long long)(n-2)*(m-2)) << endl;
+    }
+}

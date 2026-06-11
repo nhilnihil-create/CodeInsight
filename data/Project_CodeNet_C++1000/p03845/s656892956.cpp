@@ -1,0 +1,31 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for (int (i)=0;(i)<(n);i++)
+#define INF 1001001001
+#define LLINF 1001001001001001001
+#define MOD 1000000007
+template<class T>bool chmax(T &a, const T &b) { if (a<b) { a=b; return 1; } return 0; }
+template<class T>bool chmin(T &a, const T &b) { if (b<a) { a=b; return 1; } return 0; }
+#define ALL(v) v.begin(), v.end()
+typedef long long ll;
+
+int main(){
+    int n,m;
+    cin >> n;
+    int t[n];
+    rep(i,n)cin >> t[i];
+    cin >> m;
+    int p[m],x[m];
+    rep(i,m)cin >> p[i] >> x[i];
+
+    ll sum=0,tem=0;
+    rep(i,n)sum += t[i];
+    
+    for(int i=0;i<m;i++){
+        tem=sum-t[p[i]-1]+x[i];
+        cout << tem << endl;
+        tem =0;
+    }
+    
+    return 0;
+}

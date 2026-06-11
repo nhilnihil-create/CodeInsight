@@ -1,0 +1,20 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+  string a, b;
+  cin >> a >> b;
+
+  if (a == b)
+  {
+    cout << "H" << "\n";
+  } else if ((a == "H" && b == "D") || (a == "D" && b == "H"))
+  {
+    cout << "D" << "\n";
+  } else
+  {
+    cout << "H" << "\n";
+  }
+
+  return 0;
+}

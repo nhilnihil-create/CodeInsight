@@ -1,0 +1,59 @@
+#define _USE_NATH_DEFINES
+#include <cstdio>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <iomanip>
+#include <algorithm>
+#include <cmath>
+#include <complex>
+#include <string>
+#include <vector>
+#include <list>
+#include <queue>
+#include <stack>
+#include <set>
+#include <map>
+#include <bitset>
+#include <numeric>
+#include <limits>
+#include <climits>
+#include <cfloat>
+#include <functional>
+#include <iterator>
+#include <random>
+#include <tuple>
+
+
+using namespace std;
+#define REP(i,m,n) for(int i=(int)m ; i < (int) n ; ++i )
+#define rep(i,n) REP(i,0,n)
+using ll = long long;
+#define EPS 1e-9
+const int INF = 1050000000;
+const long long LINF = 1LL << 60;
+const ll MOD = 1e9 + 7;
+const int MINF = -1050000000;
+
+template<class T> inline bool chmax(T& a, T b) { if (a < b) { a = b; return true; } return false; }
+template<class T> inline bool chmin(T& a, T b) { if (a > b) { a = b; return true; } return false; }
+
+
+int main() {
+	int n, k;
+	cin >> n >> k;
+
+	vector<ll> num(k, 0);
+	for (int i = 1; i <= n; ++i) {
+		num[i%k]++;
+	}
+	ll cnt = 0;
+	for (int a = 0; a < k; ++a) {
+		int b = (k - a) % k;
+		int c = (k - a) % k;
+		if ((b + c) % k != 0) continue;
+		cnt += num[a] * num[b] * num[c];
+	}
+	cout << cnt << endl;
+	return 0;
+}

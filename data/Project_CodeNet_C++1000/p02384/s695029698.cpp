@@ -1,0 +1,114 @@
+#include<iostream>
+#include<string>
+#include<cmath>
+#include<iomanip>
+
+#define rep(i,start,n) for(int i=start ; i<n ; i++)          //???????????????
+
+using namespace std;
+
+struct dice{                                     //dice??¨???????§????????????????
+  int surface[6];
+  void turn_n(){                                 //n??????????????¢???????????¨???
+    int temp = surface[0];
+    surface[0] = surface[1];
+    surface[1] = surface[5];
+    surface[5] = surface[4];
+    surface[4] = temp;
+  }
+  void turn_e(){                                 //e??????????????¢???????????¨???
+    int temp = surface[0];
+    surface[0] = surface[3];
+    surface[3] = surface[5];
+    surface[5] = surface[2];
+    surface[2] = temp;
+  }
+  void turn_s(){                                 //s??????????????¢???????????¨???
+    rep(i,0,3) turn_n();
+  }
+  void turn_w(){                                 //w??????????????¢???????????¨???
+    rep(i,0,3) turn_e();
+  }
+  void top_print(){                                 //????????????????????´?????¨???
+    cout << surface[2] << endl;
+  }
+  void sidespin_change(int a,int b,int c,int d){     //??¢?????\?????????
+    int temp[4] = {};
+
+        temp[0] = surface[a];
+        temp[1] = surface[b];
+        temp[2] = surface[c];
+        temp[3] = surface[d];
+        //???????????\?????????
+        surface[a] = temp[3];
+        surface[b] = temp[0];
+        surface[c] = temp[1];
+        surface[d] = temp[2];
+
+  }
+  int sidespin(int f){                                           //front?????¢????????°?????¨??£?????????????????????????????¢?????\?????????
+       if(f == 0 || f == 1 || f == 5) {return 0;}
+       if(f == 3) sidespin_change(1,2,4,3);
+       if(f == 2) {
+               rep(i,0,3){
+                       sidespin_change(1,2,4,3);
+               }
+       }
+       if(f == 4) {
+               rep(i,0,2){
+                       sidespin_change(1,2,4,3);
+               }
+       }
+   }
+
+};
+
+int main(){
+
+  dice d;
+
+  int x;
+  int top,front,t_num,f_num;                                
+
+    rep(i,0,6){
+        cin >> d.surface[i];
+      }
+        cin >> x;
+    rep(i,0,x){
+          cin >> top >> front;
+          //????????¢?????§?????¢
+
+          for(t_num = 0;t_num < 6;t_num++){
+            if(d.surface[t_num] == top) break;
+          }
+          switch(t_num){
+                case 0:break;
+                case 1:
+                     d.turn_n();
+                     break;
+               case 4:
+                     d.turn_s();
+                     break;
+               case 5:
+                     d.turn_n();
+                     d.turn_n();
+                     break;
+               case 2:
+                     d.turn_w();
+                     break;
+               case 3:
+                     d.turn_e();
+                     break;
+               default: break;
+             }
+             //????????¢?????§?????¢
+             for(f_num = 0;f_num < 6;f_num++){
+               if(d.surface[f_num] == front) break;
+             }
+           d.sidespin(f_num);
+           d.top_print();
+           }
+
+           return 0;
+
+}

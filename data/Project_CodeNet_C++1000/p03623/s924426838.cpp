@@ -1,0 +1,15 @@
+#include <bits/stdc++.h>
+#define rep(i,n) for (int i = 0; i < (n); ++i)
+using namespace std;
+using ll = long long;
+using P = pair<int,int>;
+
+int main() {
+	int x, a, b;
+	cin >> x >> a >> b;
+	char ans;
+	if (abs(x - a) < abs(x - b)) ans = 'A';
+	else ans = 'B';
+	cout << ans << endl;
+	return 0;
+}

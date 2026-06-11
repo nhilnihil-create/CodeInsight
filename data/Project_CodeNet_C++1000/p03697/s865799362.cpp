@@ -1,0 +1,26 @@
+#include<bits/stdc++.h>
+using namespace std;
+#define Yes(n) cout << ((n) ? "Yes" : "No") << endl
+#define rep(i, n) for (int i = 0; i < (int)(n); i++)
+#define ALL(V) (V).begin(),(V).end()
+#define SORT(V) sort(ALL(V))
+
+vector<string> split(string,string);
+
+//template<typename T>
+//void swap(T*,T*);
+//char ToUpper (char cX) { return toupper(cX); }
+
+int main()
+{
+    int x,y;
+    cin >> x >> y;
+    if(x+y >= 10)
+    {
+        cout << "error";
+    }
+    else
+    {
+        cout << x+y;
+    }
+}

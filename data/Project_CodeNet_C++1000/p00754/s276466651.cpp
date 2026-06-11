@@ -1,0 +1,3 @@
+#include <stdio.h>
+int main() {char Tex[105];int i=0,j,k=0;bool one_per=false;while (1) {k++;Tex[i]=getchar();if (Tex[i]=='(' || Tex[i]=='[') i++,one_per=false; else if (Tex[i]==')') {j=(i)?i-1:0;i+=(Tex[j]=='(')?-1:1;one_per=false;}
+    else if (Tex[i]==']') {j=(i)?i-1:0;i+=(Tex[j]=='[')?-1:1;one_per=false;} else if (Tex[i]=='.' && k==1) one_per=true; else if (Tex[i]=='\n' || Tex[i]==EOF) {if (one_per==true) return 0;if (i) puts("no"); else puts("yes");k=0,i=0,one_per=false;}}}

@@ -1,0 +1,20 @@
+#include <bits/stdc++.h>
+#define repl(i, l, r) for (int i = l; i < r; i++)
+#define rep(i, n) repl(i, 0, n)
+using namespace std;
+using ll = long long;
+using Graph = vector<vector<int>>;
+using P = pair<int, int>;
+
+int main()
+{
+    ll n;
+    cin >> n;
+    repl(i, 1, n + 2) {
+        if(i * i > n) {
+            cout << (i - 1) * (i - 1) << endl;
+            break;
+        }
+    }
+    return 0;
+}

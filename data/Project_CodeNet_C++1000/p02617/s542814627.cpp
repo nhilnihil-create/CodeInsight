@@ -1,0 +1,125 @@
+ 
+ 
+#include<bits/stdc++.h>
+#include<iostream>
+#include<cstdio>
+#include<algorithm>
+#include<cstring>
+#include<string>
+ 
+using namespace std;
+
+ 
+const int MAX_N = int(1e6) + 10;
+const long long int MOD=1e9+7;
+const long long int INF=1e18;
+ 
+typedef long long int ll;
+typedef unsigned long long int llu;
+ 
+ 
+ 
+inline ll mul(ll a,ll b){
+ 
+    a=(a+MOD)%MOD;
+    b=(b+MOD)%MOD;
+    ll c=a*b;
+    c=(c+MOD)%MOD;
+    return c;
+}
+inline ll add(ll a,ll b){
+    a=(a+MOD)%MOD;
+    b=(b+MOD)%MOD;
+    ll ans=(a+b);
+    ans=(ans+MOD)%MOD;
+    return ans;
+}
+ll power(ll a,ll b,ll c=0){
+    ll ans=1;
+    while(b){
+        if(b&1){
+            ans=mul(ans,a);
+        }
+        a=mul(a,a);
+        b=b/2;
+    }
+    return ans;
+}
+ 
+  
+ 
+ 
+#define all(x) (x).begin(),(x).end()
+
+
+
+
+//s.reserve(32768); //updated !
+//s.max_load_factor(0.25);
+
+
+ll a[200005];
+ll u[200005];
+ll v[200005];
+
+
+int main(){
+ 
+    
+
+    int n;
+    cin>>n;
+
+    for(int i=1;i<=n-1;i++){
+        cin>>u[i]>>v[i];
+    }
+
+    ll ans=0;
+
+    for(int i=1;i<=n;i++){
+        ll N=n-i+1;
+        ans+=N*(N+1)/2LL;
+    }
+
+    for(int i=1;i<=n-1;i++){
+        ans-=min(u[i],v[i])*(n-max(u[i],v[i])+1);
+    }
+
+    cout<<ans<<"\n";
+
+    
+
+
+
+    
+    
+    
+
+
+
+
+    
+
+}
+    
+
+    
+
+
+
+
+
+
+    
+    
+
+    
+ 
+    
+ 
+
+ 
+ 
+    
+ 
+ 

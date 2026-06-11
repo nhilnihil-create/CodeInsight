@@ -1,0 +1,33 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+string s;
+int x, y;
+int main()
+{
+  cin >> s >> x >> y;
+  bitset< 2 * 8000 > dpx, dpy;
+  int cnt = 0, first = 0, N = s.size();
+  while (s[first++] == 'F');
+  dpx[8000 + --first] = dpy[8000] = 1;
+
+  bool isX = true;
+  for (int i = first; i < N; ++i) {
+    if (s[i] == 'F') cnt++;
+    if (s[i] == 'T' || i == N - 1) {
+      bitset< 2 * 8000 > pd;
+      if (isX) {
+	pd = (dpx << cnt) | (dpx >> cnt);
+	swap(dpx, pd);
+      } else {
+	pd = (dpy >> cnt) | (dpy << cnt);
+	swap(dpy, pd);
+      }
+      isX = !isX;
+      cnt = 0;
+    }
+  }
+
+  cout << (dpx[x + 8000] && dpy[y + 8000] ? "Yes" : "No") << endl;
+  return 0;
+}

@@ -1,0 +1,46 @@
+#include <iostream>
+#include <vector>
+
+
+using namespace std;
+
+
+void atcoder_beginner_contest999()
+{
+  string n;
+  cin >> n;
+
+  for (int i = 0; i < n.size(); ++i)
+  {
+    if (n[i] == '1') n[i] = '9';
+    else if (n[i] == '9') n[i] = '1';
+  }
+  cout << n << "\n";
+}
+
+
+void programming_education()
+{
+  int n;
+  cin >> n;
+  
+  if (n == 1)
+  {
+    cout << "Hello World\n";
+    return;
+  }
+  else
+  {
+    int a, b;
+    cin >> a >> b;
+    cout << a + b << "\n";
+  }
+}
+
+
+int main()
+{
+  //atcoder_beginner_contest999();
+  programming_education();
+
+}

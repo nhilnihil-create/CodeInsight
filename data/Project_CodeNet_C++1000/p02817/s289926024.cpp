@@ -1,0 +1,11 @@
+#include <stdio.h>
+
+int main () {
+	
+	char kata1 [102] = "ayam";
+	char kata2 [102] = "goreng";
+	scanf("%s %s", &kata1, &kata2);
+	printf("%s%s\n", kata2, kata1);
+	
+	return 0;
+}

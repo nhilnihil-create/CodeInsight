@@ -1,0 +1,12 @@
+///スマホコーディング
+#include <bits/stdc++.h>
+using namespace std;
+#define rep(i,n) for(int i=0;i<int(n);++i)
+typedef long long ll;
+const int inf=1e9;
+int main(){
+  int a,b,c;cin>>a>>b>>c;
+  if(a<=c&&b>=c)cout<<"Yes"<<endl;
+  else cout<<"No"<<endl;
+  return 0;
+}
