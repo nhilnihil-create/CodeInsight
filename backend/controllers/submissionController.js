@@ -433,8 +433,76 @@ exports.submit = async (req, res) => {
       );
     }
 
-    // Run academic integrity checks
+    // ── Multi-Vector Plagiarism Detection ───────────────────────────────
     try {
+      const { normalizeAST } = require('../services/astHasher');
+
+      // Parse AST and compute sliding-window hashes (with fallback)
+      const astResult = normalizeAST(code, 'cpp');
+
+      // Persist AST hashes for future peer-to-peer comparisons
+      await integrityFlagEngine.persistASTHashes(
+        submissionId, exerciseId, studentId, astResult
+      );
+
+      // DEFENSIVE FALLBACK: parser bypassed → flag for manual review
+      if (astResult.usedFallback) {
+        const bypassFlag = integrityFlagEngine.createParserBypassFlag(astResult.parseError);
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId, studentId,
+          flagType: bypassFlag.type,
+          severity: bypassFlag.severity,
+          evidence: bypassFlag.evidence,
+          contextBehaviors: [],
+          status: 'flagged',
+          submissionId,
+        });
+      }
+
+      // VECTOR 1: Peer-to-peer sliding window intersect
+      const peerResult = await integrityFlagEngine.detectPeerPlagiarism(
+        astResult.windows, exerciseId, studentId, astResult.fullHash
+      );
+      for (const flag of peerResult.flags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id, exerciseId, studentId,
+          flagType: flag.type, severity: flag.severity,
+          evidence: flag.evidence, contextBehaviors: [],
+          status: 'flagged', submissionId,
+        });
+      }
+
+      // VECTOR 2: CodeNet archival benchmark check
+      const codenetResult = await integrityFlagEngine.detectCodeNetMatch(
+        astResult.fullHash, astResult.windows
+      );
+      for (const flag of codenetResult.flags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id, exerciseId, studentId,
+          flagType: flag.type, severity: flag.severity,
+          evidence: flag.evidence, contextBehaviors: [],
+          status: 'flagged', submissionId,
+        });
+      }
+
+      // VECTOR 3: Instructor reference conformance & telemetry gate
+      if (exercise.reference_solution) {
+        const refResult = integrityFlagEngine.detectReferenceConformance(
+          code, exercise.reference_solution,
+          { timeSpentSeconds: timeSpentSeconds || 0, pasteCount: behavioralSummary.pasteCount || 0 }
+        );
+        for (const flag of refResult.flags) {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id, exerciseId, studentId,
+            flagType: flag.type, severity: flag.severity,
+            evidence: flag.evidence, contextBehaviors: [],
+            status: 'flagged', submissionId,
+          });
+        }
+      }
+
+      // ── Legacy behavioral checks (academicIntegrityEngine) ────────────
       const academicIntegrityFlags = await academicIntegrityEngine.evaluateIntegrity({
         code,
         starterCode: exercise.starter_code || '',
@@ -447,49 +515,22 @@ exports.submit = async (req, res) => {
           submission_id: submissionId
         },
         exercise,
-        cdsEngine: require('../services/cdsEngine'), // Pass reference for historical data if needed
-        behavioralData: behavioralSummary, // Tab switches, paste count, idle time from telemetry
+        cdsEngine: require('../services/cdsEngine'),
+        behavioralData: behavioralSummary,
       });
 
-      // Insert any integrity flags into the database
       for (const flag of academicIntegrityFlags) {
         await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId: exerciseId,
-          studentId: studentId,
-          flagType: flag.type,
-          severity: flag.severity,
+          sectionId: exercise.section_id, exerciseId, studentId,
+          flagType: flag.type, severity: flag.severity,
           evidence: flag.evidence || {},
           contextBehaviors: flag.context_behaviors || [],
           status: 'flagged',
           instructorNote: flag.instructor_note || '',
-          submissionId: submissionId
+          submissionId,
         });
       }
-
-      // Run code paste detection (requires reference solution on the exercise)
-      try {
-        if (exercise.reference_solution) {
-          const pasteResult = await integrityFlagEngine.detectCodePaste(code, exerciseId);
-          if (pasteResult.detected) {
-            await integrityFlagEngine.createFlag({
-              sectionId: exercise.section_id,
-              exerciseId: exerciseId,
-              studentId: studentId,
-              flagType: 'code_paste_detected',
-              severity: 'high',
-              evidence: { matchPercent: pasteResult.matchPercent, details: pasteResult.details },
-              contextBehaviors: [],
-              status: 'flagged',
-              submissionId: submissionId
-            });
-          }
-        }
-      } catch (pasteErr) {
-        console.warn('Code paste detection failed:', pasteErr.message);
-      }
     } catch (integrityError) {
-      // Don't let integrity check errors break the submission flow
       console.warn('Academic integrity check failed:', integrityError.message);
     }
 

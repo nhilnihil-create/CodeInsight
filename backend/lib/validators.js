@@ -89,6 +89,11 @@ const submitCode = Joi.object({
   exerciseId: Joi.number().integer().positive().required(),
   code: Joi.string().required(),
   timeSpentSeconds: Joi.number().integer().min(0).max(86400).default(0),
+  behavioralData: Joi.object({
+    tabSwitchCount: Joi.number().integer().min(0).default(0),
+    pasteCount: Joi.number().integer().min(0).default(0),
+    idleTimeSeconds: Joi.number().integer().min(0).default(0),
+  }).optional(),
   behavioralEvents: Joi.array().items(
     Joi.object({
       type: Joi.string().valid('tab_blur', 'tab_focus', 'paste', 'keystroke_burst', 'idle_start', 'idle_end').required(),
