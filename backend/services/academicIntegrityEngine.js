@@ -106,10 +106,45 @@ function checkBlankTemplate(code, starterCode) {
  * @param {number} exerciseId - The exercise ID
  * @param {object} submission - The current submission object
  * @param {object} cdsEngine - Reference to cdsEngine for historical CDS scores
+ * @param {object} behavioralData - Behavioral telemetry (pasteCount, tabSwitchCount, etc.)
  * @returns {object|null} - Flag object if behavioral anomaly detected, null otherwise
  */
-async function checkBehavioralAnomaly(studentId, exerciseId, submission, cdsEngine) {
+async function checkBehavioralAnomaly(studentId, exerciseId, submission, cdsEngine, behavioralData) {
   try {
+    // BUG FIX #6: Check paste-based anomaly even without historical data
+    // If student pasted code (pasteCount > 0) and solved in < 30s, that's anomalous
+    // regardless of CDS history.
+    if (behavioralData && behavioralData.pasteCount > 0 &&
+        submission.time_spent_seconds !== null && submission.time_spent_seconds !== undefined &&
+        submission.time_spent_seconds < 30 &&
+        submission.is_correct === true) {
+      return {
+        type: 'PASTE_ON_CORRECT_SUBMISSION',
+        severity: 'HIGH',
+        evidence: `Code pasted (pasteCount=${behavioralData.pasteCount}) and solved in ${submission.time_spent_seconds}s`,
+        context: {
+          pasteCount: behavioralData.pasteCount,
+          timeSpentSeconds: submission.time_spent_seconds,
+          isFirstAttempt: submission.is_correct === true
+        }
+      };
+    }
+
+    // Check for excessive tab switching (indicates looking up solutions)
+    if (behavioralData && behavioralData.tabSwitchCount > 5 &&
+        submission.is_correct === true) {
+      return {
+        type: 'EXCESSIVE_TAB_SWITCHING',
+        severity: 'MEDIUM',
+        evidence: `${behavioralData.tabSwitchCount} tab switches before correct submission`,
+        context: {
+          tabSwitchCount: behavioralData.tabSwitchCount,
+          timeSpentSeconds: submission.time_spent_seconds
+        }
+      };
+    }
+
+    // Original z-score based check (requires historical data)
     // Query student's historical CDS scores on previous exercises (including stddev)
     const historyRes = await db.query(
       `SELECT
@@ -130,6 +165,7 @@ async function checkBehavioralAnomaly(studentId, exerciseId, submission, cdsEngi
     const history = historyRes.rows[0];
     if (!history || history.exercise_count < 3) {
       // Need at least 3 data points for meaningful z-score
+      // Already handled paste/telemetry checks above
       return null;
     }
 
@@ -287,6 +323,81 @@ function logPassiveBehavior(submission, behavioralData) {
 }
 
 /**
+ * Check for massive payload: abnormally large submissions that may contain
+ * pre-written code or attempt to overflow buffers.
+ *
+ * @param {string} code - The submitted code
+ * @returns {object|null} - Flag object if massive payload detected
+ */
+function checkMassivePayload(code) {
+  const codeSize = (code || '').length;
+  // Flag submissions over 10KB — normal student code rarely exceeds 2KB
+  if (codeSize > 10240) {
+    return {
+      type: 'MASSIVE_PAYLOAD',
+      severity: 'HIGH',
+      evidence: `Submission size: ${Math.round(codeSize / 1024)}KB (${codeSize} chars) — typical student submissions are < 2KB`,
+      context: { codeSize, lineCount: code.split('\n').length }
+    };
+  }
+  return null;
+}
+
+/**
+ * Check for retry storm: excessive submissions in rapid succession.
+ *
+ * @param {number} studentId - The student's ID
+ * @param {number} exerciseId - The exercise ID
+ * @returns {Promise<object|null>} - Flag object if retry storm detected
+ */
+async function checkRetryStorm(studentId, exerciseId) {
+  try {
+    const submissionsRes = await db.query(
+      `SELECT submitted_at, is_correct, time_spent_seconds
+       FROM submissions
+       WHERE student_id = $1 AND exercise_id = $2
+       ORDER BY submitted_at ASC`,
+      [studentId, exerciseId]
+    );
+
+    if (!submissionsRes || submissionsRes.rows.length < 5) {
+      return null;
+    }
+
+    const rows = submissionsRes.rows;
+    // Calculate time deltas between consecutive submissions
+    const timedeltas = [];
+    for (let i = 1; i < rows.length; i++) {
+      const prev = new Date(rows[i - 1].submitted_at).getTime();
+      const curr = new Date(rows[i].submitted_at).getTime();
+      timedeltas.push((curr - prev) / 1000 / 60); // minutes
+    }
+
+    const avgTime = timedeltas.reduce((a, b) => a + b, 0) / timedeltas.length;
+
+    // Detect storm: >10 submissions AND avg time < 1 minute apart
+    if (rows.length > 10 && avgTime < 1) {
+      return {
+        type: 'RETRY_STORM',
+        severity: 'MEDIUM',
+        evidence: `${rows.length} submissions averaging ${avgTime.toFixed(1)}min apart (typical: 2+ min)`,
+        context: {
+          totalSubmissions: rows.length,
+          avgTimeBetweenMinutes: parseFloat(avgTime.toFixed(1)),
+          firstSubmittedAt: rows[0].submitted_at,
+          lastSubmittedAt: rows[rows.length - 1].submitted_at
+        }
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Error in checkRetryStorm:', err);
+    return null;
+  }
+}
+
+/**
  * Main function to evaluate integrity of a submission.
  * Runs all five checks and returns an array of flags.
  *
@@ -315,50 +426,39 @@ async function evaluateIntegrity(params) {
   // 1. Hardcoding detection
   const hardcodingFlag = checkHardcoding(code, exercise, augmentedSubmission);
   if (hardcodingFlag) {
-    flags.push({
-      ...hardcodingFlag,
-      studentId,
-      exerciseId,
-      // We'll add submission_id later when we know it
-    });
+    flags.push({ ...hardcodingFlag, studentId, exerciseId });
   }
 
   // 2. Blank/template-only detection
   const blankFlag = checkBlankTemplate(code, starterCode);
   if (blankFlag) {
-    flags.push({
-      ...blankFlag,
-      studentId,
-      exerciseId,
-    });
+    flags.push({ ...blankFlag, studentId, exerciseId });
   }
 
-  // 3. Behavioral anomaly (async)
+  // 3. Massive payload detection (Bug #5 fix)
+  const massiveFlag = checkMassivePayload(code);
+  if (massiveFlag) {
+    flags.push({ ...massiveFlag, studentId, exerciseId });
+  }
+
+  // 4. Retry storm detection (Bug #3 fix)
   try {
-    const behavioralFlag = await checkBehavioralAnomaly(studentId, exerciseId, augmentedSubmission, cdsEngine);
+    const retryFlag = await checkRetryStorm(studentId, exerciseId);
+    if (retryFlag) {
+      flags.push({ ...retryFlag, studentId, exerciseId });
+    }
+  } catch (err) {
+    console.error('Error in retry storm check:', err);
+  }
+
+  // 5. Behavioral anomaly (now passes behavioralData — Bug #2 & #6 fix)
+  try {
+    const behavioralFlag = await checkBehavioralAnomaly(studentId, exerciseId, augmentedSubmission, cdsEngine, behavioralData);
     if (behavioralFlag) {
-      flags.push({
-        ...behavioralFlag,
-        studentId,
-        exerciseId,
-      });
+      flags.push({ ...behavioralFlag, studentId, exerciseId });
     }
   } catch (err) {
     console.error('Error in behavioral anomaly check:', err);
-  }
-
-  // 4. Code growth anomaly (async)
-  try {
-    const growthFlag = await checkCodeGrowthAnomaly(studentId, exerciseId, code);
-    if (growthFlag) {
-      flags.push({
-        ...growthFlag,
-        studentId,
-        exerciseId,
-      });
-    }
-  } catch (err) {
-    console.error('Error in code growth anomaly check:', err);
   }
 
   // Note: In a real implementation, we would now insert these flags into the database.

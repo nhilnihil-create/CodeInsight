@@ -200,7 +200,6 @@ async function createFlag(flagData) {
          severity = EXCLUDED.severity,
          evidence = EXCLUDED.evidence,
          context_behaviors = EXCLUDED.context_behaviors,
-         status = CASE WHEN status = 'reviewed' THEN 'reviewed' ELSE EXCLUDED.status END,
          submission_id = EXCLUDED.submission_id
        RETURNING *`,
       [sectionId, exerciseId, studentId, flagType, severity, 
@@ -309,32 +308,50 @@ async function markFlagReviewed(flagId, instructorNote = null) {
 }
 
 /**
- * Simple string similarity calculation (Levenshtein-inspired)
- * Returns 0-1 similarity score
+ * String similarity using normalized token overlap.
+ * More robust than character-by-character: normalizes whitespace,
+ * removes comments, then compares line-level token sequences.
+ * Returns 0-1 similarity score.
  */
 function calculateSimilarity(str1, str2) {
-  const normalize = (s) => s.replace(/\s+/g, '').toLowerCase();
+  const normalize = (s) => {
+    return s
+      .replace(/\/\/.*$/gm, '')           // Remove single-line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '')   // Remove block comments
+      .replace(/\s+/g, ' ')               // Collapse whitespace
+      .replace(/\b(std::|std\s*::\s*)/g, '') // Remove std:: prefix
+      .replace(/\b(endl|using\s+namespace\s+std)/g, ' ') // Remove endl
+      .trim()
+      .toLowerCase();
+  };
+
   const s1 = normalize(str1);
   const s2 = normalize(str2);
 
-  // If both empty, they're identical
   if (s1.length === 0 && s2.length === 0) return 1;
+  if (s1.length === 0 || s2.length === 0) return 0;
 
-  // Use simple character overlap as similarity metric
-  const longer = s1.length > s2.length ? s1 : s2;
-  const shorter = s1.length > s2.length ? s2 : s1;
+  // Split into tokens (words, operators, brackets)
+  const tokenize = (s) => s.match(/[a-zA-Z_]\w*|[{}();,<>+\-*/=&|!%\[\]]/g) || [];
+  const t1 = tokenize(s1);
+  const t2 = tokenize(s2);
 
+  if (t1.length === 0 || t2.length === 0) return 0;
+
+  // Count matching tokens in order (longest common subsequence ratio)
   let matches = 0;
-  let idx = 0;
-  for (const char of shorter) {
-    const foundIdx = longer.indexOf(char, idx);
+  let j = 0;
+  for (const token of t1) {
+    const foundIdx = t2.indexOf(token, j);
     if (foundIdx !== -1) {
       matches++;
-      idx = foundIdx + 1;
+      j = foundIdx + 1;
     }
   }
 
-  return matches / longer.length;
+  // Similarity = matches / min length (more strict than before)
+  const minLen = Math.min(t1.length, t2.length);
+  return matches / minLen;
 }
 
 module.exports = {

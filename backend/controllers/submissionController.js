@@ -448,7 +448,7 @@ exports.submit = async (req, res) => {
         },
         exercise,
         cdsEngine: require('../services/cdsEngine'), // Pass reference for historical data if needed
-        behavioralData: {} // Frontend would send this data - for now empty
+        behavioralData: behavioralSummary, // Tab switches, paste count, idle time from telemetry
       });
 
       // Insert any integrity flags into the database
