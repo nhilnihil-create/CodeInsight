@@ -169,25 +169,25 @@ function matchCodeNet(sourceCode) {
 // ── Payload Generator ───────────────────────────────────────────────────────
 
 const PAYLOADS = {
-  // Correct solution for "Print numbers 1 to N"
+  // Correct solution for "Print numbers 1 to N" — reads N from stdin
   STATE_CORRECT: (n = 10) =>
-    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n = ${n};\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
+    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
 
   // Off-by-one: terminates early (< instead of <=)
   BUG_OFF_BY_ONE: (n = 10) =>
-    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n = ${n};\n  for (int i = 1; i < n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
+    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  for (int i = 1; i < n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
 
   // Infinite loop: missing increment
   BUG_INFINITE_LOOP: (n = 10) =>
-    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n = ${n};\n  int i = 1;\n  while (i <= n) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
+    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  int i = 1;\n  while (i <= n) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
 
   // Syntax error: missing semicolon
   BUG_SYNTAX_ERROR: (n = 10) =>
-    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n = ${n}\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
+    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
 
   // Copy-paste flag: perfect code with marker for zero-telemetry detection
   FLAG_COPY_PASTE: (n = 10) =>
-    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n = ${n};\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
+    `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n`,
 
   // Massive payload: binary string to test buffer handling
   MASSIVE_PAYLOAD: () => {

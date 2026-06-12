@@ -1,18 +1,36 @@
 /**
  * streamMatcher — output validation and submission grading utilities.
  *
- * Provides structured output comparison for test case validation.
- * Used by executor.js (validateOutput) and rubric scoring (gradeSubmission).
+ * Provides token-based output comparison for test case validation.
+ * Used by executor.js (validateOutput), submissionController (gradeSubmission),
+ * and the test suite (tokenize, validateOutput, gradeSubmission).
  */
 
 /**
- * Normalize a string for comparison.
- * - Trims leading/trailing whitespace
- * - Collapses internal whitespace sequences to single space
- * - Removes trailing newlines
+ * Tokenize a string for comparison.
+ * - Replaces \r\n and \r with \n
+ * - Trims and splits on whitespace
+ * - Lowercases all tokens
+ *
+ * @param {string} str - Input string (null/undefined treated as empty)
+ * @returns {string[]} Array of lowercase tokens
+ */
+function tokenize(str) {
+  if (str === null || str === undefined) return [];
+  return String(str)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(t => t.length > 0);
+}
+
+/**
+ * Normalize a string for comparison (alias of tokenize().join(' ')).
  */
 function normalize(str) {
-  return String(str || '').trim().replace(/\s+/g, ' ').trim();
+  return tokenize(str).join(' ');
 }
 
 /**
@@ -21,75 +39,119 @@ function normalize(str) {
  * @param {string} actual - The actual program output
  * @param {string} expected - The expected output from test case
  * @param {string} [type='exact'] - Validation type: 'exact', 'contains', 'regex'
- * @returns {{ passed: boolean, actual: string, expected: string, diff: string|null }}
+ * @returns {{ passed: boolean, divergenceIndex: number|null, actualTokens: string[], expectedTokens: string[], reason: string|null, actual: string, expected: string, diff: object|null }}
  */
 function validateOutput(actual, expected, type = 'exact') {
-  const actualNorm = normalize(actual);
-  const expectedNorm = normalize(expected);
+  const actualTokens = tokenize(actual);
+  const expectedTokens = tokenize(expected);
 
   let passed = false;
-  let diff = null;
+  let divergenceIndex = null;
+  let reason = null;
 
   switch (type) {
-    case 'exact':
-      passed = actualNorm === expectedNorm;
-      if (!passed) diff = { actual: actualNorm, expected: expectedNorm };
+    case 'exact': {
+      if (actualTokens.length !== expectedTokens.length) {
+        passed = false;
+        reason = `Length mismatch. Expected ${expectedTokens.length} tokens, got ${actualTokens.length}.`;
+        const minLen = Math.min(actualTokens.length, expectedTokens.length);
+        for (let i = 0; i < minLen; i++) {
+          if (actualTokens[i] !== expectedTokens[i]) {
+            divergenceIndex = i;
+            break;
+          }
+        }
+        if (divergenceIndex === null) {
+          divergenceIndex = minLen;
+        }
+      } else {
+        passed = true;
+        for (let i = 0; i < expectedTokens.length; i++) {
+          if (actualTokens[i] !== expectedTokens[i]) {
+            passed = false;
+            divergenceIndex = i;
+            reason = `Token mismatch at index ${i}. Expected "${expectedTokens[i]}", got "${actualTokens[i]}".`;
+            break;
+          }
+        }
+      }
       break;
+    }
 
-    case 'contains':
-      passed = actualNorm.includes(expectedNorm);
-      if (!passed) diff = { actual: actualNorm, expected: expectedNorm };
+    case 'contains': {
+      if (expectedTokens.length === 0) {
+        passed = true;
+      } else if (actualTokens.length < expectedTokens.length) {
+        passed = false;
+        reason = 'Actual output is shorter than search string.';
+      } else {
+        passed = false;
+        for (let i = 0; i <= actualTokens.length - expectedTokens.length; i++) {
+          let match = true;
+          for (let j = 0; j < expectedTokens.length; j++) {
+            if (actualTokens[i + j] !== expectedTokens[j]) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            passed = true;
+            break;
+          }
+        }
+        if (!passed) {
+          reason = 'Expected sequence not found in actual output.';
+        }
+      }
       break;
+    }
 
     case 'regex': {
+      const actualStr = actualTokens.join(' ');
+      const expectedPattern = expectedTokens.join(' ');
       try {
-        const re = new RegExp(expectedNorm, 'i');
-        passed = re.test(actualNorm);
-      } catch {
+        const re = new RegExp(expectedPattern, 'i');
+        passed = re.test(actualStr);
+        if (!passed) {
+          reason = 'Output does not match regular expression pattern.';
+        }
+      } catch (err) {
         passed = false;
+        reason = `Invalid regex pattern: ${err.message}`;
       }
-      if (!passed) diff = { actual: actualNorm, expected: expectedNorm };
       break;
     }
 
     default:
-      passed = actualNorm === expectedNorm;
-  }
-
-  return { passed, actual: actualNorm, expected: expectedNorm, diff };
-}
-
-/**
- * Grade a submission by running test cases against output.
- *
- * @param {Array<{input: string, expected: string, type?: string, isVisible?: boolean}>} testCases
- * @param {Function} executeFn - async function to run code with given input
- * @returns {{passed: boolean, results: Array, score: number}}
- */
-async function gradeSubmission(testCases, executeFn) {
-  const results = [];
-  let passedCount = 0;
-
-  for (const tc of testCases) {
-    const output = await executeFn(tc.input);
-    const validation = validateOutput(output, tc.expected, tc.type || 'exact');
-
-    if (validation.passed) passedCount++;
-
-    results.push({
-      passed: validation.passed,
-      input: tc.input,
-      expected: tc.isVisible !== false ? tc.expected : '[hidden]',
-      actual: tc.isVisible !== false ? validation.actual : null,
-      diff: tc.isVisible !== false ? validation.diff : null,
-    });
+      passed = actualTokens.join(' ') === expectedTokens.join(' ');
   }
 
   return {
-    passed: passedCount === testCases.length,
-    results,
-    score: testCases.length > 0 ? passedCount / testCases.length : 0,
+    passed,
+    divergenceIndex,
+    actualTokens,
+    expectedTokens,
+    reason,
+    actual: actualTokens.join(' '),
+    expected: expectedTokens.join(' '),
+    diff: passed ? null : { actual: actualTokens.join(' '), expected: expectedTokens.join(' ') }
   };
 }
 
-module.exports = { validateOutput, gradeSubmission, normalize };
+/**
+ * gradeSubmission — synchronous wrapper for E2E tests and /run controller.
+ * Compares actual vs expected string output using token-based exact matching.
+ *
+ * @param {string} actual - Actual output string
+ * @param {string} expected - Expected output string
+ * @returns {{ passed: boolean, divergenceIndex: number|null }}
+ */
+function gradeSubmission(actual, expected) {
+  const validation = validateOutput(actual, expected, 'exact');
+  return {
+    passed: validation.passed,
+    divergenceIndex: validation.divergenceIndex
+  };
+}
+
+module.exports = { validateOutput, gradeSubmission, tokenize, normalize };

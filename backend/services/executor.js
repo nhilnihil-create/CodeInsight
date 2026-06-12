@@ -22,6 +22,20 @@ function isSafe(code) {
 
 // ── Docker helpers ─────────────────────────────────────────────────────────
 
+// Simulation/test mode: cap sandbox timeout to prevent infinite loops from
+// consuming CPU/RAM. In production, infinite loops get the full timeout;
+// in simulation, 1.5s is enough to detect the loop.
+const SANDBOX_TIMEOUT_OVERRIDE_MS = process.env.SANDBOX_TIMEOUT_MS
+  ? parseInt(process.env.SANDBOX_TIMEOUT_MS)
+  : null; // null = no override
+
+function getEffectiveTimeoutSec(defaultSec = 30) {
+  if (SANDBOX_TIMEOUT_OVERRIDE_MS !== null) {
+    return Math.max(SANDBOX_TIMEOUT_OVERRIDE_MS / 1000, 1); // min 1s
+  }
+  return defaultSec;
+}
+
 function dockerAvailable() {
   return new Promise((resolve) => {
     exec('docker info --format "{{.ServerVersion}}"', { timeout: 5000 }, (err) => {
@@ -31,7 +45,7 @@ function dockerAvailable() {
 }
 
 function runInDocker(command, timeoutSec = 30) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     exec(command, { timeout: timeoutSec * 1000 }, (err, stdout, stderr) => {
       resolve({ err, stdout: stdout || '', stderr: stderr || '' });
     });
@@ -128,11 +142,12 @@ function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
 
     try {
       // Compile + Run in a single Docker command
+      const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
       const compileCmd = `g++ ${COMPILE_FLAGS} /workspace/solution.cpp -o /workspace/solution`;
-      const runCmd = `timeout ${timeLimitSeconds}s /workspace/solution < /workspace/stdin.txt`;
+      const runCmd = `timeout ${effectiveSec}s /workspace/solution < /workspace/stdin.txt`;
       const dockerCmd = `docker run --rm --memory 64m --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "${compileCmd} && cd /workspace && ${runCmd}"`;
 
-      const result = await runInDocker(dockerCmd, timeLimitSeconds + 10);
+      const result = await runInDocker(dockerCmd, effectiveSec + 10);
 
       let status, output, error, isCorrect;
 

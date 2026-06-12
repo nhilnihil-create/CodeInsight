@@ -83,17 +83,20 @@ function collectNodesByType(rootNode, type) {
 // ── Check 1: Required AST nodes ─────────────────────────────────────────────
 
 function checkRequiredNodes(tree, requiredNodes) {
-  const missingNodes = [];
   const nodeTypesFound = collectNodeTypes(tree.rootNode);
-  for (const requiredNode of requiredNodes) {
-    if (!nodeTypesFound.has(requiredNode)) {
-      missingNodes.push({
-        message: `Required AST node '${requiredNode}' not found in code`,
-        line: 1, column: 1
-      });
-    }
+
+  // Check if any of the required nodes are present.
+  // For concepts with alternative nodes (e.g. Loops: for/while/do),
+  // the student only needs to demonstrate ONE of the required constructs.
+  // If ALL nodes are missing, then the concept is not demonstrated.
+  const found = requiredNodes.some(node => nodeTypesFound.has(node));
+  if (!found) {
+    return [{
+      message: `Required AST nodes (${requiredNodes.join(', ')}) not found in code — concept not demonstrated`,
+      line: 1, column: 1
+    }];
   }
-  return missingNodes;
+  return [];
 }
 
 // ── Check 2: Empty body check ───────────────────────────────────────────────

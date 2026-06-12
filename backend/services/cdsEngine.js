@@ -86,8 +86,9 @@ const excludedRes = await db.query(
 );
 const excludedStudents = new Set(excludedRes.rows.map(r => r.student_id));
 
-// GAP #6: Only count verified submissions (is_verified = true)
-// Unverified submissions (structure_valid = false) are excluded from CDS
+// GAP #6: Include ALL submissions in CDS calculation.
+// Unverified submissions (is_verified = false) indicate structurally invalid code,
+// which is a strong struggle signal — they count as failed attempts with max difficulty.
 const subsRes = await db.query(
   `SELECT s.student_id, s.attempt_number, s.is_correct, s.time_spent_seconds, s.code,
           s.is_verified,
@@ -97,7 +98,10 @@ const subsRes = await db.query(
             AND i.status = 'flagged'
             LIMIT 1) AS flag_id
     FROM submissions s
-    WHERE s.exercise_id=$1 AND s.is_verified = true
+    JOIN exercises e ON e.id = s.exercise_id
+    WHERE s.exercise_id=$1
+      AND e.mode = 'learning'
+      AND s.is_practice IS NOT TRUE
     ORDER BY s.student_id, s.attempt_number ASC`,
   [exerciseId]
 );
@@ -163,9 +167,12 @@ const { effectiveMax: effectiveMaxTime } = getNormalizedValue(
 // ── Blank submission check (Pillar 1: Jadud 2006) ─────────────────────────
 const starterCode = exercise.starter_code || '';
 const blankRes = await db.query(
-  `SELECT DISTINCT student_id FROM submissions
-    WHERE exercise_id=$1
-    AND (TRIM(code) = TRIM($2) OR TRIM(code) = '' OR code IS NULL)`,
+  `SELECT DISTINCT s.student_id FROM submissions s
+    JOIN exercises e ON e.id = s.exercise_id
+    WHERE s.exercise_id=$1
+      AND (TRIM(s.code) = TRIM($2) OR TRIM(s.code) = '' OR s.code IS NULL)
+      AND e.mode = 'learning'
+      AND s.is_practice IS NOT TRUE`,
   [exerciseId, starterCode]
 );
 const blankStudents = new Set(blankRes.rows.map(r => r.student_id));
@@ -243,7 +250,10 @@ const subs = await db.query(
           COUNT(*) FILTER (WHERE s.is_correct=false) AS failed_attempts,
           MAX(s.time_spent_seconds) AS max_time
     FROM submissions s JOIN users u ON u.id=s.student_id
+    JOIN exercises e ON e.id = s.exercise_id
     WHERE s.exercise_id=$1
+      AND e.mode = 'learning'
+      AND s.is_practice IS NOT TRUE
     GROUP BY s.student_id, u.name`,
   [exerciseId]
 );
@@ -299,7 +309,8 @@ try {
   const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
   if (!exRes.rows.length) return null;
 
-  // GAP #6: Only count verified submissions in live CDS
+  // GAP #6: Include ALL submissions in live CDS (verified + unverified)
+  // Unverified submissions indicate structurally invalid code — count as failures.
   const subsRes = await db.query(
     `SELECT s.student_id, s.attempt_number, s.is_correct, s.time_spent_seconds,
             s.is_verified,
@@ -309,7 +320,10 @@ try {
               AND i.status = 'flagged'
               LIMIT 1) AS flag_id
       FROM submissions s
-      WHERE s.exercise_id=$1 AND s.is_verified = true
+      JOIN exercises e ON e.id = s.exercise_id
+      WHERE s.exercise_id=$1
+        AND e.mode = 'learning'
+        AND s.is_practice IS NOT TRUE
       ORDER BY s.student_id, s.attempt_number ASC`,
     [exerciseId]
   );
