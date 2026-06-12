@@ -18,7 +18,7 @@ module.exports = defineConfig({
   retries: 1,
 
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -27,14 +27,15 @@ module.exports = defineConfig({
     {
       command: 'cross-env NODE_OPTIONS="--max-old-space-size=1024" npm run dev --prefix frontend -- --host 127.0.0.1 --port 5173',
       url: 'http://127.0.0.1:5173',
-      reuseExistingServer: false,
+      reuseExistingServer: true,
       timeout: 60000,
     },
     {
-      command: 'npm run start --prefix backend',
+      // Backend already running with simulation data — reuse it
+      command: 'echo "Backend already running"',
       url: 'http://127.0.0.1:5000/api/health',
-      reuseExistingServer: false,
-      timeout: 60000,
+      reuseExistingServer: true,
+      timeout: 10000,
     },
   ],
 

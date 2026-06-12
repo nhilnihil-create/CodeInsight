@@ -7,13 +7,16 @@ const { rateLimit } = require('express-rate-limit');
 const v = require('../lib/validators');
 
 // Bruteforce protection: max 5 login attempts per IP per 15 minutes.
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
-});
+// Disabled during E2E testing (PLAYWRIGHT=1 env var).
+const loginLimiter = process.env.PLAYWRIGHT === '1'
+  ? (req, res, next) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+    });
 
 router.post('/register', validate.body(v.register), ctrl.register);
 router.post('/login',    loginLimiter, validate.body(v.login), ctrl.login);
