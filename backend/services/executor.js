@@ -145,7 +145,7 @@ function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
       const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
       const compileCmd = `g++ ${COMPILE_FLAGS} /workspace/solution.cpp -o /workspace/solution`;
       const runCmd = `timeout ${effectiveSec}s /workspace/solution < /workspace/stdin.txt`;
-      const dockerCmd = `docker run --rm --memory 64m --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "${compileCmd} && cd /workspace && ${runCmd}"`;
+      const dockerCmd = `docker run --rm --pids-limit=32 --memory="256m" --cpus="0.5" --cap-drop=ALL --cap-add=DAC_OVERRIDE --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "${compileCmd} && cd /workspace && ${runCmd}"`;
 
       const result = await runInDocker(dockerCmd, effectiveSec + 10);
 

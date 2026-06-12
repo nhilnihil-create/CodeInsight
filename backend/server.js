@@ -66,7 +66,20 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 // Run migrations and start server
-ensureTablesExist().then(() => {
+ensureTablesExist().then(async () => {
+  // Initialize submission queue (non-blocking — falls back to sync if Redis unavailable)
+  try {
+    const submissionQueue = require('./queues/submissionQueue');
+    const queueReady = await submissionQueue.initQueue();
+    if (queueReady) {
+      console.log('[Server] Submission queue initialized (async mode available)');
+    } else {
+      console.log('[Server] Redis unavailable — submissions will process synchronously');
+    }
+  } catch (err) {
+    console.warn('[Server] Queue init failed:', err.message);
+  }
+
   app.listen(PORT, () => {
     console.log(`CodeInsight running on port ${PORT}`);
     console.log(`PostgreSQL connected`);
@@ -84,6 +97,9 @@ ensureTablesExist().then(() => {
 function shutdown(signal) {
   console.log(`\nReceived ${signal}. Shutting down gracefully...`);
   stopAutoCloseService();
+  // Close queue connection
+  const submissionQueue = require('./queues/submissionQueue');
+  submissionQueue.closeQueue().catch(() => {});
   db.end().then(() => process.exit(0)).catch(() => process.exit(1));
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));

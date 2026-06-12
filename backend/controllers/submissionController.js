@@ -4,6 +4,9 @@ const astVerifier = require('../services/astVerifier');
 const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
 const { gradeSubmission } = require('../services/streamMatcher');
+const errorReporter = require('../services/errorReporter');
+const analyticsEngine = require('../services/analyticsEngine');
+const submissionQueue = require('../queues/submissionQueue');
 
 /**
  * Token counter for growth velocity monitoring.
@@ -549,6 +552,10 @@ exports.submit = async (req, res) => {
       passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true
     };
 
+    // Deterministic test-case failure report (errorReporter)
+    const failureReport = errorReporter.processFailureReport(tcResults, exercise.test_cases);
+    const formattedFailures = errorReporter.formatForResponse(failureReport);
+
     // Calculate live CDS for display and persistence
     const cdsEngine = require('../services/cdsEngine');
     let liveCDS = null;
@@ -572,6 +579,15 @@ exports.submit = async (req, res) => {
       console.warn('Error calculating or saving live CDS:', liveErr.message);
     }
 
+    // Analytics: track submission for at-risk detection (RETRY_STORM, LEARNING_PLATEAU)
+    analyticsEngine.trackSubmission({
+      studentId,
+      exerciseId,
+      isCorrect: allPassed,
+      sectionId: exercise.section_id,
+      attemptNumber,
+    }).catch(err => console.warn('[Analytics] Tracking failed:', err.message));
+
     // Prepare response with micro-concept feedback, cppcheck warnings, code growth delta, and growth velocity
     const responseData = {
       attemptNumber,
@@ -585,7 +601,9 @@ exports.submit = async (req, res) => {
       verification: {
         is_verified: is_verified,
         note: verification_note || (is_verified ? 'Code structure verified' : 'Verification failed')
-      }
+      },
+      // Deterministic failure report (hints + sanitized errors)
+      failureReport: formattedFailures.length > 0 ? formattedFailures : undefined,
     };
 
     // Add micro-concept feedback if available
@@ -681,4 +699,106 @@ exports.studentSubmissions = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+};
+
+// ── Async Submission (Queue-Based) ─────────────────────────────────────────
+
+/**
+ * POST /api/submissions/submit-async
+ * Decouples submission processing from HTTP request using BullMQ.
+ * Returns 202 Accepted with jobId for polling.
+ */
+exports.submitAsync = async (req, res) => {
+  const { exerciseId, code, timeSpentSeconds, behavioralData, behavioralEvents } = req.body;
+  const studentId = req.user.id;
+
+  if (!code || !code.trim()) {
+    return res.status(400).json({ message: 'No code provided' });
+  }
+
+  // Ensure queue is initialized
+  const queueReady = await submissionQueue.initQueue();
+
+  if (!queueReady) {
+    // Fallback: process synchronously
+    console.warn('[AsyncSubmit] Redis unavailable, falling back to sync');
+    return exports.submit(req, res);
+  }
+
+  // Normalize behavioral data
+  const behavioralSummary = {
+    tabSwitchCount: 0,
+    pasteCount: 0,
+    idleTimeSeconds: 0,
+  };
+  if (behavioralData) Object.assign(behavioralSummary, behavioralData);
+  if (Array.isArray(behavioralEvents)) {
+    for (const ev of behavioralEvents) {
+      if (ev.type === 'tab_blur' || ev.type === 'tab_focus') behavioralSummary.tabSwitchCount++;
+      if (ev.type === 'paste') behavioralSummary.pasteCount++;
+      if (ev.type === 'idle_start') behavioralSummary.idleTimeSeconds += 30;
+    }
+  }
+
+  // Pre-create submission record to get an ID (worker updates it)
+  let submissionId;
+  try {
+    const attRes = await db.query(
+      'SELECT COALESCE(MAX(attempt_number),0)+1 AS next FROM submissions WHERE student_id=$1 AND exercise_id=$2',
+      [studentId, exerciseId]
+    );
+    const attemptNumber = attRes.rows[0].next;
+
+    const insRes = await db.query(
+      `INSERT INTO submissions
+       (student_id, exercise_id, code, is_correct, attempt_number, time_spent_seconds,
+        is_verified, verification_note, tab_switch_count, paste_count, idle_time_seconds)
+       VALUES ($1,$2,$3,false,$4,$5,false,'queued',$6,$7,$8) RETURNING id`,
+      [studentId, exerciseId, code, attemptNumber, timeSpentSeconds || 0,
+       behavioralSummary.tabSwitchCount, behavioralSummary.pasteCount, behavioralSummary.idleTimeSeconds]
+    );
+    submissionId = insRes.rows[0].id;
+  } catch (err) {
+    return res.status(500).json({ message: `Failed to queue submission: ${err.message}` });
+  }
+
+  // Add job to queue
+  try {
+    const jobId = await submissionQueue.addSubmissionJob({
+      exerciseId,
+      code,
+      studentId,
+      timeSpentSeconds: timeSpentSeconds || 0,
+      behavioralData: behavioralSummary,
+      submissionId,
+    });
+
+    res.status(202).json({
+      message: 'Submission queued for evaluation',
+      jobId,
+      submissionId,
+      statusUrl: `/api/submissions/status/${jobId}`,
+    });
+  } catch (err) {
+    // Queue failed — clean up placeholder submission and fallback to sync
+    await db.query('DELETE FROM submissions WHERE id = $1', [submissionId]).catch(() => {});
+    console.warn('[AsyncSubmit] Queue add failed, falling back to sync:', err.message);
+    return exports.submit(req, res);
+  }
+};
+
+/**
+ * GET /api/submissions/status/:jobId
+ * Monitor worker processing state.
+ * Returns: { jobId, status, result, error, progress, createdAt, processedAt, finishedAt }
+ */
+exports.getJobStatus = async (req, res) => {
+  const { jobId } = req.params;
+
+  const status = await submissionQueue.getJobStatus(jobId);
+  if (!status) {
+    return res.status(404).json({ message: 'Job not found' });
+  }
+
+  res.json(status);
 };

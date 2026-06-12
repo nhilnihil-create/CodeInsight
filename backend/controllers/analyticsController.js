@@ -1569,3 +1569,49 @@ exports.getClassMicroConceptReport = async (req, res, next) => {
     next(err);
   }
 };
+
+// ── At-Risk Analytics Alerts (RETRY_STORM, LEARNING_PLATEAU) ───────────────
+
+/**
+ * GET /api/analytics/instructor/dashboard/alerts?sectionId=X
+ * Returns compiled alerts sorted by severity, combining CDS-based alerts,
+ * RETRY_STORM flags, and LEARNING_PLATEAU detections.
+ */
+exports.getDashboardAlerts = async (req, res, next) => {
+  try {
+    const { sectionId } = req.query;
+    if (!sectionId) {
+      return res.status(400).json({ message: 'sectionId query parameter required' });
+    }
+
+    const analyticsEngine = require('../services/analyticsEngine');
+    const alerts = await analyticsEngine.getDashboardAlerts(sectionId);
+    res.json(alerts);
+  } catch (err) {
+    console.error('getDashboardAlerts error:', err.message);
+    next(err);
+  }
+};
+
+/**
+ * PUT /api/analytics/instructor/dashboard/alerts/:alertId/review
+ * Mark an analytics alert as reviewed.
+ */
+exports.reviewAnalyticsAlert = async (req, res, next) => {
+  try {
+    const { alertId } = req.params;
+    const { classification } = req.body;
+
+    const analyticsEngine = require('../services/analyticsEngine');
+    const result = await analyticsEngine.reviewAlert(alertId, classification);
+
+    if (result.success) {
+      res.json({ message: 'Alert marked as reviewed' });
+    } else {
+      res.status(500).json({ message: result.error });
+    }
+  } catch (err) {
+    console.error('reviewAnalyticsAlert error:', err.message);
+    next(err);
+  }
+};

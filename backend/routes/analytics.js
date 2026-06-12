@@ -52,4 +52,8 @@ router.get('/sections/:sectionId/micro-concept-report', verifyToken, requireRole
 // Student detail (instructor view) — submissions across all exercises in section
 router.get('/student/:studentId/submissions', verifyToken, requireRole('instructor'), ctrl.getStudentSubmissions);
 
+// GAP: At-Risk Analytics Alerts (RETRY_STORM, LEARNING_PLATEAU)
+router.get('/instructor/dashboard/alerts', verifyToken, requireRole('instructor'), ctrl.getDashboardAlerts);
+router.put('/instructor/dashboard/alerts/:alertId/review', verifyToken, requireRole('instructor'), ctrl.reviewAnalyticsAlert);
+
 module.exports = router;
