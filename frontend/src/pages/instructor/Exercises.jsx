@@ -38,7 +38,6 @@ export default function InstructorExercises() {
       id: e.id,
       title: e.title,
       conceptTags: e.concept_name ? [e.concept_name] : (e.concept_tags || e.conceptTags || []),
-      difficulty: e.difficulty || 'Beginner',
       dueDate: e.deadline || e.due_date || e.dueDate,
       isDraft: e.is_draft,
       closedAt: e.closed_at,
@@ -136,7 +135,6 @@ export default function InstructorExercises() {
                 <TableHead className="w-8" />
                 <TableHead>Title</TableHead>
                 <TableHead>Concepts</TableHead>
-                <TableHead>Difficulty</TableHead>
                 <TableHead>Due</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead />
@@ -145,14 +143,14 @@ export default function InstructorExercises() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
+                  <TableCell colSpan={6} className="text-center py-12">
                     <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">Loading exercises…</p>
                   </TableCell>
                 </TableRow>
               ) : exercises.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
                     No exercises found for this selection.
                   </TableCell>
                 </TableRow>
@@ -189,11 +187,6 @@ export default function InstructorExercises() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={e.difficulty === 'Beginner' ? 'outline' : e.difficulty === 'Intermediate' ? 'secondary' : 'destructive'}>
-                            {e.difficulty}
-                          </Badge>
-                        </TableCell>
                         <TableCell className="text-muted-foreground">
                           {e.dueDate ? new Date(e.dueDate).toLocaleDateString() : '—'}
                         </TableCell>
@@ -228,7 +221,7 @@ export default function InstructorExercises() {
                         <ExerciseAccordionRow
                           exercise={e}
                           sectionId={sectionForDetail}
-                          colSpan={7}
+                          colSpan={6}
                         />
                       )}
                     </React.Fragment>

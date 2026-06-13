@@ -211,6 +211,16 @@ async function applySchemaPatches() {
     console.log('✓ Created section_audit_log table');
   }
 
+  // ── Migration 010: Taxonomy Refactor (ADRs 001-006) ─────────────────────
+  // Run standalone: node migrations/010_taxonomy_refactor.js
+  // Here we just check if it's been applied
+  if (await tableExists('concepts') && !(await columnExists('concepts', 'knowledge_area_code'))) {
+    console.log('⚠ Migration 010 (taxonomy refactor) not applied.');
+    console.log('  Run: node backend/migrations/010_taxonomy_refactor.js');
+  } else if (await tableExists('concepts')) {
+    console.log('✓ Migration 010 (taxonomy refactor) applied');
+  }
+
   await Promise.all(patches);
 }
 

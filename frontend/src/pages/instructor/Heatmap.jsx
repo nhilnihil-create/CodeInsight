@@ -1,90 +1,123 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import SectionFilter from '@/components/SectionFilter';
 import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
-/* ── Reports engagement heatmap palette (from Reports.jsx:69-75) ─────────── */
-const HEAT_TONE = [
-  'bg-muted/40',     // 0: Unscored / empty baseline
-  'bg-primary/15',   // 1: Low
-  'bg-primary/30',   // 2: Mid
-  'bg-primary/50',   // 3: High
-  'bg-primary/75',   // 4: Critical
+/* ── Knowledge Area Labels ─────────────────────────────────────────────── */
+
+const KA_LABELS = {
+  'SDF-FPC': 'Procedural Fundamentals',
+  'SDF-PMD': 'Program Design & Logic',
+  'SDF-FDS': 'Data Structures & Memory',
+  'SDF-OOP': 'Object-Oriented Paradigms',
+};
+
+/* ── Sequential blue gradient — the original HEAT_TONE palette ────────────
+ *  CDS 0-100: higher = more struggle.
+ *  Empty (no data) cells are completely transparent — zero visual noise.
+ *  Active cells use a cool-to-strong blue gradient.
+ *  Colorblind-safe, perceptually uniform.
+ */
+
+const HEAT_LEVELS = [
+  { min: 0,  max: 39, label: 'Low',      cell: 'bg-blue-500/[0.06]', text: 'text-blue-400/80' },
+  { min: 40, max: 69, label: 'Moderate', cell: 'bg-blue-500/[0.18]', text: 'text-blue-300' },
+  { min: 70, max: 100,label: 'High',     cell: 'bg-blue-500/[0.35]', text: 'text-blue-100 font-semibold' },
 ];
 
-/**
- * Map a CDS percentage (0-100) to a HEAT_TONE index (0-4).
- * null/undefined → 0 (unscored shell)
- * 0-25  → 1 (low risk)
- * 26-50 → 2 (mid)
- * 51-75 → 3 (high)
- * 76+   → 4 (critical)
- */
-function heatIndex(cdsPct) {
-  if (cdsPct == null) return 0;
-  if (cdsPct <= 25) return 1;
-  if (cdsPct <= 50) return 2;
-  if (cdsPct <= 75) return 3;
-  return 4;
-}
-
-/**
- * Tile classes for a given heat index.
- * State 0 = empty shell with faint outline.
- * States 1-4 = Reports density colors with readable text.
- */
-function cellClasses(idx) {
-  const base =
-    'rounded-md p-2 text-center font-mono text-xs ' +
-    'transition-all duration-150 ease-out hover:scale-105 hover:border-card-border cursor-pointer';
-  if (idx === 0) {
-    return `${base} bg-muted/20 border border-border/40 text-muted-foreground/30`;
+function heatLevel(cdsPct) {
+  if (cdsPct == null) return null; // no data → transparent
+  for (const l of HEAT_LEVELS) {
+    if (cdsPct >= l.min && cdsPct <= l.max) return l;
   }
-  const tone = HEAT_TONE[idx];
-  const textClass =
-    idx >= 4 ? 'text-white font-bold'
-    : idx >= 3 ? 'text-white font-medium'
-    : idx >= 2 ? 'text-card-foreground/80'
-    : 'text-muted-foreground';
-  return `${base} ${tone} ${textClass} border border-border/30`;
+  return HEAT_LEVELS[HEAT_LEVELS.length - 1];
 }
 
-/**
- * Intensity legend — bottom-right corner.
- * Labels reflect CDS *struggle* (not submission density).
- */
-function Legend() {
+/* ── Compact cell — transparent when no data ──────────────────────────── */
+
+function Cell({ cdsPct }) {
+  const level = heatLevel(cdsPct);
+  if (!level) {
+    // No data → completely invisible
+    return <div className="w-full h-7" />;
+  }
+
   return (
-    <div className="flex items-center justify-end gap-2 pt-3">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Low risk</span>
-      {HEAT_TONE.map((tone, i) => (
-        <div key={i} className={cn('h-3 w-5 rounded-sm border border-border/40', tone)} />
-      ))}
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">High risk</span>
+    <div className={cn(
+      'w-full h-7 flex items-center justify-center rounded-md',
+      'transition-all duration-150 cursor-default',
+      level.cell,
+    )}>
+      <span className={cn('text-[11px] font-mono tabular-nums', level.text)}>
+        {cdsPct}
+      </span>
     </div>
   );
 }
 
-/**
- * Class-wide concept struggle heatmap.
- *
- * - Uses the exact Reports engagement density palette (HEAT_TONE)
- * - Flex layout fills vertical space (no dead space below card)
- * - 5-state tile matrix: empty-shell → 4-step density gradient
- * - Legend: LESS ■ ■ ■ ■ MORE (bottom-right)
- * - Sticky student column + concept header
- * - Row-level hover tracking, micro-lift on cell hover with sibling dim
- */
+/* ── Legend ───────────────────────────────────────────────────────────── */
+
+function Legend() {
+  return (
+    <div className="flex items-center justify-end gap-3 pt-2">
+      {HEAT_LEVELS.map((l, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <div className={cn('w-4 h-3 rounded-sm', l.cell)} />
+          <span className="text-[10px] text-muted-foreground">{l.label}</span>
+        </div>
+      ))}
+      <div className="flex items-center gap-1.5 ml-2">
+        <div className="w-4 h-3 rounded-sm border border-dashed border-border/30" />
+        <span className="text-[10px] text-muted-foreground">No data</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Heatmap ─────────────────────────────────────────────────────── */
+
 export default function InstructorHeatmap() {
   const [sectionId, setSectionId] = useState('all');
   const [rows, setRows] = useState([]);
   const [concepts, setConcepts] = useState([]);
+  const [conceptMeta, setConceptMeta] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hoveredRow, setHoveredRow] = useState(null);
+  const [collapsedTracks, setCollapsedTracks] = useState({});
 
-  /* ── data fetch ────────────────────────────────────────────────────────── */
+  /* ── Group concepts by knowledge area ────────────────────────────── */
+  const groupedConcepts = useMemo(() => {
+    const groups = {};
+    for (const c of concepts) {
+      const ka = conceptMeta[c]?.knowledgeAreaCode || 'UNCATEGORIZED';
+      if (!groups[ka]) groups[ka] = [];
+      groups[ka].push(c);
+    }
+    // Sort groups by known priority, filter out empty groups
+    const kaOrder = ['SDF-FPC', 'SDF-PMD', 'SDF-FDS', 'SDF-OOP', 'UNCATEGORIZED'];
+    const sorted = {};
+    for (const ka of kaOrder) {
+      if (groups[ka] && groups[ka].length > 0) sorted[ka] = groups[ka];
+    }
+    return sorted;
+  }, [concepts, conceptMeta]);
+
+  /* ── Collapse all tracks by default on first data load ───────────── */
+  const initDoneRef = useState(false)[1];
+  useEffect(() => {
+    if (Object.keys(groupedConcepts).length > 0 && !initDoneRef.current) {
+      const defaults = {};
+      for (const ka of Object.keys(groupedConcepts)) defaults[ka] = true;
+      setCollapsedTracks(defaults);
+      initDoneRef.current = true;
+    }
+    // Reset init flag when section changes
+    if (Object.keys(groupedConcepts).length === 0) initDoneRef.current = false;
+  }, [groupedConcepts, initDoneRef, sectionId]);
+
+  /* ── Data fetch ──────────────────────────────────────────────────── */
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -112,6 +145,22 @@ export default function InstructorHeatmap() {
             scores: conceptScores,
           };
         });
+
+        // Fetch concept metadata for grouping by knowledge area
+        try {
+          const metaRes = await api.get('/api/exercises/concepts');
+          const meta = {};
+          for (const c of metaRes.data || []) {
+            meta[c.name] = {
+              knowledgeAreaCode: c.knowledge_area_code || null,
+              slug: c.slug || null,
+              bloomLevel: c.bloom_level || null,
+              difficultyTier: c.difficulty_tier || 1,
+            };
+          }
+          if (!cancelled) setConceptMeta(meta);
+        } catch (_) { /* metadata is optional enhancement */ }
+
         if (!cancelled) {
           setConcepts(conceptsFromApi);
           setRows(out);
@@ -127,22 +176,38 @@ export default function InstructorHeatmap() {
       }
     };
     load();
-    return () => { cancelled = true; };
+    return () => { cancelled = true };
   }, [sectionId]);
 
-  /* ── render ───────────────────────────────────────────────────────────── */
+  const toggleTrack = (ka) => {
+    setCollapsedTracks(prev => ({ ...prev, [ka]: !prev[ka] }));
+  };
+
+  /* ── Track average for a collapsed group ─────────────────────────── */
+  const trackAverage = (row, trackConcepts) => {
+    const vals = trackConcepts
+      .map(c => row.scores[c])
+      .filter(v => v != null)
+      .map(v => Math.round(v * 100));
+    if (vals.length === 0) return null;
+    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  };
+
+  /* ── render ──────────────────────────────────────────────────────── */
   return (
     <div className="flex flex-col grow h-full w-full">
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Class Heatmap</h1>
-          <p className="text-muted-foreground">CDS struggle index across the class.</p>
+          <p className="text-muted-foreground">
+            CDS struggle index grouped by conceptual track. Click track headers to collapse.
+          </p>
         </div>
         <SectionFilter value={sectionId} onChange={setSectionId} />
       </div>
 
-      {/* Card — flex-1 to consume all vertical space */}
+      {/* Card */}
       <Card className="flex flex-col flex-1 min-h-0 w-full overflow-hidden">
         <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle>Concept × Student — Struggle Index</CardTitle>
@@ -166,25 +231,73 @@ export default function InstructorHeatmap() {
             </div>
           ) : (
             <>
-              {/* Table area — flex-1 to fill remaining space */}
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scroll">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-20 bg-card">
-                    <tr>
+              {/* Table area */}
+              <div className="flex-1 min-h-0 overflow-auto custom-scroll">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    {/* TIER 1: Track headers (knowledge areas) */}
+                    <tr className="bg-muted/20">
                       <th
-                        className="sticky left-0 z-30 bg-card text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap"
-                        style={{ minWidth: 130 }}
+                        className="sticky left-0 z-30 bg-muted/30 text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-r border-border/50"
+                        style={{ minWidth: 160 }}
                       >
                         Student
                       </th>
-                      {concepts.map((c) => (
-                        <th
-                          key={c}
-                          className="bg-card px-3 py-3 font-medium text-muted-foreground text-center whitespace-nowrap"
-                        >
-                          {c}
-                        </th>
-                      ))}
+                      {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
+                        const isCollapsed = collapsedTracks[ka];
+                        return (
+                          <th
+                            key={ka}
+                            colSpan={Math.max(1, isCollapsed ? 1 : trackConcepts.length)}
+                            className="px-2 py-2 text-center border-b border-border/40 cursor-pointer select-none hover:bg-muted/40 transition-colors group"
+                            onClick={() => toggleTrack(ka)}
+                          >
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
+                                {KA_LABELS[ka] || ka}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground/60 transition-transform group-hover:scale-110">
+                                {isCollapsed ? '▸' : '▾'}
+                              </span>
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+
+                    {/* TIER 2: Concept sub-headers — every row includes cells for ALL tracks */}
+                    <tr className="bg-muted/5">
+                      <th
+                        className="sticky left-0 z-20 bg-muted/10 px-4 py-1 border-b border-r border-border/30"
+                        style={{ minWidth: 160 }}
+                      />
+                      {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
+                        const isCollapsed = collapsedTracks[ka];
+                        return (
+                          <Fragment key={`sub-${ka}`}>
+                            {isCollapsed ? (
+                              // Placeholder cell for collapsed track (keeps column alignment)
+                              <th
+                                key={ka}
+                                className="px-2 py-1 text-center text-[9px] text-muted-foreground/40 border-b border-border/10 cursor-pointer select-none"
+                                onClick={() => toggleTrack(ka)}
+                              >
+                                {KA_LABELS[ka] || ka}
+                              </th>
+                            ) : (
+                              trackConcepts.map((c) => (
+                                <th
+                                  key={c}
+                                  className="px-1 py-1 text-center text-[10px] font-medium text-muted-foreground whitespace-nowrap border-b border-border/20"
+                                  title={conceptMeta[c]?.bloomLevel || ''}
+                                >
+                                  {c}
+                                </th>
+                              ))
+                            )}
+                          </Fragment>
+                        );
+                      })}
                     </tr>
                   </thead>
 
@@ -194,34 +307,38 @@ export default function InstructorHeatmap() {
                         key={row.studentId}
                         className={`transition-colors duration-150 ${
                           hoveredRow === row.studentId
-                            ? 'bg-accent/40'
+                            ? 'bg-accent/30'
                             : hoveredRow
-                              ? 'opacity-50'
+                              ? 'opacity-60'
                               : ''
                         }`}
                         onMouseEnter={() => setHoveredRow(row.studentId)}
                         onMouseLeave={() => setHoveredRow(null)}
                       >
+                        {/* Sticky student name */}
                         <td
-                          className="sticky left-0 z-10 bg-card px-4 py-2 font-medium whitespace-nowrap"
-                          style={{ minWidth: 130 }}
+                          className="sticky left-0 z-10 bg-card px-4 py-1 font-medium whitespace-nowrap border-r border-border/40 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]"
+                          style={{ minWidth: 160 }}
                         >
                           {row.name}
                         </td>
-                        {concepts.map((c) => {
-                          const rawCds = row.scores[c];
-                          const hasData = rawCds !== null && rawCds !== undefined;
-                          const cdsPct = hasData ? Math.round(rawCds * 100) : null;
-                          const idx = heatIndex(cdsPct);
-                          const cls = cellClasses(idx);
 
-                          return (
-                            <td key={c} className="p-1">
-                              <div className={cls}>
-                                {idx === 0 ? (cdsPct ?? '—') : cdsPct}
-                              </div>
+                        {/* Data cells grouped by track */}
+                        {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
+                          const isCollapsed = collapsedTracks[ka];
+                          if (isCollapsed) {
+                            const avg = trackAverage(row, trackConcepts);
+                            return (
+                              <td key={`avg-${ka}`} className="p-0.5 border-r border-border/5">
+                                <Cell cdsPct={avg} />
+                              </td>
+                            );
+                          }
+                          return trackConcepts.map((c) => (
+                            <td key={c} className="p-0.5">
+                              <Cell cdsPct={row.scores[c] != null ? Math.round(row.scores[c] * 100) : null} />
                             </td>
-                          );
+                          ));
                         })}
                       </tr>
                     ))}
@@ -229,8 +346,8 @@ export default function InstructorHeatmap() {
                 </table>
               </div>
 
-              {/* Legend — bottom-right */}
-              <div className="flex-shrink-0 px-4 pb-4">
+              {/* Legend */}
+              <div className="flex-shrink-0 px-4 pb-3 pt-1 border-t border-border/30">
                 <Legend />
               </div>
             </>

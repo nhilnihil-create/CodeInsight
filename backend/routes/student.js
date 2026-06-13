@@ -42,7 +42,7 @@ router.get('/exercises/:id', verifyToken, requireRole('student'), async (req, re
     const ex = r.rows[0];
     if (ex.test_cases) {
       let testCases = typeof ex.test_cases === 'string' ? JSON.parse(ex.test_cases) : ex.test_cases;
-      ex.test_cases = testCases.filter(tc => !tc.hidden);
+      ex.test_cases = testCases.filter(tc => !tc.hidden && !tc.is_hidden);
     }
 
     const completedRes = await db.query(`
@@ -68,7 +68,7 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     const exercise = exRes.rows[0];
     const testCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
-    const visibleTC = testCases.filter(tc => !tc.hidden);
+    const visibleTC = testCases.filter(tc => !tc.hidden && !tc.is_hidden);
 
     if (!visibleTC.length) {
       return res.json({
@@ -87,7 +87,8 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     let results = [];
     let compilerError = null;
     try {
-      results = await runAgainstTestCases(code, visibleTC, exercise.time_limit_minutes * 60, true);
+      // Pass ALL test cases to runAgainstTestCases so hidden tests are executed and masked
+      results = await runAgainstTestCases(code, testCases, exercise.time_limit_minutes * 60, true);
       const compileErrorResult = results.find(r => r.status === 'Compile Error');
       if (compileErrorResult) compilerError = compileErrorResult.error;
     } catch (execErr) {

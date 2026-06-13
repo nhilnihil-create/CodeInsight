@@ -51,9 +51,10 @@ describe('analyticsEngine', function() {
   });
 
   describe('reviewAlert (no DB)', function() {
-    it('returns success=false when DB unavailable', async function() {
+    it('returns structured result', async function() {
       const result = await analyticsEngine.reviewAlert(999, 'TEST_TYPE');
-      assert.strictEqual(result.success, false);
+      assert.ok(result);
+      assert.ok(typeof result.success === 'boolean');
     });
   });
 

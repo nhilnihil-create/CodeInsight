@@ -16,6 +16,7 @@ const executor = require('../services/executor');
 const astVerifier = require('../services/astVerifier');
 const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
+const conceptAnalytics = require('../services/conceptAnalytics');
 const { gradeSubmission } = require('../services/streamMatcher');
 
 const db = require('../config/db');
@@ -158,6 +159,13 @@ async function createWorker() {
       }
 
       await job.updateProgress(100);
+
+      // Concept Analytics: live update CMI for affected student-concept pairs
+      try {
+        await conceptAnalytics.updateMetricsForSubmission(studentId, exerciseId);
+      } catch (err) {
+        console.warn('[Worker] Concept analytics update failed:', err.message);
+      }
 
       // Build visible results
       const visibleResults = tcResults.filter(r => !r.hidden).map(r => ({

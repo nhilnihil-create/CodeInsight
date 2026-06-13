@@ -65,9 +65,13 @@ CREATE INDEX IF NOT EXISTS idx_section_memberships_status ON section_memberships
 -- ── Concepts ────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS concepts (
-  id        SERIAL PRIMARY KEY,
-  name      VARCHAR(100) NOT NULL UNIQUE,
-  ast_nodes TEXT[]
+  id                  SERIAL PRIMARY KEY,
+  name                VARCHAR(100) NOT NULL UNIQUE,
+  ast_nodes           TEXT[],
+  knowledge_area_code VARCHAR(20),
+  slug                VARCHAR(100) UNIQUE,
+  bloom_level         VARCHAR(20) DEFAULT 'apply',
+  difficulty_tier     INT DEFAULT 1
 );
 
 -- ── Exercises ───────────────────────────────────────────────────────────────
@@ -95,6 +99,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   mode              VARCHAR(20) DEFAULT 'learning' CHECK (mode IN ('learning', 'assessment')),
   rubric_config     JSONB DEFAULT '{}',
   is_validated      BOOLEAN DEFAULT false,
+  difficulty_index  DECIMAL(5,4),
   search_vector     tsvector,
   created_at        TIMESTAMP DEFAULT NOW()
 );
@@ -112,6 +117,110 @@ CREATE TABLE IF NOT EXISTS exercise_concepts (
 
 CREATE INDEX IF NOT EXISTS idx_exercise_concepts_exercise ON exercise_concepts(exercise_id);
 CREATE INDEX IF NOT EXISTS idx_exercise_concepts_concept ON exercise_concepts(concept_id);
+
+-- ── Exercise Concept Tags (V2 - Migration 010) ──────────────────────────────
+-- Weighted multi-tag: exercises can have multiple concepts with primary/secondary
+
+CREATE TABLE IF NOT EXISTS exercise_concept_tags (
+  exercise_id INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  weight DECIMAL(3,2) DEFAULT 1.0,
+  is_primary BOOLEAN DEFAULT false,
+  PRIMARY KEY (exercise_id, concept_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exercise_concept_tags_exercise ON exercise_concept_tags(exercise_id);
+CREATE INDEX IF NOT EXISTS idx_exercise_concept_tags_concept ON exercise_concept_tags(concept_id);
+
+-- ── Concept Dependencies (V2 - Migration 010) ───────────────────────────────
+-- Prerequisite graph: parent_concept_id → child_concept_id
+
+CREATE TABLE IF NOT EXISTS concept_dependencies (
+  parent_concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  child_concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  weight DECIMAL(3,2) DEFAULT 1.0,
+  PRIMARY KEY (parent_concept_id, child_concept_id),
+  CONSTRAINT no_self_dependency CHECK (parent_concept_id != child_concept_id)
+);
+
+-- ── Learning Outcomes (V2 - Migration 010) ──────────────────────────────────
+-- Instructor-defined curriculum outcomes mapped to universal concepts
+
+CREATE TABLE IF NOT EXISTS learning_outcomes (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  bloom_level VARCHAR(20) DEFAULT 'apply',
+  created_by INT REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS outcome_concept_map (
+  outcome_id INT NOT NULL REFERENCES learning_outcomes(id) ON DELETE CASCADE,
+  concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  weight DECIMAL(3,2) DEFAULT 1.0,
+  PRIMARY KEY (outcome_id, concept_id)
+);
+
+CREATE TABLE IF NOT EXISTS section_active_outcomes (
+  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  outcome_id INT NOT NULL REFERENCES learning_outcomes(id) ON DELETE CASCADE,
+  PRIMARY KEY (section_id, outcome_id)
+);
+
+-- ── Analytics Alerts (V2 - Migration 010) ───────────────────────────────────
+-- Unified alert storage: CDS_HIGH, RETRY_STORM, LEARNING_PLATEAU, CONCEPT_RISK
+
+CREATE TABLE IF NOT EXISTS analytics_alerts (
+  id SERIAL PRIMARY KEY,
+  student_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  exercise_id INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  alert_type VARCHAR(50) NOT NULL,
+  severity VARCHAR(20) NOT NULL DEFAULT 'medium'
+    CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+  evidence TEXT,
+  context JSONB DEFAULT '{}',
+  is_reviewed BOOLEAN DEFAULT false,
+  reviewed_by INT REFERENCES users(id),
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_student ON analytics_alerts(student_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_section ON analytics_alerts(section_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_severity ON analytics_alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_analytics_alerts_created ON analytics_alerts(created_at);
+
+-- ── Student Concept Metrics (V2 - Migration 010) ────────────────────────────
+-- Aggregate table: CMI (Concept Mastery Index) + Learning Velocity per student/concept
+-- Updated on exercise close — O(1) dashboard reads
+
+CREATE TABLE IF NOT EXISTS student_concept_metrics (
+  student_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  cmi DECIMAL(5,2) DEFAULT 0,
+  velocity DECIMAL(5,2) DEFAULT 0,
+  last_updated TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (student_id, concept_id, section_id)
+);
+
+-- ── Section Concept Metrics (V2 - Migration 010) ────────────────────────────
+-- Aggregate table: CRS (Concept Risk Score) + Difficulty Index per section/concept
+-- Updated on exercise close — O(1) dashboard reads
+
+CREATE TABLE IF NOT EXISTS section_concept_metrics (
+  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+  crs VARCHAR(20) DEFAULT 'unknown',
+  crs_score DECIMAL(5,2) DEFAULT 0,
+  difficulty_index DECIMAL(5,4) DEFAULT 0,
+  student_count INT DEFAULT 0,
+  at_risk_count INT DEFAULT 0,
+  last_updated TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (section_id, concept_id)
+);
 
 -- ── Exercise Bank (V2) ──────────────────────────────────────────────────────
 
@@ -159,7 +268,8 @@ CREATE TABLE IF NOT EXISTS submissions (
   paste_count       INT DEFAULT 0,
   idle_time_seconds INT DEFAULT 0,
   submitted_at      TIMESTAMP DEFAULT NOW(),
-  created_at        TIMESTAMP DEFAULT NOW()
+  created_at        TIMESTAMP DEFAULT NOW(),
+  test_feedback_hints JSONB DEFAULT '[]'
 );
 
 -- ── CDS Scores ──────────────────────────────────────────────────────────────
@@ -381,17 +491,17 @@ CREATE TRIGGER exercises_search_vector_update
 
 -- ── SEED DATA ───────────────────────────────────────────────────────────────
 
-INSERT INTO concepts (name, ast_nodes) VALUES
-  ('Datatypes',    ARRAY[]::TEXT[]),
-  ('Variables',    ARRAY[]::TEXT[]),
-  ('Conditionals', ARRAY['if_statement','switch_statement']),
-  ('Loops',        ARRAY['for_statement','while_statement','do_statement']),
-  ('Functions',    ARRAY['function_definition']),
-  ('Arrays',       ARRAY['array_declarator','subscript_expression']),
-  ('OOP',          ARRAY['class_specifier']),
-  ('Pointers',     ARRAY['pointer_declarator','pointer_expression']),
-  ('Strings',      ARRAY['string_literal']),
-  ('Input/Output', ARRAY['call_expression'])
+INSERT INTO concepts (name, ast_nodes, knowledge_area_code, slug, bloom_level, difficulty_tier) VALUES
+  ('Datatypes',    ARRAY[]::TEXT[], 'SDF-FPC', 'datatypes',    'remember',   1),
+  ('Variables',    ARRAY[]::TEXT[], 'SDF-FPC', 'variables',    'understand', 1),
+  ('Conditionals', ARRAY['if_statement','switch_statement'], 'SDF-PMD', 'conditionals', 'apply',    2),
+  ('Loops',        ARRAY['for_statement','while_statement','do_statement'], 'SDF-PMD', 'loops',      'apply',    2),
+  ('Functions',    ARRAY['function_definition'], 'SDF-PMD', 'functions',    'analyze',  3),
+  ('Arrays',       ARRAY['array_declarator','subscript_expression'], 'SDF-FDS', 'arrays',     'apply',    2),
+  ('OOP',          ARRAY['class_specifier'], 'SDF-OOP', 'oop',          'evaluate', 4),
+  ('Pointers',     ARRAY['pointer_declarator','pointer_expression'], 'SDF-FDS', 'pointers',   'analyze',  3),
+  ('Strings',      ARRAY['string_literal'], 'SDF-FPC', 'strings',      'understand', 1),
+  ('Input/Output', ARRAY['call_expression'], 'SDF-FPC', 'input-output', 'apply',    1)
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO users (name, email, password_hash, role) VALUES

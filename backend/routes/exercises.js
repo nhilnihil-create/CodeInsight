@@ -8,6 +8,7 @@ const v = require('../lib/validators');
 router.get('/concepts',    verifyToken,                                ctrl.getConcepts);
 router.get('/bank',        verifyToken,                                ctrl.getBank);
 router.get('/bank/:id',    verifyToken,                                ctrl.getBankOne);
+router.get('/databank',    verifyToken,                                ctrl.getDatabank);
 router.post('/bulk-publish', verifyToken, requireRole('instructor'),   validate.body(v.bulkPublish), ctrl.bulkPublish);
 router.post('/validate',     verifyToken, requireRole('instructor'),   validate.body(v.exerciseValidate), ctrl.validate);
 router.post('/',           verifyToken, requireRole('instructor'),     validate.body(v.exerciseCreate), ctrl.create);

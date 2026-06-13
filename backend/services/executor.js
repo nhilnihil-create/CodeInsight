@@ -110,93 +110,121 @@ function parseCppcheckOutput(output) {
 // ── Execute code in Docker sandbox ─────────────────────────────────────────
 
 /**
- * Compile and execute C++ code inside a Docker container with AddressSanitizer.
+ * STAGE 1: Compile C++ code inside Docker sandbox.
+ * Returns { success: boolean, error: string } where error contains raw compiler stderr on failure.
  */
-function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
-  return new Promise(async (resolve) => {
-    if (!isSafe(sourceCode)) {
-      return resolve({
-        status: 'Rejected',
-        output: '',
-        error: 'Unsafe system call detected',
-        isCorrect: false
-      });
+async function compileCode(sourceCode, timeLimitSeconds = 30) {
+  if (!isSafe(sourceCode)) {
+    return { success: false, error: 'Unsafe system call detected' };
+  }
+
+  const dockerOk = await dockerAvailable();
+  if (!dockerOk) {
+    return { success: false, error: 'Docker is required but unavailable. Please ensure Docker is installed and running.' };
+  }
+
+  const tmpDir = path.join('/tmp', `ci_compile_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const srcFile = path.join(tmpDir, 'solution.cpp');
+  fs.writeFileSync(srcFile, sourceCode);
+
+  try {
+    const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
+    const compileCmd = `g++ ${COMPILE_FLAGS} /workspace/solution.cpp -o /workspace/solution`;
+    const dockerCmd = `docker run --rm --pids-limit=32 --memory="256m" --cpus="0.5" --cap-drop=ALL --cap-add=DAC_OVERRIDE --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "${compileCmd}"`;
+
+    const result = await runInDocker(dockerCmd, effectiveSec + 5);
+
+    // Explicit compilation guard: check exit code
+    if (result.err || result.stderr.includes('error:')) {
+      const compileError = parseCompilerError((result.stderr || '') + (result.stdout || ''), sourceCode);
+      return { success: false, error: compileError };
     }
 
-    const dockerOk = await dockerAvailable();
-    if (!dockerOk) {
-      return resolve({
-        status: 'Error',
-        output: '',
-        error: 'Docker is required but unavailable. Please ensure Docker is installed and running.',
-        isCorrect: false
-      });
-    }
+    // Compilation succeeded - binary exists at /workspace/solution in container
+    // We need to keep the tmpDir for execution stage
+    return { success: true, tmpDir };
+  } catch (err) {
+    cleanup(tmpDir);
+    return { success: false, error: `Compilation sandbox error: ${err.message}` };
+  }
+}
 
-    const tmpDir = path.join('/tmp', `ci_${Date.now()}_${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(tmpDir, { recursive: true });
-    const srcFile = path.join(tmpDir, 'solution.cpp');
+/**
+ * STAGE 2: Execute pre-compiled binary against stdin.
+ * Assumes compilation succeeded and binary exists in container at /workspace/solution.
+ */
+async function runCompiledBinary(tmpDir, stdin, timeLimitSeconds = 5) {
+  try {
+    const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
     const stdinFile = path.join(tmpDir, 'stdin.txt');
-    fs.writeFileSync(srcFile, sourceCode);
     fs.writeFileSync(stdinFile, stdin || '');
 
-    try {
-      // Compile + Run in a single Docker command
-      const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
-      const compileCmd = `g++ ${COMPILE_FLAGS} /workspace/solution.cpp -o /workspace/solution`;
-      const runCmd = `timeout ${effectiveSec}s /workspace/solution < /workspace/stdin.txt`;
-      const dockerCmd = `docker run --rm --pids-limit=32 --memory="256m" --cpus="0.5" --cap-drop=ALL --cap-add=DAC_OVERRIDE --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "${compileCmd} && cd /workspace && ${runCmd}"`;
+    const runCmd = `timeout ${effectiveSec}s /workspace/solution < /workspace/stdin.txt`;
+    const dockerCmd = `docker run --rm --pids-limit=32 --memory="256m" --cpus="0.5" --cap-drop=ALL --cap-add=DAC_OVERRIDE --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "cd /workspace && ${runCmd}"`;
 
-      const result = await runInDocker(dockerCmd, effectiveSec + 10);
+    const result = await runInDocker(dockerCmd, effectiveSec + 10);
 
-      let status, output, error, isCorrect;
+    const combinedStderr = result.stderr || '';
+    const combinedStdout = result.stdout || '';
 
-      // Determine result from combined output
-      const combinedStderr = result.stderr || '';
-      const combinedStdout = result.stdout || '';
-
-      // Check for compile error
-      if (result.err || combinedStderr.includes('error:')) {
-        // Distinguish compile errors from runtime sanitizer output
-        const hasCompileError = combinedStderr.match(/solution\.cpp:\d+:\d+: error:/i)
-          || combinedStderr.includes('fatal error')
-          || combinedStderr.includes('undefined reference');
-
-        if (hasCompileError) {
-          status = 'Compile Error';
-          error = parseCompilerError(combinedStderr + combinedStdout, sourceCode);
-          output = '';
-        } else {
-          // Likely AddressSanitizer output (runtime error)
-          const sanitizerOutput = parseSanitizerOutput(combinedStderr, combinedStdout);
-          if (sanitizerOutput) {
-            status = sanitizerOutput.status;
-            error = sanitizerOutput.message;
-            output = sanitizerOutput.output || '';
-          } else if (result.err && (result.err.code === 124 || result.err.killed)) {
-            status = 'Time Limit Exceeded';
-            error = 'Program exceeded time limit';
-            output = '';
-          } else {
-            status = 'Runtime Error';
-            error = combinedStderr || combinedStdout || result.err?.message || 'Unknown runtime error';
-            output = '';
-          }
-        }
-        isCorrect = false;
-      } else {
-        // Successful execution
-        status = 'Success';
-        output = combinedStdout.trim();
-        error = '';
-        isCorrect = false; // Graded against test cases by caller
-      }
-
-      resolve({ status, output, error, isCorrect });
-    } finally {
-      cleanup(tmpDir);
+    // Check for runtime errors (sanitizer, TLE, etc.)
+    if (result.err && (result.err.code === 124 || result.err.killed)) {
+      return { status: 'Time Limit Exceeded', output: '', error: 'Program exceeded time limit' };
     }
-  });
+
+    const sanitizerOutput = parseSanitizerOutput(combinedStderr, combinedStdout);
+    if (sanitizerOutput) {
+      return {
+        status: sanitizerOutput.status,
+        output: sanitizerOutput.output || '',
+        error: sanitizerOutput.message,
+      };
+    }
+
+    if (combinedStderr && !combinedStdout) {
+      return {
+        status: 'Runtime Error',
+        output: '',
+        error: combinedStderr,
+      };
+    }
+
+    return {
+      status: 'Success',
+      output: combinedStdout.trim(),
+      error: '',
+    };
+  } finally {
+    cleanup(tmpDir);
+  }
+}
+
+/**
+ * Compile and execute C++ code inside a Docker container with AddressSanitizer.
+ * Implements strict 2-stage lifecycle: COMPILATION GUARD → TEST RUNNER.
+ */
+async function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
+  // STAGE 1 — COMPILATION GUARD
+  const compileResult = await compileCode(sourceCode, 30);
+  if (!compileResult.success) {
+    return {
+      status: 'Compile Error',
+      output: '',
+      error: compileResult.error,
+      isCorrect: false,
+    };
+  }
+
+  // STAGE 2 — TEST RUNNER EXECUTION
+  const runResult = await runCompiledBinary(compileResult.tmpDir, stdin, timeLimitSeconds);
+
+  return {
+    status: runResult.status,
+    output: runResult.output,
+    error: runResult.error,
+    isCorrect: false, // Graded against test cases by caller
+  };
 }
 
 // ── Sanitizer output parser ────────────────────────────────────────────────
@@ -311,7 +339,9 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
     const passed = result.status === 'Success' && validation.passed;
 
     // Masking: hide details for tests where isVisible is false
-    const shouldMask = maskHidden && !isVisible;
+    // BUT: never mask compiler errors - they're global and must be shown
+    const isCompileError = result.status === 'Compile Error';
+    const shouldMask = maskHidden && !isVisible && !isCompileError;
 
     // Extract cppcheck warnings if this is the first run
     let cppcheckWarnings = [];
@@ -323,13 +353,16 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
       }
     }
 
+    // For compile errors, always surface the compiler error (not validation reason)
+    const displayError = isCompileError ? result.error : (shouldMask ? (result.status === 'Success' ? '' : result.status) : (validation.reason || result.error));
+
     results.push({
       input:          shouldMask ? '[Hidden]' : stdin,
       expected:       shouldMask ? '[Hidden]' : expectedStr,
       actual:         shouldMask ? (passed ? '[Hidden]' : 'Output Mismatch') : actualStr,
       passed,
       status:         result.status,
-      error:          shouldMask ? (result.status === 'Success' ? '' : result.status) : (validation.reason || result.error),
+      error:          displayError,
       hidden:         !isVisible,
       validationType,
       divergence:     shouldMask ? undefined : {

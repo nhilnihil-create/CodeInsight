@@ -56,4 +56,10 @@ router.get('/student/:studentId/submissions', verifyToken, requireRole('instruct
 router.get('/instructor/dashboard/alerts', verifyToken, requireRole('instructor'), ctrl.getDashboardAlerts);
 router.put('/instructor/dashboard/alerts/:alertId/review', verifyToken, requireRole('instructor'), ctrl.reviewAnalyticsAlert);
 
+// Phase 5: Concept Analytics endpoints
+router.get('/sections/:sectionId/concept-analytics', verifyToken, requireRole('instructor'), ctrl.getConceptAnalytics);
+router.get('/sections/:sectionId/concept-heatmap', verifyToken, requireRole('instructor'), ctrl.getConceptHeatmap);
+router.get('/students/:studentId/concept-profile', verifyToken, requireRole('instructor'), ctrl.getStudentConceptProfile);
+router.get('/concepts/:conceptId/diagnostic', verifyToken, requireRole('instructor'), ctrl.getConceptDiagnostic);
+
 module.exports = router;

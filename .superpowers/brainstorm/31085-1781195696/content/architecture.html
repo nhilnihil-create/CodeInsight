@@ -1,0 +1,48 @@
+<h2>Two-Tier Verification Architecture</h2>
+<p class="subtitle">CodeInsight V2 — Synthetic Classroom + Playwright E2E</p>
+
+<div class="mockup">
+  <div class="mockup-header">System Architecture Diagram</div>
+  <div class="mockup-body">
+    <div class="section">
+      <div class="options" data-multiselect>
+        <div class="option" data-choice="tier-a" onclick="toggleSelect(this)">
+          <div class="letter">A</div>
+          <div class="content">
+            <h3>Tier A: Backend Simulator</h3>
+            <p><code>/simulation/</code> — API-driven semester run. 50 student personas, 3 cycles (Baseline → Stress → Adversarial). Bypasses browser. Tests DB concurrency, sandbox stability, CDS calculation.</p>
+            <ul>
+              <li><strong>personas.js</strong> — 4 performance tiers + instructor</li>
+              <li><strong>studentGenerator.js</strong> — C++ AST normalizer + CodeNet matching</li>
+              <li><strong>automationRunner.js</strong> — Multi-cycle Axios execution loop</li>
+              <li><strong>validator.js</strong> — Queries DB → SYSTEM_HEALTH_REPORT.md</li>
+            </ul>
+          </div>
+        </div>
+        <div class="option" data-choice="tier-b" onclick="toggleSelect(this)">
+          <div class="letter">B</div>
+          <div class="content">
+            <h3>Tier B: Playwright E2E</h3>
+            <p><code>/e2e/</code> — Browser automation with real pointer inputs, typing events, dynamic dashboard transitions. 1 Instructor + 1 Student context.</p>
+            <ul>
+              <li><strong>playwright.config.js</strong> — Headless localhost config</li>
+              <li><strong>classroomWorkflow.spec.js</strong> — Auth → Join → Submit → Instructor Dashboard</li>
+              <li>Auth Gate, Join Code Gate, Monaco Editor flow, Heatmap rendering</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Integration Layer</h3>
+      <div style="background: #f0f0f0; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; line-height: 1.6;">
+        <strong>package.json scripts:</strong><br>
+        <code>test:simulation</code> → node simulation/automationRunner.js && node simulation/validator.js<br>
+        <code>test:e2e</code> → npx playwright test<br><br>
+        <strong>Shared infrastructure:</strong><br>
+        Both tiers target <code>http://localhost:5000/api</code> (backend) and <code>http://localhost:5173</code> (frontend)
+      </div>
+    </div>
+  </div>
+</div>

@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import InstructorDashboardShell from "@/components/instructor-dashboard-shell";
 import api from "@/services/api";
+import { Save } from "lucide-react";
 
 /* ── constants ─────────────────────────────────────────────────────────── */
 
@@ -83,6 +84,7 @@ function blankExercise() {
     title: "",
     description: "",
     concept_name: "",
+    concept_tags: [], // NEW: multi-tag support [{concept_id, concept_name, weight, is_primary}]
     starter_code: STARTER_CODE,
     test_cases: [{ input: "", expected: "", description: "", hidden: false }],
     time_limit_minutes: 45,
@@ -129,7 +131,7 @@ function StepIndicator({ currentStep, canAdvance, onStepClick }) {
   );
 }
 
-/* ── TestCaseEditor ────────────────────────────────────────────────────── */
+/* ── TestCaseEditor — Multi-line I/O support ───────────────────────────── */
 
 function TestCaseEditor({ tests, onChange }) {
   const update = (i, field, value) => onChange(tests.map((t, j) => j === i ? { ...t, [field]: value } : t));
@@ -138,38 +140,83 @@ function TestCaseEditor({ tests, onChange }) {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{tests.length} test case{tests.length !== 1 ? 's' : ''}</span>
+        <Button variant="outline" size="sm" onClick={add}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> Add Test Case
+        </Button>
+      </div>
       {tests.map((t, i) => (
         <Card key={i}>
           <CardContent className="pt-4 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Test {i + 1}</span>
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1 text-xs">
-                  <Checkbox checked={t.hidden} onCheckedChange={(v) => update(i, "hidden", !!v)} />
-                  Hide
-                </label>
-                <Button variant="ghost" size="sm" onClick={() => remove(i)} disabled={tests.length <= 1}>
+                <span className="text-xs font-medium">Test {i + 1}</span>
+                {t.description && (
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{t.description}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => update(i, "hidden", !t.hidden)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                    t.hidden
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                      : 'bg-muted/40 border-border/40 text-muted-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  {t.hidden ? '🔒 Hidden' : '👁 Visible'}
+                </button>
+                <Button variant="ghost" size="sm" onClick={() => remove(i)} disabled={tests.length <= 1} className="h-6 w-6 p-0">
                   <Trash2 className="w-3.5 h-3.5 text-destructive" />
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Input</Label>
-                <Input value={t.input} onChange={(e) => update(i, "input", e.target.value)} className="text-xs font-mono" placeholder="stdin" />
+            <div className="space-y-1.5">
+              {t.description && (
+                <Input
+                  value={t.description}
+                  onChange={(e) => update(i, "description", e.target.value)}
+                  className="text-xs"
+                  placeholder="Test description (e.g. Normal input, Edge case: n=0)"
+                />
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Stdin Input</Label>
+                  <Textarea
+                    value={t.input}
+                    onChange={(e) => update(i, "input", e.target.value)}
+                    className="text-xs font-mono min-h-[60px] resize-y"
+                    placeholder={"5\n1 2 3 4 5"}
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Expected Stdout</Label>
+                  <Textarea
+                    value={t.expected}
+                    onChange={(e) => update(i, "expected", e.target.value)}
+                    className="text-xs font-mono min-h-[60px] resize-y"
+                    placeholder={"15"}
+                    rows={3}
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Expected Output</Label>
-                <Input value={t.expected} onChange={(e) => update(i, "expected", e.target.value)} className="text-xs font-mono" placeholder="stdout" />
-              </div>
+              {!t.description && (
+                <button
+                  type="button"
+                  onClick={() => update(i, "description", "")}
+                  className="text-[10px] text-primary hover:underline"
+                >
+                  + Add description
+                </button>
+              )}
             </div>
-            <Input value={t.description} onChange={(e) => update(i, "description", e.target.value)} className="text-xs" placeholder="Description (optional)" />
           </CardContent>
         </Card>
       ))}
-      <Button variant="outline" size="sm" onClick={add} className="w-full">
-        <Plus className="w-3.5 h-3.5 mr-1" /> Add Test Case
-      </Button>
     </div>
   );
 }
@@ -199,17 +246,78 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
         </>
       )}
 
-      {/* Step 1: Concept Tag */}
+      {/* Step 1: Concept Tags (Multi-select) */}
       {step === 1 && (
-        <div>
-          <Label className="text-sm font-medium">Concept <span className="text-destructive">*</span></Label>
-          <Select value={exercise.concept_name} onValueChange={v => set("concept_name", v)}>
-            <SelectTrigger><SelectValue placeholder="Select a concept" /></SelectTrigger>
-            <SelectContent>
-              {concepts.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground mt-2">Primary concept for CDS analytics and heatmap display.</p>
+        <div className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium">Primary Concept <span className="text-destructive">*</span></Label>
+            <Select value={exercise.concept_name} onValueChange={v => {
+              const selected = concepts.find(c => c.name === v);
+              set("concept_name", v);
+              // Ensure primary tag is set
+              if (selected && !exercise.concept_tags.find(t => t.concept_id === selected.id)) {
+                set("concept_tags", [...exercise.concept_tags, { concept_id: selected.id, concept_name: v, weight: 1.0, is_primary: true }]);
+              } else if (selected) {
+                set("concept_tags", exercise.concept_tags.map(t =>
+                  t.concept_id === selected.id ? { ...t, is_primary: true } : t
+                ));
+              }
+            }}>
+              <SelectTrigger><SelectValue placeholder="Select primary concept" /></SelectTrigger>
+              <SelectContent>
+                {concepts.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">Primary concept for CDS analytics and heatmap display.</p>
+          </div>
+
+          <Separator />
+
+          {/* Multi-tag section */}
+          <div>
+            <Label className="text-sm font-medium">Secondary Concepts (optional)</Label>
+            <p className="text-xs text-muted-foreground mb-2">Select additional concepts this exercise covers.</p>
+
+            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 border rounded-md bg-muted/20">
+              {concepts.filter(c => c.name !== exercise.concept_name).map(c => {
+                const isSelected = exercise.concept_tags.some(t => t.concept_id === c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        set("concept_tags", exercise.concept_tags.filter(t => t.concept_id !== c.id));
+                      } else {
+                        set("concept_tags", [...exercise.concept_tags, { concept_id: c.id, concept_name: c.name, weight: 0.5, is_primary: false }]);
+                      }
+                    }}
+                    className={`px-2 py-1 rounded-full text-xs border transition-colors ${
+                      isSelected
+                        ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                        : 'bg-background border-border text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    {c.name}
+                    {isSelected && <span className="ml-1 text-[10px]">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Show selected tags */}
+          {exercise.concept_tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {exercise.concept_tags
+                .sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
+                .map(t => (
+                  <Badge key={t.concept_id} variant={t.is_primary ? 'default' : 'outline'} className="text-xs">
+                    {t.is_primary ? '★ ' : ''}{t.concept_name} ({Math.round(t.weight * 100)}%)
+                  </Badge>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -425,26 +533,38 @@ function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
   );
 }
 
-/* ── Databank Browser ──────────────────────────────────────────────────── */
+/* ── Databank Browser — Bank templates + seeded ITP1 exercises ─────────── */
 
 function DatabankBrowser({ onAddToBasket }) {
   const [bank, setBank] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [concept, setConcept] = useState("all");
+  const [source, setSource] = useState("all");
 
   useEffect(() => {
-    api.get("/api/exercises/bank").then(r => setBank(r.data || [])).catch(() => setBank([])).finally(() => setLoading(false));
+    // Fetch from combined databank endpoint (bank templates + ITP1 exercises)
+    const promises = [
+      api.get("/api/exercises/databank").then(r => r.data || []).catch(() => []),
+    ];
+    Promise.all(promises).then(([items]) => {
+      setBank(items);
+      setLoading(false);
+    }).catch(() => {
+      setBank([]);
+      setLoading(false);
+    });
   }, []);
 
-  const concepts = useMemo(() => [...new Set(bank.map(e => e.concept))], [bank]);
+  const concepts = useMemo(() => [...new Set(bank.map(e => e.concept))].sort(), [bank]);
 
   const filtered = useMemo(() => {
     return bank.filter(e =>
       (concept === "all" || e.concept === concept) &&
-      (!query || e.title.toLowerCase().includes(query.toLowerCase()))
+      (source === "all" || e.source === source) &&
+      (!query || e.title.toLowerCase().includes(query.toLowerCase()) || e.description.toLowerCase().includes(query.toLowerCase()))
     );
-  }, [bank, concept, query]);
+  }, [bank, concept, source, query]);
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-4">Loading databank…</p>;
   if (filtered.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">No exercises in databank.</p>;
@@ -454,10 +574,18 @@ function DatabankBrowser({ onAddToBasket }) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Layers className="w-4 h-4" /> Databank
-          <span className="text-xs font-normal text-muted-foreground">— click to edit, then add to basket</span>
+          <span className="text-xs font-normal text-muted-foreground">— {filtered.length} of {bank.length} exercises</span>
         </CardTitle>
         <div className="flex gap-2 mt-2">
-          <Input placeholder="Search databank..." value={query} onChange={e => setQuery(e.target.value)} className="text-sm h-8" />
+          <Input placeholder="Search..." value={query} onChange={e => setQuery(e.target.value)} className="text-sm h-8 flex-1" />
+          <Select value={source} onValueChange={setSource}>
+            <SelectTrigger className="w-28 h-8 text-sm"><SelectValue placeholder="Source" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All ({bank.length})</SelectItem>
+              <SelectItem value="bank">Templates ({bank.filter(e=>e.source==='bank').length})</SelectItem>
+              <SelectItem value="seeded">ITP1 ({bank.filter(e=>e.source==='seeded').length})</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={concept} onValueChange={setConcept}>
             <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="Concept" /></SelectTrigger>
             <SelectContent>
@@ -470,7 +598,7 @@ function DatabankBrowser({ onAddToBasket }) {
       <CardContent className="p-0 max-h-64 overflow-y-auto">
         {filtered.map(e => (
           <button
-            key={e.id}
+            key={`${e.source}-${e.id}`}
             type="button"
             onClick={() => onAddToBasket(e)}
             className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-muted/50 transition-colors border-b border-border/30 last:border-b-0"
@@ -479,6 +607,9 @@ function DatabankBrowser({ onAddToBasket }) {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium truncate">{e.title}</span>
                 <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 shrink-0">{e.concept}</Badge>
+                <Badge variant={e.source === 'bank' ? 'secondary' : 'outline'} className="text-[10px] px-1 py-0 h-4 shrink-0">
+                  {e.source === 'bank' ? 'Template' : 'ITP1'}
+                </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground truncate">{e.description}</p>
             </div>
@@ -602,6 +733,7 @@ export default function ExerciseWorkspace() {
             starter_code: item.starter_code || null,
             deadline: deadline || item.deadline || null,
             is_draft: asDraft,
+            concept_tags: item.concept_tags || [],
           };
 
           for (const sectionId of selectedSections) {
@@ -629,12 +761,45 @@ export default function ExerciseWorkspace() {
     }
   };
 
+  /* ── Update existing exercise ─────────────────────────────────────── */
+
+  const handleUpdateExercise = async () => {
+    if (!currentExercise.title.trim()) { toast.error("Enter a title before updating."); return; }
+    if (!currentExercise.concept_name) { toast.error("Select a concept before updating."); return; }
+    if (!id || id === "new" || id === "workspace") return;
+
+    setBusy(true);
+    try {
+      const payload = {
+        title: currentExercise.title,
+        description: currentExercise.description,
+        concept_name: currentExercise.concept_name,
+        time_limit_minutes: currentExercise.time_limit_minutes,
+        test_cases: (currentExercise.test_cases || []).map(tc => ({
+          input: tc.input || "", expected: tc.expected || "",
+          description: tc.description || "", hidden: !!tc.hidden,
+        })),
+        starter_code: currentExercise.starter_code || null,
+        deadline: currentExercise.deadline || null,
+        is_draft: false,
+        concept_tags: currentExercise.concept_tags || [],
+      };
+      await api.put(`/api/exercises/${id}`, payload);
+      toast.success("Exercise updated");
+      setTimeout(() => navigate("/instructor/exercises"), 800);
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /* ── Databank click → load into editor ──────────────────────────── */
 
   const handleDatabankClick = (entry) => {
     setCurrentExercise({
       ...blankExercise(),
-      bankId: entry.id,
+      bankId: entry.source === 'bank' ? entry.id : null,
       title: entry.title || "",
       description: entry.description || "",
       concept_name: entry.concept || "",
@@ -714,6 +879,10 @@ export default function ExerciseWorkspace() {
                       setCurrentStep(s => s + 1);
                     }}>
                       Next <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  ) : isEdit ? (
+                    <Button onClick={handleUpdateExercise} disabled={busy}>
+                      <Save className="w-4 h-4 mr-1" /> {busy ? "Saving..." : "Update Exercise"}
                     </Button>
                   ) : (
                     <div className="flex gap-2">

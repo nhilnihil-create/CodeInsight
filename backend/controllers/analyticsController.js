@@ -3,6 +3,7 @@ const cdsEngine = require('../services/cdsEngine');
 const { classify, CDS_THRESHOLDS } = cdsEngine;
 const classMisconceptionReport = require('../services/classMisconceptionReport');
 const longitudinalReportEngine = require('../services/longitudinalReportEngine');
+const conceptAnalytics = require('../services/conceptAnalytics');
 const { wilsonScore, confidenceLevel } = require('../lib/wilsonScore');
 const { evaluateRules } = require('../lib/insightTemplates');
 
@@ -66,6 +67,21 @@ exports.heatmap = async (req, res, next) => {
       }
     }
 
+    // Batch analytics: recalculate CMI, CRS, velocity, difficulty after CDS
+    // Use a Set of unique sectionIds to avoid redundant recalculation
+    const sectionIds = new Set();
+    for (const ex of exercises.rows) {
+      try {
+        const secRes = await db.query('SELECT section_id FROM exercises WHERE id = $1', [ex.id]);
+        if (secRes.rows.length && !sectionIds.has(secRes.rows[0].section_id)) {
+          sectionIds.add(secRes.rows[0].section_id);
+          await conceptAnalytics.computeAllMetrics(secRes.rows[0].section_id);
+        }
+      } catch (err) {
+        console.error(`Analytics calculation failed for exercise ${ex.id}:`, err);
+      }
+    }
+
     const students = await db.query(
       `SELECT u.id, u.name FROM users u
        JOIN enrollments e ON e.student_id=u.id
@@ -83,6 +99,12 @@ exports.heatmap = async (req, res, next) => {
       secParam
     );
 
+    // Dynamic: fetch concepts from DB, ordered by difficulty_tier (new taxonomy)
+    const conceptsRes = await db.query(
+      `SELECT name FROM concepts ORDER BY difficulty_tier, name`
+    );
+    const conceptsFromDb = conceptsRes.rows.map(r => r.name);
+
     const scoreMap = {};
     for (const s of scores.rows) {
       if (!scoreMap[s.student_id]) scoreMap[s.student_id] = {};
@@ -93,7 +115,7 @@ exports.heatmap = async (req, res, next) => {
     }
 
     const avgMap = {};
-    for (const concept of CONCEPT_ORDER) {
+    for (const concept of conceptsFromDb) {
       const vals = scores.rows
         .filter(s => s.concept_name===concept && s.cds !== null)
         .map(s => parseFloat(s.cds));
@@ -108,7 +130,7 @@ exports.heatmap = async (req, res, next) => {
 
     res.json({
       students: students.rows,
-      concepts: CONCEPT_ORDER,
+      concepts: conceptsFromDb,
       scores: scoreMap,
       classAverages: avgMap
     });
@@ -1308,19 +1330,40 @@ exports.getConceptMasteryReport = async (req, res, next) => {
     : `cs.section_id = $1`;
 
   try {
-    const conceptRes = await db.query('SELECT id, name FROM concepts ORDER BY id');
+    // Use slug as unique ID to avoid collisions (substring causes "AR" for Arrays & "AR" for other concepts)
+    const conceptRes = await db.query('SELECT id, name, slug FROM concepts ORDER BY id');
     const weeklyRes = await db.query(
-      `SELECT c.id AS concept_id, c.name AS concept_name, cs.computed_at::DATE AS week_date, ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS mastery
+      `SELECT c.id AS concept_id, c.name AS concept_name, c.slug, cs.computed_at::DATE AS week_date, ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS mastery
        FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN concepts c ON ex.concept_id = c.id
        WHERE ${secCond} AND cs.computed_at > NOW() - ($2 || ' weeks')::INTERVAL
-       GROUP BY c.id, c.name, cs.computed_at::DATE ORDER BY c.id, cs.computed_at::DATE`,
+       GROUP BY c.id, c.name, c.slug, cs.computed_at::DATE ORDER BY c.id, cs.computed_at::DATE`,
       sectionId === 'all' ? [String(instructorId), String(weeks)] : [sectionId, String(weeks)]
     );
 
+    // Fill in missing weeks with 0 for each concept
+    const weekDates = [];
+    for (let i = weeks - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i * 7);
+      weekDates.push(d.toISOString().slice(0, 10));
+    }
+
+    // Map slug → concept data for O(1) lookup
+    const conceptMap = {};
+    for (const c of conceptRes.rows) {
+      conceptMap[c.slug || c.id] = { id: c.slug || c.id, name: c.name, slug: c.slug, weekly: {} };
+    }
+    for (const r of weeklyRes.rows) {
+      const key = r.slug || r.concept_id;
+      if (conceptMap[key]) {
+        conceptMap[key].weekly[r.week_date] = r.mastery;
+      }
+    }
+
     const conceptData = conceptRes.rows.map(c => {
-      const rows = weeklyRes.rows.filter(r => r.concept_id === c.id);
-      const series = rows.map(r => r.mastery);
-      return { id: c.name.substring(0, 2).toUpperCase(), name: c.name, series, current: series.length ? series[series.length - 1] : 0 };
+      const key = c.slug || c.id;
+      const series = weekDates.map(d => conceptMap[key].weekly[d] ?? 0);
+      return { id: key, name: c.name, slug: c.slug, series, current: series.length ? series[series.length - 1] : 0 };
     });
 
     const weekLabels = [];
@@ -1612,6 +1655,266 @@ exports.reviewAnalyticsAlert = async (req, res, next) => {
     }
   } catch (err) {
     console.error('reviewAnalyticsAlert error:', err.message);
+    next(err);
+  }
+};
+
+// ── Phase 5: Concept Analytics API Endpoints ─────────────────────────────────
+
+/**
+ * GET /api/analytics/sections/:sectionId/concept-analytics
+ * Returns CRS (Concept Risk Score) data for all concepts in a section.
+ * Used by instructor dashboard to show which concepts the class is struggling with.
+ */
+exports.getConceptAnalytics = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+
+    // Verify section access
+    if (sectionId !== 'all') {
+      const secRes = await db.query('SELECT id FROM sections WHERE id = $1', [sectionId]);
+      if (!secRes.rows.length) return res.status(404).json({ error: 'Section not found' });
+    }
+
+    const crsData = await conceptAnalytics.getSectionCRS(parseInt(sectionId));
+    const cmiData = await conceptAnalytics.getSectionCRS(parseInt(sectionId)); // same query for now
+
+    res.json({
+      sectionId: parseInt(sectionId),
+      conceptRisk: crsData,
+    });
+  } catch (err) {
+    console.error('getConceptAnalytics error:', err.message);
+    next(err);
+  }
+};
+
+/**
+ * GET /api/analytics/students/:studentId/concept-profile?sectionId=X
+ * Returns CMI (Concept Mastery Index) + velocity for a student.
+ * Used by student profile page to show mastery per concept.
+ */
+exports.getStudentConceptProfile = async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const { sectionId } = req.query;
+
+    if (!sectionId) {
+      return res.status(400).json({ error: 'sectionId query parameter required' });
+    }
+
+    const cmiData = await conceptAnalytics.getStudentCMI(parseInt(studentId), parseInt(sectionId));
+
+    // Get student name
+    const studentRes = await db.query('SELECT id, name, email FROM users WHERE id = $1', [studentId]);
+    const student = studentRes.rows.length > 0 ? studentRes.rows[0] : null;
+
+    res.json({
+      studentId: parseInt(studentId),
+      student: student ? { id: student.id, name: student.name, email: student.email } : null,
+      sectionId: parseInt(sectionId),
+      conceptMastery: cmiData,
+    });
+  } catch (err) {
+    console.error('getStudentConceptProfile error:', err.message);
+    next(err);
+  }
+};
+
+/**
+ * GET /api/analytics/concepts/:conceptId/diagnostic?sectionId=X
+ * Returns concept details, prerequisite chain, section CRS, and at-risk students.
+ * Used for diagnostic reasoning: "Why is a student struggling with recursion?"
+ * → "Because they haven't mastered functions (prerequisite)."
+ */
+exports.getConceptDiagnostic = async (req, res, next) => {
+  try {
+    const { conceptId } = req.params;
+    const { sectionId } = req.query;
+
+    // Get concept info
+    const conceptRes = await db.query('SELECT * FROM concepts WHERE id = $1', [conceptId]);
+    if (!conceptRes.rows.length) return res.status(404).json({ error: 'Concept not found' });
+    const concept = conceptRes.rows[0];
+
+    // Get prerequisites (recursive dependency chain)
+    const prerequisites = await conceptAnalytics.getConceptPrerequisites(parseInt(conceptId));
+
+    // Get section CRS for this concept
+    let crsData = null;
+    if (sectionId) {
+      const crsAll = await conceptAnalytics.getSectionCRS(parseInt(sectionId));
+      crsData = crsAll.find(c => c.conceptId === parseInt(conceptId)) || null;
+    }
+
+    // Get exercises tagged with this concept
+    const exerciseRes = await db.query(
+      `SELECT e.id, e.title, e.difficulty_index, e.closed_at,
+              COALESCE(AVG(cs.cds), 0) AS avg_cds,
+              COUNT(DISTINCT cs.student_id) AS students_attempted,
+              COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.31) AS at_risk_count
+       FROM exercises e
+       LEFT JOIN cds_scores cs ON cs.exercise_id = e.id
+       WHERE e.concept_id = $1 OR e.id IN (
+         SELECT ect.exercise_id FROM exercise_concept_tags ect WHERE ect.concept_id = $1
+       )
+       GROUP BY e.id
+       ORDER BY e.closed_at DESC`,
+      [conceptId]
+    );
+
+    // Get at-risk students for this concept (CDS > 0.50 on concept-tagged exercises)
+    const atRiskStudents = sectionId ? await db.query(
+      `SELECT u.id, u.name, AVG(cs.cds) AS avg_cds
+       FROM cds_scores cs
+       JOIN exercises e ON e.id = cs.exercise_id
+       JOIN users u ON u.id = cs.student_id
+       WHERE (e.concept_id = $1 OR e.id IN (
+         SELECT ect.exercise_id FROM exercise_concept_tags ect WHERE ect.concept_id = $1
+       ))
+       AND cs.section_id = $2
+       AND cs.cds IS NOT NULL
+       GROUP BY u.id, u.name
+       HAVING AVG(cs.cds) > 0.31
+       ORDER BY avg_cds DESC
+       LIMIT 20`,
+      [conceptId, sectionId]
+    ) : { rows: [] };
+
+    res.json({
+      concept: {
+        id: concept.id,
+        name: concept.name,
+        knowledgeAreaCode: concept.knowledge_area_code,
+        slug: concept.slug,
+        bloomLevel: concept.bloom_level,
+        difficultyTier: concept.difficulty_tier,
+      },
+      prerequisites,
+      sectionCRS: crsData,
+      exercises: exerciseRes.rows.map(r => ({
+        id: r.id,
+        title: r.title,
+        difficultyIndex: parseFloat(r.difficulty_index) || 0,
+        avgCds: parseFloat(r.avg_cds) || 0,
+        studentsAttempted: parseInt(r.students_attempted),
+        atRiskCount: parseInt(r.at_risk_count),
+        closedAt: r.closed_at,
+      })),
+      atRiskStudents: atRiskStudents.rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        avgCds: parseFloat(r.avg_cds) || 0,
+      })),
+    });
+  } catch (err) {
+    console.error('getConceptDiagnostic error:', err.message);
+    next(err);
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/concept-heatmap
+ * Returns data for a concept-grouped heatmap (by knowledge area).
+ * Extends the existing heatmap with knowledge area grouping.
+ */
+exports.getConceptHeatmap = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+
+    // Get all concepts grouped by knowledge area
+    const conceptsRes = await db.query(
+      `SELECT id, name, knowledge_area_code, slug, bloom_level, difficulty_tier
+       FROM concepts
+       ORDER BY difficulty_tier, name`
+    );
+
+    // Get CDS scores for students in this section
+    const scoresRes = await db.query(
+      `SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
+              c.id AS concept_id, c.name AS concept_name,
+              c.knowledge_area_code, c.slug, c.bloom_level
+       FROM cds_scores cs
+       JOIN exercises ex ON ex.id = cs.exercise_id
+       JOIN concepts c ON c.id = ex.concept_id
+       WHERE cs.section_id = $1 AND cs.cds IS NOT NULL`,
+      [sectionId]
+    );
+
+    // Build score map
+    const scoreMap = {};
+    for (const s of scoresRes.rows) {
+      if (!scoreMap[s.student_id]) scoreMap[s.student_id] = {};
+      scoreMap[s.student_id][s.concept_name] = {
+        cds: parseFloat(s.cds) || 0,
+        classification: s.classification,
+        ner: parseFloat(s.ner) || 0,
+        nrs: parseFloat(s.nrs) || 0,
+        nts: parseFloat(s.nts) || 0,
+        knowledgeAreaCode: s.knowledge_area_code,
+        slug: s.slug,
+        bloomLevel: s.bloom_level,
+      };
+    }
+
+    // Group concepts by knowledge area
+    const knowledgeAreas = {};
+    for (const c of conceptsRes.rows) {
+      const ka = c.knowledge_area_code || 'UNCATEGORIZED';
+      if (!knowledgeAreas[ka]) knowledgeAreas[ka] = [];
+      knowledgeAreas[ka].push({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        bloomLevel: c.bloom_level,
+        difficultyTier: c.difficulty_tier,
+      });
+    }
+
+    // Get students
+    const studentsRes = await db.query(
+      `SELECT u.id, u.name FROM users u
+       JOIN enrollments e ON e.student_id = u.id
+       WHERE e.section_id = $1 ORDER BY u.name`,
+      [sectionId]
+    );
+
+    // Get CMI data
+    const cmiRes = await db.query(
+      `SELECT scm.student_id, scm.concept_id, scm.cmi, scm.velocity,
+              c.name AS concept_name
+       FROM student_concept_metrics scm
+       JOIN concepts c ON c.id = scm.concept_id
+       WHERE scm.section_id = $1`,
+      [sectionId]
+    );
+
+    const cmiMap = {};
+    for (const row of cmiRes.rows) {
+      if (!cmiMap[row.student_id]) cmiMap[row.student_id] = {};
+      cmiMap[row.student_id][row.concept_name] = {
+        cmi: parseFloat(row.cmi) || 0,
+        velocity: parseFloat(row.velocity) || 0,
+      };
+    }
+
+    res.json({
+      sectionId: parseInt(sectionId),
+      students: studentsRes.rows,
+      concepts: conceptsRes.rows.map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        knowledgeAreaCode: c.knowledge_area_code,
+        bloomLevel: c.bloom_level,
+        difficultyTier: c.difficulty_tier,
+      })),
+      knowledgeAreas,
+      scores: scoreMap,
+      cmi: cmiMap,
+    });
+  } catch (err) {
+    console.error('getConceptHeatmap error:', err.message);
     next(err);
   }
 };

@@ -6,6 +6,7 @@ const integrityFlagEngine = require('../services/integrityFlagEngine');
 const { gradeSubmission } = require('../services/streamMatcher');
 const errorReporter = require('../services/errorReporter');
 const analyticsEngine = require('../services/analyticsEngine');
+const conceptAnalytics = require('../services/conceptAnalytics');
 const submissionQueue = require('../queues/submissionQueue');
 
 /**
@@ -587,6 +588,18 @@ exports.submit = async (req, res) => {
       sectionId: exercise.section_id,
       attemptNumber,
     }).catch(err => console.warn('[Analytics] Tracking failed:', err.message));
+
+    // Concept Analytics: live update CMI for affected student-concept pairs
+    conceptAnalytics.updateMetricsForSubmission(studentId, exerciseId)
+      .then(result => {
+        if (result.updated) {
+          responseData.conceptAnalytics = {
+            updated: true,
+            conceptsUpdated: result.conceptsUpdated,
+          };
+        }
+      })
+      .catch(err => console.warn('[ConceptAnalytics] Live update failed:', err.message));
 
     // Prepare response with micro-concept feedback, cppcheck warnings, code growth delta, and growth velocity
     const responseData = {

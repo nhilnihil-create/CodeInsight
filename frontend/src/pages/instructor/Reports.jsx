@@ -1,9 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ResponsiveContainer,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -601,61 +603,146 @@ function EmptyTab({ message }) {
   );
 }
 
+// ── Sparkline ─────────────────────────────────────────────────────────────
+
+function Sparkline({ data, width = 64, height = 20, color = "hsl(var(--primary))" }) {
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / Math.max(data.length - 1, 1)) * width;
+    const y = height - ((v - min) / range) * (height - 2) - 1;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={width} height={height} className="block">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ── Tab Components ────────────────────────────────────────────────────────
 
+/**
+ * MasteryTab — progressive disclosure for 25+ concept trend lines.
+ * Default: top 5 at-risk (lowest mastery) + "Others" aggregate.
+ * Interactive legend: click to toggle concepts.
+ * "Show all" button: reveals every concept with muted lines.
+ * Sparkline column in the table below.
+ */
 function MasteryTab({ data }) {
-  const { sort, onSort } = useSort({ key: "current", dir: "desc" });
+  const { sort, onSort } = useSort({ key: "current", dir: "asc" });
+  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
+  const [showAll, setShowAll] = useState(false);
+
+  const atRiskSorted = useMemo(() =>
+    [...data.concepts].sort((a, b) => a.current - b.current),
+    [data.concepts]
+  );
+
+  useEffect(() => {
+    if (!showAll) {
+      const defaults = new Set();
+      for (let i = 0; i < Math.min(5, atRiskSorted.length); i++) defaults.add(atRiskSorted[i].id);
+      setVisibleConcepts(defaults);
+    }
+  }, [atRiskSorted, showAll]);
+
+  const toggleConcept = (id) => {
+    setVisibleConcepts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const showAllLines = () => {
+    setShowAll(true);
+    setVisibleConcepts(new Set(data.concepts.map(c => c.id)));
+  };
 
   const chartData = data.weeks.map((week, i) => {
     const row = { week };
-    for (const c of data.concepts) {
-      row[c.id] = c.series[i] ?? 0;
-    }
+    for (const c of data.concepts) row[c.id] = c.series[i] ?? 0;
     return row;
   });
 
   const tableRows = applySort(
     data.concepts.map(c => ({
-      id: c.id,
-      name: c.name,
-      current: c.current,
+      id: c.id, name: c.name, current: c.current,
       delta: c.series.length >= 2 ? c.series[c.series.length - 1] - c.series[0] : 0,
+      series: c.series,
     })),
     sort,
   );
 
-  if (!data.concepts.length) {
-    return <EmptyTab message="No mastery data available for this section yet." />;
-  }
+  if (!data.concepts.length) return <EmptyTab message="No mastery data available for this section yet." />;
+
+  const visibleLines = data.concepts.filter(c => visibleConcepts.has(c.id));
+  const othersSeries = showAll ? null : (() => {
+    const others = data.concepts.filter(c => !visibleConcepts.has(c.id));
+    if (!others.length) return null;
+    return Array.from({ length: data.weeks.length }, (_, i) =>
+      others.map(c => c.series[i] ?? 0).reduce((a, b) => a + b, 0) / others.length
+    );
+  })();
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader className="pb-3 border-b border-border">
-          <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Trend
-            </p>
-            <CardTitle className="text-sm font-semibold">
-              Concept mastery · {data.weeks.length}-week rolling
-            </CardTitle>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trend</p>
+              <CardTitle className="text-sm font-semibold">Concept mastery · {data.weeks.length}-week rolling</CardTitle>
+              <p className="text-[10px] text-muted-foreground">
+                {showAll ? `${visibleLines.length} concepts shown. Click legend items to toggle.` : `Top 5 at-risk concepts. Click "Show all" for full view.`}
+              </p>
+            </div>
+            {!showAll && (
+              <Button variant="outline" size="sm" onClick={showAllLines} className="text-[10px] h-7 shrink-0">
+                Show all {data.concepts.length} concepts
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="pt-4">
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} opacity={0.3} />
                 <XAxis dataKey="week" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
                 <YAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--muted))" }} />
-                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
-                {data.concepts.map((c) => (
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--muted))", strokeDasharray: "3 3" }}
+                  formatter={(value, name) => {
+                    const c = data.concepts.find(c => c.id === name);
+                    return [`${value}%`, c?.name || name];
+                  }}
+                />
+                {othersSeries && (
+                  <Line type="monotone" dataKey="_others" name="Others (avg)"
+                    stroke="hsl(var(--muted-foreground))" strokeDasharray="5 3"
+                    strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />
+                )}
+                {visibleLines.map(c => (
                   <Line key={c.id} type="monotone" dataKey={c.id} name={c.name}
-                    stroke={conceptColor(c.id)} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                    stroke={conceptColor(c.id)} strokeWidth={showAll ? 1 : 2}
+                    dot={false} isAnimationActive={false} opacity={showAll ? 0.6 : 1} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
+          </div>
+          {/* Interactive legend */}
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 pt-3 border-t border-border/30">
+            {data.concepts.sort((a, b) => a.current - b.current).map(c => (
+              <button key={c.id} type="button" onClick={() => toggleConcept(c.id)}
+                className={cn("inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full border transition-all",
+                  visibleConcepts.has(c.id) ? "border-border/40 bg-background hover:bg-muted/40" : "border-border/10 opacity-30 hover:opacity-60")}>
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: conceptColor(c.id) }} />
+                <span className="tabular-nums">{c.current}%</span>
+                <span className="text-muted-foreground">{c.name}</span>
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -668,25 +755,30 @@ function MasteryTab({ data }) {
           <SortableTable
             columns={[
               { key: "name", label: "Concept", align: "left" },
+              { key: "sparkline", label: "Trend", align: "center" },
               { key: "current", label: "Current", align: "right" },
               { key: "delta", label: "Δ", align: "right" },
             ]}
-            sort={sort}
-            onSort={onSort}
-            rows={tableRows}
+            sort={sort} onSort={onSort} rows={tableRows}
             renderCell={(col, row) => {
-              if (col.key === "name") return <span className="text-sm font-medium">{row.name}</span>;
+              if (col.key === "name") {
+                return <span className="text-sm font-medium inline-flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: conceptColor(row.id) }} />
+                  {row.name}
+                </span>;
+              }
+              if (col.key === "sparkline") {
+                const hasData = row.series.some(v => v > 0);
+                if (!hasData) return <span className="text-[10px] text-muted-foreground/40">no data</span>;
+                return <Sparkline data={row.series} width={64} height={20} color={conceptColor(row.id)} />;
+              }
               if (col.key === "current") return <span className="text-sm font-mono tabular-nums">{row.current}%</span>;
               if (col.key === "delta") {
                 const positive = row.delta > 0;
-                return (
-                  <span className={cn(
-                    "text-xs font-mono tabular-nums",
-                    positive ? "text-success" : row.delta < 0 ? "text-destructive" : "text-muted-foreground",
-                  )}>
-                    {positive ? "+" : ""}{row.delta}
-                  </span>
-                );
+                return <span className={cn("text-xs font-mono tabular-nums",
+                  positive ? "text-success" : row.delta < 0 ? "text-destructive" : "text-muted-foreground")}>
+                  {positive ? "+" : ""}{row.delta}
+                </span>;
               }
               return null;
             }}

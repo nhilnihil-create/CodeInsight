@@ -102,6 +102,8 @@ exports.create = async (req, res, next) => {
 
     // Insert secondary concepts into exercise_concepts junction table
     const exerciseId = r.rows[0].id;
+
+    // Support both legacy concept_ids (array of names) and new concept_tags (array of {id, weight, is_primary})
     if (concept_ids && concept_ids.length > 0) {
       const conceptRows = await db.query('SELECT id, name FROM concepts WHERE name = ANY($1)', [concept_ids]);
       const values = conceptRows.rows.map((c, i) => `($1, ${concept_id !== c.id ? `$${i + 2}` : 'NULL'})`).filter(v => !v.includes('NULL'));
@@ -115,9 +117,31 @@ exports.create = async (req, res, next) => {
         );
       }
     }
+
+    // NEW: Support concept_tags for multi-tag with weights
+    const { concept_tags } = req.body;
+    if (concept_tags && Array.isArray(concept_tags) && concept_tags.length > 0) {
+      for (const tag of concept_tags) {
+        const tagConceptId = tag.concept_id || tag.id;
+        if (tagConceptId) {
+          await db.query(
+            `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+             VALUES ($1, $2, $3, $4) ON CONFLICT (exercise_id, concept_id) DO UPDATE SET weight = $3, is_primary = $4`,
+            [exerciseId, tagConceptId, tag.weight || 1.0, tag.is_primary || false]
+          );
+        }
+      }
+    }
+
     // Always ensure primary concept is in the junction table
     await db.query(
       `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [exerciseId, concept_id]
+    );
+    // And in exercise_concept_tags
+    await db.query(
+      `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+       VALUES ($1, $2, 1.0, true) ON CONFLICT (exercise_id, concept_id) DO UPDATE SET is_primary = true`,
       [exerciseId, concept_id]
     );
 
@@ -151,6 +175,11 @@ exports.list = async (req, res, next) => {
          GROUP BY ex.id, c.id ORDER BY ex.created_at DESC`,
         [req.user.id]
       );
+      // Filter hidden test cases for students
+      r.rows = r.rows.map(ex => ({
+        ...ex,
+        test_cases: (ex.test_cases || []).filter(tc => !tc.hidden && !tc.is_hidden),
+      }));
     }
     res.json(r.rows);
   } catch (err) { next(err); }
@@ -163,7 +192,9 @@ exports.getOne = async (req, res, next) => {
       throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
     }
     if (req.user.role === 'student') {
-      exercise.test_cases = (exercise.test_cases || []).filter(tc => !tc.hidden);
+      exercise.test_cases = (exercise.test_cases || []).filter(tc =>
+        !tc.hidden && !tc.is_hidden
+      );
     }
     res.json(exercise);
   } catch (err) { next(err); }
@@ -171,7 +202,7 @@ exports.getOne = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const { title, description, time_limit_minutes, test_cases, deadline,
+    const { title, description, concept_name, time_limit_minutes, test_cases, deadline,
             is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code,
             mode, rubric_config } = req.body;
 
@@ -185,6 +216,7 @@ exports.update = async (req, res, next) => {
     };
     addSet('title', title);
     addSet('description', description);
+    addSet('concept_name', concept_name);
     addSet('time_limit_minutes', time_limit_minutes);
     if (test_cases !== undefined) {
       params.push(JSON.stringify(test_cases));
@@ -390,5 +422,71 @@ exports.remove = async (req, res, next) => {
     );
     if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
     res.json({ message: 'Exercise deleted successfully', exercise: r.rows[0] });
+  } catch (err) { next(err); }
+};
+
+// ── Databank: Combined Bank + Seeded Exercises ──────────────────────────────
+
+/**
+ * GET /api/exercises/databank
+ * Returns both exercise_bank templates AND seeded exercises from ITP1 section.
+ * Used by ExerciseWorkspace databank browser.
+ */
+exports.getDatabank = async (req, res, next) => {
+  try {
+    // Get exercise_bank items
+    const bankRes = await db.query(
+      `SELECT id, title, description, concept, difficulty, sequence_order,
+              test_cases, starter_code, sample_solution,
+              'bank' AS source, NULL AS difficulty_index
+       FROM exercise_bank
+       ORDER BY sequence_order, title`
+    );
+
+    // Get seeded ITP1 exercises (section 51)
+    const itpiRes = await db.query(
+      `SELECT e.id, e.title, e.description, c.name AS concept,
+              e.reference_solution AS sample_solution,
+              e.starter_code, e.test_cases, e.mode,
+              'seeded' AS source, e.difficulty_index
+       FROM exercises e
+       JOIN concepts c ON c.id = e.concept_id
+       WHERE e.section_id = 51
+         AND e.is_draft = false
+       ORDER BY e.created_at DESC`
+    );
+
+    // Merge and format
+    const bankItems = bankRes.rows.map(r => ({
+      id: String(r.id),
+      title: r.title,
+      description: r.description,
+      concept: r.concept,
+      difficulty: r.difficulty,
+      test_cases: r.test_cases,
+      starter_code: r.starter_code,
+      sample_solution: r.sample_solution,
+      mode: 'learning',
+      source: 'bank',
+      sequence_order: r.sequence_order,
+      difficulty_index: null,
+    }));
+
+    const seededItems = itpiRes.rows.map(r => ({
+      id: String(r.id),
+      title: r.title,
+      description: r.description,
+      concept: r.concept,
+      difficulty: null,
+      test_cases: r.test_cases,
+      starter_code: r.starter_code,
+      sample_solution: r.sample_solution,
+      mode: r.mode,
+      source: 'seeded',
+      sequence_order: 0,
+      difficulty_index: r.difficulty_index ? parseFloat(r.difficulty_index) : null,
+    }));
+
+    res.json([...bankItems, ...seededItems]);
   } catch (err) { next(err); }
 };
