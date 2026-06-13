@@ -569,14 +569,15 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
     const allExercises = exercisesRes.rows || [];
     const pending = allExercises.filter(ex => ex.status === 'pending');
 
-    // 2. Concept-level CDS (avg across all exercises per concept)
+    // 2. Concept-level CDS (avg across all exercises per concept) — using exercise_concept_tags (primary)
     const conceptCdsRes = await db.query(`
       SELECT c.name AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
              COUNT(cs.cds)::int AS completed_count
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
-      JOIN concepts c ON c.id = ex.concept_id
+      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      JOIN concepts c ON c.id = ect.concept_id
       WHERE cs.student_id = $1
       GROUP BY c.name
       ORDER BY avg_cds DESC
@@ -613,14 +614,15 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
       }))
       .sort((a, b) => b.conceptCds - a.conceptCds)[0] || null;
 
-    // 5. Class avg on the focus concept
+    // 5. Class avg on the focus concept — using exercise_concept_tags (primary)
     let classAvg = 0.5; // default
     if (focusEx) {
       const classRes = await db.query(`
         SELECT AVG(cs.cds)::float AS class_avg
         FROM cds_scores cs
         JOIN exercises ex ON ex.id = cs.exercise_id
-        JOIN concepts c ON c.id = ex.concept_id
+        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+        JOIN concepts c ON c.id = ect.concept_id
         JOIN enrollments en ON en.section_id = ex.section_id
         WHERE c.name = $1 AND en.student_id = cs.student_id
       `, [focusEx.concept_name]);
@@ -715,14 +717,16 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     const daysParam = Math.max(1, parseInt(req.query.days, 10) || 30);
     const interval = `${daysParam} days`;
 
-    // 1. Concept mastery — CDS aggregated by concept
+    // 1. Concept mastery — CDS aggregated by concept (using exercise_concept_tags primary)
+    // Matches Concept Analytics concept resolution
     const conceptCdsRes = await db.query(`
       SELECT c.name AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
              COUNT(cs.cds)::int AS exercise_count
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
-      JOIN concepts c ON ex.concept_id = c.id
+      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      JOIN concepts c ON c.id = ect.concept_id
       WHERE cs.student_id = $1 AND cs.computed_at > NOW() - INTERVAL '${interval}'
       GROUP BY c.name
       ORDER BY avg_cds ASC
@@ -893,5 +897,45 @@ function formatRelativeTime(dateStr) {
   if (diffDay < 30) return `${diffDay} days ago`;
   return 'long ago';
 }
+
+// Student-facing concept mastery endpoint for mobile UI
+// Returns concepts in format: [{ code, name, mastery: 0..1 }]
+router.get('/concepts/all', verifyToken, requireRole('student'), async (req, res, next) => {
+  try {
+    const studentId = req.user.id;
+
+    const conceptCdsRes = await db.query(`
+      SELECT c.name AS concept_name,
+             AVG(cs.cds)::float AS avg_cds,
+             COUNT(cs.cds)::int AS exercise_count
+      FROM cds_scores cs
+      JOIN exercises ex ON ex.id = cs.exercise_id
+      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      JOIN concepts c ON c.id = ect.concept_id
+      WHERE cs.student_id = $1
+      GROUP BY c.name
+      ORDER BY avg_cds ASC
+    `, [studentId]);
+
+    const conceptCodes = {
+      Loops: 'LP', Arrays: 'AR', Functions: 'FN', Pointers: 'PT',
+      OOP: 'OP', Variables: 'VR', Datatypes: 'DT', Conditionals: 'CD',
+      Strings: 'ST', 'Input/Output': 'IO',
+    };
+
+    const concepts = conceptCdsRes.rows.map(r => {
+      const masteryPct = Math.round((1 - parseFloat(r.avg_cds)) * 100);
+      const mastery = masteryPct / 100;
+      const code = conceptCodes[r.concept_name] || r.concept_name.substring(0, 2).toUpperCase();
+      return {
+        code,
+        name: r.concept_name,
+        mastery,
+      };
+    });
+
+    res.json(concepts);
+  } catch (err) { next(err); }
+});
 
 module.exports = router;

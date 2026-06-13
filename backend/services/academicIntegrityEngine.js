@@ -461,6 +461,16 @@ async function evaluateIntegrity(params) {
     console.error('Error in behavioral anomaly check:', err);
   }
 
+  // 6. Code growth anomaly detection
+  try {
+    const growthFlag = await checkCodeGrowthAnomaly(studentId, exerciseId, code);
+    if (growthFlag) {
+      flags.push({ ...growthFlag, studentId, exerciseId });
+    }
+  } catch (err) {
+    console.error('Error in code growth anomaly check:', err);
+  }
+
   // Note: In a real implementation, we would now insert these flags into the database.
   // However, the insertion is handled by the submission controller after this function returns.
   // We return the flags so the controller can attach the submission_id and insert them.

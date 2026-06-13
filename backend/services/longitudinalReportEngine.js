@@ -24,13 +24,14 @@ async function calculateMasteryVelocity(studentId, conceptId, sectionId = null) 
       queryValues.push(sectionId);
     }
 
-    // Get student's CDS scores for this concept over time
+    // Get student's CDS scores for this concept over time — using exercise_concept_tags (primary)
     const scoresRes = await db.query(
       `SELECT cs.cds, cs.classification, cs.computed_at,
               ex.title AS exercise_title, ex.id AS exercise_id
        FROM cds_scores cs
        JOIN exercises ex ON cs.exercise_id = ex.id
-       JOIN concepts c ON ex.concept_id = c.id
+       JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+       JOIN concepts c ON c.id = ect.concept_id
        WHERE ${whereConditions}
        ORDER BY cs.computed_at ASC`,
       queryValues

@@ -336,11 +336,12 @@ describe('Academic Integrity Engine', () => {
     test('should run all checks and return flags array', async () => {
       mockDb.query
         .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 
       const flags = await academicIntegrityEngine.evaluateIntegrity(params);
 
-      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query).toHaveBeenCalledTimes(3);
       expect(Array.isArray(flags)).toBe(true);
     });
 
@@ -351,6 +352,7 @@ describe('Academic Integrity Engine', () => {
 
       mockDb.query
         .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
       const blankFlags = await academicIntegrityEngine.evaluateIntegrity({
         ...params,
@@ -361,6 +363,7 @@ describe('Academic Integrity Engine', () => {
 
       mockDb.query
         .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
       const hardcodingFlags = await academicIntegrityEngine.evaluateIntegrity({
         ...params,
@@ -370,10 +373,12 @@ describe('Academic Integrity Engine', () => {
 
       mockDb.query
         .mockResolvedValueOnce({ rows: [{ avg_cds: 0.7, stddev_cds: 0.15, exercise_count: 4 }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
       const behavioralFlags = await academicIntegrityEngine.evaluateIntegrity({
         ...params,
         code: hardcodingCode,
+        behavioralData: { pasteCount: 1, tabSwitchCount: 2 },
         submission: {
           ...params.submission,
           time_spent_seconds: 20,
@@ -385,7 +390,8 @@ describe('Academic Integrity Engine', () => {
 
       mockDb.query
         .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
-        .mockResolvedValueOnce({ rows: [{ code: 'line1\nline2\nline3\nline4\nline5' }] });
+        .mockResolvedValueOnce({ rows: [{ code: 'line1\nline2\nline3\nline4\nline5' }] })
+        .mockResolvedValueOnce({ rows: [] });
       const growthFlags = await academicIntegrityEngine.evaluateIntegrity({
         ...params,
         code: growthCode
@@ -400,7 +406,7 @@ describe('Academic Integrity Engine', () => {
 
       expect(flagTypes).toContain('BLANK_TEMPLATE');
       expect(flagTypes).toContain('HARDCODING');
-      expect(flagTypes).toContain('BEHAVIORAL_ANOMALY');
+      expect(flagTypes).toContain('PASTE_ON_CORRECT_SUBMISSION');
       expect(flagTypes).toContain('CODE_GROWTH_ANOMALY');
 
       [...blankFlags, ...hardcodingFlags, ...behavioralFlags, ...growthFlags].forEach(flag => {
@@ -412,11 +418,12 @@ describe('Academic Integrity Engine', () => {
     test('should handle errors in async checks gracefully', async () => {
       mockDb.query
         .mockRejectedValueOnce(new Error('Test error'))
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 
       const flags = await academicIntegrityEngine.evaluateIntegrity(params);
 
-      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query).toHaveBeenCalledTimes(3);
       expect(Array.isArray(flags)).toBe(true);
     });
   });

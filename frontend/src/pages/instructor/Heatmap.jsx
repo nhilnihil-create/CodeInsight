@@ -245,6 +245,7 @@ export default function InstructorHeatmap() {
                       </th>
                       {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
                         const isCollapsed = collapsedTracks[ka];
+                        const label = KA_LABELS[ka] || ka;
                         return (
                           <th
                             key={ka}
@@ -252,11 +253,11 @@ export default function InstructorHeatmap() {
                             className="px-2 py-2 text-center border-b border-border/40 cursor-pointer select-none hover:bg-muted/40 transition-colors group"
                             onClick={() => toggleTrack(ka)}
                           >
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors">
-                                {KA_LABELS[ka] || ka}
+                            <div className="flex items-center justify-center gap-1.5 min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors truncate whitespace-nowrap max-w-[120px]">
+                                {label}
                               </span>
-                              <span className="text-[9px] text-muted-foreground/60 transition-transform group-hover:scale-110">
+                              <span className="text-[9px] text-muted-foreground/60 transition-transform group-hover:scale-110 shrink-0">
                                 {isCollapsed ? '▸' : '▾'}
                               </span>
                             </div>
@@ -288,7 +289,7 @@ export default function InstructorHeatmap() {
                               trackConcepts.map((c) => (
                                 <th
                                   key={c}
-                                  className="px-1 py-1 text-center text-[10px] font-medium text-muted-foreground whitespace-nowrap border-b border-border/20"
+                                  className="px-1 py-1 text-center text-[10px] font-medium text-muted-foreground whitespace-nowrap border-b border-border/20 truncate max-w-[70px]"
                                   title={conceptMeta[c]?.bloomLevel || ''}
                                 >
                                   {c}

@@ -30,7 +30,7 @@ function transformTestResults(apiResults, compilerError) {
     passing: visible.filter((r) => r.passed).length,
     total: visible.length,
     passed: visible.length > 0 && visible.every((r) => r.passed),
-    error: compilerError || null,
+    error: null,
     compilationLog: compilerError || "",
     programOutput: "",
     testResults: visible.map((r, i) => ({

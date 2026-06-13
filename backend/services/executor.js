@@ -356,6 +356,9 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
     // For compile errors, always surface the compiler error (not validation reason)
     const displayError = isCompileError ? result.error : (shouldMask ? (result.status === 'Success' ? '' : result.status) : (validation.reason || result.error));
 
+    // Sanitizer warnings should also be masked for hidden tests
+    const sanitizerWarning = shouldMask ? undefined : (result.status === 'Success' && result.error ? result.error : undefined);
+
     results.push({
       input:          shouldMask ? '[Hidden]' : stdin,
       expected:       shouldMask ? '[Hidden]' : expectedStr,
@@ -370,7 +373,7 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
         actualTokens: validation.actualTokens,
         expectedTokens: validation.expectedTokens,
       },
-      sanitizerWarning: result.status === 'Success' && result.error ? result.error : undefined,
+      sanitizerWarning,
       cppcheckWarnings: results.length === 0 ? cppcheckWarnings : undefined,
     });
   }
