@@ -1,29 +1,17 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import ConceptRadarPanel from "@/components/concept-radar/ConceptRadarPanel";
 import {
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-} from "recharts";
-import {
-  Mail,
   MoreHorizontal,
   ArrowRight,
-  MessageSquare,
-  Flag,
   Download,
   UserMinus,
-  FileText,
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
@@ -43,7 +31,6 @@ import {
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
-import CDSPillDelta from "@/components/ui/cds-pill-delta";
 import RiskBadge from "@/components/ui/risk-badge";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import DecisionList from "@/components/ui/decision-list";
@@ -72,21 +59,11 @@ function timeAgo(dateStr) {
   return `${days}d`;
 }
 
-const TOOLTIP_STYLE = {
-  backgroundColor: "hsl(var(--popover))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "6px",
-  fontSize: "12px",
-  color: "hsl(var(--popover-foreground))",
-};
-
 export default function InstructorStudentDetail() {
   const { id } = useParams();
   const [tab, setTab] = useState("mastery");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerFlag, setDrawerFlag] = useState(null);
-  const [note, setNote] = useState("");
-  const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -147,11 +124,6 @@ export default function InstructorStudentDetail() {
     });
   }, [cdsScores]);
 
-  const radarData = useMemo(
-    () => conceptMastery.map((c) => ({ subject: c.concept, mastery: c.value })),
-    [conceptMastery],
-  );
-
   const struggling = useMemo(() =>
     [...conceptMastery]
       .sort((a, b) => a.value - b.value)
@@ -178,16 +150,6 @@ export default function InstructorStudentDetail() {
   [integrityFlags]);
 
   const activeFlags = integrityFlags.filter((f) => f.status !== "resolved");
-
-  const handleSaveNote = () => {
-    const trimmed = note.trim();
-    if (!trimmed) return;
-    setNotes((prev) => [
-      { id: `n${Date.now()}`, author: "You", when: "just now", body: trimmed },
-      ...prev,
-    ]);
-    setNote("");
-  };
 
   const openFlag = (item) => {
     setDrawerFlag(item);
@@ -269,15 +231,6 @@ export default function InstructorStudentDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-medium"
-              onClick={() => student.email && window.open(`mailto:${student.email}`)}
-            >
-              <Mail className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-              Email
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="More actions">
@@ -354,57 +307,13 @@ export default function InstructorStudentDetail() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger
-            value="notes"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
-          >
-            Notes
-          </TabsTrigger>
         </TabsList>
 
         {/* ----- Mastery ----- */}
         <TabsContent value="mastery" className="mt-6">
           <div className="grid gap-6 lg:grid-cols-5">
-            <div className="lg:col-span-3 rounded-lg border border-border bg-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-semibold">Concept mastery</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {conceptMastery.length} tracked concepts
-                  </p>
-                </div>
-                <RiskBadge level={avgCds > 0.50 ? "high" : avgCds > 0.33 ? "moderate" : "low"} />
-              </div>
-              <div className="h-72">
-                {radarData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData} margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
-                      <PolarGrid stroke="hsl(var(--border))" />
-                      <PolarAngleAxis
-                        dataKey="subject"
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                      />
-                      <PolarRadiusAxis
-                        domain={[0, 100]}
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                        stroke="hsl(var(--border))"
-                      />
-                      <Radar
-                        name="Mastery"
-                        dataKey="mastery"
-                        stroke="hsl(var(--primary))"
-                        fill="hsl(var(--primary))"
-                        fillOpacity={0.25}
-                        strokeWidth={1.5}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                    No concept data available.
-                  </div>
-                )}
-              </div>
+            <div className="lg:col-span-3 min-h-80">
+              <ConceptRadarPanel scores={profile} loading={loading} />
             </div>
 
             <div className="lg:col-span-2 space-y-3">
@@ -449,7 +358,7 @@ export default function InstructorStudentDetail() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-xs text-muted-foreground">
-                        {s.time_spent_seconds ? `${Math.round(s.time_spent_seconds / 60)}m` : "—"}
+                        {s.attempt_number}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -487,54 +396,6 @@ export default function InstructorStudentDetail() {
             </div>
           )}
         </TabsContent>
-
-        {/* ----- Notes ----- */}
-        <TabsContent value="notes" className="mt-6">
-          <div className="space-y-6">
-            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-              <label
-                htmlFor="instructor-note"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                New note
-              </label>
-              <Textarea
-                id="instructor-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Write a private note about this student…"
-                className="min-h-[96px]"
-              />
-              <div className="flex items-center justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setNote("")} disabled={!note}>
-                  Clear
-                </Button>
-                <Button size="sm" onClick={handleSaveNote} disabled={!note.trim()} className="font-medium">
-                  Save note
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Past notes</h3>
-              {notes.length > 0 ? (
-                <ul className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden">
-                  {notes.map((n) => (
-                    <li key={n.id} className="p-4 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium">{n.author}</span>
-                        <span className="text-xs text-muted-foreground font-mono tabular-nums">{n.when}</span>
-                      </div>
-                      <p className="text-sm text-foreground">{n.body}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No notes yet.</p>
-              )}
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
 
       {/* ---------- Flag Drawer ---------- */}
@@ -561,10 +422,6 @@ export default function InstructorStudentDetail() {
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => setDrawerOpen(false)}>
                 Dismiss
-              </Button>
-              <Button size="sm" className="font-medium" onClick={() => student.email && window.open(`mailto:${student.email}`)}>
-                <MessageSquare className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Message student
               </Button>
             </div>
           </div>

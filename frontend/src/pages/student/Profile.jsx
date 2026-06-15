@@ -1,103 +1,51 @@
 import { useState, useEffect } from 'react';
-import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-} from 'recharts';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { NEW_TIER_META } from '@/components/ui/mastery-bar';
 import StudentDashboardShell from '@/components/student-dashboard-shell';
+import GlassPanel, {
+  GlassPanelHeader,
+  GlassPanelTitle,
+  GlassPanelContent,
+} from '@/components/ui/glass-panel';
+import ConceptRadarPanel from '@/components/concept-radar/ConceptRadarPanel';
+import JoinSectionGate from '@/components/join-section-gate';
+import useHasSections from '@/hooks/useHasSections';
 import api from '../../services/api';
 
-/**
- * Student Concept Profile
- *
- * Derived from the design's Profile page but uses REAL data
- * (GET /api/analytics/my-scores). Aggregates the per-exercise CDS scores
- * into per-concept buckets, then renders a radar chart and per-concept cards.
- *
- * PRESERVED FUNCTIONALITY:
- *   - Real data source: /api/analytics/my-scores
- *   - Polling pattern (5s) — same as the rest of the app
- *   - CDS classification thresholds: 0–31 Low, 32–50 Moderate, 51+ High (aligned with backend classify())
- *
- * REPLACED (visual layer only):
- *   - Design's MOCK_RADAR_DATA → aggregated real CDS by concept
- *   - Hard-coded "Exercises Attempted" → real count from data
- */
-/**
- * getDifficultyBadge — takes CDS as a 0–1 value (the raw API format).
- * Converts to 0–100 scale for classification.
- * CDS measures difficulty, so lower = better.
- * Thresholds aligned with backend classify() in cdsEngine.js.
- */
-const getDifficultyBadge = (cds01) => {
-  if (cds01 == null) return null;
-  const cds100 = cds01 * 100; // convert 0–1 to 0–100 scale
-  if (cds100 <= 31)
-    return (
-      <Badge variant="secondary" className="bg-green-500/10 text-green-700">
-        Low
-      </Badge>
-    );
-  if (cds100 <= 50)
-    return (
-      <Badge variant="secondary" className="bg-blue-500/10 text-blue-700">
-        Moderate
-      </Badge>
-    );
-  return (
-    <Badge variant="destructive">High</Badge>
-  );
+/* ── Stagger config ──────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
 };
 
-const aggregateByConcept = (scores) => {
-  const buckets = new Map();
-  for (const s of scores || []) {
-    const concept = s.concept_name || 'Unknown';
-    if (!buckets.has(concept)) {
-      buckets.set(concept, { subject: concept, cdsTotal: 0, cdsCount: 0, attempts: 0 });
-    }
-    const b = buckets.get(concept);
-    b.cdsTotal += Number(s.cds) || 0;
-    b.cdsCount += 1;
-    b.attempts += 1;
-  }
-  // Convert CDS → mastery (100 - CDS×100) so larger radar area = better.
-  // This aligns with the Progress page radar where larger = better.
-  return Array.from(buckets.values()).map((b) => {
-    const avgCds = b.cdsCount > 0 ? (b.cdsTotal / b.cdsCount) : 0;
-    return {
-      subject: b.subject,
-      mastery: Math.round((1 - avgCds) * 10000) / 100, // 0–100 scale
-      cds: Math.round(avgCds * 100) / 100,
-      attempts: b.attempts,
-    };
-  });
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
 };
+
+const TIER_LEGEND = [
+  { tier: 'excellent', dot: 'bg-slate-500', range: '85%–100%', desc: 'Solid code structure with nominal compilation regressions.' },
+  { tier: 'nominal', dot: 'bg-emerald-500', range: '65%–84%', desc: 'Grasping core logic with expected trial-and-error corrections.' },
+  { tier: 'moderate', dot: 'bg-amber-500', range: '45%–64%', desc: 'Encountering minor structural roadblocks; review materials recommended.' },
+  { tier: 'significant', dot: 'bg-orange-500', range: '25%–44%', desc: 'High error density patterns detected. Code structure needs direct reinforcement.' },
+  { tier: 'critical', dot: 'bg-red-500', range: '0%–24%', desc: 'Stuck in severe compilation or logic loops. Immediate instructor assistance recommended.' },
+];
 
 export default function StudentProfile() {
+  const { hasSections, checking, recheck } = useHasSections();
   const [scores, setScores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
+    if (hasSections === null || !hasSections) return;
     let active = true;
     const load = async () => {
       try {
         const res = await api.get('/api/analytics/my-scores');
         if (active) setScores(res.data || []);
       } catch (err) {
-        // network errors are expected for unauthenticated users; leave empty
       } finally {
         if (active) setLoading(false);
       }
@@ -108,9 +56,30 @@ export default function StudentProfile() {
       active = false;
       clearInterval(t);
     };
-  }, []);
+  }, [hasSections, fetchKey]);
 
-  const radarData = aggregateByConcept(scores);
+  const handleJoined = () => {
+    recheck();
+    setFetchKey((k) => k + 1);
+  };
+
+  if (checking) {
+    return (
+      <StudentDashboardShell
+        breadcrumb={[
+          { label: 'Student', href: '/student/dashboard' },
+          { label: 'My Concept Profile' },
+        ]}
+        subtitle="Concept mastery and difficulty scores across programming topics."
+      >
+        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading profile...</div>
+      </StudentDashboardShell>
+    );
+  }
+
+  if (!hasSections) {
+    return <JoinSectionGate onJoined={handleJoined} />;
+  }
 
   return (
     <StudentDashboardShell
@@ -120,127 +89,47 @@ export default function StudentProfile() {
       ]}
       subtitle="Concept mastery and difficulty scores across programming topics."
     >
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>What is CDS?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <p>
-              The Concept Difficulty Score (CDS) measures how much you are
-              struggling with a specific programming concept.
-            </p>
-            <ul className="list-disc space-y-2 pl-5">
-              <li>
-                <strong className="text-foreground">0–31 (Low):</strong> You have
-                a strong grasp of this concept.
-              </li>
-              <li>
-                <strong className="text-foreground">32–50 (Moderate):</strong>{' '}
-                Normal learning curve, some mistakes but recovering well.
-              </li>
-              <li>
-                <strong className="text-foreground">51–100 (High):</strong> You
-                are experiencing significant difficulty. Consider reviewing
-                materials and reaching out to your instructor.
-              </li>
-            </ul>
-            <p>
-              CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS), normalized to a
-              0–100 scale.
-            </p>
-            <p className="text-xs text-muted-foreground border-t border-border pt-2">
-              <strong>Mastery = 100 − CDS.</strong> The radar chart below shows
-              mastery (larger area = better understanding), not difficulty.
-            </p>
-          </CardContent>
-        </Card>
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+        <div className="grid gap-5 md:grid-cols-3">
+          {/* ── Left Panel: 5-Tier Behavioral Legend ──────────────── */}
+          <motion.div variants={fadeUp} className="md:col-span-1">
+            <GlassPanel interactive className="h-full">
+              <GlassPanelHeader>
+                <GlassPanelTitle>Academic Status Legend</GlassPanelTitle>
+              </GlassPanelHeader>
+              <GlassPanelContent className="space-y-3">
+                {TIER_LEGEND.map((item) => {
+                  const meta = NEW_TIER_META[item.tier];
+                  return (
+                    <motion.div
+                      key={item.tier}
+                      whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-white/[0.04] bg-white/[0.02]"
+                    >
+                      <div className={cn("w-2 h-2 rounded-full mt-1 shrink-0", item.dot)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">{meta.label}</span>
+                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border", meta.dot.replace('bg-', 'bg-').replace('500', '500/20'), meta.text, `border-${item.dot.replace('bg-', '')}/30`)}>
+                            {item.range}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground/60 mt-1">{item.desc}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </GlassPanelContent>
+            </GlassPanel>
+          </motion.div>
 
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Concept Mastery Footprint</CardTitle>
-            <CardDescription>
-              {radarData.length === 0
-                ? 'Submit some exercises to see your mastery profile.'
-                : `${radarData.length} concepts, ${scores.length} submissions — larger area = better understanding`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            {loading ? (
-              <Skeleton className="h-full w-full" />
-            ) : radarData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No data yet.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart
-                  cx="50%"
-                  cy="50%"
-                  outerRadius="80%"
-                  data={radarData}
-                >
-                  <PolarGrid />
-                  <PolarAngleAxis
-                    dataKey="subject"
-                    tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
-                  />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                  <Radar
-                    name="Mastery"
-                    dataKey="mastery"
-                    stroke="hsl(var(--primary))"
-                    fill="hsl(var(--primary))"
-                    fillOpacity={0.6}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {radarData.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {radarData.map((data) => {
-            const masteryScore = data.mastery;
-            const cdsScore = data.cds;
-            const difficultyLabel = cdsScore <= 0.31 ? 'Low' : cdsScore <= 0.50 ? 'Moderate' : 'High';
-            return (
-              <Card key={data.subject}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{data.subject}</CardTitle>
-                    {getDifficultyBadge(cdsScore)}
-                  </div>
-                  <CardDescription>
-                    Mastery: {masteryScore.toFixed(0)}% · Difficulty: {cdsScore.toFixed(2)} ({difficultyLabel})
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="mb-1 text-sm text-muted-foreground">
-                    Submissions: {data.attempts}
-                  </p>
-                  <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={
-                        masteryScore > 75
-                          ? 'h-2 rounded-full bg-green-500'
-                          : masteryScore > 50
-                            ? 'h-2 rounded-full bg-blue-500'
-                            : masteryScore > 25
-                              ? 'h-2 rounded-full bg-orange-500'
-                              : 'h-2 rounded-full bg-destructive'
-                      }
-                      style={{ width: `${masteryScore}%` }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {/* ── Right Panel: Concept Radar ────────────────────────── */}
+          <motion.div variants={fadeUp} className="md:col-span-2">
+            <ConceptRadarPanel scores={scores} loading={loading} />
+          </motion.div>
         </div>
-      )}
+      </motion.div>
     </StudentDashboardShell>
   );
 }
