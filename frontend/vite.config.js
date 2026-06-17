@@ -31,7 +31,6 @@ export default defineConfig({
             './src/pages/instructor/Students.jsx',
             './src/pages/instructor/SectionDetail.jsx',
             './src/pages/instructor/StudentDetail.jsx',
-            './src/pages/instructor/Developer.jsx',
             './src/pages/instructor/StructureViolations.jsx',
             './src/pages/instructor/AcademicIntegrityFlags.jsx',
             './src/pages/instructor/ClassMicroConceptReport.jsx',

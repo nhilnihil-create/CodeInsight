@@ -274,7 +274,7 @@ export default function InstructorStudentDetail() {
       {/* ---------- Evidence ---------- */}
       <EvidenceRow
         chips={[
-          { label: "CDS", value: `${Math.round(avgCds * 100)}%`, delta: cdsSeries.length >= 2 ? parseFloat((cdsSeries[cdsSeries.length - 1] - cdsSeries[0]).toFixed(2)) : 0, series: cdsSeries, comparison: "over time" },
+          { label: "CDS", value: `${Math.round(avgCds * 100)}%`, delta: cdsSeries.length >= 2 ? parseFloat((cdsSeries[cdsSeries.length - 1] - cdsSeries[0]).toFixed(2)) : 0, series: cdsSeries, comparison: "over time", inverted: true },
           { label: "Submissions", value: submissions.length, delta: null, comparison: "total" },
           { label: "Flags", value: flagCount, delta: null, comparison: "total" },
           { label: "Last Active", value: submissions.length > 0 ? timeAgo(submissions[0].submitted_at) : "—", delta: null, comparison: "" },
@@ -358,7 +358,7 @@ export default function InstructorStudentDetail() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-xs text-muted-foreground">
-                        {s.attempt_number}
+                        {s.time_spent_seconds != null ? `${Math.round(s.time_spent_seconds)}s` : '—'}
                       </TableCell>
                     </TableRow>
                   ))}

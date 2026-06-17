@@ -4,6 +4,7 @@ import { SidebarProvider } from './context/SidebarContext';
 import { ThemeProvider } from './lib/theme.jsx';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorHeatmap from './pages/instructor/Heatmap';
 import InstructorStudents from './pages/instructor/Students';
@@ -13,6 +14,7 @@ import ExerciseWorkspace from './pages/instructor/ExerciseWorkspace';
 import InstructorReports from './pages/instructor/Reports';
 import InstructorExerciseExplorer from './pages/instructor/ExerciseExplorer';
 import InstructorIntegrity from './pages/instructor/Integrity';
+import InstructorAlerts from './pages/instructor/Alerts';
 // Section management — preserved per user directive 2026-06-04
 import InstructorSections from './pages/instructor/Sections';
 import SectionDetail from './pages/instructor/SectionDetail';
@@ -20,7 +22,8 @@ import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
 import StructureViolations from './pages/instructor/StructureViolations';
 import ClassMicroConceptReport from './pages/instructor/ClassMicroConceptReport';
 import InstructorCommand from './pages/instructor/Command';
-import InstructorDeveloper from './pages/instructor/Developer';
+import InstructorCustomHeatmap from './pages/instructor/CustomHeatmap';
+import InstructorCustomTags from './pages/instructor/CustomTags';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentToday from './pages/student/Today';
 import StudentRecommendations from './pages/student/Recommendations';
@@ -88,6 +91,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         
         {/* Instructor Routes — design paths canonical */}
         <Route path="/instructor/command" element={
@@ -169,11 +173,6 @@ function AppContent() {
         <Route path="/instructor/integrity/:id" element={
           <Navigate to="/instructor/integrity" replace />
         } />
-        <Route path="/instructor/developer" element={
-          <ProtectedRoute requiredRole="instructor">
-            <InstructorDeveloper />
-          </ProtectedRoute>
-        } />
 
         {/* Instructor alias routes (CodeInsight paths kept working) */}
         <Route path="/instructor" element={
@@ -181,15 +180,18 @@ function AppContent() {
             <InstructorDashboard />
           </ProtectedRoute>
         } />
-        {/* /instructor/create-exercise is an alias for the design form; /instructor/alerts and
-            /instructor/{warnings,violations} now redirect to the unified /integrity page. */}
+        {/* /instructor/create-exercise is an alias for the design form;
+            /instructor/alerts is the Intervention Queue; /instructor/{warnings,violations}
+            redirect to the unified /integrity page. */}
         <Route path="/instructor/create-exercise" element={
           <ProtectedRoute requiredRole="instructor">
             <Navigate to="/instructor/exercises/new" replace />
           </ProtectedRoute>
         } />
         <Route path="/instructor/alerts" element={
-          <Navigate to="/instructor/integrity" replace />
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorAlerts />
+          </ProtectedRoute>
         } />
         {/* Section management routes — PRESERVED per user directive 2026-06-04.
             /instructor/my-sections and /instructor/sections stay on the legacy
@@ -217,6 +219,16 @@ function AppContent() {
         <Route path="/instructor/sections/:sectionId/micro-concepts" element={
           <ProtectedRoute requiredRole="instructor">
             <ClassMicroConceptReport />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/sections/:sectionId/custom-heatmap" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorCustomHeatmap />
+          </ProtectedRoute>
+        } />
+        <Route path="/instructor/sections/:sectionId/custom-tags" element={
+          <ProtectedRoute requiredRole="instructor">
+            <InstructorCustomTags />
           </ProtectedRoute>
         } />
         <Route path="/instructor/my-sections" element={

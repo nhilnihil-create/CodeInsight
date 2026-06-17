@@ -1,7 +1,8 @@
 const db = require('../config/db');
 
-async function writeAuditLog(sectionId, actorId, action, meta = {}) {
-  await db.query(
+async function writeAuditLog(sectionId, actorId, action, meta = {}, queryFn = null) {
+  const q = queryFn || db.query.bind(db);
+  await q(
     `INSERT INTO section_audit_log (section_id, actor_id, action, meta) VALUES ($1, $2, $3, $4)`,
     [sectionId, actorId, action, JSON.stringify(meta)]
   );
@@ -55,23 +56,31 @@ exports.list = async (req, res, next) => {
     }
     const r = await db.query(query, params);
     
-    // For instructors, enrich data with difficulty distribution
+    // For instructors, enrich data with difficulty distribution (batched query)
     if (req.user.role === 'instructor') {
-      for (let section of r.rows) {
+      const sectionIds = r.rows.map(s => s.id);
+      if (sectionIds.length > 0) {
         const diffQuery = `
           SELECT 
+            section_id,
             COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END) AS low_count,
             COUNT(CASE WHEN cs.cds > 0.31 AND cs.cds <= 0.50 THEN 1 END) AS moderate_count,
             COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END) AS high_count
-          FROM cds_scores cs WHERE cs.section_id=$1
+          FROM cds_scores cs WHERE cs.section_id = ANY($1)
+          GROUP BY cs.section_id
         `;
-        const diffRes = await db.query(diffQuery, [section.id]);
-        const diff = diffRes.rows[0] || { low_count: 0, moderate_count: 0, high_count: 0 };
-        section.difficulty_distribution = {
-          low: parseInt(diff.low_count),
-          moderate: parseInt(diff.moderate_count),
-          high: parseInt(diff.high_count)
-        };
+        const diffRes = await db.query(diffQuery, [sectionIds]);
+        const diffMap = {};
+        for (const row of diffRes.rows) {
+          diffMap[row.section_id] = {
+            low: parseInt(row.low_count),
+            moderate: parseInt(row.moderate_count),
+            high: parseInt(row.high_count)
+          };
+        }
+        for (const section of r.rows) {
+          section.difficulty_distribution = diffMap[section.id] || { low: 0, moderate: 0, high: 0 };
+        }
       }
     }
     res.json(r.rows);
@@ -159,18 +168,14 @@ exports.getStudentsWithScores = async (req, res, next) => {
       `SELECT
         u.id, u.name, u.email,
         (SELECT MAX(cds) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1) AS latest_cds,
+        (SELECT cds FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1
+         ORDER BY cs.computed_at ASC LIMIT 1) AS first_cds,
         (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id
          AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=$1)) AS submitted_count,
         (SELECT COUNT(*) FROM exercises WHERE section_id=$1) AS total_exercises,
         (SELECT COUNT(*)::INTEGER FROM integrity_flags if2 WHERE if2.student_id=u.id AND if2.section_id=$1 AND if2.status='flagged') AS integrity_flag_count,
-        (SELECT c.name
-         FROM cds_scores cs2
-         JOIN exercises ex ON ex.id = cs2.exercise_id
-         JOIN concepts c ON c.id = ex.concept_id
-         WHERE cs2.student_id = u.id AND ex.section_id = $1
-         GROUP BY c.name
-         ORDER BY AVG(cs2.cds) ASC
-         LIMIT 1) AS strongest_concept
+        (SELECT MAX(submitted_at) FROM submissions sub WHERE sub.student_id=u.id
+         AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=$1)) AS last_active
        FROM users u JOIN enrollments e ON e.student_id=u.id
        WHERE e.section_id=$1 ORDER BY u.name`,
       [section_id]
@@ -193,15 +198,7 @@ exports.getStudentsAcrossSections = async (req, res, next) => {
         (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id
          AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id IN (SELECT id FROM sections WHERE instructor_id=$1))) AS submitted_count,
         (SELECT COUNT(*) FROM exercises WHERE section_id IN (SELECT id FROM sections WHERE instructor_id=$1)) AS total_exercises,
-        (SELECT COUNT(*)::INTEGER FROM integrity_flags if2 WHERE if2.student_id=u.id AND if2.section_id IN (SELECT id FROM sections WHERE instructor_id=$1) AND if2.status='flagged') AS integrity_flag_count,
-        (SELECT c.name
-         FROM cds_scores cs2
-         JOIN exercises ex ON ex.id = cs2.exercise_id
-         JOIN concepts c ON c.id = ex.concept_id
-         WHERE cs2.student_id = u.id AND ex.section_id IN (SELECT id FROM sections WHERE instructor_id=$1)
-         GROUP BY c.name
-         ORDER BY AVG(cs2.cds) ASC
-         LIMIT 1) AS strongest_concept
+        (SELECT COUNT(*)::INTEGER FROM integrity_flags if2 WHERE if2.student_id=u.id AND if2.section_id IN (SELECT id FROM sections WHERE instructor_id=$1) AND if2.status='flagged') AS integrity_flag_count
        FROM users u JOIN enrollments e ON e.student_id=u.id
        WHERE e.section_id IN (SELECT id FROM sections WHERE instructor_id=$1)
        ORDER BY u.name`,
@@ -299,10 +296,10 @@ exports.joinSection = async (req, res, next) => {
 
       if (section.join_policy === 'code') {
         await client.query(
-          'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2)',
+          'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
           [req.user.id, section.id]
         );
-        await writeAuditLog(section.id, req.user.id, 'student_joined', { code });
+        await writeAuditLog(section.id, req.user.id, 'student_joined', { code }, client.query.bind(client));
         return { message: 'Joined section', section };
       }
 
@@ -310,7 +307,7 @@ exports.joinSection = async (req, res, next) => {
         'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
         [req.user.id, section.id]
       );
-      await writeAuditLog(section.id, req.user.id, 'student_requested_to_join', { code });
+      await writeAuditLog(section.id, req.user.id, 'student_requested_to_join', { code }, client.query.bind(client));
       return { message: 'Join request submitted' };
     });
     res.json(result);
@@ -433,65 +430,4 @@ exports.update = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/**
- * POST /api/sections/:id/messages
- * Send an in-app notification/message to one or all students in the section.
- *
- * Body:
- *   - message        string (required) — the message text
- *   - student_id     number (optional) — target a single student; omit for all
- *   - exercise_id    number (optional) — tie to an exercise (for CDS context)
- *   - type           string (optional) — notification_type, default 'instructor_message'
- *
- * Returns: { sent: N }
- */
-exports.sendMessage = async (req, res, next) => {
-  const { id } = req.params;
-  const { message, student_id, exercise_id, type = 'instructor_message' } = req.body;
-  const senderId = req.user?.id;
 
-  if (!message?.trim()) return res.status(400).json({ error: 'Message is required' });
-
-  try {
-    // Verify section ownership
-    const sec = await db.query('SELECT id FROM sections WHERE id = $1 AND instructor_id = $2', [id, senderId]);
-    if (!sec.rows.length) return res.status(404).json({ error: 'Section not found' });
-
-    let targetStudents;
-    if (student_id) {
-      // Verify student is enrolled in this section
-      const enrolled = await db.query(
-        'SELECT student_id FROM enrollments WHERE section_id = $1 AND student_id = $2',
-        [id, student_id]
-      );
-      if (!enrolled.rows.length) return res.status(404).json({ error: 'Student not in this section' });
-      targetStudents = [student_id];
-    } else {
-      const roster = await db.query('SELECT student_id FROM enrollments WHERE section_id = $1', [id]);
-      targetStudents = roster.rows.map(r => r.student_id);
-    }
-
-    if (!targetStudents.length) return res.status(400).json({ error: 'No students to message' });
-
-    const exParam = exercise_id ? '$3' : 'NULL';
-    const sent = [];
-    for (const sid of targetStudents) {
-      try {
-        await db.query(
-          `INSERT INTO notifications (student_id, section_id, exercise_id, sender_id, message, notification_type)
-           VALUES ($1, $2, ${exParam}, $4, $5, $6)
-           ON CONFLICT DO NOTHING`,
-          [sid, id, exercise_id || null, senderId, message.trim(), type]
-        );
-        sent.push(sid);
-      } catch (dupErr) {
-        // Skip duplicates (ON CONFLICT)
-        console.error(`Notification insert failed for student ${sid}:`, dupErr.message);
-      }
-    }
-
-    res.json({ sent: sent.length, recipients: sent });
-  } catch (err) {
-    next(err);
-  }
-};

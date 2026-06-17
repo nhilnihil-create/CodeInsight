@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Layers, Plus, Eye, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
+import useLastSection from "@/hooks/useLastSection";
 import api from "@/services/api";
 
 /**
@@ -19,7 +20,7 @@ import api from "@/services/api";
 export default function ExerciseExplorer() {
   const [query, setQuery] = useState("");
   const [concept, setConcept] = useState("");
-  const [sectionId, setSectionId] = useState("all");
+  const [sectionId, setSectionId] = useLastSection();
   const [exercises, setExercises] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [sections, setSections] = useState([]);
@@ -44,10 +45,10 @@ export default function ExerciseExplorer() {
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       if (concept) params.set("concept", concept);
-      if (sectionId !== "all") params.set("section_id", sectionId);
+      if (sectionId) params.set("section_id", sectionId);
 
-      const { data } = await api.get(`/api/search/exercises?${params}`);
-      setExercises(data || []);
+      const { data } = await api.get(`/api/search?type=exercises&${params}`);
+      setExercises(data?.exercises || data || []);
     } catch (err) {
       setError(err.response?.data?.message || err.message);
       setExercises([]);
@@ -111,11 +112,10 @@ export default function ExerciseExplorer() {
               ))}
             </select>
             <select
-              value={sectionId}
-              onChange={(e) => setSectionId(e.target.value)}
+              value={sectionId || ''}
+              onChange={(e) => setSectionId(Number(e.target.value))}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="all">All Sections</option>
               {sections.map(s => (
                 <option key={s.id} value={s.id}>{s.name} ({s.course_code})</option>
               ))}
@@ -163,7 +163,7 @@ export default function ExerciseExplorer() {
                   const isClosed = !!e.closed_at;
                   const isDraft = e.is_draft;
                   return (
-                    <React.Fragment key={e.id}>
+                    <Fragment key={e.id}>
                       <TableRow className="cursor-pointer transition-colors hover:bg-muted/40">
                         <TableCell className="w-8 text-muted-foreground">
                           <ChevronRight className="w-4 h-4" />
@@ -196,7 +196,7 @@ export default function ExerciseExplorer() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    </React.Fragment>
+                    </Fragment>
                   );
                 })}
               </TableBody>

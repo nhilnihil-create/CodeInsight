@@ -5,8 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import InsightCard from '@/components/InsightCard';
 import CDSPillDelta from '@/components/CDSPillDelta';
-import RiskBadge from '@/components/RiskBadge';
-import InterventionCard from '@/components/InterventionCard';
+import RiskBadge from '@/components/ui/risk-badge';
 import { cn } from '@/lib/utils';
 import api from '@/services/api';
 
@@ -205,15 +204,6 @@ export default function InstructorCommand() {
             </ul>
           </CardContent>
         </Card>
-      )}
-
-      {data.interventions?.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Intervention Queue</h3>
-          {data.interventions.map((intervention, i) => (
-            <InterventionCard key={i} {...intervention} />
-          ))}
-        </div>
       )}
 
       <Card className="border-dashed border-muted-foreground/30 bg-muted/5">

@@ -53,38 +53,86 @@ exports.heatmap = async (req, res, next) => {
   const secParam = sectionId === 'all' ? [String(instructorId)] : [sectionId];
 
   try {
-    // Get students in section(s)
-    const students = await db.query(
-      `SELECT u.id, u.name FROM users u
-       JOIN enrollments e ON e.student_id=u.id
-       WHERE ${enrollCond} ORDER BY u.name`,
-      secParam
-    );
+    // Get students in section(s) who have at least one non-null CDS score
+    let studentsQuery, studentsParams;
+    if (sectionId === 'all') {
+      studentsQuery = `
+        SELECT DISTINCT u.id, u.name FROM users u
+        JOIN cds_scores cs ON cs.student_id = u.id AND cs.cds IS NOT NULL
+        JOIN exercises ex ON ex.id = cs.exercise_id
+        WHERE ex.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)
+        ORDER BY u.name
+      `;
+      studentsParams = [instructorId];
+    } else {
+      studentsQuery = `
+        SELECT DISTINCT u.id, u.name FROM users u
+        JOIN cds_scores cs ON cs.student_id = u.id AND cs.cds IS NOT NULL
+        JOIN exercises ex ON ex.id = cs.exercise_id
+        WHERE ex.section_id = $1
+        ORDER BY u.name
+      `;
+      studentsParams = [sectionId];
+    }
+    const students = await db.query(studentsQuery, studentsParams);
 
     // Get CDS scores using exercise_concept_tags (primary tags only)
     // This matches Concept Analytics (CMI/CRS/Velocity) concept resolution
-    const scores = await db.query(
-      `SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
-              c.name AS concept_name, ex.title AS exercise_title
-       FROM cds_scores cs
-       JOIN exercises ex ON ex.id = cs.exercise_id
-       JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-       JOIN concepts c ON c.id = ect.concept_id
-       WHERE ${cdsCond}`,
-      secParam
-    );
+    // Only include non-null CDS scores to avoid empty cells
+    let scoresQuery, scoresParams;
+    if (sectionId === 'all') {
+      scoresQuery = `
+        SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
+                c.name AS concept_name, ex.title AS exercise_title
+        FROM cds_scores cs
+        JOIN exercises ex ON ex.id = cs.exercise_id
+        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+        JOIN concepts c ON c.id = ect.concept_id
+        WHERE cs.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)
+          AND cs.cds IS NOT NULL
+      `;
+      scoresParams = [instructorId];
+    } else {
+      scoresQuery = `
+        SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
+                c.name AS concept_name, ex.title AS exercise_title
+        FROM cds_scores cs
+        JOIN exercises ex ON ex.id = cs.exercise_id
+        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+        JOIN concepts c ON c.id = ect.concept_id
+        WHERE cs.section_id = $1
+          AND cs.cds IS NOT NULL
+      `;
+      scoresParams = [sectionId];
+    }
+    const scores = await db.query(scoresQuery, scoresParams);
 
     // Fetch only concepts actually used in this section's exercises (primary tags)
-    // Ordered by difficulty_tier to match taxonomy
-    const conceptsRes = await db.query(
-      `SELECT DISTINCT c.name
-       FROM concepts c
-       JOIN exercise_concept_tags ect ON ect.concept_id = c.id
-       JOIN exercises ex ON ex.id = ect.exercise_id
-       WHERE ${secCond.replace('ex.section_id', 'ex.section_id')} AND ect.is_primary = true
-       ORDER BY c.difficulty_tier, c.name`,
-      secParam
-    );
+    // Ordered by name to match taxonomy
+    let conceptsQuery, conceptsParams;
+    if (sectionId === 'all') {
+      conceptsQuery = `
+        SELECT DISTINCT c.name
+        FROM concepts c
+        JOIN exercise_concept_tags ect ON ect.concept_id = c.id
+        JOIN exercises ex ON ex.id = ect.exercise_id
+        WHERE ex.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)
+          AND ect.is_primary = true
+        ORDER BY c.name
+      `;
+      conceptsParams = [instructorId];
+    } else {
+      conceptsQuery = `
+        SELECT DISTINCT c.name
+        FROM concepts c
+        JOIN exercise_concept_tags ect ON ect.concept_id = c.id
+        JOIN exercises ex ON ex.id = ect.exercise_id
+        WHERE ex.section_id = $1 AND ect.is_primary = true
+        ORDER BY c.name
+      `;
+      conceptsParams = [sectionId];
+    }
+    const conceptsRes = await db.query(conceptsQuery, conceptsParams);
     const conceptsFromDb = conceptsRes.rows.map(r => r.name);
 
     const scoreMap = {};
@@ -540,32 +588,49 @@ exports.getSectionLongitudinal = async (req, res, next) => {
   try {
     const { sectionId } = req.params;
 
-    // Get students in section
-    const studentsRes = await db.query(
-      `SELECT u.id, u.name FROM users u
+    // Get all students and their CDS scores in a single query (batched, no N+1)
+    const result = await db.query(
+      `SELECT u.id AS student_id, u.name AS student_name,
+              cs.cds, cs.classification, cs.computed_at,
+              ex.title AS exercise_title, ex.id AS exercise_id,
+              c.id AS concept_id, c.name AS concept_name
+       FROM users u
        JOIN enrollments e ON e.student_id = u.id
+       LEFT JOIN cds_scores cs ON cs.student_id = u.id AND cs.section_id = $1
+       LEFT JOIN exercises ex ON cs.exercise_id = ex.id
+       LEFT JOIN concepts c ON ex.concept_id = c.id
        WHERE e.section_id = $1
-       ORDER BY u.name`,
+       ORDER BY u.name, cs.computed_at ASC`,
       [sectionId]
     );
 
-    // Get progression for each student
-    const students = [];
-    for (const student of studentsRes.rows) {
-      const progressionRes = await db.query(
-        `SELECT cs.cds, cs.classification, cs.computed_at,
-                ex.title AS exercise_title, ex.id AS exercise_id,
-                c.id AS concept_id, c.name AS concept_name
-         FROM cds_scores cs
-         JOIN exercises ex ON cs.exercise_id = ex.id
-         JOIN concepts c ON ex.concept_id = c.id
-         WHERE cs.student_id = $1 AND cs.section_id = $2
-         ORDER BY cs.computed_at ASC`,
-        [student.id, sectionId]
-      );
+    // Group by student and calculate mastery velocity
+    const studentMap = {};
+    for (const row of result.rows) {
+      if (!studentMap[row.student_id]) {
+        studentMap[row.student_id] = {
+          studentId: row.student_id,
+          studentName: row.student_name,
+          progression: [],
+          masteryVelocity: 'stable'
+        };
+      }
+      if (row.cds !== null) {
+        studentMap[row.student_id].progression.push({
+          cds: row.cds,
+          classification: row.classification,
+          computed_at: row.computed_at,
+          exercise_title: row.exercise_title,
+          exercise_id: row.exercise_id,
+          concept_id: row.concept_id,
+          concept_name: row.concept_name
+        });
+      }
+    }
 
-      // Calculate mastery velocity
-      const progression = progressionRes.rows;
+    // Calculate mastery velocity for each student
+    const students = Object.values(studentMap).map(student => {
+      const progression = student.progression;
       let masteryVelocity = 'stable';
       if (progression.length >= 2) {
         const recent = progression.slice(-3);
@@ -574,14 +639,8 @@ exports.getSectionLongitudinal = async (req, res, next) => {
         if (trend > 0.1) masteryVelocity = 'improving';
         else if (trend < -0.1) masteryVelocity = 'declining';
       }
-
-      students.push({
-        studentId: student.id,
-        studentName: student.name,
-        progression,
-        masteryVelocity
-      });
-    }
+      return { ...student, masteryVelocity };
+    });
 
     res.json({ sectionId, students });
   } catch (err) {
@@ -630,10 +689,10 @@ exports.getSectionHub = async (req, res, next) => {
 
     const [cdsResult, submissionsResult, masteryResult, atRiskResult, flagsResult, membersResult] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id = $1`, [id]),
-      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE m.section_id = $1 AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE`, [id]),
+      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE m.section_id = $1 AND s.is_practice IS NOT TRUE`, [id]),
       db.query(`SELECT c.name, COALESCE(AVG(cm.cds), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.50) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
       db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments m JOIN users u ON m.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id = $1 WHERE m.section_id = $1 GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.50 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, [id]),
-      db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id = $1 AND status = 'open'`, [id]),
+      db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id = $1 AND status = 'flagged'`, [id]),
       db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id = $1`, [id]),
     ]);
 
@@ -669,7 +728,7 @@ exports.getCommandCenter = async (req, res, next) => {
     if (!sectionIds.length) {
       return res.json({
         confidence: null, weeklyInsight: null, cards: [], kpis: [],
-        conceptBars: [], atRiskRoster: [], signals: [], interventions: [],
+        conceptBars: [], atRiskRoster: [], signals: [],
         integrityFlags: { count: 0, sections: 0 },
       });
     }
@@ -679,10 +738,10 @@ exports.getCommandCenter = async (req, res, next) => {
     // 2. Aggregate CDS, submissions, mastery, flags across all sections
     const [cdsRes, submissionsRes, conceptRes, atRiskRes, flagsRes, membersRes] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id IN (${placeholder})`, sectionIds),
-      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE submitted_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments en ON s.student_id = en.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE en.section_id IN (${placeholder}) AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE`, sectionIds),
+      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE submitted_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments en ON s.student_id = en.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE en.section_id IN (${placeholder}) AND s.is_practice IS NOT TRUE`, sectionIds),
       db.query(`SELECT c.name, COALESCE(AVG(cs.cds), 0) as cds, COUNT(*) FILTER (WHERE cs.cds > 0.50) as at_risk_count FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments en ON cs.student_id = en.student_id WHERE en.section_id IN (${placeholder}) GROUP BY c.id, c.name ORDER BY cds DESC`, sectionIds),
       db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments en JOIN users u ON en.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id IN (${placeholder}) WHERE en.section_id IN (${placeholder}) GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.50 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, sectionIds),
-      db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id IN (${placeholder}) AND status = 'open'`, sectionIds),
+      db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id IN (${placeholder}) AND status = 'flagged'`, sectionIds),
       db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id IN (${placeholder})`, sectionIds),
     ]);
 
@@ -718,14 +777,14 @@ exports.getCommandCenter = async (req, res, next) => {
       };
     });
 
-    // 5. Completion rate (completed exercises / total exercises, learning mode only)
+    // 5. Completion rate (completed exercises / total exercises)
     const completionRes = await db.query(`
       SELECT COUNT(DISTINCT s.exercise_id)::int AS completed
       FROM submissions s
       JOIN enrollments en ON s.student_id = en.student_id
       JOIN exercises ex ON s.exercise_id = ex.id
       WHERE en.section_id IN (${placeholder}) AND s.is_correct = true
-        AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE
+        AND s.is_practice IS NOT TRUE
     `, sectionIds);
     const completedEx = parseInt(completionRes.rows[0]?.completed) || 0;
     const totalExRes = await db.query(`SELECT COUNT(*) as total FROM exercises WHERE section_id IN (${placeholder}) AND is_draft = false`, sectionIds);
@@ -808,25 +867,7 @@ exports.getCommandCenter = async (req, res, next) => {
       signals.push('All metrics are within expected ranges.');
     }
 
-    // 10. Interventions — one per at-risk student
-    const interventions = atRiskRoster.slice(0, 5).map(student => {
-      const studentConcept = conceptBars.find(c => c.atRiskCount > 0) || conceptBars[0];
-      return {
-        student: { name: student.name, id: student.id },
-        problem: {
-          concept: studentConcept ? studentConcept.concept : '—',
-          cds: 0,
-          delta: 0,
-          classification: student.riskTier === 'critical' ? 'high' : 'mod',
-          trend: 'down',
-          description: `High CDS on ${studentConcept ? studentConcept.name : 'concepts'}.`,
-        },
-        evidence: [`Flag count: ${student.flag_count || 0}`],
-        suggestedAction: { label: 'Schedule 1:1 Review' },
-      };
-    });
-
-    // 11. Confidence
+    // 10. Confidence
     const confidence = confidenceLevel(avgCds, totalCdsN, days);
 
     res.json({
@@ -837,7 +878,6 @@ exports.getCommandCenter = async (req, res, next) => {
       conceptBars,
       atRiskRoster,
       signals,
-      interventions,
       integrityFlags: { count: openFlags, sections: flagSections },
     });
   } catch (err) {
@@ -911,7 +951,8 @@ exports.getInstructorDashboard = async (req, res, next) => {
            d.date,
            COALESCE(c.avg_cds, 0)::DOUBLE PRECISION AS avg_cds,
            COALESCE(c.avg_mastery, 0)::DOUBLE PRECISION AS avg_mastery,
-           COALESCE(sub.cnt, 0)::INTEGER AS submission_count
+           COALESCE(sub.cnt, 0)::INTEGER AS submission_count,
+           COALESCE(f.cnt, 0)::INTEGER AS flag_count
          FROM (
            SELECT generate_series(
              (NOW() - ($2 || ' days')::INTERVAL)::DATE,
@@ -934,9 +975,16 @@ exports.getInstructorDashboard = async (req, res, next) => {
            JOIN enrollments e ON sub.student_id = e.student_id
            JOIN exercises ex ON sub.exercise_id = ex.id
            WHERE ${secCond.replace('section_id', 'e.section_id')} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL
-             AND ex.mode = 'learning' AND sub.is_practice IS NOT TRUE
+             AND sub.is_practice IS NOT TRUE
            GROUP BY sub.submitted_at::DATE
          ) sub ON d.date = sub.date
+         LEFT JOIN (
+           SELECT i.created_at::DATE AS date, COUNT(*)::INTEGER AS cnt
+           FROM integrity_flags i
+           WHERE ${secCond.replace('section_id', 'i.section_id')} AND i.created_at > NOW() - ($2 || ' days')::INTERVAL
+             AND i.status = 'flagged'
+           GROUP BY i.created_at::DATE
+         ) f ON d.date = f.date
          ORDER BY d.date`,
         [...secParam, String(days)]
       ),
@@ -1019,8 +1067,8 @@ exports.getInstructorDashboard = async (req, res, next) => {
     const cdsSeries = trendRows.map(r => parseFloat(r.avg_cds));
     const masterySeries = trendRows.map(r => Math.round(parseFloat(r.avg_mastery)));
 
-    // Weekly flag counts (previous N days grouped by week)
-    const flagSeries = trendRows.map(r => r.submission_count > 0 ? Math.max(1, Math.round(r.submission_count * 0.1)) : 0);
+    // Weekly flag counts from actual integrity_flags data
+    const flagSeries = trendRows.map(r => r.flag_count || 0);
 
     // Insight
     const label = sectionId === 'all' ? 'all your sections' : 'this section';
@@ -1033,7 +1081,6 @@ exports.getInstructorDashboard = async (req, res, next) => {
       date: new Date(r.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
       cds: Math.round(parseFloat(r.avg_cds) * 100),
       mastery: Math.round(parseFloat(r.avg_mastery)),
-      engagement: r.submission_count,
     }));
 
     // Struggling concepts
@@ -1090,6 +1137,13 @@ exports.getInstructorDashboard = async (req, res, next) => {
           comparison: 'last 24h',
           inverted: true,
         },
+        {
+          label: 'Students',
+          value: totalStudents,
+          delta: null,
+          series: [totalStudents],
+          comparison: 'enrolled',
+        },
       ],
       trend,
       strugglingConcepts,
@@ -1126,6 +1180,18 @@ exports.getStudentSubmissions = async (req, res, next) => {
          WHERE s.student_id = $1 AND ex.section_id = $2
          ORDER BY s.submitted_at DESC`,
         [studentId, sectionId]
+      );
+      submissions = subRes.rows;
+    } else {
+      const subRes = await db.query(
+        `SELECT s.id, s.exercise_id, s.attempt_number, s.is_correct, s.time_spent_seconds, s.submitted_at,
+                ex.title AS exercise_title, c.name AS concept_name
+         FROM submissions s
+         JOIN exercises ex ON s.exercise_id = ex.id
+         JOIN concepts c ON ex.concept_id = c.id
+         WHERE s.student_id = $1
+         ORDER BY s.submitted_at DESC`,
+        [studentId]
       );
       submissions = subRes.rows;
     }
@@ -1209,9 +1275,9 @@ exports.getReportSummary = async (req, res, next) => {
         `SELECT ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS pct FROM cds_scores cs WHERE cs.${directWhere}`,
         sectionId === 'all' ? [String(instructorId)] : [sectionId]
       ),
-      // 2. Completion (learning mode only, exclude practice)
+      // 2. Completion (exclude practice)
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL AND ex.mode = 'learning' AND sub.is_practice IS NOT TRUE`,
+        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL AND sub.is_practice IS NOT TRUE`,
         exParams
       ),
       // 3. At Risk
@@ -1224,9 +1290,9 @@ exports.getReportSummary = async (req, res, next) => {
         `SELECT ROUND((COUNT(*)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - ($2 || ' days')::INTERVAL`,
         sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
       ),
-      // 5. Daily submissions (learning mode only, exclude practice)
+      // 5. Daily submissions (exclude practice)
       db.query(
-        `SELECT d.date, COALESCE(sub.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT sub.submitted_at::DATE AS date, COUNT(*)::INTEGER AS cnt FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL AND ex.mode = 'learning' AND sub.is_practice IS NOT TRUE GROUP BY sub.submitted_at::DATE) sub ON d.date = sub.date ORDER BY d.date`,
+        `SELECT d.date, COALESCE(sub.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT sub.submitted_at::DATE AS date, COUNT(*)::INTEGER AS cnt FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL AND sub.is_practice IS NOT TRUE GROUP BY sub.submitted_at::DATE) sub ON d.date = sub.date ORDER BY d.date`,
         exParams
       ),
       // 6. Daily CDS
@@ -1249,9 +1315,9 @@ exports.getReportSummary = async (req, res, next) => {
         `SELECT ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS pct FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL`,
         sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
       ),
-      // 10. Prior completion (learning mode only, exclude practice)
+      // 10. Prior completion (exclude practice)
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at < NOW() - ($2 || ' days')::INTERVAL AND sub.submitted_at > NOW() - ($3 || ' days')::INTERVAL AND ex.mode = 'learning' AND sub.is_practice IS NOT TRUE`,
+        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at < NOW() - ($2 || ' days')::INTERVAL AND sub.submitted_at > NOW() - ($3 || ' days')::INTERVAL AND sub.is_practice IS NOT TRUE`,
         sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
       ),
       // 11. Prior at-risk
@@ -1314,7 +1380,7 @@ exports.getConceptMasteryReport = async (req, res, next) => {
 
   try {
     // Use slug as unique ID to avoid collisions (substring causes "AR" for Arrays & "AR" for other concepts)
-    const conceptRes = await db.query('SELECT id, name, slug FROM concepts ORDER BY id');
+    const conceptRes = await db.query('SELECT id, name, slug, knowledge_area_code FROM concepts ORDER BY id');
     const weeklyRes = await db.query(
       `SELECT c.id AS concept_id, c.name AS concept_name, c.slug, cs.computed_at::DATE AS week_date, ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS mastery
        FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN concepts c ON ex.concept_id = c.id
@@ -1323,30 +1389,36 @@ exports.getConceptMasteryReport = async (req, res, next) => {
       sectionId === 'all' ? [String(instructorId), String(weeks)] : [sectionId, String(weeks)]
     );
 
+    function fmtDate(d) {
+      if (!d) return '';
+      if (typeof d === 'string') return d.slice(0, 10);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
     // Fill in missing weeks with 0 for each concept
     const weekDates = [];
     for (let i = weeks - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i * 7);
-      weekDates.push(d.toISOString().slice(0, 10));
+      weekDates.push(fmtDate(d));
     }
 
     // Map slug → concept data for O(1) lookup
     const conceptMap = {};
     for (const c of conceptRes.rows) {
-      conceptMap[c.slug || c.id] = { id: c.slug || c.id, name: c.name, slug: c.slug, weekly: {} };
+      conceptMap[c.slug || c.id] = { id: c.slug || c.id, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', weekly: {} };
     }
     for (const r of weeklyRes.rows) {
       const key = r.slug || r.concept_id;
       if (conceptMap[key]) {
-        conceptMap[key].weekly[r.week_date] = r.mastery;
+        conceptMap[key].weekly[fmtDate(r.week_date)] = r.mastery;
       }
     }
 
     const conceptData = conceptRes.rows.map(c => {
       const key = c.slug || c.id;
       const series = weekDates.map(d => conceptMap[key].weekly[d] ?? 0);
-      return { id: key, name: c.name, slug: c.slug, series, current: series.length ? series[series.length - 1] : 0 };
+      return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: series.length ? series[series.length - 1] : 0 };
     });
 
     const weekLabels = [];
@@ -1378,11 +1450,11 @@ exports.getCompletionReport = async (req, res, next) => {
       `SELECT e.id, e.title, e.deadline,
          COUNT(DISTINCT sub.student_id) AS submitted,
          (${enrollCond}) AS total,
-         COUNT(DISTINCT CASE WHEN sub.submitted_at <= e.deadline THEN sub.student_id END) AS on_time,
-         COUNT(DISTINCT CASE WHEN sub.submitted_at > e.deadline THEN sub.student_id END) AS late
+         COUNT(DISTINCT CASE WHEN e.deadline IS NULL OR sub.submitted_at <= e.deadline THEN sub.student_id END) AS on_time,
+         COUNT(DISTINCT CASE WHEN e.deadline IS NOT NULL AND sub.submitted_at > e.deadline THEN sub.student_id END) AS late
        FROM exercises e
        LEFT JOIN submissions sub ON sub.exercise_id = e.id
-         AND e.mode = 'learning' AND sub.is_practice IS NOT TRUE
+         AND sub.is_practice IS NOT TRUE
        WHERE ${secCond}
        GROUP BY e.id ORDER BY e.created_at DESC`,
       sectionId === 'all' ? [String(instructorId)] : [sectionId]
@@ -1400,51 +1472,6 @@ exports.getCompletionReport = async (req, res, next) => {
     res.json(data);
   } catch (err) {
     console.error('getCompletionReport error:', err);
-    next(err);
-  }
-};
-
-/**
- * GET /api/analytics/reports/:sectionId/engagement
- * sectionId can be 'all' to aggregate across all instructor's sections.
- */
-exports.getEngagementReport = async (req, res, next) => {
-  const { sectionId } = req.params;
-  const instructorId = req.user?.id;
-  const secCond = sectionId === 'all'
-    ? `ex.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`
-    : `ex.section_id = $1`;
-
-  try {
-    const result = await db.query(
-      `SELECT EXTRACT(DOW FROM sub.submitted_at)::INTEGER AS day, EXTRACT(HOUR FROM sub.submitted_at)::INTEGER AS hour, COUNT(*)::INTEGER AS cnt
-       FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id
-       WHERE ${secCond.replace('section_id', 'ex.section_id')}
-         AND ex.mode = 'learning' AND sub.is_practice IS NOT TRUE
-       GROUP BY day, hour`,
-      sectionId === 'all' ? [String(instructorId)] : [sectionId]
-    );
-
-    const matrix = Array.from({ length: 7 }, () => Array(8).fill(0));
-    for (const row of result.rows) {
-      const dayIdx = row.day === 0 ? 6 : row.day - 1;
-      const hourBin = Math.min(7, Math.floor(row.hour / 3));
-      if (dayIdx >= 0 && dayIdx < 7 && hourBin >= 0 && hourBin < 8) matrix[dayIdx][hourBin] += row.cnt;
-    }
-
-    const maxVal = Math.max(...matrix.flat(), 1);
-    const scaled = matrix.map(row => row.map(v => Math.min(4, Math.round((v / maxVal) * 4))));
-    const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const HOUR_BINS = ['00–03', '03–06', '06–09', '09–12', '12–15', '15–18', '18–21', '21–24'];
-    const table = scaled.map((row, dIdx) => ({
-      day: DAYS[dIdx],
-      submissions: matrix[dIdx].reduce((s, v) => s + v, 0),
-      peak: HOUR_BINS[row.indexOf(Math.max(...row))],
-    })).sort((a, b) => b.submissions - a.submissions);
-
-    res.json({ matrix: scaled, rawMatrix: matrix, table });
-  } catch (err) {
-    console.error('getEngagementReport error:', err);
     next(err);
   }
 };
@@ -1478,7 +1505,8 @@ exports.getIntegrityTrends = async (req, res, next) => {
       const now = new Date();
       const diffWeeks = Math.floor((now - weekDate) / (7 * 24 * 3600000));
       const idx = weeks - 1 - diffWeeks;
-      if (idx >= 0 && idx < weeks) timeline[idx][row.severity] = row.cnt;
+      const sev = (row.severity || '').toLowerCase();
+      if (idx >= 0 && idx < weeks && timeline[idx][sev] != null) timeline[idx][sev] = row.cnt;
     }
 
     const breakdownRes = await db.query(
@@ -1491,7 +1519,7 @@ exports.getIntegrityTrends = async (req, res, next) => {
     const totalFlags = breakdownRes.rows.reduce((s, r) => s + r.count, 0);
     const breakdown = breakdownRes.rows.map(r => ({
       type: r.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      level: r.severity, count: r.count,
+      level: r.level, count: r.count,
       share: totalFlags ? Math.round((r.count / totalFlags) * 100) : 0, delta: 0,
     }));
 
@@ -1732,7 +1760,7 @@ exports.getConceptDiagnostic = async (req, res, next) => {
 
     // Get exercises tagged with this concept
     const exerciseRes = await db.query(
-      `SELECT e.id, e.title, e.difficulty_index, e.closed_at,
+      `SELECT e.id, e.title, e.closed_at,
               COALESCE(AVG(cs.cds), 0) AS avg_cds,
               COUNT(DISTINCT cs.student_id) AS students_attempted,
               COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.31) AS at_risk_count
@@ -1771,14 +1799,12 @@ exports.getConceptDiagnostic = async (req, res, next) => {
         knowledgeAreaCode: concept.knowledge_area_code,
         slug: concept.slug,
         bloomLevel: concept.bloom_level,
-        difficultyTier: concept.difficulty_tier,
       },
       prerequisites,
       sectionCRS: crsData,
       exercises: exerciseRes.rows.map(r => ({
         id: r.id,
         title: r.title,
-        difficultyIndex: parseFloat(r.difficulty_index) || 0,
         avgCds: parseFloat(r.avg_cds) || 0,
         studentsAttempted: parseInt(r.students_attempted),
         atRiskCount: parseInt(r.at_risk_count),
@@ -1807,14 +1833,14 @@ exports.getConceptHeatmap = async (req, res, next) => {
     const { sectionId } = req.params;
 
     // Get concepts actually used in this section's exercises (primary tags only)
-    // Ordered by difficulty_tier to match taxonomy
+    // Ordered by name to match taxonomy
     const conceptsRes = await db.query(
-      `SELECT DISTINCT c.id, c.name, c.knowledge_area_code, c.slug, c.bloom_level, c.difficulty_tier
+      `SELECT DISTINCT c.id, c.name, c.knowledge_area_code, c.slug, c.bloom_level
        FROM concepts c
        JOIN exercise_concept_tags ect ON ect.concept_id = c.id
        JOIN exercises ex ON ex.id = ect.exercise_id
        WHERE ex.section_id = $1 AND ect.is_primary = true
-       ORDER BY c.difficulty_tier, c.name`,
+       ORDER BY c.name`,
       [sectionId]
     );
 
@@ -1857,7 +1883,6 @@ exports.getConceptHeatmap = async (req, res, next) => {
         name: c.name,
         slug: c.slug,
         bloomLevel: c.bloom_level,
-        difficultyTier: c.difficulty_tier,
       });
     }
 
@@ -1897,7 +1922,6 @@ exports.getConceptHeatmap = async (req, res, next) => {
         slug: c.slug,
         knowledgeAreaCode: c.knowledge_area_code,
         bloomLevel: c.bloom_level,
-        difficultyTier: c.difficulty_tier,
       })),
       knowledgeAreas,
       scores: scoreMap,
@@ -1906,5 +1930,91 @@ exports.getConceptHeatmap = async (req, res, next) => {
   } catch (err) {
     console.error('getConceptHeatmap error:', err.message);
     next(err);
+  }
+};
+
+/**
+ * GET /api/analytics/custom-heatmap/:sectionId
+ * Returns dynamic aggregated CDS data grouped by the instructor's custom tag columns.
+ * Deals with zero-submissions and unmapped exercises gracefully.
+ */
+exports.getCustomHeatmapData = async (req, res, next) => {
+  const { sectionId } = req.params;
+  const instructorId = req.user.id;
+
+  try {
+    // 1. Fetch all active custom tag columns for this instructor
+    const activeTagsResult = await db.query(
+      `SELECT id, tag_name, color_theme, knowledge_area
+       FROM instructor_custom_tags
+       WHERE instructor_id = $1 AND is_active_column = true
+       ORDER BY created_at ASC`,
+      [instructorId]
+    );
+
+    const activeTags = activeTagsResult.rows;
+
+    if (activeTags.length === 0) {
+      return res.json({ columns: [], rows: [] });
+    }
+
+    const tagIds = activeTags.map(t => t.id);
+
+    // 2. Dynamic Matrix Aggregation
+    // Cross joins enrolled students with active tags, then left joins
+    // through the tag→exercise mapping to pick up cds_scores.
+    // Students with no submissions for any mapped exercise get 0.
+    const matrixQuery = `
+      SELECT
+        e.student_id,
+        u.name AS student_name,
+        t.id AS tag_id,
+        COALESCE(AVG(cs.cds), 0) AS average_cds,
+        COUNT(cs.id) AS total_submissions
+      FROM enrollments e
+      JOIN users u ON u.id = e.student_id
+      CROSS JOIN instructor_custom_tags t
+      INNER JOIN custom_tag_exercise_mappings m ON m.custom_tag_id = t.id
+      LEFT JOIN cds_scores cs ON cs.student_id = e.student_id AND cs.exercise_id = m.exercise_id
+      WHERE e.section_id = $1
+        AND t.instructor_id = $2
+        AND t.is_active_column = true
+      GROUP BY e.student_id, u.name, t.id
+      ORDER BY u.name ASC
+    `;
+
+    const matrixResult = await db.query(matrixQuery, [sectionId, instructorId]);
+
+    // 3. Format into flat consumer-ready matrix
+    const studentMap = {};
+
+    for (const row of matrixResult.rows) {
+      if (!studentMap[row.student_id]) {
+        studentMap[row.student_id] = {
+          studentId: row.student_id,
+          studentName: row.student_name,
+          metrics: {},
+        };
+      }
+
+      const avgCds = parseFloat(row.average_cds) || 0;
+      studentMap[row.student_id].metrics[row.tag_id] = {
+        cds: Math.round(avgCds * 10000) / 100, // Convert 0.xx to percentage (e.g., 0.3142 → 31.42)
+        submissions: parseInt(row.total_submissions, 10) || 0,
+      };
+    }
+
+    res.json({
+      columns: activeTags.map(tag => ({
+        id: tag.id,
+        label: tag.tag_name,
+        theme: tag.color_theme,
+        knowledgeArea: tag.knowledge_area,
+      })),
+      rows: Object.values(studentMap),
+    });
+  } catch (error) {
+    console.error('Error computing custom heatmap matrix:', error);
+    next(error);
   }
 };
