@@ -2,10 +2,18 @@
   "scripts": {
     "test:simulation": "npm run test --prefix simulation",
     "test:e2e": "npx playwright test --config=playwright.config.js",
-    "test:full": "npm run test:simulation && npm run test:e2e"
+    "test:full": "npm run test:simulation && npm run test:e2e",
+    "test:all": "npm run test --prefix backend && npm run test --prefix frontend && npm run test:e2e",
+    "test:backend": "npm run test --prefix backend",
+    "test:frontend": "npm run test --prefix frontend",
+    "test:ci-backend": "npm run test:ci --prefix backend",
+    "test:ci-frontend": "npx vitest run --reporter=verbose --prefix frontend",
+    "test:uat": "node tests/uat/runner.js",
+    "test:stagehand": "node simulation/stagehand/runner.js",
+    "test:stagehand:verbose": "STAGEHAND_VERBOSE=true node simulation/stagehand/runner.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.0",
     "cross-env": "^10.1.0",
     "jest": "^30.4.2",
     "pg": "^8.21.0",

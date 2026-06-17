@@ -1,0 +1,122 @@
+{
+  "timestamp": "2026-06-17T08:30:39.745Z",
+  "duration": 75238,
+  "summary": {
+    "total": 6,
+    "passed": 5,
+    "failed": 1
+  },
+  "tests": [
+    {
+      "name": "Instructor Login",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login",
+          "success": true
+        },
+        {
+          "action": "Verify redirect",
+          "success": true,
+          "url": "http://localhost:5173/instructor/dashboard"
+        }
+      ]
+    },
+    {
+      "name": "Student Login",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login",
+          "success": true
+        },
+        {
+          "action": "Verify redirect",
+          "success": true,
+          "url": "http://localhost:5173/student/dashboard"
+        }
+      ]
+    },
+    {
+      "name": "Invalid Login",
+      "passed": true,
+      "details": [
+        {
+          "action": "Submit invalid credentials",
+          "success": true
+        },
+        {
+          "action": "Stayed on login page",
+          "success": true,
+          "url": "http://localhost:5173/login"
+        }
+      ]
+    },
+    {
+      "name": "Instructor Navigation",
+      "passed": true,
+      "details": [
+        {
+          "page": "Dashboard",
+          "passed": true
+        },
+        {
+          "page": "Heatmap",
+          "passed": true
+        },
+        {
+          "page": "Students",
+          "passed": true
+        },
+        {
+          "page": "Exercises",
+          "passed": true
+        },
+        {
+          "page": "Reports",
+          "passed": true
+        },
+        {
+          "page": "Integrity",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Student Navigation",
+      "passed": true,
+      "details": [
+        {
+          "page": "My Exercises",
+          "passed": true
+        },
+        {
+          "page": "My Progress",
+          "passed": true
+        },
+        {
+          "page": "My Profile",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Exercise Submission",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "No exercises available",
+          "success": false
+        }
+      ]
+    }
+  ]
+}
