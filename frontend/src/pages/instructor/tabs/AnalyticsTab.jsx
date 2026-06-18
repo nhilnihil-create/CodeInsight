@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ResponsiveContainer,
@@ -10,10 +10,11 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { AlertTriangle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
 import InsightHeader from "@/components/ui/insight-header";
-import ConceptMasteryBarSet from "@/components/ui/concept-mastery-bar-set";
+import ConceptRadarChart from "@/components/concept-radar/ConceptRadarChart";
+import SegmentedPicker from "@/components/ui/segmented-picker";
+import { KNOWLEDGE_AREA_GROUPS, buildRadarDataForGroup } from "@/data/knowledgeAreaConcepts";
 import api from "@/services/api";
 
 const TOOLTIP_STYLE = {
@@ -38,6 +39,17 @@ export default function AnalyticsTab({ sectionId }) {
     queryKey: ["analytics-longitudinal", sectionId],
     queryFn: async () => {
       const { data } = await api.get(`/api/analytics/sections/${sectionId}/longitudinal`);
+      return data;
+    },
+    enabled: !!sectionId,
+  });
+
+  const [selectedArea, setSelectedArea] = useState('SDF-FPC');
+
+  const { data: radarPayload, isLoading: radarLoading } = useQuery({
+    queryKey: ["analytics-class-radar", sectionId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/analytics/sections/${sectionId}/class-concept-radar`);
       return data;
     },
     enabled: !!sectionId,
@@ -101,6 +113,31 @@ export default function AnalyticsTab({ sectionId }) {
       });
   }, [longitudinal]);
 
+  const radarScores = useMemo(() => {
+    if (!radarPayload?.concepts) return [];
+    return radarPayload.concepts.map((c) => ({
+      concept_name: c.concept_name,
+      cds: Number(c.cds) || 0,
+      ner: Number(c.ner) || 0,
+      nrs: Number(c.nrs) || 0,
+      nts: Number(c.nts) || 0,
+    }));
+  }, [radarPayload]);
+
+  const radarData = useMemo(
+    () => buildRadarDataForGroup(radarScores, selectedArea),
+    [radarScores, selectedArea]
+  );
+
+  const pickerOptions = KNOWLEDGE_AREA_GROUPS.map((g) => ({
+    key: g.key,
+    label: g.shortLabel,
+  }));
+
+  const currentGroup = KNOWLEDGE_AREA_GROUPS.find((g) => g.key === selectedArea);
+  const totalConcepts = radarData.length;
+  const attemptedConcepts = radarData.filter((d) => d.attempts > 0).length;
+
   if (exLoading || longLoading) {
     return (
       <div className="rounded-lg border border-border bg-card/50 py-8 px-6 text-center">
@@ -134,13 +171,33 @@ export default function AnalyticsTab({ sectionId }) {
         <div className="rounded-lg border border-border bg-card shadow-sm">
           <div className="px-5 py-3 border-b border-border">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Details
+              Class-Wide
             </p>
-            <h3 className="text-sm font-semibold mt-0.5">Concept mastery</h3>
+            <h3 className="text-sm font-semibold mt-0.5">Concept mastery radar</h3>
           </div>
           <div className="p-5">
-            {concepts.length > 0 ? (
-              <ConceptMasteryBarSet concepts={concepts} />
+            {radarLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Loading radar…</p>
+            ) : radarData.length > 0 ? (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <SegmentedPicker
+                    value={selectedArea}
+                    onChange={setSelectedArea}
+                    options={pickerOptions}
+                    size="sm"
+                  />
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                    {attemptedConcepts}/{totalConcepts} concepts
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50 mb-2 ml-0.5 font-mono tracking-wide">
+                  {currentGroup?.label}
+                </p>
+                <div className="h-72 w-full">
+                  <ConceptRadarChart data={radarData} />
+                </div>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No exercise data available yet
