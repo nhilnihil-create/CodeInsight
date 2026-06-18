@@ -1537,8 +1537,8 @@ exports.getStructureViolations = async (req, res, next) => {
     const instructorId = req.user.id;
 
     const secCond = sectionId === 'all'
-      ? 's.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)'
-      : 's.section_id = $1';
+      ? 'e.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)'
+      : 'e.section_id = $1';
     const params = sectionId === 'all' ? [String(instructorId)] : [sectionId];
 
     const result = await db.query(`
@@ -2017,4 +2017,164 @@ exports.getCustomHeatmapData = async (req, res, next) => {
     console.error('Error computing custom heatmap matrix:', error);
     next(error);
   }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/submissions
+ * Returns all submissions for a section, with code and compiler_log.
+ */
+exports.getSectionSubmissions = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const { search, exerciseId, status, limit = 50, offset = 0 } = req.query;
+
+    let where = 'WHERE ex.section_id = $1';
+    const params = [sectionId];
+    let paramIdx = 2;
+
+    if (exerciseId) {
+      where += ` AND s.exercise_id = $${paramIdx++}`;
+      params.push(exerciseId);
+    }
+    if (status === 'pass') {
+      where += ` AND s.is_correct = true`;
+    } else if (status === 'fail') {
+      where += ` AND s.is_correct = false`;
+    }
+    if (search) {
+      where += ` AND u.name ILIKE $${paramIdx++}`;
+      params.push(`%${search}%`);
+    }
+
+    const { rows } = await db.query(
+      `SELECT s.id, s.student_id, u.name AS student_name, u.email AS student_email,
+              s.exercise_id, ex.title AS exercise_title, c.name AS concept_name,
+              s.attempt_number, s.is_correct, s.code, s.compiler_log,
+              s.submitted_at, s.time_spent_seconds,
+              (SELECT COUNT(*) FROM integrity_flags f WHERE f.submission_id = s.id)::int AS flag_count
+       FROM submissions s
+       JOIN users u ON s.student_id = u.id
+       JOIN exercises ex ON s.exercise_id = ex.id
+       JOIN concepts c ON ex.concept_id = c.id
+       ${where}
+       ORDER BY s.submitted_at DESC
+       LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
+      [...params, parseInt(limit, 10), parseInt(offset, 10)]
+    );
+
+    const countResult = await db.query(
+      `SELECT COUNT(*)::int AS total
+       FROM submissions s
+       JOIN users u ON s.student_id = u.id
+       JOIN exercises ex ON s.exercise_id = ex.id
+       ${where}`,
+      params
+    );
+
+    res.json({
+      submissions: rows,
+      total: countResult.rows[0].total,
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
+    });
+  } catch (err) {
+    console.error('getSectionSubmissions error:', err);
+    next(err);
+  }
+};
+
+/**
+ * GET /api/analytics/submissions/:submissionId/runs
+ * Returns run_attempts + final submission for the same student+exercise.
+ */
+exports.getSubmissionRuns = async (req, res, next) => {
+  try {
+    const { submissionId } = req.params;
+
+    const subRes = await db.query(
+      `SELECT student_id, exercise_id FROM submissions WHERE id = $1`,
+      [submissionId]
+    );
+    if (!subRes.rows.length) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    const { student_id, exercise_id } = subRes.rows[0];
+
+    const runRes = await db.query(
+      `SELECT id, code, compiler_log, error_count, time_limit_hit, run_at,
+              false AS is_submission
+       FROM run_attempts
+       WHERE student_id = $1 AND exercise_id = $2
+       ORDER BY run_at ASC`,
+      [student_id, exercise_id]
+    );
+
+    const finalRes = await db.query(
+      `SELECT id, code, compiler_log, submitted_at AS run_at,
+              true AS is_submission
+       FROM submissions
+       WHERE student_id = $1 AND exercise_id = $2
+       ORDER BY submitted_at ASC`,
+      [student_id, exercise_id]
+    );
+
+    const runs = [
+      ...runRes.rows.map(r => ({ ...r, error_count: r.error_count ?? 0 })),
+      ...finalRes.rows.map(s => ({
+        id: s.id,
+        code: s.code,
+        compiler_log: s.compiler_log,
+        error_count: s.compiler_log ? 1 : 0,
+        time_limit_hit: false,
+        run_at: s.run_at,
+        is_submission: true,
+      })),
+    ];
+
+    res.json({ runs });
+  } catch (err) {
+    console.error('getSubmissionRuns error:', err);
+    next(err);
+  }
+};
+
+exports.getSubmissionFlags = async (req, res, next) => {
+  try {
+    const { submissionId } = req.params;
+    const integrityFlagEngine = require('../services/integrityFlagEngine');
+    const flags = await integrityFlagEngine.getFlagsForSubmission(submissionId);
+    res.json({ flags });
+  } catch (err) {
+    console.error('getSubmissionFlags error:', err);
+    next(err);
+  }
+};
+
+/**
+ * GET /api/analytics/sections/:sectionId/class-concept-radar
+ * Returns per-concept aggregated CDS component data (avg NER, NRS, NTS)
+ * across all students in a section, for the class-wide concept radar chart.
+ */
+exports.getClassConceptRadar = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const result = await db.query(`
+      SELECT
+        c.name AS concept_name,
+        ROUND(AVG(cs.cds)::numeric, 4) AS cds,
+        ROUND(AVG(cs.ner)::numeric, 4) AS ner,
+        ROUND(AVG(cs.nrs)::numeric, 4) AS nrs,
+        ROUND(AVG(cs.nts)::numeric, 4) AS nts,
+        COUNT(DISTINCT cs.student_id) AS student_count,
+        COUNT(*) AS attempt_count
+      FROM cds_scores cs
+      JOIN exercises ex ON cs.exercise_id = ex.id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN concepts c ON c.id = ect.concept_id
+      WHERE cs.section_id = $1
+      GROUP BY c.name
+      ORDER BY c.name
+    `, [sectionId]);
+    res.json({ concepts: result.rows });
+  } catch (err) { next(err); }
 };
