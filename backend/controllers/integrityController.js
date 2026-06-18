@@ -47,7 +47,7 @@ exports.getIntegrityFlagDetail = async (req, res, next) => {
       instructorNote: flag.instructor_note,
       createdAt: flag.created_at,
       reviewedAt: flag.reviewed_at,
-      confidence: 85,
+      confidence: flag.severity === 'high' ? 90 : flag.severity === 'medium' ? 70 : 50,
     });
   } catch (err) {
     console.error('getIntegrityFlagDetail error:', err);

@@ -1,360 +1,469 @@
-import { useEffect, useState, useMemo, Fragment } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Input } from '@/components/ui/input';
+import { GripVertical } from 'lucide-react';
 import SectionFilter from '@/components/SectionFilter';
+import useLastSection from '@/hooks/useLastSection';
 import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
-/* ── Knowledge Area Labels ─────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SYSTEM 5-TIER CDS COLOR SYNCHRONIZATION
+   Mathematical ranges applied directly to cell backgrounds.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-const KA_LABELS = {
-  'SDF-FPC': 'Procedural Fundamentals',
-  'SDF-PMD': 'Program Design & Logic',
-  'SDF-FDS': 'Data Structures & Memory',
-  'SDF-OOP': 'Object-Oriented Paradigms',
-};
-
-/* ── Sequential blue gradient — the original HEAT_TONE palette ────────────
- *  CDS 0-100: higher = more struggle.
- *  Empty (no data) cells are completely transparent — zero visual noise.
- *  Active cells use a cool-to-strong blue gradient.
- *  Colorblind-safe, perceptually uniform.
- */
-
-const HEAT_LEVELS = [
-  { min: 0,  max: 39, label: 'Low',      cell: 'bg-blue-500/[0.06]', text: 'text-blue-400/80' },
-  { min: 40, max: 69, label: 'Moderate', cell: 'bg-blue-500/[0.18]', text: 'text-blue-300' },
-  { min: 70, max: 100,label: 'High',     cell: 'bg-blue-500/[0.35]', text: 'text-blue-100 font-semibold' },
+const CDS_TIERS = [
+  { min: -1,   max: -1,   label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
+  { min: 0.00, max: 0.00, label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
+  { min: 0.01, max: 0.15, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500',        text: 'text-slate-500' },
+  { min: 0.16, max: 0.35, label: 'Low',       cell: 'bg-emerald-500/20 text-emerald-400',    text: 'text-emerald-400' },
+  { min: 0.36, max: 0.55, label: 'Moderate',  cell: 'bg-amber-500/20 text-amber-400',        text: 'text-amber-400' },
+  { min: 0.56, max: 0.75, label: 'High',      cell: 'bg-orange-500/25 text-orange-400',      text: 'text-orange-400' },
+  { min: 0.76, max: 1.00, label: 'Very High', cell: 'bg-rose-600/35 text-rose-400 font-bold', text: 'text-rose-400' },
 ];
 
-function heatLevel(cdsPct) {
-  if (cdsPct == null) return null; // no data → transparent
-  for (const l of HEAT_LEVELS) {
-    if (cdsPct >= l.min && cdsPct <= l.max) return l;
+function cdsTier(cds) {
+  if (cds == null) return CDS_TIERS[0];
+  const v = Number(cds);
+  if (Number.isNaN(v)) return CDS_TIERS[0];
+  if (v === 0) return CDS_TIERS[1];
+  for (let i = 2; i < CDS_TIERS.length; i++) {
+    if (v >= CDS_TIERS[i].min && v <= CDS_TIERS[i].max) return CDS_TIERS[i];
   }
-  return HEAT_LEVELS[HEAT_LEVELS.length - 1];
+  return CDS_TIERS[CDS_TIERS.length - 1];
 }
 
-/* ── Compact cell — transparent when no data ──────────────────────────── */
-
-function Cell({ cdsPct }) {
-  const level = heatLevel(cdsPct);
-  if (!level) {
-    // No data → completely invisible
-    return <div className="w-full h-7" />;
-  }
-
-  return (
-    <div className={cn(
-      'w-full h-7 flex items-center justify-center rounded-md',
-      'transition-all duration-150 cursor-default',
-      level.cell,
-    )}>
-      <span className={cn('text-[11px] font-mono tabular-nums', level.text)}>
-        {cdsPct}
-      </span>
-    </div>
-  );
-}
-
-/* ── Legend ───────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEGEND — inline tier swatches
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 function Legend() {
+  const tiers = [CDS_TIERS[2], CDS_TIERS[3], CDS_TIERS[4], CDS_TIERS[5], CDS_TIERS[6]];
   return (
-    <div className="flex items-center justify-end gap-3 pt-2">
-      {HEAT_LEVELS.map((l, i) => (
-        <div key={i} className="flex items-center gap-1.5">
-          <div className={cn('w-4 h-3 rounded-sm', l.cell)} />
-          <span className="text-[10px] text-muted-foreground">{l.label}</span>
+    <div className="flex items-center gap-2.5 flex-wrap">
+      {tiers.map((t) => (
+        <div key={t.label} className="flex items-center gap-1">
+          <div className={cn('w-3 h-2.5 rounded-[2px]', t.cell)} />
+          <span className="text-[9px] text-white/30 whitespace-nowrap">{t.label}</span>
         </div>
       ))}
-      <div className="flex items-center gap-1.5 ml-2">
-        <div className="w-4 h-3 rounded-sm border border-dashed border-border/30" />
-        <span className="text-[10px] text-muted-foreground">No data</span>
-      </div>
     </div>
   );
 }
 
-/* ── Main Heatmap ─────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOSAIC CELL — uniform gapless data block
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const CELL_SIZE = 'w-10 h-10';
+
+function Cell({ cds, onHover, onLeave }) {
+  const tier = cdsTier(cds);
+
+  return (
+    <div
+      className={cn(
+        CELL_SIZE,
+        'flex items-center justify-center rounded-[2px]',
+        'text-[9px] font-mono tabular-nums select-none cursor-default',
+        'transition-colors duration-75',
+        cds != null && cds > 0 ? tier.cell : 'bg-slate-900/60 border border-white/5',
+      )}
+      onMouseEnter={(e) => onHover?.(e)}
+      onMouseMove={(e) => onHover?.(e)}
+      onMouseLeave={onLeave}
+    >
+      {cds != null && cds > 0 ? Number(cds).toFixed(2) : ''}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASSMORPHIC PORTAL TOOLTIP
+   Rendered via createPortal to body for true overlay positioning.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function PortalTooltip({ x, y, data, visible }) {
+  if (!visible || !data) return null;
+  const tier = cdsTier(data.cds);
+
+  return createPortal(
+    <div
+      className="fixed z-[9999] pointer-events-none
+                 bg-white/[0.06] backdrop-blur-2xl
+                 border border-white/[0.12] rounded-xl px-4 py-3
+                 shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.08)]
+                 text-xs leading-relaxed min-w-[180px] select-none"
+      style={{ left: x + 18, top: y - 14 }}
+    >
+      {/* Concept Title */}
+      <div className="font-semibold text-white/90 text-[11px] mb-1">{data.concept}</div>
+      <div className="text-white/40 text-[10px] mb-2">{data.student}</div>
+
+      {/* CDS Struggle Index */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className="font-mono tabular-nums font-semibold text-white/90 text-sm">
+          {Number(data.cds).toFixed(2)}
+        </span>
+        <span className={cn(
+          'text-[9px] px-1.5 py-[1px] rounded-full font-medium',
+          'bg-white/[0.08] border border-white/[0.08]',
+          tier.text,
+        )}>
+          {tier.label}
+        </span>
+      </div>
+
+      {/* Underlying Metrics */}
+      {data.raw && (
+        <div className="space-y-1 pt-2 border-t border-white/[0.08]">
+          <div className="flex justify-between gap-6">
+            <span className="text-white/40 text-[10px]">NER</span>
+            <span className="font-mono tabular-nums text-white/70 text-[10px]">
+              {Number(data.raw.ner).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between gap-6">
+            <span className="text-white/40 text-[10px]">NRS</span>
+            <span className="font-mono tabular-nums text-white/70 text-[10px]">
+              {Number(data.raw.nrs).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between gap-6">
+            <span className="text-white/40 text-[10px]">NTS</span>
+            <span className="font-mono tabular-nums text-white/70 text-[10px]">
+              {Number(data.raw.nts).toFixed(2)}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DRAGGABLE COLUMN HEADER
+   Hold-to-drag reordering via framer-motion drag="x".
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function DraggableColumnHeader({ concept, index, onSwap, totalColumns }) {
+  const cellW = 40; // w-10 cell width
+  const headerRef = useRef(null);
+  const dragStartX = useRef(0);
+
+  return (
+    <motion.th
+      ref={headerRef}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.15}
+      dragSnapToOrigin={true}
+      onDragStart={() => { dragStartX.current = 0; }}
+      onDrag={(e, info) => {
+        const dx = info.offset.x;
+        const threshold = cellW * 0.5;
+        const currentIdx = index;
+
+        if (Math.abs(dx) > threshold) {
+          const direction = dx > 0 ? 1 : -1;
+          const targetIdx = currentIdx + direction;
+          if (targetIdx >= 0 && targetIdx < totalColumns) {
+            onSwap(currentIdx, targetIdx);
+          }
+        }
+      }}
+      whileDrag={{ scale: 1.05, zIndex: 50, cursor: 'grabbing' }}
+      className={cn(
+        'relative h-28 p-0 m-0 text-center align-bottom',
+        'border-b border-white/5 cursor-grab active:cursor-grabbing',
+        'text-white/35 hover:text-white/60 transition-colors',
+        'select-none touch-none overflow-visible',
+      )}
+      title={concept}
+      style={{ width: cellW }}
+    >
+      <div className="absolute inset-0 flex items-end justify-center pb-2">
+        <div className="origin-bottom-left -rotate-45 translate-x-[30%] whitespace-nowrap">
+          <GripVertical className="w-2.5 h-2.5 opacity-0 group-hover/th:opacity-40 transition-opacity inline-block mr-0.5 -translate-y-px" />
+          <span className="text-[9px] font-medium">{concept}</span>
+        </div>
+      </div>
+    </motion.th>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT — Loua-style Dense Mosaic Heatmap
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function InstructorHeatmap() {
-  const [sectionId, setSectionId] = useState('all');
+  const [sectionId, setSectionId] = useLastSection();
   const [rows, setRows] = useState([]);
   const [concepts, setConcepts] = useState([]);
-  const [conceptMeta, setConceptMeta] = useState({});
+  const [rawScores, setRawScores] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [search, setSearch] = useState('');
+  const [columnOrder, setColumnOrder] = useState([]);
+  const [tooltip, setTooltip] = useState({ x: 0, y: 0, data: null, visible: false });
   const [hoveredRow, setHoveredRow] = useState(null);
-  const [collapsedTracks, setCollapsedTracks] = useState({});
 
-  /* ── Group concepts by knowledge area ────────────────────────────── */
-  const groupedConcepts = useMemo(() => {
-    const groups = {};
-    for (const c of concepts) {
-      const ka = conceptMeta[c]?.knowledgeAreaCode || 'UNCATEGORIZED';
-      if (!groups[ka]) groups[ka] = [];
-      groups[ka].push(c);
-    }
-    // Sort groups by known priority, filter out empty groups
-    const kaOrder = ['SDF-FPC', 'SDF-PMD', 'SDF-FDS', 'SDF-OOP', 'UNCATEGORIZED'];
-    const sorted = {};
-    for (const ka of kaOrder) {
-      if (groups[ka] && groups[ka].length > 0) sorted[ka] = groups[ka];
-    }
-    return sorted;
-  }, [concepts, conceptMeta]);
-
-  /* ── Collapse all tracks by default on first data load ───────────── */
-  const initDoneRef = useState(false)[1];
+  /* ── Data fetch ────────────────────────────────────────────────────── */
   useEffect(() => {
-    if (Object.keys(groupedConcepts).length > 0 && !initDoneRef.current) {
-      const defaults = {};
-      for (const ka of Object.keys(groupedConcepts)) defaults[ka] = true;
-      setCollapsedTracks(defaults);
-      initDoneRef.current = true;
-    }
-    // Reset init flag when section changes
-    if (Object.keys(groupedConcepts).length === 0) initDoneRef.current = false;
-  }, [groupedConcepts, initDoneRef, sectionId]);
-
-  /* ── Data fetch ──────────────────────────────────────────────────── */
-  useEffect(() => {
-    let cancelled = false;
+    let dead = false;
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
         const res = await api.get(`/api/analytics/heatmap/${sectionId}`);
         const students = res.data?.students || [];
-        const scoresRaw = res.data?.scores || {};
-        const conceptsFromApi = res.data?.concepts || [];
-        const studentNames = {};
-        for (const s of students) studentNames[s.id] = s.name;
+        const sr = res.data?.scores || {};
+        const ca = res.data?.concepts || [];
+        const names = {};
+        for (const s of students) names[s.id] = s.name;
 
-        const out = Object.keys(scoresRaw).map((studentId) => {
-          const conceptScores = {};
-          for (const c of conceptsFromApi) {
-            const raw = scoresRaw[studentId]?.[c]?.cds;
-            conceptScores[c] = typeof raw === 'string'
-              ? parseFloat(raw)
-              : (raw === null || raw === undefined ? null : raw);
+        const out = Object.keys(sr).map((id) => {
+          const sc = {};
+          for (const c of ca) {
+            const raw = sr[id]?.[c]?.cds;
+            sc[c] = raw == null ? null : (typeof raw === 'string' ? parseFloat(raw) : Number(raw));
           }
-          return {
-            studentId,
-            name: studentNames[studentId] || `Student #${studentId}`,
-            scores: conceptScores,
-          };
+          return { studentId: id, name: names[id] || `Student #${id}`, scores: sc };
         });
 
-        // Fetch concept metadata for grouping by knowledge area
-        try {
-          const metaRes = await api.get('/api/exercises/concepts');
-          const meta = {};
-          for (const c of metaRes.data || []) {
-            meta[c.name] = {
-              knowledgeAreaCode: c.knowledge_area_code || null,
-              slug: c.slug || null,
-              bloomLevel: c.bloom_level || null,
-              difficultyTier: c.difficulty_tier || 1,
-            };
-          }
-          if (!cancelled) setConceptMeta(meta);
-        } catch (_) { /* metadata is optional enhancement */ }
-
-        if (!cancelled) {
-          setConcepts(conceptsFromApi);
+        if (!dead) {
+          setConcepts(ca);
           setRows(out);
+          setRawScores(sr);
         }
       } catch (err) {
-        if (!cancelled) {
+        if (!dead) {
           setConcepts([]);
           setRows([]);
+          setRawScores({});
           setError(err.response?.data?.message || 'Failed to load heatmap data.');
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!dead) setLoading(false);
       }
     };
     load();
-    return () => { cancelled = true };
+    return () => { dead = true; };
   }, [sectionId]);
 
-  const toggleTrack = (ka) => {
-    setCollapsedTracks(prev => ({ ...prev, [ka]: !prev[ka] }));
-  };
+  /* ── Difficulty-driven column sorting ─────────────────────────────────
+     Calculate mean CDS per concept across all students.
+     Sort ascending: easiest concepts left, hardest right.
+     ──────────────────────────────────────────────────────────────────── */
+  const sortedConcepts = useMemo(() => {
+    if (!concepts.length || !rows.length) return concepts;
 
-  /* ── Track average for a collapsed group ─────────────────────────── */
-  const trackAverage = (row, trackConcepts) => {
-    const vals = trackConcepts
-      .map(c => row.scores[c])
-      .filter(v => v != null)
-      .map(v => Math.round(v * 100));
-    if (vals.length === 0) return null;
-    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-  };
+    const meanCDS = {};
+    for (const c of concepts) {
+      const vals = rows
+        .map(r => r.scores[c])
+        .filter(v => v != null && v > 0)
+        .map(v => Number(v));
+      meanCDS[c] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    }
 
-  /* ── render ──────────────────────────────────────────────────────── */
+    return [...concepts].sort((a, b) => meanCDS[a] - meanCDS[b]);
+  }, [concepts, rows]);
+
+  /* ── Initialize column order from sorted concepts ──────────────────── */
+  useEffect(() => {
+    if (sortedConcepts.length > 0 && columnOrder.length === 0) {
+      setColumnOrder(sortedConcepts);
+    }
+  }, [sortedConcepts, columnOrder.length]);
+
+  /* ── Column reorder via drag-swap ──────────────────────────────────── */
+  const handleColumnSwap = useCallback((fromIdx, toIdx) => {
+    setColumnOrder(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, []);
+
+  /* ── Filtered rows by search ───────────────────────────────────────── */
+  const filteredRows = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.toLowerCase();
+    return rows.filter(r => r.name.toLowerCase().includes(q));
+  }, [rows, search]);
+
+  /* ── Tooltip handlers ──────────────────────────────────────────────── */
+  const handleCellHover = useCallback((e, studentName, concept, cds, raw) => {
+    setTooltip({
+      x: e.clientX,
+      y: e.clientY,
+      data: { student: studentName, concept, cds, raw },
+      visible: true,
+    });
+  }, []);
+
+  const handleCellLeave = useCallback(() => {
+    setTooltip(prev => ({ ...prev, visible: false }));
+  }, []);
+
+  /* ── Active columns list (draggable order) ─────────────────────────── */
+  const activeColumns = columnOrder.length ? columnOrder : sortedConcepts;
+
+  /* ════════════════════════════════════════════════════════════════════════
+     RENDER
+     ════════════════════════════════════════════════════════════════════════ */
   return (
     <div className="flex flex-col grow h-full w-full">
-      {/* Page header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-4">
+      {/* ── Page Header ─────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Class Heatmap</h1>
-          <p className="text-muted-foreground">
-            CDS struggle index grouped by conceptual track. Click track headers to collapse.
+          <h1 className="text-xl font-bold tracking-tight text-white/90">
+            Concept Difficulty Heatmap
+          </h1>
+          <p className="text-xs text-white/40">
+            Dense mosaic — CDS struggle index across all concepts. Columns sorted easiest → hardest.
           </p>
         </div>
         <SectionFilter value={sectionId} onChange={setSectionId} />
       </div>
 
-      {/* Card */}
-      <Card className="flex flex-col flex-1 min-h-0 w-full overflow-hidden">
-        <CardHeader className="pb-3 flex-shrink-0">
-          <CardTitle>Concept × Student — Struggle Index</CardTitle>
-        </CardHeader>
+      {/* ── Glass Panel ─────────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 min-h-0 w-full backdrop-blur-md bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 flex-shrink-0">
+          <span className="text-[11px] font-medium text-white/50 uppercase tracking-wider">
+            Student × Concept — Struggle Index
+          </span>
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Search student…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-7 w-40 text-[11px] bg-white/5 border-white/10 text-white/80 placeholder:text-white/30"
+            />
+            <Legend />
+          </div>
+        </div>
 
-        <CardContent className="flex-1 min-h-0 p-0 flex flex-col">
+        {/* Content */}
+        <div className="flex flex-col flex-1 min-h-0">
           {loading ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">
-              <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+            <div className="py-16 text-center text-white/40 text-sm">
+              <div className="animate-spin h-5 w-5 border-2 border-white/10 border-t-white/40 rounded-full mx-auto mb-3" />
               Loading heatmap…
             </div>
           ) : error ? (
             <div className="py-16 text-center">
-              <p className="text-sm text-destructive font-medium">{error}</p>
-              <p className="text-xs text-muted-foreground mt-1">Try selecting a different section or refresh the page.</p>
+              <p className="text-sm text-rose-400 font-medium">{error}</p>
+              <p className="text-xs text-white/30 mt-1">Try selecting a different section or refresh.</p>
             </div>
           ) : rows.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">
+            <div className="py-16 text-center text-white/40 text-sm">
               <p>No heatmap data available for this selection.</p>
-              <p className="text-xs mt-1">Students must have CDS scores computed to appear here.</p>
+              <p className="text-xs mt-1 text-white/25">Students must have CDS scores computed to appear here.</p>
             </div>
           ) : (
-            <>
-              {/* Table area */}
-              <div className="flex-1 min-h-0 overflow-auto custom-scroll">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    {/* TIER 1: Track headers (knowledge areas) */}
-                    <tr className="bg-muted/20">
-                      <th
-                        className="sticky left-0 z-30 bg-muted/30 text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-r border-border/50"
-                        style={{ minWidth: 160 }}
-                      >
-                        Student
-                      </th>
-                      {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
-                        const isCollapsed = collapsedTracks[ka];
-                        const label = KA_LABELS[ka] || ka;
-                        return (
-                          <th
-                            key={ka}
-                            colSpan={Math.max(1, isCollapsed ? 1 : trackConcepts.length)}
-                            className="px-2 py-2 text-center border-b border-border/40 cursor-pointer select-none hover:bg-muted/40 transition-colors group"
-                            onClick={() => toggleTrack(ka)}
-                          >
-                            <div className="flex items-center justify-center gap-1.5 min-w-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground transition-colors truncate whitespace-nowrap max-w-[120px]">
-                                {label}
-                              </span>
-                              <span className="text-[9px] text-muted-foreground/60 transition-transform group-hover:scale-110 shrink-0">
-                                {isCollapsed ? '▸' : '▾'}
-                              </span>
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-
-                    {/* TIER 2: Concept sub-headers — every row includes cells for ALL tracks */}
-                    <tr className="bg-muted/5">
-                      <th
-                        className="sticky left-0 z-20 bg-muted/10 px-4 py-1 border-b border-r border-border/30"
-                        style={{ minWidth: 160 }}
+            /* ── Dense Mosaic Grid ─────────────────────────────────── */
+            <div className="flex-1 min-h-0 overflow-x-auto whitespace-nowrap scrollbar-thin px-2 pb-2 pt-1">
+              <table
+                className="border-collapse"
+                style={{ tableLayout: 'fixed' }}
+              >
+                <thead className="sticky top-0 z-20">
+                  <tr>
+                    {/* Frozen student column header */}
+                    <th
+                      className="sticky left-0 z-30 bg-slate-950/90 backdrop-blur-md
+                                 text-left px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider
+                                 text-white/40 border-b border-r border-white/5 h-28"
+                      style={{ minWidth: 120, width: 120 }}
+                    >
+                      Student
+                    </th>
+                    {/* Flat draggable concept column headers — no nesting */}
+                    {activeColumns.map((c, idx) => (
+                      <DraggableColumnHeader
+                        key={c}
+                        concept={c}
+                        index={idx}
+                        onSwap={handleColumnSwap}
+                        totalColumns={activeColumns.length}
                       />
-                      {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
-                        const isCollapsed = collapsedTracks[ka];
-                        return (
-                          <Fragment key={`sub-${ka}`}>
-                            {isCollapsed ? (
-                              // Placeholder cell for collapsed track (keeps column alignment)
-                              <th
-                                key={ka}
-                                className="px-2 py-1 text-center text-[9px] text-muted-foreground/40 border-b border-border/10 cursor-pointer select-none"
-                                onClick={() => toggleTrack(ka)}
-                              >
-                                {KA_LABELS[ka] || ka}
-                              </th>
-                            ) : (
-                              trackConcepts.map((c) => (
-                                <th
-                                  key={c}
-                                  className="px-1 py-1 text-center text-[10px] font-medium text-muted-foreground whitespace-nowrap border-b border-border/20 truncate max-w-[70px]"
-                                  title={conceptMeta[c]?.bloomLevel || ''}
-                                >
-                                  {c}
-                                </th>
-                              ))
-                            )}
-                          </Fragment>
-                        );
-                      })}
-                    </tr>
-                  </thead>
+                    ))}
+                  </tr>
+                </thead>
 
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr
+                <AnimatePresence mode="popLayout">
+                  <motion.tbody
+                    key={activeColumns.join(',')}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {filteredRows.map((row, ri) => (
+                      <motion.tr
                         key={row.studentId}
-                        className={`transition-colors duration-150 ${
+                        initial={{ opacity: 0, y: 3 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.15, delay: Math.min(ri * 0.01, 0.3) }}
+                        className={cn(
+                          'transition-opacity duration-75',
                           hoveredRow === row.studentId
-                            ? 'bg-accent/30'
+                            ? 'bg-white/[0.04]'
                             : hoveredRow
-                              ? 'opacity-60'
-                              : ''
-                        }`}
+                              ? 'opacity-50'
+                              : '',
+                        )}
                         onMouseEnter={() => setHoveredRow(row.studentId)}
                         onMouseLeave={() => setHoveredRow(null)}
                       >
-                        {/* Sticky student name */}
+                        {/* Frozen student name cell */}
                         <td
-                          className="sticky left-0 z-10 bg-card px-4 py-1 font-medium whitespace-nowrap border-r border-border/40 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.15)]"
-                          style={{ minWidth: 160 }}
+                          className="sticky left-0 z-10 bg-slate-950/90 backdrop-blur-md
+                                     px-2 py-0.5 font-medium whitespace-nowrap border-r border-white/5
+                                     shadow-[3px_0_6px_-3px_rgba(0,0,0,0.4)]"
+                          style={{ minWidth: 120, width: 120 }}
                         >
-                          {row.name}
+                          <span className="text-[10px] text-white/80 truncate block">{row.name}</span>
                         </td>
 
-                        {/* Data cells grouped by track */}
-                        {Object.entries(groupedConcepts).map(([ka, trackConcepts]) => {
-                          const isCollapsed = collapsedTracks[ka];
-                          if (isCollapsed) {
-                            const avg = trackAverage(row, trackConcepts);
-                            return (
-                              <td key={`avg-${ka}`} className="p-0.5 border-r border-border/5">
-                                <Cell cdsPct={avg} />
-                              </td>
-                            );
-                          }
-                          return trackConcepts.map((c) => (
-                            <td key={c} className="p-0.5">
-                              <Cell cdsPct={row.scores[c] != null ? Math.round(row.scores[c] * 100) : null} />
+                        {/* Flat mosaic cells — every intersection filled */}
+                        {activeColumns.map((c) => {
+                          const val = row.scores[c] != null ? Number(row.scores[c]) : null;
+                          const detail = rawScores[row.studentId]?.[c];
+                          return (
+                            <td key={c} className="p-0 m-0">
+                              <Cell
+                                cds={val}
+                                onHover={(e) => handleCellHover(
+                                  e,
+                                  row.name,
+                                  c,
+                                  val != null ? Number(val).toFixed(2) : '—',
+                                  detail ? { ner: detail.ner, nrs: detail.nrs, nts: detail.nts } : null,
+                                )}
+                                onLeave={handleCellLeave}
+                              />
                             </td>
-                          ));
+                          );
                         })}
-                      </tr>
+                      </motion.tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Legend */}
-              <div className="flex-shrink-0 px-4 pb-3 pt-1 border-t border-border/30">
-                <Legend />
-              </div>
-            </>
+                  </motion.tbody>
+                </AnimatePresence>
+              </table>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* ── Portal Tooltip Overlay ──────────────────────────────────── */}
+      <PortalTooltip {...tooltip} />
     </div>
   );
 }

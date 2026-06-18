@@ -1,76 +1,39 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
   TrendingUp,
   TrendingDown,
   Minus,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-} from "recharts";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import InsightHeader from "@/components/ui/insight-header";
-import EvidenceRow from "@/components/ui/evidence-row";
 import PeriodSelector from "@/components/ui/period-selector";
+import GlassDivider from "@/components/ui/glass-divider";
+import GlassPanel, {
+  GlassPanelHeader,
+  GlassPanelTitle,
+  GlassPanelContent,
+} from "@/components/ui/glass-panel";
+import MasteryBar, { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import StudentDashboardShell from "@/components/student-dashboard-shell";
+import EmptyState from "@/components/ui/empty-state";
+import JoinSectionGate from "@/components/join-section-gate";
+import useHasSections from "@/hooks/useHasSections";
 import api from "@/services/api";
 import { cn } from "@/lib/utils";
 
 const PERIOD_OPTIONS = ["7d", "30d", "90d", "All"];
 
 /**
- * METRIC SEMANTICS (documented so future changes don't reintroduce confusion):
- *
+ * METRIC SEMANTICS:
  * CDS (Concept Difficulty Score) — lower is BETTER.
- *   0–25 = Low Difficulty (good)
- *   26–50 = Moderate
- *   51–75 = High
- *   76–100 = Critical
- *
- * Mastery = 100 − CDS — higher is BETTER.
- *   Direct inverse of difficulty. A student with CDS 0.56 has mastery 44%.
- *
- * Completion = completed exercises / assigned exercises — activity metric.
- *   Does NOT imply understanding. A student can submit everything with
- *   heavy struggle and still have low mastery.
- *
- * Progress = change in mastery over time. A snapshot is NOT progress.
+ * Mastery = 100 - CDS — higher is BETTER.
+ * Completion = completed exercises / assigned exercises.
+ * Progress = change in mastery over time.
  */
-
-const FILL_TONE = {
-  strong:         "bg-success",
-  developing:     "bg-warning",
-  needs_support:  "bg-destructive",
-};
-
-const LEVEL_LABELS = {
-  strong:         "Strong",
-  developing:     "Developing",
-  needs_support:  "Needs Support",
-};
-
-const HEAT_TONE = [
-  "bg-muted/30",
-  "bg-success/20",
-  "bg-success/45",
-  "bg-success/70",
-  "bg-success",
-];
-
-const TRIGGER_BASE =
-  "rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3";
 
 function trendIcon(delta) {
   if (delta > 0) return <TrendingUp className="h-3 w-3" strokeWidth={2} aria-hidden="true" />;
@@ -79,45 +42,34 @@ function trendIcon(delta) {
 }
 
 function trendTone(delta) {
-  if (delta === 0) return "text-muted-foreground";
-  return delta > 0 ? "text-success" : "text-destructive";
+  if (delta === 0) return "text-muted-foreground/50";
+  return delta > 0 ? "text-emerald-400" : "text-rose-400";
 }
 
-function monthLabel(weekIdx) {
-  const today = new Date();
-  const HEAT_WEEKS = 12;
-  const start = new Date(today);
-  start.setDate(today.getDate() - (HEAT_WEEKS - 1 - weekIdx) * 7);
-  return start.toLocaleDateString("en-US", { month: "short" });
-}
+/* ── Stagger config ──────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+};
 
-function formatTimeAgo(dateStr) {
-  if (!dateStr) return '';
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffSec = Math.round((now - then) / 1000);
-  if (diffSec < 60) return 'just now';
-  const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.round(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDay = Math.round(diffHour / 24);
-  if (diffDay === 1) return 'yesterday';
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
 
 export default function StudentProgress() {
+  const { hasSections, checking, recheck } = useHasSections();
   const [period, setPeriod] = useState("30d");
-  const [tab, setTab] = useState("mastery");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refetching, setRefetching] = useState(false);
+  const [fetchKey, setFetchKey] = useState(0);
 
-  const days = period === 'All' ? 365 : parseInt(period.replace('d', ''), 10) || 30;
+  const days = period === "All" ? 365 : parseInt(period.replace("d", ""), 10) || 30;
 
   useEffect(() => {
+    if (hasSections === null || !hasSections) return;
     let cancelled = false;
     const load = async () => {
       setLoading(true);
@@ -125,28 +77,46 @@ export default function StudentProgress() {
         const res = await api.get(`/api/student/progress?days=${days}`);
         if (!cancelled) setData(res.data);
       } catch (err) {
-        if (!cancelled) setError(err.response?.data?.error || 'Failed to load progress');
+        if (!cancelled) setError(err.response?.data?.error || "Failed to load progress");
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
-  }, [days]);
+  }, [hasSections, fetchKey, days]);
 
-  // ---------- Metric decomposition ----------
-  const overallMastery = data?.overallMastery ?? 0;    // CDS-based understanding
-  const completion = data?.completion;                  // activity metric
+  const handleJoined = () => {
+    recheck();
+    setFetchKey((k) => k + 1);
+  };
+
+  if (checking) {
+    return (
+      <StudentDashboardShell
+        breadcrumb={[
+          { label: "Student", href: "/student/dashboard" },
+          { label: "Progress" },
+        ]}
+        subtitle="Mastery, completion, and submissions over the selected window."
+      >
+        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading progress...</div>
+      </StudentDashboardShell>
+    );
+  }
+
+  if (!hasSections) {
+    return <JoinSectionGate onJoined={handleJoined} />;
+  }
+
+  const overallMastery = data?.overallMastery ?? 0;
+  const completion = data?.completion;
   const completionPct = completion?.percentage ?? 0;
   const completedEx = completion?.completed ?? 0;
   const totalEx = completion?.total ?? 0;
-  const streak = data?.streak?.current ?? 0;
   const avgAttempts = data?.avgAttempts ?? 0;
   const concepts = data?.concepts ?? [];
-  const heatData = data?.activity?.data ?? [];
-  const submissions = data?.submissions ?? [];
 
-  // Weakest concept = lowest mastery (= highest difficulty)
   const weakest = concepts.length > 0
     ? [...concepts].sort((a, b) => a.mastery - b.mastery)[0]
     : null;
@@ -160,543 +130,167 @@ export default function StudentProgress() {
       subtitle="Mastery, completion, and submissions over the selected window."
       action={
         <div className="flex items-center gap-3">
-          <span
-            className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground"
-          >
-            <RefreshCw className={cn('h-3 w-3', refetching && 'animate-spin')} />
-            {loading ? 'Loading…' : `${concepts.length} concepts · ${completedEx}/${totalEx} done`}
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+            <RefreshCw className={cn("h-3 w-3", refetching && "animate-spin")} />
+            {loading ? "Loading…" : `${concepts.length} concepts · ${completedEx}/${totalEx} done`}
           </span>
-          <PeriodSelector
-            value={period}
-            onChange={(p) => { setPeriod(p); }}
-            options={PERIOD_OPTIONS}
-          />
+          <PeriodSelector value={period} onChange={setPeriod} options={PERIOD_OPTIONS} />
         </div>
       }
     >
       {loading ? (
-        <div className="py-12 text-center text-muted-foreground">Loading progress…</div>
+        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading progress...</div>
       ) : error ? (
-        <div className="py-12 text-center text-destructive">{error}</div>
+        <div className="py-16 text-center text-rose-400 text-sm">{error}</div>
       ) : (
-        <>
-          {/* ---------- Trajectory / Insight ---------- */}
-          <InsightHeader
-            eyebrow="Trajectory"
-            insight={
-              weakest
-                ? `${weakest.concept_name} needs attention at ${weakest.mastery}% mastery. Your overall mastery is ${overallMastery}%.`
-                : `Your mastery is ${overallMastery}% across ${concepts.length} concept${concepts.length !== 1 ? 's' : ''}.`
-            }
-            description={
-              weakest
-                ? `Difficulty score: ${weakest.cds.toFixed(2)} · Targets: ${weakest.concept_name}`
-                : `${streak} day streak${streak !== 1 ? 's' : ''} · Avg attempts: ${avgAttempts.toFixed(1)} per exercise`
-            }
-            action={
-              <Button asChild size="sm" className="font-medium">
-                <Link to="/student/exercises">
-                  Practice weakest concept
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-                </Link>
-              </Button>
-            }
-          />
+        <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+          {/* ═══════════════════════════════════════════════════════════
+              SECTION 1 — TRAJECTORY BANNER (glowing accent border)
+             ═══════════════════════════════════════════════════════════ */}
+          <motion.section
+            variants={fadeUp}
+            className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl"
+          >
+            {/* Ambient glow line at top */}
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-teal-400/60 to-transparent" />
 
-          {/* ---------- Evidence chips ---------- */}
-          <EvidenceRow
-            chips={[
-              {
-                label: "Mastery",
-                value: `${overallMastery}%`,
-                delta: 0,
-                series: [],
-                comparison: "concept understanding",
-              },
-              {
-                label: "Completion",
-                value: `${completionPct}%`,
-                delta: completedEx,
-                series: [],
-                comparison: `${totalEx} exercises total`,
-              },
-              {
-                label: "Streak",
-                value: `${streak}d`,
-                delta: 0,
-                series: [],
-                comparison: "consecutive days",
-              },
-              {
-                label: "Avg Attempts",
-                value: avgAttempts.toFixed(1),
-                delta: 0,
-                series: [],
-                comparison: "per exercise",
-              },
-            ]}
-          />
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between px-6 py-5">
+              <div className="min-w-0 space-y-1.5">
+                <p className="metric-label flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-teal-400" />
+                  Trajectory
+                </p>
+                <h2 className="text-lg font-semibold text-foreground leading-snug">
+                  {weakest
+                    ? `${weakest.concept_name} needs attention at ${weakest.mastery ?? 0}% mastery. Your overall mastery is ${overallMastery}%.`
+                    : `Your mastery is ${overallMastery}% across ${concepts.length} concept${concepts.length !== 1 ? "s" : ""}.`}
+                </h2>
+                <p className="text-sm text-muted-foreground/60">
+                  {weakest
+                    ? `Difficulty score: ${(weakest.cds ?? 0).toFixed(2)} · Targets: ${weakest.concept_name}`
+                    : `Avg attempts: ${avgAttempts.toFixed(1)} per exercise`}
+                </p>
+              </div>
 
-          {/* ---------- Tabs ---------- */}
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="inline-flex h-10 items-center gap-0 bg-transparent p-0 border-b border-border rounded-none w-full justify-start">
-              <TabsTrigger value="mastery"     className={TRIGGER_BASE}>Mastery</TabsTrigger>
-              <TabsTrigger value="activity"    className={TRIGGER_BASE}>Activity</TabsTrigger>
-              <TabsTrigger value="submissions" className={TRIGGER_BASE}>Submissions</TabsTrigger>
-            </TabsList>
+              {/* Floating action button with ambient glow */}
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="shrink-0">
+                <Button
+                  asChild
+                  className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300"
+                >
+                  <Link to="/student/exercises">
+                    Practice weakest concept
+                    <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
+                  </Link>
+                </Button>
+              </motion.div>
+            </div>
+          </motion.section>
 
-            <TabsContent value="mastery" className="mt-6">
-              <MasteryTab concepts={concepts} />
-            </TabsContent>
-            <TabsContent value="activity" className="mt-6">
-              <ActivityTab heatData={heatData} submissions={submissions} />
-            </TabsContent>
-            <TabsContent value="submissions" className="mt-6">
-              <SubmissionsTab submissions={submissions} />
-            </TabsContent>
-          </Tabs>
-        </>
+          {/* ═══════════════════════════════════════════════════════════
+              SECTION 2 — FLOATING MICRO-METRICS (typography-first)
+             ═══════════════════════════════════════════════════════════ */}
+          <motion.div
+            variants={fadeUp}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]"
+          >
+            {[
+              { label: "Mastery", value: `${overallMastery}%`, sub: "concept understanding", accent: "text-teal-400" },
+              { label: "Completion", value: `${completionPct}%`, sub: `${completedEx}/${totalEx} exercises`, accent: "text-emerald-400" },
+              { label: "Avg Attempts", value: avgAttempts.toFixed(1), sub: "per exercise", accent: "text-amber-400" },
+            ].map((m) => (
+              <div
+                key={m.label}
+                className="relative flex flex-col gap-1 px-6 py-5 bg-white/[0.02] backdrop-blur-xl"
+              >
+                <span className="metric-label">{m.label}</span>
+                <span className={cn("text-4xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
+                  {m.value}
+                </span>
+                <span className="text-[11px] text-muted-foreground/50">{m.sub}</span>
+              </div>
+            ))}
+          </motion.div>
+
+          <GlassDivider />
+
+          {/* ═══════════════════════════════════════════════════════════
+              SECTION 3 — PER-CONCEPT MASTERY (neon tracks)
+             ═══════════════════════════════════════════════════════════ */}
+          <motion.section variants={fadeUp}>
+            {concepts.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16 text-center text-muted-foreground/60 text-sm">
+                No concept data yet. Complete some exercises to see your mastery profile.
+              </div>
+            ) : (
+              <GlassPanel interactive>
+                <GlassPanelHeader>
+                  <div className="flex items-center gap-2">
+                    <GlassPanelTitle>Per-Concept Mastery</GlassPanelTitle>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                      {concepts.length} tracked concept{concepts.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </GlassPanelHeader>
+                <GlassPanelContent className="p-0">
+                  <ul>
+                    {concepts.map((c, i) => {
+                      const cds = c.cds ?? (1 - (c.mastery ?? 0) / 100);
+                      const tier = tierForCds(cds);
+                      const meta = TIER_META[tier];
+                      return (
+                        <li key={c.concept_code}>
+                          <motion.div
+                            whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                            transition={{ duration: 0.15 }}
+                            className={cn(
+                              "grid grid-cols-[1fr_auto_auto] items-center gap-4 px-6 py-4",
+                              i < concepts.length - 1 && "border-b border-white/[0.04]"
+                            )}
+                          >
+                            {/* Name + bar */}
+                            <div className="min-w-0 space-y-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-sm font-medium text-foreground truncate">
+                                  {c.concept_name}
+                                </span>
+                                <span className="flex items-center gap-1.5 shrink-0">
+                                  <span className={cn("w-1.5 h-1.5 rounded-full", meta.dot)} />
+                                  <span className={cn("text-[10px] font-medium uppercase tracking-wider", meta.text)}>
+                                    {meta.label}
+                                  </span>
+                                </span>
+                              </div>
+                              <MasteryBar percent={c.mastery ?? 0} tier={tier} delay={i * 0.08} />
+                            </div>
+
+                            {/* Percentage */}
+                            <span className="text-sm font-mono tabular-nums text-foreground font-semibold">
+                              {c.mastery ?? 0}%
+                            </span>
+
+                            {/* Delta */}
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 text-xs font-mono tabular-nums w-12 justify-end",
+                                trendTone(c.delta ?? 0)
+                              )}
+                            >
+                              {trendIcon(c.delta ?? 0)}
+                              {(c.delta ?? 0) > 0 ? "+" : ""}
+                              {c.delta ?? 0}
+                            </span>
+                          </motion.div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </GlassPanelContent>
+              </GlassPanel>
+            )}
+          </motion.section>
+        </motion.div>
       )}
     </StudentDashboardShell>
-  );
-}
-
-// ============================================================================
-// Mastery tab — radar = mastery footprint (larger = better)
-// ============================================================================
-function MasteryTab({ concepts }) {
-  // Radar plots mastery (100 - CDS), so larger area = better performance.
-  // This matches the progress bars where wider = better.
-  const radarData = useMemo(
-    () => concepts.map((c) => ({ subject: c.concept_code, mastery: c.mastery, name: c.concept_name })),
-    [concepts],
-  );
-
-  if (concepts.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          No concept data yet. Complete some exercises to see your mastery profile.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      <Card className="lg:col-span-3">
-        <CardHeader className="pb-3 border-b border-border">
-          <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Coverage
-            </p>
-            <CardTitle className="text-sm font-semibold">
-              Concept Mastery Footprint · {concepts.length} tracked concepts
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart
-                data={radarData}
-                margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
-              >
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis
-                  dataKey="subject"
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                />
-                <PolarRadiusAxis
-                  domain={[0, 100]}
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                  stroke="hsl(var(--border))"
-                />
-                <Radar
-                  name="Mastery"
-                  dataKey="mastery"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.25}
-                  strokeWidth={1.5}
-                  isAnimationActive={false}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="lg:col-span-2">
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-sm font-semibold">Per-Concept Mastery</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ul className="divide-y divide-border">
-            {concepts.map((c) => {
-              const fillTone = FILL_TONE[c.level] ?? "bg-primary";
-              const levelLabel = LEVEL_LABELS[c.level] ?? c.level;
-              return (
-                <li
-                  key={c.concept_code}
-                  className="grid grid-cols-[1fr_3.5rem_3rem] items-center gap-3 px-4 py-3"
-                >
-                  <div className="min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium truncate">{c.concept_name}</span>
-                      <LevelPill level={levelLabel} toneKey={c.level} />
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={cn("h-full rounded-full transition-all", fillTone)}
-                        style={{ width: `${c.mastery}%` }}
-                        aria-hidden="true"
-                      />
-                    </div>
-                  </div>
-                  <span className="text-sm font-mono tabular-nums text-right">
-                    {c.mastery}%
-                  </span>
-                  <span
-                    className={cn(
-                      "inline-flex items-center justify-end gap-1 text-xs font-mono tabular-nums",
-                      trendTone(c.delta ?? 0),
-                    )}
-                  >
-                    {trendIcon(c.delta ?? 0)}
-                    {(c.delta ?? 0) > 0 ? "+" : ""}
-                    {c.delta ?? 0}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function LevelPill({ level, toneKey }) {
-  const tone = {
-    strong:         "bg-success/10 text-success border border-success/20",
-    developing:     "bg-warning/10 text-warning border border-warning/20",
-    needs_support:  "bg-destructive/10 text-destructive border border-destructive/20",
-  }[toneKey] ?? "bg-muted text-muted-foreground border border-border";
-  return (
-    <span className={cn("shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", tone)}>
-      {level}
-    </span>
-  );
-}
-
-// ============================================================================
-// Activity tab
-// ============================================================================
-function ActivityTab({ heatData, submissions }) {
-  const HEAT_WEEKS = 12;
-  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  const flat = heatData.flat();
-  const totalSubmissions = flat.reduce((s, v) => s + v, 0);
-  const activeDays = flat.filter((v) => v > 0).length;
-  const bestDay = flat.length > 0 ? flat.reduce((max, v) => Math.max(max, v), 0) : 0;
-
-  if (totalSubmissions === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          No submission activity yet.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1 min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Activity
-              </p>
-              <CardTitle className="text-sm font-semibold">
-                Submissions · last 12 weeks
-              </CardTitle>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono tabular-nums shrink-0">
-              <span>
-                <span className="text-foreground font-medium">{totalSubmissions}</span> total
-              </span>
-              <span>
-                <span className="text-foreground font-medium">{activeDays}</span>/84 active days
-              </span>
-              <span>
-                <span className="text-foreground font-medium">{bestDay}</span> best day
-              </span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="overflow-x-auto">
-            <div className="inline-flex flex-col gap-1 min-w-full">
-              <div className="flex items-end gap-1 pl-9">
-                {heatData.map((_, w) => {
-                  const showLabel = w === 0 || monthLabel(w) !== monthLabel(w - 1);
-                  return (
-                    <div
-                      key={w}
-                      className="w-3.5 text-[10px] font-mono tabular-nums text-muted-foreground"
-                    >
-                      {showLabel ? monthLabel(w) : ""}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {DAYS.map((day, dIdx) => (
-                <div
-                  key={day}
-                  className="grid items-center gap-1"
-                  style={{ gridTemplateColumns: "2.25rem repeat(12, minmax(0, 0.875rem))" }}
-                >
-                  <div className="text-[10px] font-medium text-muted-foreground pr-1">
-                    {day}
-                  </div>
-                  {heatData.map((week, wIdx) => {
-                    const density = Math.min(4, week[dIdx] ?? 0);
-                    return (
-                      <div
-                        key={wIdx}
-                        className={cn(
-                          "h-3.5 w-3.5 rounded-sm border border-border/40",
-                          HEAT_TONE[density],
-                        )}
-                        title={`${day} · week of ${monthLabel(wIdx)} · ${density} submission${density === 1 ? "" : "s"}`}
-                        aria-label={`${day} week of ${monthLabel(wIdx)} — ${density} submissions`}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-
-              <div className="flex items-center justify-end gap-2 pt-3">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Less
-                </span>
-                {HEAT_TONE.map((tone, i) => (
-                  <div
-                    key={i}
-                    className={cn("h-3 w-3.5 rounded-sm border border-border/40", tone)}
-                  />
-                ))}
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  More
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ============================================================================
-// Submissions tab
-// ============================================================================
-function SubmissionsTab({ submissions }) {
-  const [sort, setSort] = useState({ key: "submittedAt", dir: "desc" });
-  const rows = useMemo(() => applySort(submissions, sort), [submissions, sort]);
-
-  const onSort = (key) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: "asc" },
-    );
-  };
-
-  if (submissions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">
-          No submissions yet.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader className="pb-3 border-b border-border">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <CardTitle className="text-sm font-semibold">
-            Recent submissions · {submissions.length}
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">
-            Sorted by{" "}
-            <span className="font-medium text-foreground">{sort.key}</span>{" "}
-            ({sort.dir === "asc" ? "ascending" : "descending"})
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <SortableTable
-          columns={[
-            { key: "exercise", label: "Exercise", align: "left"  },
-            { key: "concept",  label: "Concept",    align: "left"  },
-            { key: "submittedAt", label: "Date",     align: "left"  },
-            { key: "score",    label: "Score",    align: "right" },
-            { key: "attempts", label: "Attempts", align: "right" },
-            { key: "status",   label: "Status",   align: "left"  },
-          ]}
-          sort={sort}
-          onSort={onSort}
-          rows={rows}
-          renderCell={renderSubmissionCell}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
-function renderSubmissionCell(col, row) {
-  if (col.key === "exercise") {
-    return (
-      <Link
-        to={`/student/exercises/${row.exerciseId}`}
-        className="text-sm font-medium hover:underline underline-offset-2"
-      >
-        {row.exercise}
-      </Link>
-    );
-  }
-  if (col.key === "concept") {
-    return <span className="text-sm text-muted-foreground">{row.concept}</span>;
-  }
-  if (col.key === "submittedAt") {
-    return <span className="text-sm text-muted-foreground">{formatTimeAgo(row.submittedAt)}</span>;
-  }
-  if (col.key === "score") {
-    const scorePct = row.score * 100;
-    return (
-      <span
-        className={cn(
-          "text-sm font-mono tabular-nums",
-          scorePct >= 70 ? "text-success" : scorePct >= 50 ? "text-warning" : "text-destructive",
-        )}
-      >
-        {scorePct.toFixed(0)}%
-      </span>
-    );
-  }
-  if (col.key === "attempts") {
-    return (
-      <span className="text-sm font-mono tabular-nums text-muted-foreground">
-        {row.attempts}
-      </span>
-    );
-  }
-  if (col.key === "status") {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-          row.isCorrect && "border-success/30 bg-success/10 text-success",
-          !row.isCorrect && "border-warning/30 bg-warning/10 text-warning",
-        )}
-      >
-        {row.isCorrect ? "Correct" : "Incorrect"}
-      </span>
-    );
-  }
-  return null;
-}
-
-// ============================================================================
-// Shared: SortableTable
-// ============================================================================
-function applySort(rows, sort) {
-  if (!sort.key) return rows;
-  const sorted = [...rows].sort((a, b) => {
-    const av = a[sort.key];
-    const bv = b[sort.key];
-    if (typeof av === "number" && typeof bv === "number") {
-      return sort.dir === "asc" ? av - bv : bv - av;
-    }
-    if (av instanceof Date && bv instanceof Date) {
-      return sort.dir === "asc" ? av - bv : bv - av;
-    }
-    return sort.dir === "asc"
-      ? String(av).localeCompare(String(bv))
-      : String(bv).localeCompare(String(av));
-  });
-  return sorted;
-}
-
-function SortHeader({ label, sortKey, sort, onSort, align = "left" }) {
-  const active = sort.key === sortKey;
-  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
-  return (
-    <button
-      type="button"
-      onClick={() => onSort(sortKey)}
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors",
-        align === "right" && "ml-auto",
-      )}
-    >
-      {label}
-      <Icon className="h-3 w-3" strokeWidth={1.5} />
-    </button>
-  );
-}
-
-function SortableTable({ columns, rows, sort, onSort, renderCell }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-muted/40">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn(
-                  "h-9 px-3 font-medium",
-                  col.align === "right" ? "text-right" : "text-left",
-                )}
-              >
-                <SortHeader
-                  label={col.label}
-                  sortKey={col.key}
-                  sort={sort}
-                  onSort={onSort}
-                  align={col.align}
-                />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-muted/30">
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={cn(
-                    "px-3 py-2.5",
-                    col.align === "right" ? "text-right" : "text-left",
-                  )}
-                >
-                  {renderCell(col, row)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }

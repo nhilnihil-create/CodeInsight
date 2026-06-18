@@ -12,7 +12,6 @@ describe('conceptAnalytics', function() {
     assert.strictEqual(typeof conceptAnalytics.computeCMI, 'function');
     assert.strictEqual(typeof conceptAnalytics.computeVelocity, 'function');
     assert.strictEqual(typeof conceptAnalytics.computeCRS, 'function');
-    assert.strictEqual(typeof conceptAnalytics.computeDifficultyIndex, 'function');
     assert.strictEqual(typeof conceptAnalytics.updateMetricsForSubmission, 'function');
     assert.strictEqual(typeof conceptAnalytics.getStudentCMI, 'function');
     assert.strictEqual(typeof conceptAnalytics.getSectionCRS, 'function');
@@ -45,11 +44,6 @@ describe('conceptAnalytics', function() {
 
     it('computeCRS returns 0 for non-existent section', async function() {
       const result = await conceptAnalytics.computeCRS(99999);
-      assert.strictEqual(result.updated, 0);
-    });
-
-    it('computeDifficultyIndex returns 0 for non-existent section', async function() {
-      const result = await conceptAnalytics.computeDifficultyIndex(99999);
       assert.strictEqual(result.updated, 0);
     });
 
@@ -96,17 +90,11 @@ describe('conceptAnalytics', function() {
       assert.ok(result.updated > 0, `Expected CRS updates, got ${result.updated}`);
     });
 
-    it('computeDifficultyIndex updates exercises', async function() {
-      const result = await conceptAnalytics.computeDifficultyIndex(TEST_SECTION);
-      assert.ok(result.updated > 0, `Expected difficulty index updates, got ${result.updated}`);
-    });
-
     it('computeAllMetrics runs all computations in transaction', async function() {
       const result = await conceptAnalytics.computeAllMetrics(TEST_SECTION);
       assert.ok(result.cmiUpdated >= 0);
       assert.ok(result.velocityUpdated >= 0);
       assert.ok(result.crsUpdated >= 0);
-      assert.ok(result.difficultyUpdated >= 0);
     });
 
     it('getStudentCMI returns structured data', async function() {
@@ -156,18 +144,6 @@ describe('conceptAnalytics', function() {
       }
     });
 
-    it('difficulty_index values are bounded [0, 1]', async function() {
-      const db = require('../config/db');
-      const result = await db.query(
-        `SELECT id, title, difficulty_index FROM exercises
-         WHERE section_id = $1 AND difficulty_index IS NOT NULL`,
-        [TEST_SECTION]
-      );
-      for (const row of result.rows) {
-        assert.ok(row.difficulty_index >= 0 && row.difficulty_index <= 1,
-          `difficulty_index for exercise ${row.id} is ${row.difficulty_index}`);
-      }
-    });
   });
 
   // ── ITP1 section tests ───────────────────────────────────────────

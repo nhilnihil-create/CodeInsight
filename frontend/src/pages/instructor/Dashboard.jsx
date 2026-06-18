@@ -4,9 +4,9 @@ import {
   Download,
   ArrowRight,
   ChevronDown,
-  BarChart3,
   ShieldAlert,
   TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -17,15 +17,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  BarChart,
-  Bar,
 } from "recharts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,25 +26,45 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import InsightHeader from "@/components/ui/insight-header";
-import EvidenceRow from "@/components/ui/evidence-row";
 import PeriodSelector from "@/components/ui/period-selector";
 import RiskBadge from "@/components/ui/risk-badge";
+import GlassPanel, {
+  GlassPanelHeader,
+  GlassPanelTitle,
+  GlassPanelContent,
+} from "@/components/ui/glass-panel";
+import GlassDivider from "@/components/ui/glass-divider";
+import MasteryBar, { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import SectionFilter from "@/components/SectionFilter";
 import EmptyState from "@/components/ui/empty-state";
+import InsightHeader from "@/components/ui/insight-header";
+import useLastSection from "@/hooks/useLastSection";
 import api from "@/services/api";
+import { cn } from "@/lib/utils";
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "hsl(var(--popover))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "6px",
+  backgroundColor: "rgba(19, 27, 46, 0.92)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "8px",
   fontSize: "12px",
-  color: "hsl(var(--popover-foreground))",
+  color: "hsl(215 32% 86%)",
+  backdropFilter: "blur(12px)",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+};
+
+/* ── Stagger config ──────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
 };
 
 export default function InstructorDashboard() {
   const [period, setPeriod] = useState("7d");
-  const [sectionId, setSectionId] = useState("all");
+  const [sectionId, setSectionId] = useLastSection();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -59,6 +72,7 @@ export default function InstructorDashboard() {
   const days = parseInt(period.replace("d", ""), 10) || 7;
 
   useEffect(() => {
+    if (sectionId == null) { setLoading(false); return; }
     let cancelled = false;
     const fetchData = async () => {
       setLoading(true);
@@ -80,9 +94,9 @@ export default function InstructorDashboard() {
 
   const handleExportCSV = () => {
     if (!data?.trend?.length) return;
-    const headers = ["Date", "CDS", "Mastery", "Engagement"];
+    const headers = ["Date", "CDS", "Mastery"];
     const rows = data.trend.map((r) =>
-      [r.date, r.cds, r.mastery, r.engagement].join(",")
+      [r.date, r.cds, r.mastery].join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -95,7 +109,7 @@ export default function InstructorDashboard() {
   };
 
   const handleExportExcel = async () => {
-    if (!sectionId || sectionId === "all") return;
+    if (!sectionId) return;
     try {
       const res = await api.get(`/api/sections/${sectionId}/export`, {
         responseType: "blob",
@@ -117,31 +131,30 @@ export default function InstructorDashboard() {
   const strugglingConcepts = data?.strugglingConcepts || [];
   const recentFlags = data?.recentFlags || [];
 
+  /* Derive micro-metrics from KPIs (fall back to raw data) */
+  const avgCDS = kpis.find((k) => k.label?.toLowerCase().includes("cds"))?.value ?? "--";
+  const avgMastery = kpis.find((k) => k.label?.toLowerCase().includes("mastery"))?.value ?? "--";
+  const studentCount = kpis.find((k) => k.label?.toLowerCase().includes("student"))?.value ?? "--";
+  const atRiskCount = kpis.find((k) => k.label?.toLowerCase().includes("risk"))?.value ?? "--";
+
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* ---------- PageHeader ---------- */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 space-y-2">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Class Status</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {sectionId === "all"
-                ? "Aggregated metrics across all your sections, updated live."
-                : "Aggregated metrics for this section, updated live."}
-            </p>
-          </div>
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 sm:space-y-6">
+      {/* ── Page Header ───────────────────────────────────────────── */}
+      <motion.div variants={fadeUp} className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Class Status
+          </h1>
+          <p className="text-sm text-muted-foreground/70">
+            Aggregated metrics for this section, updated live.
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
           <PeriodSelector value={period} onChange={setPeriod} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="font-medium"
-                disabled={!trendData.length}
-              >
+              <Button variant="ghost" size="sm" className="font-medium text-muted-foreground" disabled={!trendData.length}>
                 <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                 Export
                 <ChevronDown className="ml-1 h-3 w-3" strokeWidth={1.5} />
@@ -152,236 +165,183 @@ export default function InstructorDashboard() {
                 <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                 Export CSV
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleExportExcel}
-                disabled={sectionId === "all"}
-              >
+              <DropdownMenuItem onClick={handleExportExcel}>
                 <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                 Export Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
+      </motion.div>
+
+      {/* ── Insight Banner (glowing accent) ──────────────────── */}
+      <motion.section variants={fadeUp} className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between px-6 py-5">
+          <div className="min-w-0 space-y-1.5">
+            <p className="metric-label">Insight</p>
+            <h2 className="text-lg font-semibold text-foreground leading-snug">{insight}</h2>
+          </div>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="shrink-0">
+            <Button asChild className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300">
+              <Link to="/instructor/alerts">
+                Open intervention queue
+                <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
+              </Link>
+            </Button>
+          </motion.div>
+        </div>
+      </motion.section>
+
+      {/* ── Micro-Metrics Strip (floating typography-first) ─── */}
+      <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
+        {[
+          { label: "Avg CDS", value: avgCDS, accent: "text-rose-400" },
+          { label: "Avg Mastery", value: avgMastery, accent: "text-emerald-400" },
+          { label: "At Risk", value: atRiskCount, accent: "text-amber-400" },
+          { label: "Students", value: studentCount, accent: "text-sky-400" },
+        ].map((m) => (
+          <div key={m.label} className="flex flex-col gap-1 px-5 py-4 bg-white/[0.02] backdrop-blur-xl">
+            <span className="metric-label">{m.label}</span>
+            <span className={cn("text-3xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
+              {m.value}
+            </span>
+          </div>
+        ))}
+      </motion.div>
+
+      {/* ── Gradient Divider ─────────────────────────────────── */}
+      <GlassDivider />
 
       {loading ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Loading dashboard data…
-          </CardContent>
-        </Card>
+        <GlassPanel variant="dense">
+          <GlassPanelContent className="py-16 text-center text-muted-foreground/60 text-sm">
+            Loading dashboard data...
+          </GlassPanelContent>
+        </GlassPanel>
       ) : error ? (
-        <Card>
-          <CardContent className="py-12 text-center text-rose-400">
+        <GlassPanel variant="dense">
+          <GlassPanelContent className="py-16 text-center text-rose-400 text-sm">
             {error}
-          </CardContent>
-        </Card>
+          </GlassPanelContent>
+        </GlassPanel>
       ) : (
         <>
-          {/* ---------- Insight ---------- */}
-          <InsightHeader
-            insight={insight}
-            action={
-              <Button asChild size="sm" className="font-medium">
-                <Link to="/instructor/integrity">
-                  Open intervention queue
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-                </Link>
-              </Button>
-            }
-          />
-
-          {/* ---------- Evidence ---------- */}
-          <EvidenceRow chips={kpis} />
-
-          {/* ---------- Class trend ---------- */}
-          <Card>
-            <CardHeader className="pb-3 border-b border-border">
-              <CardTitle className="text-sm font-semibold">Class trend</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="h-64 w-full">
-                {trendData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={trendData}
-                      margin={{ top: 8, right: 12, bottom: 0, left: 8 }}
-                    >
-                      <CartesianGrid
-                        stroke="hsl(var(--border))"
-                        strokeDasharray="3 3"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                        axisLine={{ stroke: "hsl(var(--border))" }}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        domain={[0, 100]}
-                        tickFormatter={(v) => `${v}%`}
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={40}
-                      />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--muted))" }} />
-                      <Legend
-                        wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-                        iconType="circle"
-                        iconSize={8}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="cds"
-                        name="CDS"
-                        stroke="hsl(var(--destructive))"
-                        strokeWidth={2}
-                        dot={false}
-                        isAnimationActive={false}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="mastery"
-                        name="Mastery"
-                        stroke="hsl(var(--success))"
-                        strokeWidth={2}
-                        dot={false}
-                        isAnimationActive={false}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="engagement"
-                        name="Engagement"
-                        stroke="hsl(var(--info))"
-                        strokeWidth={2}
-                        dot={false}
-                        isAnimationActive={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <EmptyState
-                    icon={<TrendingUp />}
-                    title="No trend data yet"
-                    description="Submit some exercises and CDS metrics will populate this chart over time."
-                  />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ---------- Details grid ---------- */}
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-3 border-b border-border">
-                <CardTitle className="text-sm font-semibold">
-                  Top struggling concepts
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
+          {/* ── Class Trend Chart ────────────────────────────────── */}
+          <motion.div variants={fadeUp}>
+            <GlassPanel interactive>
+              <GlassPanelHeader>
+                <GlassPanelTitle>Class trend</GlassPanelTitle>
+              </GlassPanelHeader>
+              <GlassPanelContent>
                 <div className="h-64 w-full">
-                  {strugglingConcepts.length > 0 ? (
+                  {trendData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={strugglingConcepts}
-                        layout="vertical"
-                        margin={{ top: 4, right: 16, bottom: 0, left: 0 }}
-                        barCategoryGap={6}
-                      >
-                        <CartesianGrid
-                          stroke="hsl(var(--border))"
-                          strokeDasharray="3 3"
-                          horizontal={false}
-                        />
-                        <XAxis
-                          type="number"
-                          domain={[0, 100]}
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                          axisLine={{ stroke: "hsl(var(--border))" }}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                          axisLine={false}
-                          tickLine={false}
-                          width={130}
-                        />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
-                        <Bar
-                          dataKey="cds"
-                          name="CDS"
-                          fill="hsl(var(--destructive))"
-                          radius={[0, 4, 4, 0]}
-                          isAnimationActive={false}
-                        />
-                      </BarChart>
+                      <LineChart data={trendData} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
+                        <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} tickLine={false} />
+                        <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+                        <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
+                        <Line type="monotone" dataKey="cds" name="CDS" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="mastery" name="Mastery" stroke="#34d399" strokeWidth={2} dot={false} isAnimationActive={false} />
+                      </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <EmptyState
-                      icon={<BarChart3 />}
-                      title="No concept data yet"
-                      description="Student submissions will generate concept-level analytics here."
-                    />
+                    <EmptyState icon={<TrendingUp />} title="No trend data yet" description="Submit some exercises and CDS metrics will populate this chart over time." />
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </GlassPanelContent>
+            </GlassPanel>
+          </motion.div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
-                <CardTitle className="text-sm font-semibold">
-                  Recent integrity flags
-                </CardTitle>
-                <Button asChild variant="ghost" size="sm" className="text-xs font-medium">
+          {/* ── Gradient Divider ─────────────────────────────────── */}
+          <GlassDivider />
+
+          {/* ── Details Grid ─────────────────────────────────────── */}
+          <motion.div variants={fadeUp} className="grid gap-5 md:grid-cols-[1.2fr_1fr]">
+            {/* Struggling Concepts — neon bars */}
+            <GlassPanel interactive>
+              <GlassPanelHeader>
+                <GlassPanelTitle>Top struggling concepts</GlassPanelTitle>
+              </GlassPanelHeader>
+              <GlassPanelContent className="p-0">
+                {strugglingConcepts.length > 0 ? (
+                  <ul className="divide-y divide-white/[0.04]">
+                    {strugglingConcepts.map((c, i) => {
+                      const cds = (c.cds ?? c.value ?? 0) / 100;
+                      const tier = tierForCds(cds);
+                      const meta = TIER_META[tier];
+                      return (
+                        <li key={c.name}>
+                          <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[1fr_3.5rem] items-center gap-3 px-5 py-3.5">
+                            <div className="min-w-0 space-y-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium text-foreground truncate">{c.name}</span>
+                                <span className="flex items-center gap-1.5 shrink-0">
+                                  <span className={cn("w-1.5 h-1.5 rounded-full", meta.dot)} />
+                                  <span className={cn("text-[10px] font-medium uppercase tracking-wider", meta.text)}>{meta.label}</span>
+                                </span>
+                              </div>
+                              <MasteryBar percent={Math.round((1 - cds) * 100)} tier={tier} delay={i * 0.08} />
+                            </div>
+                            <span className="text-sm font-mono tabular-nums text-foreground font-semibold">{c.cds ?? c.value ?? 0}</span>
+                          </motion.div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="py-12">
+                    <EmptyState icon={<BarChart3 />} title="No concept data yet" description="Student submissions will generate concept-level analytics here." />
+                  </div>
+                )}
+              </GlassPanelContent>
+            </GlassPanel>
+
+            {/* Recent Integrity Flags */}
+            <GlassPanel interactive>
+              <GlassPanelHeader>
+                <GlassPanelTitle>Recent integrity flags</GlassPanelTitle>
+                <Button asChild variant="ghost" size="sm" className="text-xs font-medium text-muted-foreground">
                   <Link to="/instructor/integrity">
                     View all
                     <ArrowRight className="ml-1 h-3 w-3" strokeWidth={2} />
                   </Link>
                 </Button>
-              </CardHeader>
-              <CardContent className="pt-4">
+              </GlassPanelHeader>
+              <GlassPanelContent className="p-0">
                 {recentFlags.length > 0 ? (
-                  <ul className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm divide-y divide-border/40 overflow-hidden">
+                  <ul className="divide-y divide-white/[0.04]">
                     {recentFlags.map((flag) => (
                       <li key={flag.id}>
-                        <Link
-                          to="/instructor/integrity"
-                          className="flex items-center gap-3 px-4 h-16 transition-all duration-200 ease-out hover:bg-slate-900/80 hover:scale-[1.01]"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-foreground truncate">
-                              {flag.studentName}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {flag.flagType}{flag.exerciseTitle ? ` · ${flag.exerciseTitle}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs text-muted-foreground font-mono tabular-nums">
-                              {flag.timeAgo}
-                            </span>
-                            <RiskBadge level={flag.severity} />
-                          </div>
-                        </Link>
+                        <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.03)", scale: 1.005 }} transition={{ duration: 0.15 }}>
+                          <Link to="/instructor/integrity" className="flex items-center gap-3 px-5 h-14">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">{flag.studentName}</p>
+                              <p className="text-[11px] text-muted-foreground/60 truncate">
+                                {flag.flagType}{flag.exerciseTitle ? ` · ${flag.exerciseTitle}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <span className="text-[11px] text-muted-foreground/50 font-mono tabular-nums">{flag.timeAgo}</span>
+                              <RiskBadge level={flag.severity} />
+                            </div>
+                          </Link>
+                        </motion.div>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <EmptyState
-                    icon={<ShieldAlert />}
-                    title="All clear"
-                    description="No integrity flags detected. Student submissions are being monitored automatically."
-                  />
+                  <div className="py-12">
+                    <EmptyState icon={<ShieldAlert />} title="All clear" description="No integrity flags detected. Student submissions are being monitored automatically." />
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </GlassPanelContent>
+            </GlassPanel>
+          </motion.div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }

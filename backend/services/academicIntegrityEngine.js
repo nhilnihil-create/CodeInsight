@@ -1,12 +1,25 @@
-// Academic Integrity Engine - Implements five deterministic measures
+// Academic Integrity Engine - Implements deterministic measures
 // to detect potential academic integrity violations in code submissions.
+//
+// Per the research paper, the five integrity flags are:
+//   1. Hardcoding Detection
+//   2. Blank/Template-Only Submission Detection
+//   3. Behavioral Anomaly Detection (instant success, extreme speed)
+//   4. Code Growth Anomaly Detection (>30% spike between submissions)
+//   5. Passive Behavioral Logging (tab switching, paste events)
+//
+// Flags 3 and 5 are handled by behavioralAnomalyDetector.js.
+// This file handles flags 1 and 2. Flag 4 is in submissionController.js.
 
 const db = require('../config/db');
 
 /**
  * Check for hardcoding: detect if student outputs a literal constant instead of computing it.
- * For example, if the problem expects the student to compute 5+3 and output 8,
- * but the student just writes `cout << 8;` without performing the addition.
+ * Per the paper: "identifies submissions that produce correct output by using literals
+ * (static strings/values) instead of required variables or algorithms."
+ *
+ * Refinement: cross-references literal outputs against test case expected values
+ * to only flag when the hardcoded value IS the expected answer.
  *
  * @param {string} code - The student's submitted code
  * @param {object} exercise - The exercise object (contains starter_code, test_cases, etc.)
@@ -21,30 +34,67 @@ function checkHardcoding(code, exercise, submission) {
 
     if (matches.length === 0) return null;
 
-    // Check if code has any arithmetic operations that could compute values
+    // Extract student's hardcoded literal values
+    const literalValues = matches.map(m => m[1]);
+
+    // Cross-reference against test case expected outputs (if available)
+    const testCases = (exercise && exercise.test_cases) || [];
+    const expectedOutputs = testCases
+      .map(tc => (tc.expected || '').toString().trim())
+      .filter(Boolean);
+
+    // Check if any hardcoded literal matches an expected answer
+    const matchesExpected = expectedOutputs.length > 0
+      ? literalValues.some(val => expectedOutputs.some(exp => exp.includes(val)))
+      : null; // null = no test cases to compare against
+
+    // Check computation logic
     const hasOperations = /[\+\-\*\/\%\(\)]/g.test(code);
     const hasVariables = /\b(int|float|double|long|short)\s+\w+\s*=/g.test(code);
     const hasLoops = /(for|while|do)\s*[\({]/g.test(code);
     const hasConditionals = /(if|else|switch)\s*[\({]/g.test(code);
 
-    // Flag if: outputs literals but minimal computation logic
     const computationScore =
       (hasOperations ? 1 : 0) +
       (hasVariables ? 1 : 0) +
       (hasLoops ? 1 : 0) +
       (hasConditionals ? 1 : 0);
 
-    // If very few computation elements and multiple literal outputs, flag it
-    if (computationScore < 2 && matches.length >= 1) {
+    // Clear hardcoding: outputs literals with minimal computation
+    if (computationScore < 2 && !hasLoops) {
+      return {
+        type: 'HARDCODING',
+        severity: 'HIGH',
+        evidence: {
+          summary: matchesExpected === true
+            ? `Found ${matches.length} direct numeric output(s) matching expected answer with minimal computation logic`
+            : `Found ${matches.length} direct numeric output(s) with minimal computation logic`,
+          literalOutputCount: matches.length,
+          computationScore,
+          literalValues,
+          matchesExpectedOutput: matchesExpected,
+          confidence: matchesExpected === true ? 0.85 : 0.5,
+          innocent_explanation: matchesExpected === true
+            ? 'Student may have used a direct formula (e.g., n*(n+1)/2) instead of a loop. Computation score is heuristic and may not capture all valid approaches.'
+            : 'No test cases available to cross-reference. Hardcoded literals without expected output correlation are less suspicious.',
+        },
+      };
+    }
+
+    // Ambiguous: has loops but no variables, outputs literals
+    if (computationScore < 3 && hasLoops && !hasVariables) {
       return {
         type: 'HARDCODING',
         severity: 'MEDIUM',
-        evidence: `Found ${matches.length} direct numeric output(s) with minimal computation logic`,
-        context: {
+        evidence: {
+          summary: 'Outputs contain literals with loop present but no variables — suspicious computation pattern',
           literalOutputCount: matches.length,
           computationScore,
-          literalValues: matches.map(m => m[1])
-        }
+          literalValues,
+          matchesExpectedOutput: matchesExpected,
+          confidence: matchesExpected === true ? 0.6 : 0.35,
+          innocent_explanation: 'Student may be using a loop to print pre-computed values, or the exercise may only require literal output formatting. Loops with constants are not uncommon in introductory exercises.',
+        },
       };
     }
 
@@ -57,41 +107,46 @@ function checkHardcoding(code, exercise, submission) {
 
 /**
  * Check for blank/template-only submissions.
- * Compares the submitted code against the exercise's starter code.
+ * Per the paper: "flags attempts where the student has made no meaningful changes
+ * to the starter code."
  *
  * @param {string} code - The student's submitted code
  * @param {string} starterCode - The exercise's starter code
  * @returns {object|null} - Flag object if blank/template-only, null otherwise
  */
 function checkBlankTemplate(code, starterCode) {
-  // Normalize by trimming whitespace
   const normalizedCode = code.trim();
   const normalizedStarter = starterCode.trim();
 
-  // Consider it blank if it's truly empty (not just whitespace)
   if (normalizedCode === '' && normalizedStarter !== '') {
     return {
       type: 'BLANK_TEMPLATE',
       severity: 'HIGH',
-      evidence: 'Submission matches starter code or is empty',
-      context: { codeLength: code.length, starterCodeLength: starterCode.length },
+      evidence: {
+        summary: 'Submission is empty',
+        codeLength: code.length,
+        starterCodeLength: starterCode.length,
+        confidence: 1.0,
+        innocent_explanation: 'An empty submission is unambiguous. The student likely did not attempt the exercise.',
+      },
     };
   }
 
-  // Consider it blank if it's an exact match (including whitespace)
-  // But NOT if it only differs by whitespace
   if (normalizedCode === normalizedStarter) {
     if (code === starterCode) {
-      // Exact match (including whitespace) - flag as blank/template
       return {
         type: 'BLANK_TEMPLATE',
         severity: 'HIGH',
-        evidence: 'Submission matches starter code or is empty',
-        context: { codeLength: code.length, starterCodeLength: starterCode.length },
+        evidence: {
+          summary: 'Submission is identical to starter code',
+          codeLength: code.length,
+          starterCodeLength: starterCode.length,
+          confidence: 1.0,
+          innocent_explanation: 'Submitting starter code unchanged is an unambiguous violation. Whitespace-only changes are correctly excluded.',
+        },
       };
     } else {
-      // Only whitespace differences - do NOT flag as blank/template
-      return null;
+      return null; // Only whitespace differences — not a violation
     }
   }
 
@@ -99,307 +154,191 @@ function checkBlankTemplate(code, starterCode) {
 }
 
 /**
- * Check for behavioral anomaly: unusual speed + correct first try + high CDS history.
- * Uses z-score to detect statistically significant performance deviation.
+ * Extended hardcoding check — catches bypass techniques the basic check misses.
  *
- * @param {number} studentId - The student's ID
- * @param {number} exerciseId - The exercise ID
- * @param {object} submission - The current submission object
- * @param {object} cdsEngine - Reference to cdsEngine for historical CDS scores
- * @param {object} behavioralData - Behavioral telemetry (pasteCount, tabSwitchCount, etc.)
- * @returns {object|null} - Flag object if behavioral anomaly detected, null otherwise
+ * Detects these evasion patterns:
+ *   1. printf/puts with literal format strings that match expected output
+ *   2. putchar/fputc in a loop outputting expected string char by char
+ *   3. Return-value evasion (returning expected value as process exit code)
+ *   4. std::ostringstream with literal concatenation matching expected
+ *   5. String-based output via std::string constructor from literal
+ *
+ * @param {string} code - The student's submitted code
+ * @param {object} exercise - The exercise object (contains test_cases)
+ * @param {object} submission - The submission object
+ * @returns {object|null} - Flag object if hardcoding detected, null otherwise
  */
-async function checkBehavioralAnomaly(studentId, exerciseId, submission, cdsEngine, behavioralData) {
+function checkHardcodingExtended(code, exercise, submission) {
   try {
-    // BUG FIX #6: Check paste-based anomaly even without historical data
-    // If student pasted code (pasteCount > 0) and solved in < 30s, that's anomalous
-    // regardless of CDS history.
-    if (behavioralData && behavioralData.pasteCount > 0 &&
-        submission.time_spent_seconds !== null && submission.time_spent_seconds !== undefined &&
-        submission.time_spent_seconds < 30 &&
-        submission.is_correct === true) {
-      return {
-        type: 'PASTE_ON_CORRECT_SUBMISSION',
-        severity: 'HIGH',
-        evidence: `Code pasted (pasteCount=${behavioralData.pasteCount}) and solved in ${submission.time_spent_seconds}s`,
-        context: {
-          pasteCount: behavioralData.pasteCount,
-          timeSpentSeconds: submission.time_spent_seconds,
-          isFirstAttempt: submission.is_correct === true
-        }
-      };
-    }
+    const testCases = (exercise && exercise.test_cases) || [];
+    const expectedOutputs = testCases
+      .map(tc => (tc.expected || '').toString().trim())
+      .filter(Boolean);
 
-    // Check for excessive tab switching (indicates looking up solutions)
-    if (behavioralData && behavioralData.tabSwitchCount > 5 &&
-        submission.is_correct === true) {
-      return {
-        type: 'EXCESSIVE_TAB_SWITCHING',
-        severity: 'MEDIUM',
-        evidence: `${behavioralData.tabSwitchCount} tab switches before correct submission`,
-        context: {
-          tabSwitchCount: behavioralData.tabSwitchCount,
-          timeSpentSeconds: submission.time_spent_seconds
-        }
-      };
-    }
+    const hasOperations = /[\+\-\*\/\%\(\)]/g.test(code);
+    const hasVariables = /\b(int|float|double|long|short)\s+\w+\s*=/g.test(code);
+    const hasLoops = /(for|while|do)\s*[\({]/g.test(code);
+    const hasConditionals = /(if|else|switch)\s*[\({]/g.test(code);
 
-    // Original z-score based check (requires historical data)
-    // Query student's historical CDS scores on previous exercises (including stddev)
-    const historyRes = await db.query(
-      `SELECT
-         AVG(cds) as avg_cds,
-         STDDEV_POP(cds) as stddev_cds,
-         COUNT(*) as exercise_count
-       FROM cds_scores
-       WHERE student_id = $1 AND exercise_id != $2`,
-      [studentId, exerciseId]
-    );
+    const computationScore =
+      (hasOperations ? 1 : 0) +
+      (hasVariables ? 1 : 0) +
+      (hasLoops ? 1 : 0) +
+      (hasConditionals ? 1 : 0);
 
-    // Safety check: ensure query result exists
-    if (!historyRes || !historyRes.rows || historyRes.rows.length === 0) {
-      console.error('checkBehavioralAnomaly: Database query returned no results');
-      return null;
-    }
+    const flags = [];
 
-    const history = historyRes.rows[0];
-    if (!history || history.exercise_count < 3) {
-      // Need at least 3 data points for meaningful z-score
-      // Already handled paste/telemetry checks above
-      return null;
-    }
-
-    const avgHistoricalCds = parseFloat(history.avg_cds) || 0;
-    const stddevHistoricalCds = parseFloat(history.stddev_cds) || 0;
-    const exerciseCount = history.exercise_count;
-
-    // Avoid division by zero
-    if (stddevHistoricalCds === 0) {
-      return null;
-    }
-
-    // Current submission's CDS (if not available, calculate it using cdsEngine)
-    let currentCds = submission.cds;
-    if (currentCds === undefined || currentCds === null) {
-      // Calculate CDS for this submission if not provided
-      try {
-        const cdsResult = await cdsEngine.calculateLiveCDS(studentId, exerciseId, db);
-        if (cdsResult && cdsResult.cds !== null) {
-          currentCds = cdsResult.cds;
-        } else {
-          // If we cannot calculate CDS, skip behavioral anomaly check
-          return null;
-        }
-      } catch (cdsErr) {
-        console.warn('Could not calculate CDS for behavioral anomaly check:', cdsErr.message);
-        return null;
+    // 1. printf/puts literal pattern
+    const printfPattern = /(?:printf|puts)\s*\(\s*"([^"]*)"\s*\)\s*;/g;
+    const printfMatches = Array.from(code.matchAll(printfPattern));
+    for (const match of printfMatches) {
+      const literalValue = match[1].trim();
+      if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue || exp.includes(literalValue))) {
+        flags.push({
+          type: 'HARDCODING',
+          severity: 'HIGH',
+          evidence: {
+            summary: `printf/puts output matches expected result using literal: "${literalValue}"`,
+            pattern: 'printf_literal',
+            literalValue,
+            matchesExpectedOutput: true,
+            confidence: 0.8,
+            innocent_explanation: 'Student may be printing a known result for debugging, or the exercise may have a trivial expected output. printf with format strings is normal C++ practice.',
+          },
+        });
       }
     }
 
-    // Calculate z-score: how many standard deviations from the mean
-    const zScore = (currentCds - avgHistoricalCds) / stddevHistoricalCds;
-
-    // Check anomaly conditions:
-    // 1. Very fast submission (< 30 seconds) - indicates potential plagiarism or prior knowledge
-    // 2. First attempt correct (submission.is_correct = true, from test_results)
-    // 3. Statistically significant deviation (z-score < -2.0 — performing MUCH BETTER than historical average)
-    //    Lower CDS = better performance, so cheating shows as sudden improvement (negative z-score).
-    const isVeryFast = submission.time_spent_seconds && submission.time_spent_seconds < 30;
-    const isFirstAttemptCorrect = submission.is_correct === true;
-    const isSignificantlyBetter = zScore < -2.0; // Much better than historical (CDS dropped significantly)
-
-    if (isVeryFast && isFirstAttemptCorrect && isSignificantlyBetter) {
-      return {
-        type: 'BEHAVIORAL_ANOMALY',
-        severity: 'MEDIUM',
-        evidence: `Solved in ${submission.time_spent_seconds}s on first attempt with CDS ${currentCds.toFixed(2)} (z-score: ${zScore.toFixed(2)}, ${exerciseCount} prior exercises)`,
-        context: {
-          timeSpentSeconds: submission.time_spent_seconds,
-          isFirstAttempt: true,
-          historicalAvgCds: avgHistoricalCds,
-          historicalStddevCds: stddevHistoricalCds,
-          zScore: parseFloat(zScore.toFixed(2)),
-          exercisesAttempted: exerciseCount,
-          currentCds: parseFloat(currentCds.toFixed(2))
+    // 2. putchar/fputc loop pattern
+    const hasPutcharLike = /\b(putchar|fputc|putc)\s*\(/.test(code);
+    const hasLoop = /(for|while|do)\s*[\({]/g.test(code);
+    if (hasPutcharLike && hasLoop) {
+      const stringLiteralRegex = /"(?:[^"\\]|\\.)*"/g;
+      const stringMatches = code.match(stringLiteralRegex) || [];
+      for (const sm of stringMatches) {
+        const content = sm.slice(1, -1);
+        if (content && expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === content || exp.includes(content))) {
+          flags.push({
+            type: 'HARDCODING',
+            severity: 'HIGH',
+            evidence: {
+              summary: `putchar/fputc loop outputs expected result by iterating over literal string: "${content}"`,
+              pattern: 'putchar_loop',
+              literalValue: content,
+              matchesExpectedOutput: true,
+              confidence: 0.75,
+              innocent_explanation: 'Student may be implementing a character-by-character output as required by the exercise specification. putchar loops are a legitimate C++ technique.',
+            },
+          });
         }
-      };
+      }
     }
 
-    return null;
-  } catch (err) {
-    console.error('Error in checkBehavioralAnomaly:', err);
-    return null;
-  }
-}
-
-/**
- * Check for code growth anomaly: detecting if student copies and pastes large blocks of code
- * without understanding, comparing line count to their first submission.
- *
- * @param {string} code - The student's submitted code
- * @param {number} studentId - The student's ID (to get their historical submissions)
- * @param {number} exerciseId - The exercise ID (to get their first submission)
- * @returns {object|null} - Flag object if code growth anomaly detected, null otherwise
- */
-async function checkCodeGrowthAnomaly(studentId, exerciseId, code) {
-  try {
-    // Get the student's first submission for this exercise (by attempt_number = 1)
-    const firstSubmissionRes = await db.query(
-      `SELECT code FROM submissions
-       WHERE student_id = $1 AND exercise_id = $2 AND attempt_number = 1
-       ORDER BY created_at ASC LIMIT 1`,
-      [studentId, exerciseId]
-    );
-
-    // Safety check: ensure query result exists
-    if (!firstSubmissionRes || !firstSubmissionRes.rows || firstSubmissionRes.rows.length === 0) {
-      // No first submission found (this might be the first attempt)
-      return null;
-    }
-
-    const firstCode = firstSubmissionRes.rows[0].code || '';
-    const currentCode = code || '';
-
-    // Calculate line count for both submissions
-    const firstLineCount = firstCode.split('\n').filter(line => line.trim() !== '').length;
-    const currentLineCount = currentCode.split('\n').filter(line => line.trim() !== '').length;
-
-    // Avoid division by zero
-    if (firstLineCount === 0) {
-      return null;
-    }
-
-    // Calculate line count delta and growth percentage
-    const lineDelta = currentLineCount - firstLineCount;
-    const growthPercent = (lineDelta / firstLineCount) * 100;
-
-  // Flag if line count has grown significantly (> 30% increase from first submission).
-  // Spec §R1.16 / Ch.1:382-384: "Sudden growth spike of more than 30% in a single attempt
-  // indicates bulk code insertion rather than incremental debugging."
-  if (growthPercent > 30) {
-      return {
-        type: 'CODE_GROWTH_ANOMALY',
-        severity: 'LOW',
-        evidence: `Submission has ${currentLineCount} non-empty lines vs ${firstLineCount} in first submission (${growthPercent.toFixed(0)}% increase)`,
-        context: {
-          firstLineCount: firstLineCount,
-          currentLineCount: currentLineCount,
-          lineDelta: lineDelta,
-          growthPercent: parseFloat(growthPercent.toFixed(0))
+    // 3. Return-value evasion
+    if (/return\s+\d+\s*;/.test(code)) {
+      const returnPattern = /return\s+(\d+)\s*;/g;
+      const returnMatches = Array.from(code.matchAll(returnPattern));
+      for (const match of returnMatches) {
+        const literalValue = match[1];
+        if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue)) {
+          flags.push({
+            type: 'HARDCODING',
+            severity: 'MEDIUM',
+            evidence: {
+              summary: `Program returns hardcoded value "${literalValue}" matching expected output via process exit code`,
+              pattern: 'return_value',
+              literalValue,
+              matchesExpectedOutput: true,
+              confidence: 0.5,
+              innocent_explanation: 'Returning a literal from main() is standard C++ practice. Many exercises require a specific return value that matches the expected output threshold.',
+            },
+          });
         }
-      };
+      }
     }
 
-    return null;
-  } catch (err) {
-    console.error('Error in checkCodeGrowthAnomaly:', err);
-    return null;
-  }
-}
+    // 4. ostringstream with literal pattern
+    const ossPattern = /(?:stringstream|ostringstream|istringstream)\s+\w+\s*(?:\(\))?\s*;[\s\S]*?<<\s*"([^"]*)"/g;
+    const ossMatches = Array.from(code.matchAll(ossPattern));
+    for (const match of ossMatches) {
+      const literalValue = match[1].trim();
+      if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue || exp.includes(literalValue))) {
+        flags.push({
+          type: 'HARDCODING',
+          severity: 'HIGH',
+          evidence: {
+            summary: `ostringstream output contains hardcoded literal matching expected result: "${literalValue}"`,
+            pattern: 'ostringstream_literal',
+            literalValue,
+            matchesExpectedOutput: true,
+            confidence: 0.85,
+            innocent_explanation: 'ostringstream with string concatenation is standard C++. The literal may be part of a larger formatted output, not standalone hardcoding.',
+          },
+        });
+      }
+    }
 
-/**
- * Log passive behavioral metrics: tab switch count, idle time, etc.
- * This function would be called from the frontend when sending submission data.
- *
- * @param {object} submission - The submission object to augment with behavioral metrics
- * @param {object} behavioralData - Object containing tabSwitchCount, pausedTimeSeconds, etc.
- * @returns {object} - The submission object with added behavioral metrics
- */
-function logPassiveBehavior(submission, behavioralData) {
-  // We would add behavioral metrics to the submission object for storage.
-  // However, note that the current submissions table does not have columns for these.
-  // This would require a database migration to add columns like:
-  //   tab_switch_count INTEGER DEFAULT 0,
-  //   paused_time_seconds INTEGER DEFAULT 0,
-  //   active_time_seconds INTEGER DEFAULT 0
-  //
-  // For now, we return the submission unchanged, assuming the frontend will send
-  // these metrics and they will be stored in the submission record (if columns exist).
-  // Alternatively, we could store them in a separate table or in a JSONB column.
-  return {
-    ...submission,
-    ...behavioralData
-  };
-}
+    // 5. std::string constructor/assignment from literal
+    const stringCtorPattern = /std::string\s+\w+\s*\(\s*"([^"]*)"\s*\)/g;
+    const stringAssignPattern = /std::string\s+\w+\s*=\s*"([^"]*)"/g;
+    const stringLiteralMatches = [
+      ...Array.from(code.matchAll(stringCtorPattern)),
+      ...Array.from(code.matchAll(stringAssignPattern)),
+    ];
+    for (const match of stringLiteralMatches) {
+      const literalValue = match[1].trim();
+      if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue || exp.includes(literalValue))) {
+        flags.push({
+          type: 'HARDCODING',
+          severity: 'HIGH',
+          evidence: {
+            summary: `std::string initialized with literal matching expected result: "${literalValue}"`,
+            pattern: 'string_ctor_literal',
+            literalValue,
+            matchesExpectedOutput: true,
+            confidence: 0.7,
+            innocent_explanation: 'std::string construction from literals is normal C++. The string may be used for comparison, not output. Context of usage matters.',
+          },
+        });
+      }
+    }
 
-/**
- * Check for massive payload: abnormally large submissions that may contain
- * pre-written code or attempt to overflow buffers.
- *
- * @param {string} code - The submitted code
- * @returns {object|null} - Flag object if massive payload detected
- */
-function checkMassivePayload(code) {
-  const codeSize = (code || '').length;
-  // Flag submissions over 10KB — normal student code rarely exceeds 2KB
-  if (codeSize > 10240) {
+    if (flags.length === 0) return null;
+
+    if (flags.length === 1) return flags[0];
+
+    // Multiple flags: return HIGH severity if any HIGH flag exists
+    const highFlags = flags.filter(f => f.severity === 'HIGH');
+    if (highFlags.length > 0) {
+      return highFlags[0];
+    }
+
     return {
-      type: 'MASSIVE_PAYLOAD',
-      severity: 'HIGH',
-      evidence: `Submission size: ${Math.round(codeSize / 1024)}KB (${codeSize} chars) — typical student submissions are < 2KB`,
-      context: { codeSize, lineCount: code.split('\n').length }
+      type: 'HARDCODING',
+      severity: 'MEDIUM',
+      evidence: {
+        summary: flags.map(f => f.evidence.summary || '').join('; '),
+        pattern: 'mixed',
+        computationScore,
+        matchesExpectedOutput: true,
+        confidence: 0.55,
+        innocent_explanation: 'Multiple hardcoding patterns detected. Review the submission in context — some patterns (printf, ostringstream) are common in legitimate C++ code.',
+      },
     };
-  }
-  return null;
-}
-
-/**
- * Check for retry storm: excessive submissions in rapid succession.
- *
- * @param {number} studentId - The student's ID
- * @param {number} exerciseId - The exercise ID
- * @returns {Promise<object|null>} - Flag object if retry storm detected
- */
-async function checkRetryStorm(studentId, exerciseId) {
-  try {
-    const submissionsRes = await db.query(
-      `SELECT submitted_at, is_correct, time_spent_seconds
-       FROM submissions
-       WHERE student_id = $1 AND exercise_id = $2
-       ORDER BY submitted_at ASC`,
-      [studentId, exerciseId]
-    );
-
-    if (!submissionsRes || submissionsRes.rows.length < 5) {
-      return null;
-    }
-
-    const rows = submissionsRes.rows;
-    // Calculate time deltas between consecutive submissions
-    const timedeltas = [];
-    for (let i = 1; i < rows.length; i++) {
-      const prev = new Date(rows[i - 1].submitted_at).getTime();
-      const curr = new Date(rows[i].submitted_at).getTime();
-      timedeltas.push((curr - prev) / 1000 / 60); // minutes
-    }
-
-    const avgTime = timedeltas.reduce((a, b) => a + b, 0) / timedeltas.length;
-
-    // Detect storm: >10 submissions AND avg time < 1 minute apart
-    if (rows.length > 10 && avgTime < 1) {
-      return {
-        type: 'RETRY_STORM',
-        severity: 'MEDIUM',
-        evidence: `${rows.length} submissions averaging ${avgTime.toFixed(1)}min apart (typical: 2+ min)`,
-        context: {
-          totalSubmissions: rows.length,
-          avgTimeBetweenMinutes: parseFloat(avgTime.toFixed(1)),
-          firstSubmittedAt: rows[0].submitted_at,
-          lastSubmittedAt: rows[rows.length - 1].submitted_at
-        }
-      };
-    }
-
-    return null;
   } catch (err) {
-    console.error('Error in checkRetryStorm:', err);
+    console.error('Error in checkHardcodingExtended:', err);
     return null;
   }
 }
 
 /**
  * Main function to evaluate integrity of a submission.
- * Runs all five checks and returns an array of flags.
+ * Runs the two behavioral checks (hardcoding, blank/template) and returns an array of flags.
+ *
+ * Note: BEHAVIORAL_ANOMALY (instant success, extreme speed) is handled by
+ * behavioralAnomalyDetector.js and called separately from the submission controller.
+ *
+ * Note: CODE_GROWTH_ANOMALY (>30% spike) is handled in submissionController.js.
  *
  * @param {object} params - Object containing all necessary data
  * @param {string} params.code - The submitted code
@@ -408,25 +347,22 @@ async function checkRetryStorm(studentId, exerciseId) {
  * @param {number} params.exerciseId - The exercise ID
  * @param {object} params.submission - The submission object (as it will be stored)
  * @param {object} params.exercise - The exercise object
- * @param {object} params.cdsEngine - Reference to cdsEngine for historical data (if needed)
- * @param {object} params.behavioralData - Object containing passive behavioral metrics (from frontend)
  * @returns {Promise<Array>} - Array of flag objects (empty if no flags)
  */
 async function evaluateIntegrity(params) {
-  const { code, starterCode, studentId, exerciseId, submission, exercise, cdsEngine, behavioralData } = params;
-
-  // First, log passive behavioral metrics (if any)
-  const augmentedSubmission = logPassiveBehavior(submission, behavioralData);
-
-  // Initialize flags array
+  const { code, starterCode, studentId, exerciseId, submission, exercise } = params;
   const flags = [];
 
-  // Run each check
-
-  // 1. Hardcoding detection
-  const hardcodingFlag = checkHardcoding(code, exercise, augmentedSubmission);
+  // 1. Hardcoding detection (basic)
+  const hardcodingFlag = checkHardcoding(code, exercise, submission);
   if (hardcodingFlag) {
     flags.push({ ...hardcodingFlag, studentId, exerciseId });
+  }
+
+  // 1b. Extended hardcoding detection (advanced bypasses)
+  const extendedFlag = checkHardcodingExtended(code, exercise, submission);
+  if (extendedFlag) {
+    flags.push({ ...extendedFlag, studentId, exerciseId });
   }
 
   // 2. Blank/template-only detection
@@ -435,54 +371,12 @@ async function evaluateIntegrity(params) {
     flags.push({ ...blankFlag, studentId, exerciseId });
   }
 
-  // 3. Massive payload detection (Bug #5 fix)
-  const massiveFlag = checkMassivePayload(code);
-  if (massiveFlag) {
-    flags.push({ ...massiveFlag, studentId, exerciseId });
-  }
-
-  // 4. Retry storm detection (Bug #3 fix)
-  try {
-    const retryFlag = await checkRetryStorm(studentId, exerciseId);
-    if (retryFlag) {
-      flags.push({ ...retryFlag, studentId, exerciseId });
-    }
-  } catch (err) {
-    console.error('Error in retry storm check:', err);
-  }
-
-  // 5. Behavioral anomaly (now passes behavioralData — Bug #2 & #6 fix)
-  try {
-    const behavioralFlag = await checkBehavioralAnomaly(studentId, exerciseId, augmentedSubmission, cdsEngine, behavioralData);
-    if (behavioralFlag) {
-      flags.push({ ...behavioralFlag, studentId, exerciseId });
-    }
-  } catch (err) {
-    console.error('Error in behavioral anomaly check:', err);
-  }
-
-  // 6. Code growth anomaly detection
-  try {
-    const growthFlag = await checkCodeGrowthAnomaly(studentId, exerciseId, code);
-    if (growthFlag) {
-      flags.push({ ...growthFlag, studentId, exerciseId });
-    }
-  } catch (err) {
-    console.error('Error in code growth anomaly check:', err);
-  }
-
-  // Note: In a real implementation, we would now insert these flags into the database.
-  // However, the insertion is handled by the submission controller after this function returns.
-  // We return the flags so the controller can attach the submission_id and insert them.
-
   return flags;
 }
 
 module.exports = {
   checkHardcoding,
+  checkHardcodingExtended,
   checkBlankTemplate,
-  checkBehavioralAnomaly,
-  checkCodeGrowthAnomaly,
-  logPassiveBehavior,
-  evaluateIntegrity
+  evaluateIntegrity,
 };

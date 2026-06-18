@@ -1,0 +1,291 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codeinsight_test
+          POSTGRES_USER: codeuser
+          POSTGRES_PASSWORD: codepassword123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Load database schema
+        run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d codeinsight_test -f schema.sql
+        working-directory: backend
+        env:
+          PGPASSWORD: codepassword123
+
+      - name: Run backend tests
+        run: npm run test:ci
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          TEST_DB_HOST: localhost
+          TEST_DB_PORT: 5432
+          TEST_DB_USER: codeuser
+          TEST_DB_PASSWORD: codepassword123
+          SANDBOX_TIMEOUT_MS: 5000
+          JWT_SECRET: ci-test-secret-key
+          CI: true
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          retention-days: 7
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run frontend tests
+        run: npx vitest run --reporter=verbose
+        working-directory: frontend
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 7
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-22.04
+    needs: [backend-tests, frontend-tests]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codeinsight_test
+          POSTGRES_USER: codeuser
+          POSTGRES_PASSWORD: codepassword123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install all dependencies
+        run: npm ci
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Load database schema
+        run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d codeinsight_test -f schema.sql
+        working-directory: backend
+
+      - name: Seed test data
+        run: node scripts/seed_e2e_data.js
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: codeinsight_test
+          DB_USER: codeuser
+          DB_PASSWORD: codepassword123
+          NODE_ENV: test
+
+      - name: Start backend
+        run: |
+          node server.js &
+          echo "Waiting for backend..."
+          for i in $(seq 1 30); do
+            curl -s http://127.0.0.1:5000/api/health && break
+            sleep 2
+          done
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: codeinsight_test
+          DB_USER: codeuser
+          DB_PASSWORD: codepassword123
+          JWT_SECRET: ci-test-secret-key
+          PORT: 5000
+          NODE_ENV: test
+          CORS_ORIGINS: http://localhost:5173
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check for console.log in production code
+        run: |
+          count=$(grep -r "console\.log" --include="*.js" --include="*.jsx" \
+            --exclude-dir=node_modules --exclude-dir=test --exclude-dir="*test*" \
+            --exclude="*.test.js" --exclude="*.spec.js" --exclude-dir=coverage \
+            --exclude-dir=.github . | wc -l)
+          echo "console.log occurrences: $count"
+          echo "Note: 0 is ideal, warn if > 5"
+          [ $count -le 5 ] || echo "WARNING: $count console.log calls found"
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          count=$(grep -r "TODO\|FIXME\|HACK\|XXX" --include="*.js" --include="*.jsx" \
+            --exclude-dir=node_modules --exclude-dir=test \
+            --exclude="*.test.js" . | wc -l)
+          echo "TODO/FIXME/HACK markers: $count"
+
+      - name: Check for hardcoded secrets
+        run: |
+          issues=$(grep -rn "password\s*=\|secret\s*=\|api.key\s*=" \
+            --include="*.js" --include="*.jsx" \
+            --exclude-dir=node_modules \
+            --exclude=".env*" \
+            --exclude="*.test.js" \
+            --exclude-dir=test . 2>/dev/null | grep -v "process.env\|require\|config\|example\|default" | wc -l)
+          echo "Potential hardcoded secrets: $issues"
+          [ $issues -eq 0 ] || echo "WARNING: $issues potential secrets found"
+
+      - name: Validate ESLint config exists
+        run: |
+          if [ -f eslint.config.js ] || [ -f .eslintrc.js ] || [ -f .eslintrc.json ]; then
+            echo "ESLint config found"
+          else
+            echo "WARNING: No ESLint config found"
+          fi
+
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-22.04
+    needs: [backend-tests]
+    if: github.ref == 'refs/heads/main'
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codeinsight_test
+          POSTGRES_USER: codeuser
+          POSTGRES_PASSWORD: codepassword123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Load database schema
+        run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d codeinsight_test -f schema.sql
+        working-directory: backend
+        env:
+          PGPASSWORD: codepassword123
+
+      - name: Start backend
+        run: |
+          node server.js &
+          for i in $(seq 1 30); do
+            curl -s http://127.0.0.1:5000/api/health && break
+            sleep 2
+          done
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: codeinsight_test
+          DB_USER: codeuser
+          DB_PASSWORD: codepassword123
+          JWT_SECRET: ci-test-secret-key
+          PORT: 5000
+          NODE_ENV: test
+
+      - name: Run benchmark
+        run: node tests/load/benchmark.js --concurrency=5 --requests=50
+        env:
+          CI: true

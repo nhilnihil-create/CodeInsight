@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
   LineChart,
@@ -37,6 +38,7 @@ import {
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import SectionFilter from "@/components/SectionFilter";
+import useLastSection from "@/hooks/useLastSection";
 import RiskBadge from "@/components/ui/risk-badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -78,6 +80,42 @@ const HOUR_BINS = [
   "00–03", "03–06", "06–09", "09–12",
   "12–15", "15–18", "18–21", "21–24",
 ];
+
+// ── Knowledge Area Group Registry ─────────────────────────────────────────
+
+const KA_GROUPS = [
+  { code: "SDF-FPC", label: "Procedural Fundamentals", shortLabel: "Procedural" },
+  { code: "SDF-PMD", label: "Program Design & Logic", shortLabel: "Design & Logic" },
+  { code: "SDF-OOP", label: "Object-Oriented Paradigms", shortLabel: "OOP" },
+  { code: "SDF-FDS", label: "Advanced Structures", shortLabel: "Adv. Structures" },
+];
+
+const KA_CONCEPT_MEMBERSHIP = {
+  "SDF-FPC": ["datatypes", "variables", "strings", "input-output", "enums", "file-io", "type-casting"],
+  "SDF-PMD": ["conditionals", "loops", "functions", "scope", "switch-case", "nested-loops", "recursion", "error-handling"],
+  "SDF-OOP": ["oop", "preprocessor", "namespaces", "inheritance", "polymorphism"],
+  "SDF-FDS": ["arrays", "pointers", "structs", "dynamic-memory", "linked-lists"],
+};
+
+// Color ramps per knowledge area — each concept gets a shade within its group
+const KA_PALETTE = {
+  "SDF-FPC": ["#06B6D4", "#22D3EE", "#67E8F9", "#A5F3FC"],
+  "SDF-PMD": ["#F59E0B", "#FBBF24", "#FCD34D", "#FDE68A", "#FEF3C7", "#F59E0B", "#D97706", "#B45309"],
+  "SDF-OOP": ["#F43F5E", "#FB7185", "#FDA4AF", "#FECDD3", "#FFF1F2"],
+  "SDF-FDS": ["#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE", "#EDE9FE"],
+};
+
+function getConceptColor(conceptId, indexInGroup = 0) {
+  for (const code of Object.keys(KA_PALETTE)) {
+    const concepts = KA_CONCEPT_MEMBERSHIP[code];
+    const idx = concepts.indexOf(conceptId);
+    if (idx !== -1) {
+      const palette = KA_PALETTE[code];
+      return palette[idx % palette.length];
+    }
+  }
+  return "#64748b";
+}
 
 // ── Sort helpers ──────────────────────────────────────────────────────────
 
@@ -189,12 +227,8 @@ function downloadCSV(filename, rows) {
 // ── Main Component ────────────────────────────────────────────────────────
 
 export default function InstructorReports() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialSection = (() => {
-    const s = searchParams.get("section");
-    return s && s !== "all" ? Number(s) : "all";
-  })();
-  const [sectionId, setSectionId] = useState(initialSection);
+  const [, setSearchParams] = useSearchParams();
+  const [sectionId, setSectionId] = useLastSection();
   const [period, setPeriod] = useState(4);
   const [tab, setTab] = useState("mastery");
   const [refreshing, setRefreshing] = useState(false);
@@ -211,18 +245,13 @@ export default function InstructorReports() {
   const [completionData, setCompletionData] = useState([]);
   const [completionLoading, setCompletionLoading] = useState(false);
 
-  // Engagement data
-  const [engagementMatrix, setEngagementMatrix] = useState([]);
-  const [engagementTable, setEngagementTable] = useState([]);
-  const [engagementLoading, setEngagementLoading] = useState(false);
-
   // Integrity data
   const [integrityTimeline, setIntegrityTimeline] = useState([]);
   const [integrityBreakdown, setIntegrityBreakdown] = useState([]);
   const [integrityWeeks, setIntegrityWeeks] = useState([]);
   const [integrityLoading, setIntegrityLoading] = useState(false);
 
-  const activeSectionId = sectionId; // 'all' is a valid API parameter now
+  const activeSectionId = sectionId;
 
   const fetchSummary = useCallback(async () => {
     if (!activeSectionId) { setKpi(null); setKpiLoading(false); return; }
@@ -266,22 +295,6 @@ export default function InstructorReports() {
     }
   }, [activeSectionId]);
 
-  const fetchEngagement = useCallback(async () => {
-    if (!activeSectionId) { setEngagementMatrix([]); setEngagementTable([]); return; }
-    setEngagementLoading(true);
-    try {
-      const { data } = await api.get(`/api/analytics/reports/${activeSectionId}/engagement`);
-      setEngagementMatrix(data.matrix || []);
-      setEngagementTable(data.table || []);
-    } catch (err) {
-      console.error("Engagement fetch error:", err);
-      setEngagementMatrix([]);
-      setEngagementTable([]);
-    } finally {
-      setEngagementLoading(false);
-    }
-  }, [activeSectionId]);
-
   const fetchIntegrity = useCallback(async () => {
     if (!activeSectionId) { setIntegrityTimeline([]); setIntegrityBreakdown([]); return; }
     setIntegrityLoading(true);
@@ -306,10 +319,9 @@ export default function InstructorReports() {
       fetchSummary(),
       fetchMastery(),
       fetchCompletion(),
-      fetchEngagement(),
       fetchIntegrity(),
     ]).finally(() => setRefreshing(false));
-  }, [fetchSummary, fetchMastery, fetchCompletion, fetchEngagement, fetchIntegrity]);
+  }, [fetchSummary, fetchMastery, fetchCompletion, fetchIntegrity]);
 
   useEffect(() => {
     refreshAll();
@@ -317,7 +329,7 @@ export default function InstructorReports() {
 
   const handleSectionChange = (next) => {
     setSectionId(next);
-    setSearchParams(next === "all" ? {} : { section: next });
+    setSearchParams({ section: next });
   };
 
   const handlePeriodChange = (next) => {
@@ -326,7 +338,7 @@ export default function InstructorReports() {
 
   // Export handlers
   const handleExportCSV = useCallback(() => {
-    const sectionName = sectionId === "all" ? "all-sections" : `section-${sectionId}`;
+    const sectionName = `section-${sectionId}`;
     if (tab === "mastery") {
       const header = ["Concept", "Current", "Weeks"].concat(masteryData.weeks);
       const nWeeks = masteryData.weeks.length;
@@ -340,21 +352,17 @@ export default function InstructorReports() {
       const header = ["Exercise", "On Time", "Late", "Missing"];
       const rows = completionData.map(c => [c.exercise, c.on_time + "%", c.late + "%", c.missing + "%"]);
       downloadCSV(`completion-report-${sectionName}.csv`, [header, ...rows]);
-    } else if (tab === "engagement") {
-      const header = ["Day", "Submissions", "Peak Hour"];
-      const rows = engagementTable.map(e => [e.day, e.submissions, e.peak]);
-      downloadCSV(`engagement-report-${sectionName}.csv`, [header, ...rows]);
     } else if (tab === "integrity") {
       const header = ["Week", "Critical", "High", "Moderate", "Low"];
       const rows = integrityTimeline.map(t => [t.week, t.critical, t.high, t.moderate, t.low]);
       downloadCSV(`integrity-report-${sectionName}.csv`, [header, ...rows]);
     }
     toast.success("Report exported as CSV");
-  }, [tab, sectionId, masteryData, completionData, engagementTable, integrityTimeline]);
+  }, [tab, sectionId, masteryData, completionData, integrityTimeline]);
 
   const handleExportExcel = useCallback(async () => {
-    if (!sectionId || sectionId === "all") {
-      toast.info("Select a specific section to export Excel");
+    if (!sectionId) {
+      toast.info("Select a section to export Excel");
       return;
     }
     try {
@@ -381,7 +389,7 @@ export default function InstructorReports() {
       return;
     }
     try {
-      const res = await api.get(`/api/export/${activeSectionId}`, {
+      const res = await api.get(`/api/export/section/${activeSectionId}`, {
         params: { format: "csv" },
       });
       const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
@@ -409,7 +417,7 @@ export default function InstructorReports() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <SectionFilter value={sectionId} onChange={handleSectionChange} placeholder="All Sections" />
+          <SectionFilter value={sectionId} onChange={handleSectionChange} />
           <div
             role="radiogroup"
             aria-label="Period"
@@ -449,10 +457,6 @@ export default function InstructorReports() {
                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                 Export Excel
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadEndpointExport("behavioral", "behavioral-audit")}>
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Behavioral Audit Log
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => downloadEndpointExport("cds-snapshots", "cds-snapshots")}>
                 <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                 CDS Snapshots
@@ -472,27 +476,20 @@ export default function InstructorReports() {
         <InsightHeader
           eyebrow="Report"
           insight={
-            sectionId === "all"
-              ? `Across all your sections: mastery is ${kpi.mastery?.value || "N/A"}${kpi.mastery?.delta != null ? ` (${kpi.mastery.delta >= 0 ? "+" : ""}${kpi.mastery.delta}%)` : ""}.`
-              : kpi.mastery?.delta > 0
-                ? `Class mastery is up ${kpi.mastery.delta}% over the last ${PERIOD_LABELS[period]}.`
-                : kpi.mastery?.delta < 0
-                  ? `Class mastery is down ${Math.abs(kpi.mastery.delta)}% over the last ${PERIOD_LABELS[period]}.`
-                  : `Class mastery is steady at ${kpi.mastery?.value || "N/A"}.`
+            kpi.mastery?.delta > 0
+              ? `Class mastery is up ${kpi.mastery.delta}% over the last ${PERIOD_LABELS[period]}.`
+              : kpi.mastery?.delta < 0
+                ? `Class mastery is down ${Math.abs(kpi.mastery.delta)}% over the last ${PERIOD_LABELS[period]}.`
+                : `Class mastery is steady at ${kpi.mastery?.value || "N/A"}.`
           }
           description={(() => {
             const parts = [];
             if (kpi.atRisk?.value && parseInt(kpi.atRisk.value) > 0) {
               parts.push(`${kpi.atRisk.value} of students are at risk`);
-            } else if (sectionId !== "all") {
-              // single-section: don't show "no students at risk" — it's obvious
             }
             if (kpi.flags?.value != null && kpi.flags.value !== "—") {
               const flagsPct = parseInt(kpi.flags.value);
               parts.push(`${flagsPct}% of students flagged`);
-            }
-            if (parts.length === 0 && sectionId === "all") {
-              return "No students currently at risk across all sections.";
             }
             return parts.length ? parts.join(" — ") : undefined;
           })()}
@@ -529,7 +526,6 @@ export default function InstructorReports() {
         <TabsList className="inline-flex h-10 items-center gap-0 bg-transparent p-0 border-b border-border rounded-none w-full justify-start">
           <TabsTrigger value="mastery"    className={TRIGGER_BASE}>Mastery</TabsTrigger>
           <TabsTrigger value="completion" className={TRIGGER_BASE}>Completion</TabsTrigger>
-          <TabsTrigger value="engagement" className={TRIGGER_BASE}>Engagement</TabsTrigger>
           <TabsTrigger value="integrity"  className={TRIGGER_BASE}>Integrity</TabsTrigger>
         </TabsList>
 
@@ -559,20 +555,6 @@ export default function InstructorReports() {
             )
           ) : (
             <EmptyTab message="Select a section to view completion breakdown." />
-          )}
-        </TabsContent>
-        <TabsContent value="engagement" className="mt-6">
-          {activeSectionId ? (
-            engagementLoading ? (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm py-8 px-6 text-center">
-                <RefreshCw className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-spin" />
-                <p className="text-sm text-muted-foreground">Loading engagement data…</p>
-              </div>
-            ) : (
-              <EngagementTab matrix={engagementMatrix} table={engagementTable} />
-            )
-          ) : (
-            <EmptyTab message="Select a section to view engagement heatmap." />
           )}
         </TabsContent>
         <TabsContent value="integrity" className="mt-6">
@@ -624,68 +606,66 @@ function Sparkline({ data, width = 64, height = 20, color = "hsl(var(--primary))
 // ── Tab Components ────────────────────────────────────────────────────────
 
 /**
- * MasteryTab — progressive disclosure for 25+ concept trend lines.
- * Default: top 5 at-risk (lowest mastery) + "Others" aggregate.
- * Interactive legend: click to toggle concepts.
- * "Show all" button: reveals every concept with muted lines.
- * Sparkline column in the table below.
+ * MasteryTab — Knowledge Area–grouped concept trend lines.
+ * Glassmorphic segmented picker selects one of 4 KA groups.
+ * Only concepts belonging to the selected group are plotted.
+ * All series values are coerced through Number().toFixed(2) for safe interpolation.
  */
 function MasteryTab({ data }) {
   const { sort, onSort } = useSort({ key: "current", dir: "asc" });
-  const [visibleConcepts, setVisibleConcepts] = useState(new Set());
-  const [showAll, setShowAll] = useState(false);
+  const [activeKA, setActiveKA] = useState(KA_GROUPS[0].code);
 
-  const atRiskSorted = useMemo(() =>
-    [...data.concepts].sort((a, b) => a.current - b.current),
-    [data.concepts]
-  );
+  // Determine which concepts belong to the active knowledge area
+  const groupConcepts = useMemo(() => {
+    const memberIds = new Set(KA_CONCEPT_MEMBERSHIP[activeKA] || []);
+    return data.concepts.filter(c => memberIds.has(c.id));
+  }, [data.concepts, activeKA]);
 
+  // Auto-select the first group that has data
   useEffect(() => {
-    if (!showAll) {
-      const defaults = new Set();
-      for (let i = 0; i < Math.min(5, atRiskSorted.length); i++) defaults.add(atRiskSorted[i].id);
-      setVisibleConcepts(defaults);
+    if (groupConcepts.length === 0) {
+      const firstWithData = KA_GROUPS.find(g =>
+        data.concepts.some(c => (KA_CONCEPT_MEMBERSHIP[g.code] || []).includes(c.id))
+      );
+      if (firstWithData && firstWithData.code !== activeKA) {
+        setActiveKA(firstWithData.code);
+      }
     }
-  }, [atRiskSorted, showAll]);
+  }, [data.concepts, groupConcepts.length, activeKA]);
 
-  const toggleConcept = (id) => {
-    setVisibleConcepts(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const showAllLines = () => {
-    setShowAll(true);
-    setVisibleConcepts(new Set(data.concepts.map(c => c.id)));
-  };
-
-  const chartData = data.weeks.map((week, i) => {
-    const row = { week };
-    for (const c of data.concepts) row[c.id] = c.series[i] ?? 0;
-    return row;
-  });
-
-  const tableRows = applySort(
-    data.concepts.map(c => ({
-      id: c.id, name: c.name, current: c.current,
-      delta: c.series.length >= 2 ? c.series[c.series.length - 1] - c.series[0] : 0,
-      series: c.series,
-    })),
-    sort,
+  // Build chart data with Number().toFixed(2) coercion for all values
+  const chartData = useMemo(() =>
+    data.weeks.map((week, i) => {
+      const row = { week };
+      for (const c of groupConcepts) {
+        row[c.id] = Number(Number(c.series[i] ?? 0).toFixed(2));
+      }
+      return row;
+    }),
+    [data.weeks, groupConcepts]
   );
 
-  if (!data.concepts.length) return <EmptyTab message="No mastery data available for this section yet." />;
+  const tableRows = useMemo(() =>
+    applySort(
+      groupConcepts.map(c => ({
+        id: c.id,
+        name: c.name,
+        current: Number(Number(c.current).toFixed(2)),
+        delta: c.series.length >= 2
+          ? Number((c.series[c.series.length - 1] - c.series[0]).toFixed(2))
+          : 0,
+        series: c.series.map(v => Number(Number(v).toFixed(2))),
+      })),
+      sort,
+    ),
+    [groupConcepts, sort]
+  );
 
-  const visibleLines = data.concepts.filter(c => visibleConcepts.has(c.id));
-  const othersSeries = showAll ? null : (() => {
-    const others = data.concepts.filter(c => !visibleConcepts.has(c.id));
-    if (!others.length) return null;
-    return Array.from({ length: data.weeks.length }, (_, i) =>
-      others.map(c => c.series[i] ?? 0).reduce((a, b) => a + b, 0) / others.length
-    );
-  })();
+  const activeLabel = KA_GROUPS.find(g => g.code === activeKA)?.label || activeKA;
+
+  if (!data.concepts.length) {
+    return <EmptyTab message="No mastery data available for this section yet." />;
+  }
 
   return (
     <div className="space-y-6">
@@ -694,62 +674,143 @@ function MasteryTab({ data }) {
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trend</p>
-              <CardTitle className="text-sm font-semibold">Concept mastery · {data.weeks.length}-week rolling</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Concept mastery · {activeLabel}
+              </CardTitle>
               <p className="text-[10px] text-muted-foreground">
-                {showAll ? `${visibleLines.length} concepts shown. Click legend items to toggle.` : `Top 5 at-risk concepts. Click "Show all" for full view.`}
+                {groupConcepts.length
+                  ? `${groupConcepts.length} concepts in this group. Click legend items to toggle.`
+                  : `No concepts mapped to this group.`}
               </p>
             </div>
-            {!showAll && (
-              <Button variant="outline" size="sm" onClick={showAllLines} className="text-[10px] h-7 shrink-0">
-                Show all {data.concepts.length} concepts
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent className="pt-4">
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
-                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis dataKey="week" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--muted))", strokeDasharray: "3 3" }}
-                  formatter={(value, name) => {
-                    const c = data.concepts.find(c => c.id === name);
-                    return [`${value}%`, c?.name || name];
-                  }}
-                />
-                {othersSeries && (
-                  <Line type="monotone" dataKey="_others" name="Others (avg)"
-                    stroke="hsl(var(--muted-foreground))" strokeDasharray="5 3"
-                    strokeWidth={1} dot={false} isAnimationActive={false} connectNulls={false} />
-                )}
-                {visibleLines.map(c => (
-                  <Line key={c.id} type="monotone" dataKey={c.id} name={c.name}
-                    stroke={conceptColor(c.id)} strokeWidth={showAll ? 1 : 2}
-                    dot={false} isAnimationActive={false} opacity={showAll ? 0.6 : 1} />
+          {/* ── Glassmorphic KA Group Picker ────────────────────────── */}
+          <div className="mb-5">
+            <div
+              role="radiogroup"
+              aria-label="Knowledge Area Group"
+              className="relative inline-flex items-center gap-0 rounded-xl bg-white/[0.04] dark:bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+            >
+              {KA_GROUPS.map((group) => {
+                const isActive = group.code === activeKA;
+                const count = data.concepts.filter(
+                  c => (KA_CONCEPT_MEMBERSHIP[group.code] || []).includes(c.id)
+                ).length;
+                return (
+                  <button
+                    key={group.code}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    onClick={() => setActiveKA(group.code)}
+                    className={cn(
+                      "relative z-10 px-4 py-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all duration-200 select-none whitespace-nowrap inline-flex items-center gap-2",
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground/60 hover:text-foreground/70"
+                    )}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="kaGroupIndicator"
+                        className="absolute inset-0 bg-white/[0.08] border border-white/[0.1] rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{group.shortLabel}</span>
+                    <span className={cn(
+                      "relative z-10 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[9px] font-bold tabular-nums",
+                      isActive
+                        ? "bg-white/[0.12] text-foreground/80"
+                        : "bg-white/[0.04] text-muted-foreground/40"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {groupConcepts.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">
+              No concept data available for {activeLabel} yet.
+            </div>
+          ) : (
+            <>
+              {/* ── Multi-Line Chart ────────────────────────────────── */}
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -8 }}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                    <XAxis
+                      dataKey="week"
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      axisLine={{ stroke: "hsl(var(--border))" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={40}
+                    />
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
+                      cursor={{ stroke: "hsl(var(--muted))", strokeDasharray: "3 3" }}
+                      formatter={(value, name) => {
+                        const c = groupConcepts.find(c => c.id === name);
+                        return [`${Number(value).toFixed(2)}%`, c?.name || name];
+                      }}
+                    />
+                    {groupConcepts.map((c, idx) => (
+                      <Line
+                        key={c.id}
+                        type="monotone"
+                        dataKey={c.id}
+                        name={c.name}
+                        stroke={getConceptColor(c.id, idx)}
+                        strokeWidth={groupConcepts.length <= 5 ? 2 : 1.5}
+                        dot={groupConcepts.length <= 6}
+                        dotSize={4}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                        isAnimationActive={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* ── Interactive Legend ───────────────────────────────── */}
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 pt-3 border-t border-border/30">
+                {groupConcepts.map((c, idx) => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full border border-border/30 bg-background"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: getConceptColor(c.id, idx) }}
+                    />
+                    <span className="tabular-nums font-medium">{Number(c.current).toFixed(2)}%</span>
+                    <span className="text-muted-foreground">{c.name}</span>
+                  </span>
                 ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          {/* Interactive legend */}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 pt-3 border-t border-border/30">
-            {data.concepts.sort((a, b) => a.current - b.current).map(c => (
-              <button key={c.id} type="button" onClick={() => toggleConcept(c.id)}
-                className={cn("inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full border transition-all",
-                  visibleConcepts.has(c.id) ? "border-border/40 bg-background hover:bg-muted/40" : "border-border/10 opacity-30 hover:opacity-60")}>
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: conceptColor(c.id) }} />
-                <span className="tabular-nums">{c.current}%</span>
-                <span className="text-muted-foreground">{c.name}</span>
-              </button>
-            ))}
-          </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
+      {/* ── Concepts Table ──────────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-sm font-semibold">Concepts · current vs. {data.weeks.length}w ago</CardTitle>
+          <CardTitle className="text-sm font-semibold">
+            Concepts · {activeLabel} · current vs. {data.weeks.length}w ago
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <SortableTable
@@ -757,28 +818,43 @@ function MasteryTab({ data }) {
               { key: "name", label: "Concept", align: "left" },
               { key: "sparkline", label: "Trend", align: "center" },
               { key: "current", label: "Current", align: "right" },
-              { key: "delta", label: "Δ", align: "right" },
+              { key: "delta", label: "\u0394", align: "right" },
             ]}
-            sort={sort} onSort={onSort} rows={tableRows}
+            sort={sort}
+            onSort={onSort}
+            rows={tableRows}
             renderCell={(col, row) => {
               if (col.key === "name") {
-                return <span className="text-sm font-medium inline-flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: conceptColor(row.id) }} />
-                  {row.name}
-                </span>;
+                const idx = groupConcepts.findIndex(c => c.id === row.id);
+                return (
+                  <span className="text-sm font-medium inline-flex items-center gap-2">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: getConceptColor(row.id, idx) }}
+                    />
+                    {row.name}
+                  </span>
+                );
               }
               if (col.key === "sparkline") {
                 const hasData = row.series.some(v => v > 0);
                 if (!hasData) return <span className="text-[10px] text-muted-foreground/40">no data</span>;
-                return <Sparkline data={row.series} width={64} height={20} color={conceptColor(row.id)} />;
+                const idx = groupConcepts.findIndex(c => c.id === row.id);
+                return <Sparkline data={row.series} width={64} height={20} color={getConceptColor(row.id, idx)} />;
               }
-              if (col.key === "current") return <span className="text-sm font-mono tabular-nums">{row.current}%</span>;
+              if (col.key === "current") {
+                return <span className="text-sm font-mono tabular-nums">{Number(row.current).toFixed(2)}%</span>;
+              }
               if (col.key === "delta") {
                 const positive = row.delta > 0;
-                return <span className={cn("text-xs font-mono tabular-nums",
-                  positive ? "text-success" : row.delta < 0 ? "text-destructive" : "text-muted-foreground")}>
-                  {positive ? "+" : ""}{row.delta}
-                </span>;
+                return (
+                  <span className={cn(
+                    "text-xs font-mono tabular-nums",
+                    positive ? "text-success" : row.delta < 0 ? "text-destructive" : "text-muted-foreground"
+                  )}>
+                    {positive ? "+" : ""}{Number(row.delta).toFixed(2)}
+                  </span>
+                );
               }
               return null;
             }}
@@ -846,86 +922,6 @@ function CompletionTab({ data }) {
             renderCell={(col, row) => {
               if (col.key === "exercise") return <span className="text-sm font-medium">{row.exercise}</span>;
               return <span className="text-sm font-mono tabular-nums">{row[col.key]}%</span>;
-            }}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function EngagementTab({ matrix, table }) {
-  const { sort, onSort } = useSort({ key: "submissions", dir: "desc" });
-  const rows = applySort(table, sort);
-
-  if (!matrix.length) {
-    return <EmptyTab message="No submission data for the engagement heatmap." />;
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Heatmap
-            </p>
-            <CardTitle className="text-sm font-semibold">
-              Submission density · day × hour
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="overflow-x-auto">
-            <div className="inline-flex flex-col gap-1 min-w-full">
-              <div className="grid" style={{ gridTemplateColumns: "3rem repeat(8, minmax(0, 1fr))" }}>
-                <div />
-                {HOUR_BINS.map((bin) => (
-                  <div key={bin} className="text-[10px] font-mono tabular-nums text-muted-foreground text-center px-1">{bin}</div>
-                ))}
-              </div>
-              {DAYS.map((day, dIdx) => (
-                <div key={day} className="grid items-center" style={{ gridTemplateColumns: "3rem repeat(8, minmax(0, 1fr))" }}>
-                  <div className="text-xs font-medium text-muted-foreground pr-2">{day}</div>
-                  {(matrix[dIdx] || Array(8).fill(0)).map((density, hIdx) => (
-                    <div
-                      key={hIdx}
-                      className={cn("h-7 rounded-sm border border-border/40", HEAT_TONE[density])}
-                      title={`${day} · ${HOUR_BINS[hIdx]} · ${density}`}
-                    />
-                  ))}
-                </div>
-              ))}
-              <div className="flex items-center justify-end gap-2 pt-3">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Less</span>
-                {HEAT_TONE.map((tone, i) => (
-                  <div key={i} className={cn("h-3 w-5 rounded-sm border border-border/40", tone)} />
-                ))}
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">More</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-sm font-semibold">Days · ranked by submissions</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <SortableTable
-            columns={[
-              { key: "day", label: "Day", align: "left" },
-              { key: "submissions", label: "Submissions", align: "right" },
-              { key: "peak", label: "Peak hour", align: "left" },
-            ]}
-            sort={sort}
-            onSort={onSort}
-            rows={rows}
-            renderCell={(col, row) => {
-              if (col.key === "day") return <span className="text-sm font-medium">{row.day}</span>;
-              if (col.key === "submissions") return <span className="text-sm font-mono tabular-nums">{row.submissions}</span>;
-              return <span className="text-sm text-muted-foreground font-mono tabular-nums">{row.peak}</span>;
             }}
           />
         </CardContent>
@@ -1016,19 +1012,8 @@ function IntegrityTab({ timeline, breakdown, weeks }) {
 }
 
 /**
- * Distinct color for each curriculum concept on the mastery line chart.
- * IDs are 2-letter abbreviations generated as name.substring(0,2).toUpperCase().
+ * Legacy concept color lookup — delegates to KA-aware getConceptColor.
+ * Kept for backward-compat with any remaining direct callers.
  */
-const CONCEPT_COLORS = {
-  DA: '#06B6D4', // Datatypes   — Teal
-  VR: '#38BDF8', // Variables   — Sky Blue
-  CD: '#6366F1', // Conditionals — Indigo
-  LO: '#F59E0B', // Loops       — Amber
-  FN: '#A855F7', // Functions   — Purple
-  AR: '#FBBF24', // Arrays      — Yellow
-  OO: '#F43F5E', // OOP         — Rose
-};
-
-function conceptColor(id) {
-  return CONCEPT_COLORS[id] || '#64748b'; // fallback: slate
-}
+const CONCEPT_COLORS = {};
+function conceptColor(id) { return getConceptColor(id); }

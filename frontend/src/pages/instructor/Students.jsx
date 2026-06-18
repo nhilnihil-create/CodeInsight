@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search } from 'lucide-react';
 import SectionFilter from '@/components/SectionFilter';
+import useLastSection from '@/hooks/useLastSection';
 import api from '@/services/api';
 
 /**
@@ -17,7 +18,7 @@ import api from '@/services/api';
  */
 export default function InstructorStudents() {
   const [search, setSearch] = useState('');
-  const [sectionId, setSectionId] = useState('all');
+  const [sectionId, setSectionId] = useLastSection();
   const [realStudents, setRealStudents] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -28,9 +29,7 @@ export default function InstructorStudents() {
       setLoading(true);
       setError(null);
       try {
-        const url = sectionId === 'all'
-          ? '/api/sections/students-all'
-          : `/api/sections/${sectionId}/students-with-scores`;
+        const url = `/api/sections/${sectionId}/students-with-scores`;
         const res = await api.get(url);
         if (!cancelled) setRealStudents(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
@@ -51,12 +50,8 @@ export default function InstructorStudents() {
       id: s.id,
       name: s.name,
       studentId: s.studentId || s.student_id || String(s.id),
-      email: s.email || '',
       latestCds: s.latest_cds != null ? parseFloat(s.latest_cds) : null,
       submittedCount: s.submitted_count ?? 0,
-      totalExercises: s.total_exercises ?? 0,
-      flagCount: s.integrity_flag_count ?? 0,
-      strongestConcept: s.strongest_concept || null,
     }))
     .filter((u) => {
       if (!search) return true;
@@ -105,15 +100,13 @@ export default function InstructorStudents() {
                 <TableHead>Student</TableHead>
                 <TableHead>Student ID</TableHead>
                 <TableHead>Avg CDS</TableHead>
-                <TableHead>Strongest Concept</TableHead>
-                <TableHead>Flags</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {students.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
                     {realStudents?.length === 0
                       ? 'No students enrolled in this section.'
                       : 'No students found matching your search.'}
@@ -134,12 +127,6 @@ export default function InstructorStudents() {
                       <TableCell className="text-muted-foreground">{s.studentId}</TableCell>
                       <TableCell className="font-mono tabular-nums">
                         {cdsPct != null ? `${cdsPct}%` : '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {s.strongestConcept || '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {s.flagCount > 0 ? `${s.flagCount} flag${s.flagCount === 1 ? '' : 's'}` : '—'}
                       </TableCell>
                       <TableCell>
                         {unstarted ? (

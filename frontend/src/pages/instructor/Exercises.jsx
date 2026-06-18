@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Lock, Unlock, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
 import ExerciseAccordionRow from '@/components/analytics/ExerciseAccordionRow';
 import SectionFilter from '@/components/SectionFilter';
+import useLastSection from '@/hooks/useLastSection';
 import api from '@/services/api';
 
 /**
@@ -17,8 +18,9 @@ import api from '@/services/api';
  * No fixed overlays, no floating blocks — pure table flow.
  */
 export default function InstructorExercises() {
-  const [sectionId, setSectionId] = useState('all');
+  const [sectionId, setSectionId] = useLastSection();
   const [exercises, setExercises] = useState([]);
+  const [customTagMap, setCustomTagMap] = useState({});
   const [expandedId, setExpandedId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
@@ -29,9 +31,7 @@ export default function InstructorExercises() {
   }, []);
 
   const fetchExercises = async (secId) => {
-    const url = secId === 'all'
-      ? '/api/exercises'
-      : `/api/sections/${secId}/exercises`;
+    const url = `/api/sections/${secId}/exercises`;
     const res = await api.get(url);
     const list = Array.isArray(res.data) ? res.data : [];
     return list.map(e => ({
@@ -48,10 +48,23 @@ export default function InstructorExercises() {
     }));
   };
 
+  const fetchCustomTags = async (secId) => {
+    try {
+      const { data } = await api.get(`/api/custom-tags/exercise-mappings?sectionId=${secId}`);
+      return data;
+    } catch {
+      return {};
+    }
+  };
+
   const loadAll = async () => {
     try {
-      const list = await fetchExercises(sectionId);
+      const [list, tagMap] = await Promise.all([
+        fetchExercises(sectionId),
+        fetchCustomTags(sectionId),
+      ]);
       setExercises(list);
+      setCustomTagMap(tagMap);
     } catch {
       setExercises([]);
     }
@@ -96,9 +109,7 @@ export default function InstructorExercises() {
     } finally { setBusyId(null); }
   };
 
-  const sectionForDetail = sectionId === 'all'
-    ? exercises.find(e => e.id === expandedId)?.sectionId
-    : sectionId;
+  const sectionForDetail = sectionId;
 
   return (
     <div className="space-y-6">
@@ -182,7 +193,15 @@ export default function InstructorExercises() {
                                 {t}
                               </span>
                             ))}
-                            {(!e.conceptTags || e.conceptTags.length === 0) && (
+                            {customTagMap[e.id]?.map((tag) => (
+                              <span
+                                key={tag.tagId}
+                                className="bg-muted/40 text-muted-foreground border-border/30 px-2 py-0.5 rounded text-[10px] border"
+                              >
+                                {tag.tagName}
+                              </span>
+                            ))}
+                            {(!e.conceptTags || e.conceptTags.length === 0) && (!customTagMap[e.id] || customTagMap[e.id].length === 0) && (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </div>

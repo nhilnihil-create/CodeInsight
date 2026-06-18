@@ -1,6 +1,6 @@
 // frontend/src/components/mobile/ExerciseCardList.jsx
 // Spec §5.4. Compact card list of available exercises.
-// Wire format: [{ id, title, concept, difficulty, route }]
+// Wire format: [{ id, title, concept, route }]
 
 export function ExerciseCardList({ data, onTap }) {
   if (!data || data.length === 0) {
@@ -18,7 +18,7 @@ export function ExerciseCardList({ data, onTap }) {
         >
           <div style={{ fontSize: 14, fontWeight: 600 }}>{ex.title}</div>
           <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>
-            {ex.concept} · difficulty {(ex.difficulty * 100).toFixed(0)}%
+            {ex.concept}
           </div>
         </button>
       ))}

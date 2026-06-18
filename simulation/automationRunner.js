@@ -278,7 +278,6 @@ async function setup() {
     ],
     starter_code: '#include <iostream>\nusing namespace std;\n\nint main() {\n  // Write your code here\n  return 0;\n}\n',
     reference_solution: '#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello World" << endl;\n  return 0;\n}\n',
-    mode: 'learning',
   });
   const baselineExercise = res.status === 201 ? res.data : null;
   console.log(`   Baseline exercise: ${baselineExercise ? baselineExercise.id : 'FAILED'}`);
@@ -297,7 +296,6 @@ async function setup() {
     ],
     starter_code: '#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  // Write your loop here\n  return 0;\n}\n',
     reference_solution: '#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n',
-    mode: 'learning',
   });
   const stressExercise = res.status === 201 ? res.data : null;
   console.log(`   Stress exercise: ${stressExercise ? stressExercise.id : 'FAILED'}`);
@@ -314,7 +312,6 @@ async function setup() {
     ],
     starter_code: '#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  return 0;\n}\n',
     reference_solution: '#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  for (int i = 1; i <= n; i++) {\n    cout << i << endl;\n  }\n  return 0;\n}\n',
-    mode: 'learning',
   });
   const adversarialExercise = res.status === 201 ? res.data : null;
   console.log(`   Adversarial exercise: ${adversarialExercise ? adversarialExercise.id : 'FAILED'}`);

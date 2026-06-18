@@ -21,6 +21,6 @@ const loginLimiter = process.env.PLAYWRIGHT === '1'
 router.post('/register', validate.body(v.register), ctrl.register);
 router.post('/login',    loginLimiter, validate.body(v.login), ctrl.login);
 router.post('/logout',                              ctrl.logout);
-router.get('/me',        verifyToken,               ctrl.me);
+router.get('/me',                                      ctrl.me);
 
 module.exports = router;

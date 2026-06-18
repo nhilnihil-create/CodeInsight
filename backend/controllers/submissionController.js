@@ -111,6 +111,22 @@ exports.run = async (req, res) => {
       userAgent: req.get('User-Agent') || ''
     });
 
+    // Store every run attempt for misconception analysis
+    if (req.user?.id) {
+      const compileError = result.status === 'Compile Error' ? result.error : null;
+      const runTimeLimitHit = result.status === 'Time Limit Exceeded';
+      const errorCount = compileError
+        ? (compileError.match(/ERROR/g) || []).length
+        : result.status === 'Runtime Error' ? 1 : 0;
+
+      await db.query(
+        `INSERT INTO run_attempts
+         (student_id, exercise_id, code, compiler_log, error_count, time_limit_hit)
+         VALUES($1, $2, $3, $4, $5, $6)`,
+        [req.user.id, exerciseId, code, compileError, errorCount, runTimeLimitHit]
+      );
+    }
+
     res.json({ ...result, expected: expectedOutput, passed, divergence: grade.divergenceIndex });
   } catch (err) {
     // Calculate response latency for performance logging even on error
@@ -134,25 +150,8 @@ exports.run = async (req, res) => {
 // Submit → — official submission, SAVES to database
 exports.submit = async (req, res) => {
   const startTime = Date.now();
-  const { exerciseId, code, timeSpentSeconds, behavioralData, behavioralEvents } = req.body;
+  const { exerciseId, code, timeSpentSeconds, tabSwitchCount = 0, pasteCount = 0, idleTimeSeconds = 0 } = req.body;
 
-  // GAP #3: Normalize behavioral data from both sources
-  // frontend sends behavioralEvents array; extract summary counts
-  const behavioralSummary = {
-    tabSwitchCount: 0,
-    pasteCount: 0,
-    idleTimeSeconds: 0,
-  };
-  if (behavioralData) {
-    Object.assign(behavioralSummary, behavioralData);
-  }
-  if (Array.isArray(behavioralEvents)) {
-    for (const ev of behavioralEvents) {
-      if (ev.type === 'tab_blur' || ev.type === 'tab_focus') behavioralSummary.tabSwitchCount++;
-      if (ev.type === 'paste') behavioralSummary.pasteCount++;
-      if (ev.type === 'idle_start') behavioralSummary.idleTimeSeconds += 30; // approximate
-    }
-  }
   const studentId = req.user.id;
   try {
     const ex = await db.query(
@@ -192,70 +191,66 @@ exports.submit = async (req, res) => {
       codeGrowthDelta = currentLines - starterLines;
     }
 
-    // ── Growth Velocity: token-based integrity check ────────────────────
-    // Compares student's token count against the exercise baseline (starter code).
-    // Triggers integrity flag if growth exceeds 200% in a single attempt.
-    // This is dynamic (not static solution comparison) — monitors how much
-    // the student's code grew relative to what they were given.
-    const starterTokens = countTokens(exercise.starter_code || '');
-    const studentTokens = countTokens(code || '');
-    let growthVelocity = null;
+    // ── Code Growth Anomaly (paper flag #4) ─────────────────────────────
+    // A growth spike between consecutive submissions can indicate bulk
+    // code insertion (pasting) rather than incremental coding. Threshold
+    // requires BOTH >50% growth AND >50 absolute lines to avoid false
+    // positives from legitimate additions (comments, error handling, etc.)
+    const CODE_GROWTH_PCT_THRESHOLD = 50;
+    const CODE_GROWTH_ABS_THRESHOLD = 50;
+    const currentLineCount = (code || '').split('\n').length;
+    let codeGrowthAnomaly = null;
 
-    if (starterTokens > 0 && attemptNumber === 1) {
-      // First attempt: compare against starter code baseline
-      const growthPercent = ((studentTokens - starterTokens) / starterTokens) * 100;
-      growthVelocity = {
-        baselineTokens: starterTokens,
-        studentTokens,
-        growthPercent: Math.round(growthPercent),
-        threshold: 200,
-        flagged: growthPercent > 200,
-      };
-    } else if (attemptNumber > 1) {
-      // Subsequent attempts: compare against PREVIOUS submission (not starter)
+    if (attemptNumber > 1) {
+      // Compare against PREVIOUS submission's line count
       const prevRes = await db.query(
         'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
         [studentId, exerciseId, attemptNumber - 1]
       );
       if (prevRes.rows.length > 0) {
-        const prevTokens = countTokens(prevRes.rows[0].code || '');
-        if (prevTokens > 0) {
-          const growthPercent = ((studentTokens - prevTokens) / prevTokens) * 100;
-          growthVelocity = {
-            baselineTokens: prevTokens,
-            studentTokens,
+        const prevLineCount = (prevRes.rows[0].code || '').split('\n').length;
+        if (prevLineCount > 0) {
+          const growthPercent = ((currentLineCount - prevLineCount) / prevLineCount) * 100;
+          codeGrowthAnomaly = {
+            baselineLines: prevLineCount,
+            studentLines: currentLineCount,
             growthPercent: Math.round(growthPercent),
-            threshold: 200,
-            flagged: growthPercent > 200,
+            thresholdPct: CODE_GROWTH_PCT_THRESHOLD,
+            thresholdAbs: CODE_GROWTH_ABS_THRESHOLD,
+            flagged: growthPercent > CODE_GROWTH_PCT_THRESHOLD && currentLineCount > CODE_GROWTH_ABS_THRESHOLD,
           };
         }
       }
     }
 
-    // Flag growth velocity anomaly if triggered
-    if (growthVelocity?.flagged) {
+    // Flag code growth anomaly if triggered
+    if (codeGrowthAnomaly?.flagged) {
       try {
         await integrityFlagEngine.createFlag({
           sectionId: exercise.section_id,
           exerciseId,
           studentId,
-          flagType: 'growth_velocity_anomaly',
-          severity: 'high',
+          flagType: 'CODE_GROWTH_ANOMALY',
+          severity: 'low',
           evidence: {
-            baseline_tokens: growthVelocity.baselineTokens,
-            student_tokens: growthVelocity.studentTokens,
-            growth_percent: growthVelocity.growthPercent,
-            threshold: growthVelocity.threshold,
+            summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
+            baseline_lines: codeGrowthAnomaly.baselineLines,
+            student_lines: codeGrowthAnomaly.studentLines,
+            growth_percent: codeGrowthAnomaly.growthPercent,
+            threshold_pct: codeGrowthAnomaly.thresholdPct,
+            threshold_abs: codeGrowthAnomaly.thresholdAbs,
             attempt_number: attemptNumber,
+            confidence: 0.3,
+            innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
           },
           contextBehaviors: [
-            `Code grew ${growthVelocity.growthPercent}% in attempt #${attemptNumber} (${growthVelocity.baselineTokens} → ${growthVelocity.studentTokens} tokens)`,
+            `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
           ],
           status: 'flagged',
         });
       } catch (flagErr) {
         // Non-fatal: don't break submission flow
-        console.warn('Growth velocity flag creation failed:', flagErr.message);
+        console.warn('Code growth anomaly flag creation failed:', flagErr.message);
       }
     }
 
@@ -272,9 +267,9 @@ exports.submit = async (req, res) => {
       const verification_note = 'Blank or template-only submission';
       const ins = await db.query(
         `INSERT INTO submissions
-         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings,tab_switch_count,paste_count,idle_time_seconds)
-         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta, '[]', behavioralSummary.tabSwitchCount, behavioralSummary.pasteCount, behavioralSummary.idleTimeSeconds]
+         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings)
+         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8,$9) RETURNING id`,
+        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta, '[]']
       );
 
       // Log verification failure
@@ -400,21 +395,31 @@ exports.submit = async (req, res) => {
         }
       }
       traverse(tree.rootNode);
-      microContext.ast.node_types = Array.from(nodeTypes);
+      const types = Array.from(nodeTypes);
+      microContext.ast.node_types = types;
+      microContext.ast.if_count = types.filter(t => t === 'if_statement').length;
+      microContext.ast.else_count = types.filter(t => t === 'else_clause').length;
+      microContext.ast.has_private = types.some(t => t === 'private_section' || t === 'protected_section');
     } catch (astError) {
       // Fallback to empty if AST parsing fails
       microContext.ast.node_types = [];
+      microContext.ast.if_count = 0;
+      microContext.ast.else_count = 0;
+      microContext.ast.has_private = false;
     }
 
     const microConceptFeedback = await microConceptEngine.getMicroConceptFeedback(microContext, conceptName);
 
-    // Save submission (include verification fields, code growth delta, cppcheck warnings, behavioral data)
-    const bd = behavioralData || {};
+    // Build persisting compiler data from tcResults
+    const compilerLog = compilerErrors.join('\n');
+    const timeLimitHit = tcResults.some(r => r.status === 'Time Limit Exceeded');
+
+    // Save submission (include verification fields, code growth delta, cppcheck warnings, compiler_log, behavioral tracking)
     const insRes = await db.query(
       `INSERT INTO submissions
-       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings,tab_switch_count,paste_count,idle_time_seconds)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
-      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta, JSON.stringify(cppcheckWarnings), behavioralSummary.tabSwitchCount, behavioralSummary.pasteCount, behavioralSummary.idleTimeSeconds]
+       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings,compiler_log,time_limit_hit,tab_switch_count,paste_count,idle_time_seconds)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta, JSON.stringify(cppcheckWarnings), compilerLog, timeLimitHit, tabSwitchCount, pasteCount, idleTimeSeconds]
     );
 
     const submissionId = insRes.rows[0].id;
@@ -437,76 +442,8 @@ exports.submit = async (req, res) => {
       );
     }
 
-    // ── Multi-Vector Plagiarism Detection ───────────────────────────────
+    // ── Academic Integrity Checks (paper flags 1 & 2) ───────────────────
     try {
-      const { normalizeAST } = require('../services/astHasher');
-
-      // Parse AST and compute sliding-window hashes (with fallback)
-      const astResult = normalizeAST(code, 'cpp');
-
-      // Persist AST hashes for future peer-to-peer comparisons
-      await integrityFlagEngine.persistASTHashes(
-        submissionId, exerciseId, studentId, astResult
-      );
-
-      // DEFENSIVE FALLBACK: parser bypassed → flag for manual review
-      if (astResult.usedFallback) {
-        const bypassFlag = integrityFlagEngine.createParserBypassFlag(astResult.parseError);
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId, studentId,
-          flagType: bypassFlag.type,
-          severity: bypassFlag.severity,
-          evidence: bypassFlag.evidence,
-          contextBehaviors: [],
-          status: 'flagged',
-          submissionId,
-        });
-      }
-
-      // VECTOR 1: Peer-to-peer sliding window intersect
-      const peerResult = await integrityFlagEngine.detectPeerPlagiarism(
-        astResult.windows, exerciseId, studentId, astResult.fullHash
-      );
-      for (const flag of peerResult.flags) {
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id, exerciseId, studentId,
-          flagType: flag.type, severity: flag.severity,
-          evidence: flag.evidence, contextBehaviors: [],
-          status: 'flagged', submissionId,
-        });
-      }
-
-      // VECTOR 2: CodeNet archival benchmark check
-      const codenetResult = await integrityFlagEngine.detectCodeNetMatch(
-        astResult.fullHash, astResult.windows
-      );
-      for (const flag of codenetResult.flags) {
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id, exerciseId, studentId,
-          flagType: flag.type, severity: flag.severity,
-          evidence: flag.evidence, contextBehaviors: [],
-          status: 'flagged', submissionId,
-        });
-      }
-
-      // VECTOR 3: Instructor reference conformance & telemetry gate
-      if (exercise.reference_solution) {
-        const refResult = integrityFlagEngine.detectReferenceConformance(
-          code, exercise.reference_solution,
-          { timeSpentSeconds: timeSpentSeconds || 0, pasteCount: behavioralSummary.pasteCount || 0 }
-        );
-        for (const flag of refResult.flags) {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id, exerciseId, studentId,
-            flagType: flag.type, severity: flag.severity,
-            evidence: flag.evidence, contextBehaviors: [],
-            status: 'flagged', submissionId,
-          });
-        }
-      }
-
-      // ── Legacy behavioral checks (academicIntegrityEngine) ────────────
       const academicIntegrityFlags = await academicIntegrityEngine.evaluateIntegrity({
         code,
         starterCode: exercise.starter_code || '',
@@ -519,8 +456,6 @@ exports.submit = async (req, res) => {
           submission_id: submissionId
         },
         exercise,
-        cdsEngine: require('../services/cdsEngine'),
-        behavioralData: behavioralSummary,
       });
 
       for (const flag of academicIntegrityFlags) {
@@ -536,6 +471,72 @@ exports.submit = async (req, res) => {
       }
     } catch (integrityError) {
       console.warn('Academic integrity check failed:', integrityError.message);
+    }
+
+    // ── Behavioral Anomaly Detection (paper flag 3) ──────────────────────
+    try {
+      const behavioralDetector = require('../services/behavioralAnomalyDetector');
+      const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
+        studentId,
+        exerciseId,
+        submissionId,
+        is_correct: allPassed,
+        time_spent_seconds: timeSpentSeconds || 0,
+        attempt_number: attemptNumber,
+        sectionId: exercise.section_id,
+      });
+
+      for (const flag of behavioralFlags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id, exerciseId, studentId,
+          flagType: flag.type, severity: flag.severity,
+          evidence: flag.evidence || {},
+          contextBehaviors: flag.context_behaviors || [],
+          status: 'flagged',
+          submissionId,
+        });
+      }
+    } catch (behavioralError) {
+      console.warn('Behavioral anomaly detection failed:', behavioralError.message);
+    }
+
+    // ── Passive Behavior Logging Flag ──────────────────────────────────
+    // Telemetry-only: tab switches, paste events, idle time. Always LOW severity
+    // as these are contextual indicators, not evidence of misconduct.
+    const behavioralThresholds = { TAB_SWITCH_HIGH: 5, PASTE_HIGH: 3, IDLE_RATIO_HIGH: 0.5 };
+    const totalTime = timeSpentSeconds || 1;
+    const idleRatio = idleTimeSeconds / totalTime;
+    const behavioralSignals = [];
+    if (tabSwitchCount >= behavioralThresholds.TAB_SWITCH_HIGH) behavioralSignals.push(`${tabSwitchCount} tab switches`);
+    if (pasteCount >= behavioralThresholds.PASTE_HIGH) behavioralSignals.push(`${pasteCount} paste events`);
+    if (idleRatio >= behavioralThresholds.IDLE_RATIO_HIGH) behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
+    if (behavioralSignals.length > 0) {
+      try {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId,
+          studentId,
+          flagType: 'PASSIVE_BEHAVIOR_LOG',
+          severity: 'low',
+          evidence: {
+            summary: behavioralSignals.join('; '),
+            tab_switch_count: tabSwitchCount,
+            paste_count: pasteCount,
+            idle_time_seconds: idleTimeSeconds,
+            total_time_seconds: totalTime,
+            idle_ratio: Math.round(idleRatio * 100) / 100,
+            attempt_number: attemptNumber,
+            confidence: 0.15,
+            innocent_explanation: 'Behavioral telemetry (tab switches, pastes, idle time) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt. Pasting from your own previous work is normal. Idle time may reflect thinking or debugging.',
+          },
+          contextBehaviors: [
+            behavioralSignals.join('; '),
+            `Attempt #${attemptNumber}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+          ],
+        });
+      } catch (flagErr) {
+        console.warn('Passive behavior flag creation failed:', flagErr.message);
+      }
     }
 
     // Split visible vs hidden results for response
@@ -601,6 +602,31 @@ exports.submit = async (req, res) => {
       })
       .catch(err => console.warn('[ConceptAnalytics] Live update failed:', err.message));
 
+    // Compute growth velocity: token count delta per minute from previous attempt
+    let growthVelocity = null;
+    try {
+      const currentTokens = countTokens(code || '');
+      if (attemptNumber > 1) {
+        const prevRes = await db.query(
+          'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+          [studentId, exerciseId, attemptNumber - 1]
+        );
+        if (prevRes.rows.length > 0) {
+          const prevTokens = countTokens(prevRes.rows[0].code || '');
+          const tokenDelta = currentTokens - prevTokens;
+          const minutes = Math.max((timeSpentSeconds || 0) / 60, 0.0167);
+          growthVelocity = Math.round(tokenDelta / minutes);
+        }
+      } else {
+        const starterTokens = countTokens(exercise.starter_code || '');
+        const tokenDelta = currentTokens - starterTokens;
+        const minutes = Math.max((timeSpentSeconds || 0) / 60, 0.0167);
+        growthVelocity = Math.round(tokenDelta / minutes);
+      }
+    } catch (velErr) {
+      console.warn('Growth velocity computation failed:', velErr.message);
+    }
+
     // Prepare response with micro-concept feedback, cppcheck warnings, code growth delta, and growth velocity
     const responseData = {
       attemptNumber,
@@ -638,13 +664,11 @@ exports.submit = async (req, res) => {
       }
     }
 
-    // If assessment mode, compute rubric score
-    if (exercise.mode === 'assessment') {
-      const rubricScorer = require('../services/rubricScorer');
-      responseData.rubricScore = await rubricScorer.scoreSubmission(
-        submissionId, exerciseId, exercise.rubric_config
-      );
-    }
+    // Compute rubric score
+    const rubricScorer = require('../services/rubricScorer');
+    responseData.rubricScore = await rubricScorer.scoreSubmission(
+      submissionId, exerciseId, exercise.rubric_config || {}
+    );
 
     // Calculate response latency for performance logging
     const endTime = Date.now();
@@ -722,7 +746,7 @@ exports.studentSubmissions = async (req, res) => {
  * Returns 202 Accepted with jobId for polling.
  */
 exports.submitAsync = async (req, res) => {
-  const { exerciseId, code, timeSpentSeconds, behavioralData, behavioralEvents } = req.body;
+  const { exerciseId, code, timeSpentSeconds } = req.body;
   const studentId = req.user.id;
 
   if (!code || !code.trim()) {
@@ -738,21 +762,6 @@ exports.submitAsync = async (req, res) => {
     return exports.submit(req, res);
   }
 
-  // Normalize behavioral data
-  const behavioralSummary = {
-    tabSwitchCount: 0,
-    pasteCount: 0,
-    idleTimeSeconds: 0,
-  };
-  if (behavioralData) Object.assign(behavioralSummary, behavioralData);
-  if (Array.isArray(behavioralEvents)) {
-    for (const ev of behavioralEvents) {
-      if (ev.type === 'tab_blur' || ev.type === 'tab_focus') behavioralSummary.tabSwitchCount++;
-      if (ev.type === 'paste') behavioralSummary.pasteCount++;
-      if (ev.type === 'idle_start') behavioralSummary.idleTimeSeconds += 30;
-    }
-  }
-
   // Pre-create submission record to get an ID (worker updates it)
   let submissionId;
   try {
@@ -765,10 +774,9 @@ exports.submitAsync = async (req, res) => {
     const insRes = await db.query(
       `INSERT INTO submissions
        (student_id, exercise_id, code, is_correct, attempt_number, time_spent_seconds,
-        is_verified, verification_note, tab_switch_count, paste_count, idle_time_seconds)
-       VALUES ($1,$2,$3,false,$4,$5,false,'queued',$6,$7,$8) RETURNING id`,
-      [studentId, exerciseId, code, attemptNumber, timeSpentSeconds || 0,
-       behavioralSummary.tabSwitchCount, behavioralSummary.pasteCount, behavioralSummary.idleTimeSeconds]
+        is_verified, verification_note)
+       VALUES ($1,$2,$3,false,$4,$5,false,'queued') RETURNING id`,
+      [studentId, exerciseId, code, attemptNumber, timeSpentSeconds || 0]
     );
     submissionId = insRes.rows[0].id;
   } catch (err) {
@@ -782,7 +790,6 @@ exports.submitAsync = async (req, res) => {
       code,
       studentId,
       timeSpentSeconds: timeSpentSeconds || 0,
-      behavioralData: behavioralSummary,
       submissionId,
     });
 

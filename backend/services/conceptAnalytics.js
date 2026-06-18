@@ -31,7 +31,6 @@
  * CDS COMPATIBILITY:
  *   - All functions read from cds_scores (read-only) and submissions
  *   - CMI/CRS write only to student_concept_metrics / section_concept_metrics
- *   - Difficulty Index writes only to exercises.difficulty_index
  *   - No modifications to cds_scores, cds_snapshots, or alerts tables
  *
  * Integration:
@@ -385,8 +384,8 @@ async function computeCRS(sectionId, dbClient) {
 
     await client.query(
       `INSERT INTO section_concept_metrics
-       (section_id, concept_id, crs, crs_score, difficulty_index, student_count, at_risk_count, last_updated)
-       VALUES ($1, $2, $3, $4, 0, $5, $6, NOW())
+       (section_id, concept_id, crs, crs_score, student_count, at_risk_count, last_updated)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
        ON CONFLICT (section_id, concept_id)
        DO UPDATE SET crs = $3, crs_score = $4, student_count = $5, at_risk_count = $6, last_updated = NOW()`,
       [sectionId, concept.id, crs, crsScore, studentCount, atRiskCount]
@@ -411,82 +410,6 @@ function _classifyCRS(crsScore, atRiskCount) {
   if (crsScore > 0.50 && atRiskCount >= 3) return 'high';
   if (crsScore > 0.31) return 'medium';
   return 'low';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Difficulty Index
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Compute data-driven difficulty index for exercises in a section.
- *
- * Formula: (1 - passRate) × 0.40 + normAvgAttempts × 0.35 + normAvgTime × 0.25
- *
- * passRate = students who solved / total students who attempted
- * normAvgAttempts = avg_attempts / max(all_exercises_avg_attempts)
- * normAvgTime = avg_time / max(all_exercises_avg_time)
- *
- * Recalculated on exercise close alongside batch CDS.
- *
- * @param {number} sectionId
- * @param {Object} [dbClient]
- * @returns {Promise<{updated: number}>}
- */
-async function computeDifficultyIndex(sectionId, dbClient) {
-  const client = dbClient || db;
-
-  // Get all exercises in this section with submission data
-  const exerciseRes = await client.query(
-    `SELECT e.id,
-            COUNT(DISTINCT s.student_id) AS students_attempted,
-            COUNT(DISTINCT s.student_id) FILTER (WHERE s.is_correct = true) AS students_solved,
-            AVG(s.attempt_number) AS avg_attempts,
-            AVG(s.time_spent_seconds) AS avg_time
-     FROM exercises e
-     LEFT JOIN submissions s ON s.exercise_id = e.id AND s.is_practice IS NOT TRUE
-     WHERE e.section_id = $1
-     GROUP BY e.id
-     HAVING COUNT(DISTINCT s.student_id) > 0`,
-    [sectionId]
-  );
-
-  if (exerciseRes.rows.length === 0) {
-    return { updated: 0 };
-  }
-
-  // Compute class-wide normalization factors
-  const allAvgAttempts = exerciseRes.rows.map(r => parseFloat(r.avg_attempts) || 0);
-  const allAvgTimes = exerciseRes.rows.map(r => parseFloat(r.avg_time) || 0);
-
-  const maxAvgAttempts = Math.max(...allAvgAttempts, 1);
-  const maxAvgTime = Math.max(...allAvgTimes, 1);
-
-  let updated = 0;
-
-  for (const ex of exerciseRes.rows) {
-    const studentsAttempted = parseInt(ex.students_attempted);
-    const studentsSolved = parseInt(ex.students_solved);
-    const passRate = studentsAttempted > 0 ? studentsSolved / studentsAttempted : 0;
-
-    const avgAttempts = parseFloat(ex.avg_attempts) || 0;
-    const avgTime = parseFloat(ex.avg_time) || 0;
-
-    const normAttempts = avgAttempts / maxAvgAttempts;
-    const normTime = avgTime / maxAvgTime;
-
-    const difficultyIndex = (1 - passRate) * 0.40 + normAttempts * 0.35 + normTime * 0.25;
-    const boundedDifficulty = Math.max(0, Math.min(1, difficultyIndex));
-    const roundedDifficulty = Math.round(boundedDifficulty * 10000) / 10000;
-
-    await client.query(
-      `UPDATE exercises SET difficulty_index = $1 WHERE id = $2`,
-      [roundedDifficulty, ex.id]
-    );
-
-    updated++;
-  }
-
-  return { updated };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -516,7 +439,6 @@ async function computeAllMetrics(sectionId) {
     const cmiResult = await computeCMI(sectionId, client);
     const velocityResult = await computeVelocity(sectionId, client);
     const crsResult = await computeCRS(sectionId, client);
-    const difficultyResult = await computeDifficultyIndex(sectionId, client);
 
     await client.query('COMMIT');
 
@@ -525,7 +447,6 @@ async function computeAllMetrics(sectionId) {
       cmiUpdated: cmiResult.updated,
       velocityUpdated: velocityResult.updated,
       crsUpdated: crsResult.updated,
-      difficultyUpdated: difficultyResult.updated,
     };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -635,7 +556,7 @@ async function getStudentCMI(studentId, sectionId) {
      FROM student_concept_metrics scm
      JOIN concepts c ON c.id = scm.concept_id
      WHERE scm.student_id = $1 AND scm.section_id = $2
-     ORDER BY c.difficulty_tier, c.name`,
+     ORDER BY c.name`,
     [studentId, sectionId]
   );
 
@@ -661,7 +582,7 @@ async function getSectionCRS(sectionId) {
   const result = await db.query(
     `SELECT c.name AS concept_name, c.id AS concept_id,
             scm.crs, scm.crs_score, scm.student_count, scm.at_risk_count,
-            scm.difficulty_index, scm.last_updated,
+            scm.last_updated,
             c.knowledge_area_code, c.slug
      FROM section_concept_metrics scm
      JOIN concepts c ON c.id = scm.concept_id
@@ -677,7 +598,6 @@ async function getSectionCRS(sectionId) {
     crsScore: parseFloat(row.crs_score) || 0,
     studentCount: parseInt(row.student_count) || 0,
     atRiskCount: parseInt(row.at_risk_count) || 0,
-    difficultyIndex: parseFloat(row.difficulty_index) || 0,
     knowledgeAreaCode: row.knowledge_area_code,
     slug: row.slug,
     lastUpdated: row.last_updated,
@@ -750,7 +670,6 @@ module.exports = {
   computeCMI,
   computeVelocity,
   computeCRS,
-  computeDifficultyIndex,
 
   // Live update
   updateMetricsForSubmission,

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, ArrowRight, Flag, AlertTriangle, RefreshCw } from "lucide-react";
+import { Plus, Search, ArrowRight, Flag, AlertTriangle, RefreshCw, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +25,7 @@ import DecisionList from "@/components/ui/decision-list";
 import RiskBadge from "@/components/ui/risk-badge";
 import CDSPillDelta from "@/components/ui/cds-pill-delta";
 import api from "@/services/api";
+import { toast } from "sonner";
 
 const LEVEL_THRESHOLDS = { low: 0.33, moderate: 0.66 };
 function computeLevel(avgCds) {
@@ -47,6 +48,7 @@ async function fetchSections() {
     name: s.name,
     course: s.course_code,
     term: buildTerm(s),
+    code: s.code,
     students: s.student_count ?? 0,
     atRisk: s.difficulty_distribution?.high ?? 0,
     avgCds: s.avg_cds ?? 0,
@@ -131,6 +133,16 @@ export default function InstructorSections() {
     return rows;
   }, [query, sort, course, sections]);
 
+  const handleCopyCode = useCallback(async (code, e) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success("Join code copied to clipboard");
+    } catch {
+      toast.error("Failed to copy join code");
+    }
+  }, []);
+
   const items = filtered.map((s) => ({
     id: s.id,
     title: s.name,
@@ -151,6 +163,16 @@ export default function InstructorSections() {
           <Flag className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
           {s.flags}
         </span>
+        <button
+          type="button"
+          onClick={(e) => handleCopyCode(s.code, e)}
+          className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+          aria-label={`Copy join code ${s.code}`}
+          title={`Copy code: ${s.code}`}
+        >
+          <Copy className="h-3 w-3" strokeWidth={1.5} />
+          {s.code}
+        </button>
       </div>
     ),
   }));

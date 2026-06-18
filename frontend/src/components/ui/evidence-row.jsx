@@ -1,25 +1,23 @@
+import { cn } from "@/lib/utils";
 import KPIChartCard from "./kpi-chart-card";
 
 /**
  * EvidenceRow
- * Responsive grid of KPIChartCards driven by a `chips` array.
- *
- * Props
- *   - chips: Array<{ label: string, value: string|number, delta?: number, series?: number[] }>
- *
- * Layout
- *   Mobile:  grid-cols-2
- *   Desktop: grid-cols-4
- *   gap-4
- *
- * Tokens only.
+ * Fluid responsive grid of KPIChartCards.
+ * Uses gap-px rounded-2xl overflow-hidden pattern for the
+ * unified micro-metrics strip aesthetic.
  */
 export default function EvidenceRow({ chips = [] }) {
-  const cols = chips.length <= 4 ? chips.length : 4;
   return (
     <div
-      className="grid gap-4"
-      style={{ gridTemplateColumns: `repeat(${Math.max(cols, 2)}, minmax(0, 1fr))` }}
+      className={cn(
+        "grid gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]",
+        chips.length <= 2
+          ? "grid-cols-1 sm:grid-cols-2"
+          : chips.length === 3
+            ? "grid-cols-3"
+            : "grid-cols-2 lg:grid-cols-4"
+      )}
       role="group"
       aria-label="Supporting evidence"
     >

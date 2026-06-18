@@ -8,17 +8,18 @@ let isWorkerRunning = false;
 const processQueue = async () => {
   if (!isWorkerRunning && queue.length > 0) {
     isWorkerRunning = true;
+    let currentJob = null;
     try {
       while (queue.length > 0) {
-        const job = queue.shift();
-        await cdsEngine.computeBatchCDS(job.exerciseId, db);
-        await notifyStudent(job.exerciseId, 'CDS computation completed');
-        job.resolve();
+        currentJob = queue.shift();
+        await cdsEngine.computeBatchCDS(currentJob.exerciseId, db);
+        await notifyStudent(currentJob.exerciseId, 'CDS computation completed');
+        currentJob.resolve();
       }
     } catch (error) {
       console.error('Background job failed:', error);
-      if (queue.length > 0) {
-        queue[0].reject(error);
+      if (currentJob) {
+        currentJob.reject(error);
       }
     } finally {
       isWorkerRunning = false;
@@ -34,12 +35,10 @@ exports.enqueueCdsComputation = (exerciseId) => {
 };
 
 /**
- * Send notification to students about CDS computation
- * Supports database storage for UI retrieval and email integration
+ * Notify students about CDS computation via email
  */
 const notifyStudent = async (exerciseId, message) => {
   try {
-    // Get exercise details
     const exerciseRes = await db.query(
       `SELECT section_id FROM exercises WHERE id = $1`,
       [exerciseId]
@@ -52,7 +51,6 @@ const notifyStudent = async (exerciseId, message) => {
 
     const sectionId = exerciseRes.rows[0].section_id;
 
-    // Get all students in section
     const studentsRes = await db.query(
       `SELECT DISTINCT e.student_id, u.email, u.name
        FROM enrollments e
@@ -61,35 +59,14 @@ const notifyStudent = async (exerciseId, message) => {
       [sectionId]
     );
 
-    // Log notifications (development)
     console.log(`[Notification] Exercise ${exerciseId}: ${message}`);
     console.log(`  Recipients: ${studentsRes.rows.length} students in section ${sectionId}`);
-
-    // Store notification records for each student (for UI retrieval)
-    for (const student of studentsRes.rows) {
-      try {
-        await db.query(
-          `INSERT INTO notifications (student_id, section_id, exercise_id, message, notification_type, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())
-           ON CONFLICT (student_id, exercise_id, notification_type) DO NOTHING`,
-          [student.student_id, sectionId, exerciseId, message, 'cds_computation']
-        );
-      } catch (err) {
-        // Table might not exist in development - gracefully handle
-        if (err.code === '42P01') {
-          console.log('[Dev] Notifications table not yet created - skipping storage');
-        } else {
-          console.warn(`Failed to store notification for student ${student.student_id}:`, err.message);
-        }
-      }
-    }
 
     // Send emails if enabled and configured
     const emailEnabled = process.env.EMAIL_ENABLED &&
       ['true', 'True', 'TRUE', 'yes', 'Yes', 'YES', '1', 'on'].includes(process.env.EMAIL_ENABLED);
 
     if (emailEnabled) {
-      // Check if email credentials are configured
       if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.warn('[Notification] Email credentials incomplete - skipping email notifications');
       } else {
@@ -102,7 +79,6 @@ const notifyStudent = async (exerciseId, message) => {
     }
   } catch (err) {
     console.error('Error in notifyStudent:', err);
-    // Don't throw - notification failure shouldn't break the main job
   }
 };
 

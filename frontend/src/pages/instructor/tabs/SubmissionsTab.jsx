@@ -1,8 +1,20 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Flag, AlertTriangle, RefreshCw } from "lucide-react";
+import {
+  Search,
+  Flag,
+  AlertTriangle,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  ExternalLink,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import InsightHeader from "@/components/ui/insight-header";
+import SubmissionDetailDrawer from "@/components/analytics/SubmissionDetailDrawer";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
 
@@ -19,38 +31,76 @@ function timeAgo(dateStr) {
 }
 
 export default function SubmissionsTab({ sectionId }) {
-  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [exerciseFilter, setExerciseFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
 
-  const { data: rawFlags = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["submissions-flags", sectionId],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["section-submissions", sectionId],
     queryFn: async () => {
-      const { data } = await api.get(`/api/analytics/integrity-flags/${sectionId}?limit=100`);
-      return data.flags || [];
+      const { data } = await api.get(
+        `/api/analytics/sections/${sectionId}/submissions?limit=250`
+      );
+      return data;
     },
     enabled: !!sectionId,
   });
 
-  const submissions = useMemo(() => {
-    return rawFlags.map((f, idx) => ({
-      id: f.id || idx,
-      student: f.student_name || "Unknown",
-      exercise: f.exercise_title || "Unknown",
-      submitted: timeAgo(f.created_at),
-      score: 0,
-      anomaly: formatFlagType(f.flag_type),
-      severity: f.severity,
-      status: f.status,
-    }));
-  }, [rawFlags]);
+  const submissions = useMemo(() => data?.submissions || [], [data]);
 
-  const flaggedSubmissions = useMemo(() => submissions.filter((s) => s.anomaly != null), [submissions]);
+  // Extract unique exercises for filter dropdown
+  const exercises = useMemo(() => {
+    const map = {};
+    submissions.forEach((s) => {
+      if (!map[s.exercise_id]) {
+        map[s.exercise_id] = {
+          id: s.exercise_id,
+          title: s.exercise_title,
+        };
+      }
+    });
+    return Object.values(map).sort((a, b) => a.title.localeCompare(b.title));
+  }, [submissions]);
 
-  const rows = filter === "flagged" ? flaggedSubmissions : submissions;
+  const flaggedCount = useMemo(
+    () => submissions.filter((s) => s.flag_count > 0).length,
+    [submissions]
+  );
+
+  const filtered = useMemo(() => {
+    let list = submissions;
+
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.student_name?.toLowerCase().includes(q) ||
+          s.student_email?.toLowerCase().includes(q)
+      );
+    }
+    if (exerciseFilter) {
+      list = list.filter((s) => s.exercise_id === parseInt(exerciseFilter, 10));
+    }
+    if (statusFilter === "flagged") {
+      list = list.filter((s) => s.flag_count > 0);
+    } else if (statusFilter === "pass") {
+      list = list.filter((s) => s.is_correct);
+    } else if (statusFilter === "fail") {
+      list = list.filter((s) => !s.is_correct);
+    }
+
+    return list;
+  }, [submissions, search, exerciseFilter, statusFilter]);
+
+  const handleSubmissionClick = useCallback((sub) => {
+    setSelectedSubmission(sub);
+  }, []);
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <InsightHeader insight="Loading submissions data…" />
+        <InsightHeader insight="Loading submissions…" />
         <div className="rounded-lg border border-border bg-card/50 py-8 px-6 text-center">
           <p className="text-sm font-semibold text-foreground">Loading submissions…</p>
         </div>
@@ -77,107 +127,144 @@ export default function SubmissionsTab({ sectionId }) {
   return (
     <div className="space-y-6">
       <InsightHeader
-        insight={`${flaggedSubmissions.length} submission${flaggedSubmissions.length === 1 ? "" : "s"} flagged for anomalies.`}
+        insight={`${submissions.length} submission${submissions.length === 1 ? "" : "s"} across ${exercises.length} exercise${exercises.length === 1 ? "" : "s"}. ${flaggedCount} flagged.`}
       />
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setFilter("all")}
-          className={cn(
-            "px-3 py-1 text-sm rounded-md transition-colors",
-            filter === "all"
-              ? "bg-muted text-foreground font-medium"
-              : "text-muted-foreground hover:text-foreground",
-          )}
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+          <Input
+            type="text"
+            placeholder="Search student…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 pl-8 text-sm"
+          />
+        </div>
+
+        {/* Exercise filter */}
+        <select
+          value={exerciseFilter}
+          onChange={(e) => setExerciseFilter(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          All ({submissions.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilter("flagged")}
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1 text-sm rounded-md transition-colors",
-            filter === "flagged"
-              ? "bg-destructive/10 text-destructive border border-destructive/20 font-medium"
-              : "text-muted-foreground hover:text-foreground border border-transparent",
-          )}
-        >
-          <Flag className="h-3 w-3" strokeWidth={1.5} />
-          Flagged ({flaggedSubmissions.length})
-        </button>
+          <option value="">All exercises</option>
+          {exercises.map((ex) => (
+            <option key={ex.id} value={ex.id}>
+              {ex.title}
+            </option>
+          ))}
+        </select>
+
+        {/* Action: Refresh */}
+        <Button variant="ghost" size="sm" onClick={() => refetch()} title="Refresh">
+          <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+        </Button>
       </div>
 
-      {submissions.length === 0 ? (
+      {/* Status tabs */}
+      <div className="flex items-center gap-2">
+        {[
+          { key: "all", label: `All (${submissions.length})` },
+          { key: "pass", label: "Pass" },
+          { key: "fail", label: "Fail" },
+          { key: "flagged", label: `Flagged (${flaggedCount})` },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setStatusFilter(tab.key)}
+            className={cn(
+              "px-3 py-1 text-sm rounded-md transition-colors",
+              statusFilter === tab.key
+                ? tab.key === "flagged"
+                  ? "bg-destructive/10 text-destructive border border-destructive/20 font-medium"
+                  : "bg-muted text-foreground font-medium"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
+            )}
+          >
+            {tab.key === "flagged" && (
+              <Flag className="h-3 w-3 inline mr-1" strokeWidth={1.5} />
+            )}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Submissions table */}
+      {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center">
-          <p className="text-sm font-semibold text-foreground">No submissions yet</p>
+          <p className="text-sm font-semibold text-foreground">No submissions found</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Submissions will appear here once students submit exercises.
+            {search
+              ? "Try a different search term."
+              : "Submissions will appear here once students submit exercises."}
           </p>
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="grid grid-cols-[1fr_12rem_5rem_5rem_14rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
+          {/* Table header */}
+          <div className="grid grid-cols-[1fr_1fr_5rem_5rem_7rem_3rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
             <span className="text-xs font-medium text-muted-foreground">Student</span>
             <span className="text-xs font-medium text-muted-foreground">Exercise</span>
-            <span className="text-xs font-medium text-muted-foreground text-right">Severity</span>
+            <span className="text-xs font-medium text-muted-foreground text-right">Attempt</span>
+            <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
             <span className="text-xs font-medium text-muted-foreground text-right">Submitted</span>
-            <span className="text-xs font-medium text-muted-foreground">Flag</span>
+            <span className="text-xs font-medium text-muted-foreground"></span>
           </div>
-          <ul className="divide-y divide-border">
-            {rows.map((s) => (
+          <ul className="divide-y divide-border max-h-[600px] overflow-y-auto">
+            {filtered.map((s) => (
               <li
                 key={s.id}
-                className="grid grid-cols-[1fr_12rem_5rem_5rem_14rem] items-center gap-3 px-4 h-14 hover:bg-muted/40 transition-colors cursor-pointer"
+                onClick={() => handleSubmissionClick(s)}
+                className="grid grid-cols-[1fr_1fr_5rem_5rem_7rem_3rem] items-center gap-3 px-4 h-14 hover:bg-muted/40 transition-colors cursor-pointer"
               >
                 <span className="text-sm font-medium text-foreground truncate">
-                  {s.student}
+                  {s.student_name}
                 </span>
                 <span className="text-sm text-muted-foreground truncate">
-                  {s.exercise}
+                  {s.exercise_title}
+                </span>
+                <span className="text-sm text-muted-foreground text-right tabular-nums">
+                  #{s.attempt_number}
                 </span>
                 <span className="text-right">
-                  {s.severity ? (
-                    <span className={cn(
-                      "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium",
-                      s.severity === "high" ? "bg-destructive/10 text-destructive" :
-                      s.severity === "medium" ? "bg-warning/10 text-warning" :
-                      "bg-muted text-muted-foreground"
-                    )}>
-                      {s.severity}
-                    </span>
+                  {s.is_correct ? (
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                      <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                      Pass
+                    </Badge>
                   ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
+                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[11px]">
+                      <XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                      Fail
+                    </Badge>
                   )}
                 </span>
                 <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                  {s.submitted}
+                  {timeAgo(s.submitted_at)}
                 </span>
-                {s.anomaly ? (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-destructive/10 text-destructive border border-destructive/20 w-fit">
-                    <AlertTriangle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                    {s.anomaly}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
+                <span className="flex justify-center">
+                  {s.flag_count > 0 ? (
+                    <Flag className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
+                  ) : (
+                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/40" strokeWidth={1.5} />
+                  )}
+                </span>
               </li>
             ))}
           </ul>
         </div>
       )}
+
+      {/* Submission detail drawer */}
+      <SubmissionDetailDrawer
+        submission={selectedSubmission}
+        open={!!selectedSubmission}
+        onClose={() => setSelectedSubmission(null)}
+      />
     </div>
   );
-}
-
-function formatFlagType(type) {
-  const map = {
-    code_paste_detected: "Paste from URL",
-    code_growth_anomaly: "Code growth anomaly",
-    retry_storm: "Retry storm",
-    hardcoded: "Hardcode detected",
-    blank_template: "Blank template",
-    behavioral_anomaly: "Behavioral anomaly",
-  };
-  return map[type] || type || null;
 }

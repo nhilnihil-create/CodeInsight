@@ -3,6 +3,7 @@
   "plugin": [
     "oh-my-openagent",
     "opencode-pty",
-    "@nick-vi/opencode-type-inject"
+    "@nick-vi/opencode-type-inject",
+    "superpowers@git+https://github.com/obra/superpowers.git"
   ]
 }

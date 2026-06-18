@@ -1,20 +1,33 @@
 // AST Verification Service using tree-sitter for structural code analysis
 // Implements deterministic validation based on required AST nodes and CodeNet patterns
+//
+// tree-sitter is lazy-loaded: if unavailable, falls back to regex-based
+// structural analysis so the submission pipeline never crashes.
 
-const treeSitter = require('tree-sitter');
-const CPP = require('tree-sitter-cpp');
-const { getBadPatterns } = require('./badPatterns');
+const { getPatternsForConcept, getVariableUsageRule } = require('./verificationRulesService');
 
-/**
- * Initialize tree-sitter parser with C++ grammar
- */
-let parser = null;
+// Module-level parser + module reference kept alive via globalThis prevents
+// native addon GC when tree-sitter is loaded.
+let _parser = null;
 function getParser() {
-  if (!parser) {
-    parser = new treeSitter();
-    parser.setLanguage(CPP);
+  if (!globalThis.__ci_ts_module) {
+    try {
+      globalThis.__ci_ts_module = require('tree-sitter');
+      globalThis.__ci_ts_lang_cpp = require('tree-sitter-cpp');
+    } catch (e) {
+      globalThis.__ci_ts_module = null;
+    }
   }
-  return parser;
+  if (!globalThis.__ci_ts_module) return null;
+  if (!_parser) {
+    try {
+      _parser = new (globalThis.__ci_ts_module)();
+      _parser.setLanguage(globalThis.__ci_ts_lang_cpp);
+    } catch (e) {
+      _parser = null;
+    }
+  }
+  return _parser;
 }
 
 // ── Canonization ────────────────────────────────────────────────────────────
@@ -132,96 +145,385 @@ function checkEmptyBodies(tree) {
   return errors;
 }
 
-// ── Check 3: Bad pattern matching (CodeNet-derived) — GAP #1 ────────────────
+// ── Check 2b: Variable Usage Verification (paper check #3) ─────────────────
 
 /**
- * Check submission against known bad patterns from CodeNet analysis.
- * Patterns are concept-specific tree-sitter queries that match syntactically-valid
- * but semantically-wrong code structures.
+ * Verify that the student used variables to control program logic
+ * instead of just using constants/literals.
+ *
+ * Reads rule config from verification_rules DB table (rule_type='variable_usage')
+ * with hardcoded fallback for common concepts when DB is unavailable.
  *
  * @param {treeSitter.Tree} tree - Parsed AST
- * @param {string} conceptName - Concept tag of the exercise (e.g., "Loops")
+ * @param {string} conceptName - Concept tag (e.g., "Loops", "Conditionals")
  * @returns {Array<{message: string, line: number, column: number}>}
  */
-function checkBadPatterns(tree, conceptName) {
+async function checkVariableUsage(tree, conceptName) {
   const errors = [];
-  const patterns = getBadPatterns(conceptName);
+
+  const rule = await getVariableUsageRule(conceptName);
+
+  if (rule) {
+    // DB-driven path
+    const config = typeof rule.config === 'string' ? JSON.parse(rule.config) : (rule.config || {});
+    const checkNodeTypes = config.checkNodeTypes || [];
+    const message = rule.student_message;
+
+    for (const nodeType of checkNodeTypes) {
+      const nodes = collectNodesByType(tree.rootNode, nodeType);
+      for (const node of nodes) {
+        let conditionNode = null;
+        for (let i = 0; i < node.childCount; i++) {
+          const child = node.child(i);
+          if (child.type === 'condition' || child.type === 'binary_expression' || child.type === 'condition_clause') {
+            conditionNode = child;
+            break;
+          }
+        }
+        if (!conditionNode) continue;
+
+        const hasIdentifier = hasNodeType(conditionNode, 'identifier');
+        const isTautology = conditionNode.type === 'true' ||
+          (conditionNode.type === 'number_literal' && conditionNode.text !== '0');
+        const hasLiteral = hasNodeType(conditionNode, 'number_literal');
+
+        if (isTautology) {
+          errors.push({ message: `${message} (tautology)`, line: node.startPosition.row + 1, column: node.startPosition.column + 1 });
+        } else if (hasLiteral && !hasIdentifier) {
+          errors.push({ message, line: node.startPosition.row + 1, column: node.startPosition.column + 1 });
+        }
+      }
+    }
+    return errors;
+  }
+
+  // Hardcoded fallback when DB unavailable
+  if (conceptName === 'Loops') {
+    const loopTypes = ['for_statement', 'while_statement', 'do_statement'];
+    for (const loopType of loopTypes) {
+      const loops = collectNodesByType(tree.rootNode, loopType);
+      for (const loop of loops) {
+        for (let i = 0; i < loop.childCount; i++) {
+          const child = loop.child(i);
+          if (child.type === 'condition' || child.type === 'binary_expression') {
+            const hasIdentifier = hasNodeType(child, 'identifier');
+            const hasLiteral = hasNodeType(child, 'number_literal');
+            if (hasLiteral && !hasIdentifier) {
+              errors.push({
+                message: `Loop condition uses only literals — use variables to control loop logic`,
+                line: loop.startPosition.row + 1,
+                column: loop.startPosition.column + 1,
+              });
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (conceptName === 'Conditionals') {
+    const ifStmts = collectNodesByType(tree.rootNode, 'if_statement');
+    for (const ifStmt of ifStmts) {
+      for (let i = 0; i < ifStmt.childCount; i++) {
+        const child = ifStmt.child(i);
+        if (child.type === 'condition' || child.type === 'condition_clause') {
+          const hasIdentifier = hasNodeType(child, 'identifier');
+          const isTautology = child.type === 'true' ||
+            (child.type === 'number_literal' && child.text !== '0');
+          if (isTautology || (!hasIdentifier && hasNodeType(child, 'number_literal'))) {
+            errors.push({
+              message: `Conditional uses hardcoded values — use variables to control logic`,
+              line: ifStmt.startPosition.row + 1,
+              column: ifStmt.startPosition.column + 1,
+            });
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+// ── Check 2c: Output Dependency Verification (paper check #4) ──────────────
+
+/**
+ * Verify that the required construct actually affects the program's output.
+ * Ensures the construct isn't "dead code" that runs but never influences results.
+ *
+ * Per the paper: "Checks that the required construct actually affects
+ * the program's output (ensuring it isn't 'dead code')."
+ *
+ * @param {treeSitter.Tree} tree - Parsed AST
+ * @param {string[]} requiredNodes - Required AST node types
+ * @returns {Array<{message: string, line: number, column: number}>}
+ */
+function checkOutputDependency(tree, requiredNodes) {
+  const errors = [];
+
+  // Collect all identifiers used in output statements (cout, return)
+  const outputIdentifiers = new Set();
+
+  // Find all output statements (cout, printf, puts, fprintf)
+  const callExprs = collectNodesByType(tree.rootNode, 'call_expression');
+  for (const call of callExprs) {
+    const text = call.text || '';
+    const outputFn = ['cout', 'printf', 'puts', 'fprintf', 'sprintf', 'write', 'cin'];
+    if (outputFn.some(fn => text.includes(fn))) {
+      const identifiers = collectIdentifiersFromNode(call);
+      identifiers.forEach(id => outputIdentifiers.add(id));
+    }
+  }
+
+  // Find all return statements
+  const returnStmts = collectNodesByType(tree.rootNode, 'return_statement');
+  for (const ret of returnStmts) {
+    const identifiers = collectIdentifiersFromNode(ret);
+    identifiers.forEach(id => outputIdentifiers.add(id));
+  }
+
+  // For each required construct, check if variables modified inside it
+  // appear in output statements
+  for (const nodeType of requiredNodes) {
+    const constructs = collectNodesByType(tree.rootNode, nodeType);
+    for (const construct of constructs) {
+      // Collect variables modified inside this construct
+      const modifiedVars = new Set();
+      const assignments = collectNodesByType(construct, 'assignment_expression');
+      for (const assign of assignments) {
+        // Left side of assignment is the modified variable
+        if (assign.childCount > 0) {
+          const leftIdentifiers = collectIdentifiersFromNode(assign.child(0));
+          leftIdentifiers.forEach(id => modifiedVars.add(id));
+        }
+      }
+
+      // Also check for increment/decrement operators
+      const updates = collectNodesByType(construct, 'update_expression');
+      for (const update of updates) {
+        const identifiers = collectIdentifiersFromNode(update);
+        identifiers.forEach(id => modifiedVars.add(id));
+      }
+
+      // If no variables are modified inside the construct, skip
+      if (modifiedVars.size === 0) continue;
+
+      // Check if any modified variable appears in output
+      const affectsOutput = [...modifiedVars].some(v => outputIdentifiers.has(v));
+
+      if (!affectsOutput && outputIdentifiers.size > 0) {
+        errors.push({
+          message: `Required construct (${nodeType}) modifies variables that don't affect program output — possible dead code`,
+          line: construct.startPosition.row + 1,
+          column: construct.startPosition.column + 1,
+        });
+      }
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Collect all identifier names from a node and its descendants.
+ */
+function collectIdentifiersFromNode(node) {
+  const identifiers = [];
+  if (node.type === 'identifier') {
+    identifiers.push(node.text);
+  }
+  for (let i = 0; i < node.childCount; i++) {
+    identifiers.push(...collectIdentifiersFromNode(node.child(i)));
+  }
+  return identifiers;
+}
+
+// ── Handler functions for post-query processing ────────────────────────────
+
+const HANDLERS = {
+  checkHasReturn(tree, code, queryMatch, pattern) {
+    const funcNode = queryMatch.captures.find(c => c.name === 'func')?.node;
+    const bodyNode = queryMatch.captures.find(c => c.name === 'body')?.node;
+    if (!funcNode || !bodyNode) return null;
+
+    let isVoid = false;
+    for (let i = 0; i < funcNode.childCount; i++) {
+      const child = funcNode.child(i);
+      if (child.type === 'primitive_type' && child.text === 'void') {
+        isVoid = true;
+        break;
+      }
+    }
+    if (isVoid) return null;
+
+    const hasReturn = hasNodeType(bodyNode, 'return_statement');
+    if (!hasReturn) {
+      const nameNode = findIdentifier(funcNode);
+      const name = nameNode ? nameNode.text : 'unknown';
+      return {
+        message: `Bad pattern: Non-void function '${name}' has no return statement`,
+        line: funcNode.startPosition.row + 1,
+        column: funcNode.startPosition.column + 1
+      };
+    }
+    return null;
+  },
+
+  checkAllPublic(tree, code, queryMatch, pattern) {
+    const fieldsNode = queryMatch.captures.find(c => c.name === 'fields')?.node;
+    if (!fieldsNode) return null;
+    const fieldsText = code.substring(fieldsNode.startIndex, fieldsNode.endIndex);
+    if (!fieldsText.includes('private') && !fieldsText.includes('protected')) {
+      return {
+        message: `Bad pattern: ${pattern.message}`,
+        line: fieldsNode.startPosition.row + 1,
+        column: fieldsNode.startPosition.column + 1
+      };
+    }
+    return null;
+  },
+
+  checkHasConstructor(tree, code, queryMatch, pattern) {
+    const classNode = queryMatch.captures.find(c => c.name === 'class_name')?.node;
+    const bodyNode = queryMatch.captures.find(c => c.name === 'body')?.node;
+    if (!classNode || !bodyNode) return null;
+
+    const className = code.substring(classNode.startIndex, classNode.endIndex);
+    const bodyText = code.substring(bodyNode.startIndex, bodyNode.endIndex);
+
+    const hasConstructor = hasNodeType(bodyNode, 'function_definition') &&
+      (bodyText.includes(className + '(') || bodyText.includes(className + '::' + className));
+
+    if (!hasConstructor) {
+      return {
+        message: `Bad pattern: ${pattern.message}`,
+        line: classNode.startPosition.row + 1,
+        column: classNode.startPosition.column + 1
+      };
+    }
+    return null;
+  },
+
+  checkUninitialized(tree, code, queryMatch, pattern) {
+    const uninitNode = queryMatch.captures.find(c => c.name === 'uninit')?.node;
+    if (!uninitNode) return null;
+    const varName = code.substring(uninitNode.startIndex, uninitNode.endIndex);
+    const declNode = uninitNode.parent;
+    const bodyNode = findEnclosingBody(declNode);
+    if (!bodyNode) return null;
+    const bodyText = code.substring(bodyNode.startIndex, bodyNode.endIndex);
+    const firstUsePos = bodyText.indexOf(varName);
+    const assignPos = bodyText.indexOf(varName + ' =');
+    if (assignPos === -1 || (firstUsePos >= 0 && firstUsePos < assignPos)) {
+      return null;
+    }
+    return {
+      message: `Bad pattern: ${pattern.message} '${varName}'`,
+      line: uninitNode.startPosition.row + 1,
+      column: uninitNode.startPosition.column + 1
+    };
+  },
+
+  checkShadowed(tree, code, queryMatch, pattern) {
+    const nameNode = queryMatch.captures.find(c => c.name === 'name')?.node;
+    if (!nameNode) return null;
+    const varName = code.substring(nameNode.startIndex, nameNode.endIndex);
+    let parent = nameNode.parent;
+    while (parent) {
+      parent = parent.parent;
+      if (!parent) break;
+      const parentText = code.substring(parent.startIndex, parent.endIndex);
+      if (parentText.includes(varName) && parent.type !== 'translation_unit') {
+        const sibDecls = [];
+        for (let i = 0; i < parent.childCount; i++) {
+          const c = parent.child(i);
+          if (c.type === 'declaration') {
+            const ct = code.substring(c.startIndex, c.endIndex);
+            sibDecls.push(ct);
+          }
+        }
+        const siblingCount = sibDecls.filter(t => t.includes(varName)).length;
+        if (siblingCount > 1) {
+          return {
+            message: `Bad pattern: ${pattern.message} '${varName}'`,
+            line: nameNode.startPosition.row + 1,
+            column: nameNode.startPosition.column + 1
+          };
+        }
+        break;
+      }
+    }
+    return null;
+  },
+
+  checkLoopVarReassigned(tree, code, queryMatch, pattern) {
+    const loopVarNode = queryMatch.captures.find(c => c.name === 'loopvar')?.node;
+    const bodyNode = queryMatch.captures.find(c => c.name === 'body')?.node;
+    if (!loopVarNode || !bodyNode) return null;
+    const varName = code.substring(loopVarNode.startIndex, loopVarNode.endIndex);
+    const bodyText = code.substring(bodyNode.startIndex, bodyNode.endIndex);
+
+    const assignPattern = new RegExp(`(^|[\\s;])${varName}\\s*(=|\\+=|-=|\\*=|\\/=|%=)`, 'g');
+    if (assignPattern.test(bodyText)) {
+      return {
+        message: `Bad pattern: Loop variable '${varName}' reassigned inside loop body`,
+        line: bodyNode.startPosition.row + 1,
+        column: bodyNode.startPosition.column + 1
+      };
+    }
+    return null;
+  },
+};
+
+function findEnclosingBody(node) {
+  let cur = node.parent;
+  while (cur) {
+    if (cur.type === 'compound_statement' || cur.type === 'function_definition') return cur;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+// ── Check 3: Bad pattern matching (CodeNet-derived) via tree-sitter Query API
+
+/**
+ * Check submission against known bad patterns using compiled tree-sitter queries.
+ * Patterns come from the verification_rules DB table (data-driven) with fallback
+ * to badPatterns.js in-memory definitions when the DB is unavailable.
+ *
+ * @param {treeSitter.Tree} tree - Parsed AST
+ * @param {string} conceptName - Concept tag (e.g., "Loops")
+ * @param {string} code - Raw source code (needed by some handlers)
+ * @returns {Array<{message: string, line: number, column: number}>}
+ */
+async function checkBadPatterns(tree, conceptName, code) {
+  if (!globalThis.__ci_ts_module) return [];
+
+  const errors = [];
+  const patterns = await getPatternsForConcept(conceptName);
 
   for (const pattern of patterns) {
-    // Use simplified node type matching since tree-sitter S-expressions
-    // require query compilation which isn't available in the JS API.
-    // We detect bad patterns by checking for the node types they reference.
-    const nodeTypes = collectNodeTypes(tree.rootNode);
+    try {
+      const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, pattern.query);
+      const matches = query.matches(tree.rootNode);
 
-    // Assignment in condition detection
-    if (pattern.id === 'assignment_in_condition') {
-      const ifStmts = collectNodesByType(tree.rootNode, 'if_statement');
-      for (const ifStmt of ifStmts) {
-        for (let i = 0; i < ifStmt.childCount; i++) {
-          const child = ifStmt.child(i);
-          if (child.type === 'condition' || (i === 1 && child.type !== 'compound_statement')) {
-            // Check if condition contains assignment_expression
-            const hasAssign = hasNodeType(child, 'assignment_expression');
-            if (hasAssign) {
-              errors.push({
-                message: `Bad pattern: ${pattern.message}`,
-                line: ifStmt.startPosition.row + 1,
-                column: ifStmt.startPosition.column + 1
-              });
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    // Always-true condition detection
-    if (pattern.id === 'tautology_condition') {
-      const ifStmts = collectNodesByType(tree.rootNode, 'if_statement');
-      for (const ifStmt of ifStmts) {
-        for (let i = 0; i < ifStmt.childCount; i++) {
-          const child = ifStmt.child(i);
-          if (child.type === 'true' || (child.type === 'number_literal' && child.text !== '0')) {
-            // Only flag if it's in the condition position
-            if (i <= 1) {
-              errors.push({
-                message: `Bad pattern: ${pattern.message}`,
-                line: ifStmt.startPosition.row + 1,
-                column: ifStmt.startPosition.column + 1
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Missing return in non-void function
-    if (pattern.id === 'missing_return') {
-      const funcDefs = collectNodesByType(tree.rootNode, 'function_definition');
-      for (const func of funcDefs) {
-        // Check return type
-        let isVoid = false;
-        for (let i = 0; i < func.childCount; i++) {
-          const child = func.child(i);
-          if (child.type === 'primitive_type' && child.text === 'void') {
-            isVoid = true;
-            break;
-          }
-        }
-        if (isVoid) continue;
-
-        // Check for return statement in body
-        const hasReturn = hasNodeType(func, 'return_statement');
-        if (!hasReturn) {
-          const nameNode = findIdentifier(func);
-          const name = nameNode ? nameNode.text : 'unknown';
+      for (const match of matches) {
+        if (pattern.handler && HANDLERS[pattern.handler]) {
+          const result = HANDLERS[pattern.handler](tree, code || '', match, pattern);
+          if (result) errors.push(result);
+        } else if (match.captures.length > 0) {
+          const cap = match.captures[0];
           errors.push({
-            message: `Bad pattern: Non-void function '${name}' has no return statement`,
-            line: func.startPosition.row + 1,
-            column: func.startPosition.column + 1
+            message: `Bad pattern: ${pattern.message}`,
+            line: cap.node.startPosition.row + 1,
+            column: cap.node.startPosition.column + 1
           });
         }
       }
+    } catch (queryError) {
+      console.warn(`Bad pattern query failed for '${pattern.id}':`, queryError.message);
     }
   }
 
@@ -243,263 +545,6 @@ function findIdentifier(node) {
     if (found) return found;
   }
   return null;
-}
-
-// ── Check 4: Output Dependency Check — GAP #2 ───────────────────────────────
-
-/**
- * Verify that detected constructs (loops, conditionals) actually affect program output.
- * A construct fails this check if its body contains no output path:
- *   - No cout/printf/call to output functions
- *   - No return statement with a value
- *   - No assignment to a variable that is later output
- *
- * @param {treeSitter.Tree} tree - Parsed AST
- * @returns {Array<{message: string, line: number, column: number}>}
- */
-function checkOutputDependency(tree) {
-  const errors = [];
-  const constructTypes = ['for_statement', 'while_statement', 'do_statement', 'if_statement'];
-
-  for (const type of constructTypes) {
-    const constructs = collectNodesByType(tree.rootNode, type);
-
-    for (const construct of constructs) {
-      // Find the body of the construct
-      let body = null;
-      for (let i = 0; i < construct.childCount; i++) {
-        const child = construct.child(i);
-        if (child.type === 'compound_statement' || child.type === 'statement') {
-          body = child;
-          break;
-        }
-      }
-      if (!body) continue;
-
-      // Check if body has output-affecting code
-      const hasOutput = bodyHasOutput(body);
-      const hasSideEffect = bodyHasSideEffects(body);
-
-      if (!hasOutput && !hasSideEffect) {
-        errors.push({
-          message: `${type.replace('_statement', '')} does not affect program output (dead code)`,
-          line: construct.startPosition.row + 1,
-          column: construct.startPosition.column + 1
-        });
-      }
-    }
-  }
-
-  return errors;
-}
-
-function bodyHasOutput(node) {
-  // Check for cout, printf, scanf, cin, or any call that affects I/O
-  if (node.type === 'call_expression') {
-    const fn = node.firstChild;
-    if (fn) {
-      const text = fn.text;
-      if (text.includes('cout') || text.includes('printf') || text.includes('scanf') ||
-          text.includes('cin') || text.includes('puts') || text.includes('getchar')) {
-        return true;
-      }
-    }
-  }
-
-  // Check for << operator with cout
-  if (node.type === 'binary_expression') {
-    const text = node.text || '';
-    if (text.includes('cout') || text.includes('<<')) {
-      // Verify it's actually a cout chain
-      if (hasNodeType(node, 'identifier')) {
-        for (let i = 0; i < node.childCount; i++) {
-          if (node.child(i).text === 'cout') return true;
-        }
-      }
-    }
-  }
-
-  // Check for return statement with value
-  if (node.type === 'return_statement' && node.childCount > 1) {
-    return true;
-  }
-
-  // Recurse into children
-  for (let i = 0; i < node.childCount; i++) {
-    if (bodyHasOutput(node.child(i))) return true;
-  }
-  return false;
-}
-
-function bodyHasSideEffects(node) {
-  // Check for variable assignments (which might feed into output later)
-  if (node.type === 'assignment_expression' || node.type === 'init_declarator' ||
-      node.type === 'update_expression') {
-    return true;
-  }
-
-  // Check for function calls (may have side effects)
-  if (node.type === 'call_expression') {
-    const fn = node.firstChild;
-    if (fn && fn.type === 'identifier') {
-      // Ignore known pure functions
-      const pure = ['main', 'abs', 'sqrt', 'pow', 'strlen', 'strcmp', 'min', 'max'];
-      if (!pure.includes(fn.text)) return true;
-    }
-  }
-
-  // Recurse
-  for (let i = 0; i < node.childCount; i++) {
-    if (bodyHasSideEffects(node.child(i))) return true;
-  }
-  return false;
-}
-
-// ── Check 5: Variable Usage Check (upgraded) — GAP #5 ───────────────────────
-
-/**
- * Verify that constructs use variables (not just constants).
- * e.g., `for (int i = 0; i < 10; i++) { cout << 42; }` → flagged
- *
- * @param {treeSitter.Tree} tree - Parsed AST
- * @returns {Array<{message: string, line: number, column: number}>}
- */
-function checkVariableUsage(tree) {
-  const warnings = [];
-  const constructTypes = ['for_statement', 'while_statement', 'do_statement'];
-
-  for (const type of constructTypes) {
-    const constructs = collectNodesByType(tree.rootNode, type);
-
-    for (const construct of constructs) {
-      // Find the body
-      let body = null;
-      for (let i = 0; i < construct.childCount; i++) {
-        const child = construct.child(i);
-        if (child.type === 'compound_statement' || child.type === 'statement') {
-          body = child;
-          break;
-        }
-      }
-      if (!body) continue;
-
-      // Check: does the body use any variables?
-      const usesVariables = bodyUsesVariables(body);
-      if (!usesVariables) {
-        warnings.push({
-          message: `Construct body uses only constants (no variables)`,
-          line: construct.startPosition.row + 1,
-          column: construct.startPosition.column + 1
-        });
-      }
-    }
-  }
-
-  return warnings;
-}
-
-function bodyUsesVariables(node) {
-  // Check for identifiers that are variables (not keywords/functions)
-  if (node.type === 'identifier') {
-    const ignore = ['endl', 'cout', 'std', 'printf', 'scanf', 'cin', 'main',
-                    'int', 'float', 'double', 'char', 'bool', 'void', 'string',
-                    'size_t', 'true', 'false', 'NULL', 'nullptr'];
-    if (!ignore.includes(node.text)) return true;
-  }
-
-  // Check for subscript expressions (array access with variable index)
-  if (node.type === 'subscript_expression') {
-    for (let i = 0; i < node.childCount; i++) {
-      if (node.child(i).type === 'identifier') return true;
-    }
-  }
-
-  // Recurse
-  for (let i = 0; i < node.childCount; i++) {
-    if (bodyUsesVariables(node.child(i))) return true;
-  }
-  return false;
-}
-
-// ── Hardcoded output check (existing, unchanged) ────────────────────────────
-
-function detectHardcodedOutput(tree) {
-  const warnings = [];
-
-  function hasVariables(node) {
-    if (node.type === 'identifier') {
-      const text = node.text;
-      const ignore = ['endl', 'cout', 'std', 'printf', 'scanf', 'cin', 'size_t', 'string'];
-      return !ignore.includes(text);
-    }
-    for (let i = 0; i < node.childCount; i++) {
-      if (hasVariables(node.child(i))) return true;
-    }
-    return false;
-  }
-
-  function traverse(node) {
-    if (node.type === 'binary_expression' && node.childCount > 1 && node.child(1).text === '<<') {
-      let curr = node;
-      while (curr.type === 'binary_expression' && curr.childCount > 1 && curr.child(1).text === '<<') {
-        curr = curr.child(0);
-      }
-      if (curr.text.endsWith('cout')) {
-        let p = node.parent;
-        let isTopLevelInsertion = true;
-        if (p && p.type === 'binary_expression' && p.childCount > 1 && p.child(1).text === '<<') {
-          isTopLevelInsertion = false;
-        }
-        if (isTopLevelInsertion) {
-          let hasVar = false;
-          function checkChain(n) {
-            if (n.type === 'binary_expression' && n.childCount > 1 && n.child(1).text === '<<') {
-              if (n.childCount > 2 && hasVariables(n.child(2))) hasVar = true;
-              checkChain(n.child(0));
-            }
-          }
-          checkChain(node);
-          if (!hasVar) {
-            warnings.push({
-              message: 'Hardcoded output detected: cout used with only literals/constants',
-              line: node.startPosition.row + 1,
-              column: node.startPosition.column + 1
-            });
-          }
-        }
-      }
-    }
-
-    if (node.type === 'call_expression' && node.firstChild &&
-        (node.firstChild.text === 'printf' || node.firstChild.text === 'std::printf')) {
-      const args = node.lastChild;
-      let hasVar = false;
-      let namedArgsFound = 0;
-      if (args) {
-        for (let i = 0; i < args.childCount; i++) {
-          const arg = args.child(i);
-          if (arg.isNamed) {
-            namedArgsFound++;
-            if (namedArgsFound > 1) {
-              if (hasVariables(arg)) { hasVar = true; break; }
-            }
-          }
-        }
-      }
-      if (namedArgsFound > 0 && !hasVar) {
-        warnings.push({
-          message: 'Hardcoded output detected: printf used without variables',
-          line: node.startPosition.row + 1,
-          column: node.startPosition.column + 1
-        });
-      }
-    }
-
-    for (let i = 0; i < node.childCount; i++) traverse(node.child(i));
-  }
-
-  traverse(tree.rootNode);
-  return warnings;
 }
 
 // ── Structure analysis ──────────────────────────────────────────────────────
@@ -549,52 +594,6 @@ function isMainFunction(node) {
   return false;
 }
 
-function detectNovicePatterns(tree, code) {
-  const warnings = [];
-
-  function traverse(node) {
-    if (['if_statement', 'for_statement', 'while_statement', 'do_statement'].includes(node.type)) {
-      let depth = 0;
-      let parent = node.parent;
-      while (parent) {
-        if (['if_statement', 'for_statement', 'while_statement', 'do_statement'].includes(parent.type)) depth++;
-        parent = parent.parent;
-      }
-      if (depth >= 3) {
-        warnings.push({
-          message: `Deeply nested control structure detected (depth: ${depth})`,
-          line: node.startPosition.row + 1,
-          column: node.startPosition.column + 1
-        });
-      }
-    }
-
-    if (node.type === 'switch_statement') {
-      let hasDefault = false;
-      const body = node.lastChild;
-      if (body && body.type === 'compound_statement') {
-        for (let i = 0; i < body.childCount; i++) {
-          const child = body.child(i);
-          if (child.type === 'case_statement' && child.firstChild && child.firstChild.text === 'default') {
-            hasDefault = true; break;
-          }
-        }
-      }
-      if (!hasDefault) {
-        warnings.push({
-          message: 'Switch statement missing default case',
-          line: node.startPosition.row + 1,
-          column: node.startPosition.column + 1
-        });
-      }
-    }
-
-    for (let i = 0; i < node.childCount; i++) traverse(node.child(i));
-  }
-  traverse(tree.rootNode);
-  return warnings;
-}
-
 // ── Main verify function ────────────────────────────────────────────────────
 
 async function verify(code, requirements = {}, options = {}) {
@@ -602,31 +601,44 @@ async function verify(code, requirements = {}, options = {}) {
 
   try {
     const parser = getParser();
-    const tree = parser.parse(code);
 
-    if (tree.rootNode.hasError) {
-      function findFirstError(node) {
-        if (node.type === 'ERROR') return node;
-        for (let i = 0; i < node.childCount; i++) {
-          const error = findFirstError(node.child(i));
-          if (error) return error;
-        }
-        return null;
-      }
-      const errorNode = findFirstError(tree.rootNode);
-      if (errorNode) {
-        reasons.push({
-          message: 'Syntax error in code - unable to parse',
-          line: errorNode.startPosition.row + 1,
-          column: errorNode.startPosition.column + 1
-        });
+    // When tree-sitter is unavailable, fall back to regex-based analysis
+    if (!parser) {
+      if (options.starter_code && canonicFallback(code) === canonicFallback(options.starter_code)) {
+        reasons.push({ message: 'Submission matches starter/template code', line: 1, column: 1 });
         return { is_verified: false, reasons };
       }
+      if (code.length < 10) {
+        reasons.push({ message: 'Submission too short to verify', line: 1, column: 1 });
+        return { is_verified: false, reasons };
+      }
+      return { is_verified: true, reasons };
     }
 
-    // Check: matches starter code
+    const tree = parser.parse(code);
+
+    // Check for actual ERROR nodes (tree.rootNode.hasError can be a false positive in v0.22)
+    function findErrorNode(node) {
+      if (node.type === 'ERROR') return node;
+      for (let i = 0; i < node.childCount; i++) {
+        const error = findErrorNode(node.child(i));
+        if (error) return error;
+      }
+      return null;
+    }
+    const errorNode = findErrorNode(tree.rootNode);
+    if (errorNode) {
+      reasons.push({
+        message: 'Syntax error in code - unable to parse',
+        line: errorNode.startPosition.row + 1,
+        column: errorNode.startPosition.column + 1
+      });
+      return { is_verified: false, reasons };
+    }
+
+    // Check: matches starter code (compare canonical forms per paper spec)
     if (options.starter_code) {
-      if (code.trim() === options.starter_code.trim()) {
+      if (canonizeCode(code) === canonizeCode(options.starter_code)) {
         reasons.push({
           message: 'Submission matches starter/template code',
           line: 1, column: 1
@@ -635,9 +647,8 @@ async function verify(code, requirements = {}, options = {}) {
       }
     }
 
-    // Check: too short
-    const nonWhitespace = code.replace(/\/\*.*?\*\//gs, '').replace(/\/\/.*$/gm, '').trim();
-    if (nonWhitespace.length < 10) {
+    // Check: too short (after canonicalization, comments already stripped)
+    if (code.length < 10) {
       reasons.push({
         message: 'Submission too short to verify',
         line: 1, column: 1
@@ -655,35 +666,22 @@ async function verify(code, requirements = {}, options = {}) {
     const emptyBodies = checkEmptyBodies(tree);
     reasons.push(...emptyBodies);
 
-    // Check 3: Bad pattern matching (CodeNet-derived) — GAP #1
+    // Check 2b: Variable usage verification (paper check #3)
     if (options.concept_name) {
-      const badPatternErrors = checkBadPatterns(tree, options.concept_name);
-      reasons.push(...badPatternErrors);
+      const variableErrors = await checkVariableUsage(tree, options.concept_name);
+      reasons.push(...variableErrors);
     }
 
-    // Check 4: Output dependency check — GAP #2
-    const outputDeps = checkOutputDependency(tree);
-    reasons.push(...outputDeps.map(e => ({
-      ...e,
-      message: `Output dependency: ${e.message}`
-    })));
+    // Check 2c: Output dependency verification (paper check #4)
+    if (requirements.required_nodes && requirements.required_nodes.length) {
+      const outputErrors = checkOutputDependency(tree, requirements.required_nodes);
+      reasons.push(...outputErrors);
+    }
 
-    // Check 5: Variable usage check (upgraded) — GAP #5
-    const varUsageWarnings = checkVariableUsage(tree);
-    reasons.push(...varUsageWarnings.map(w => ({
-      ...w,
-      message: `Variable usage: ${w.message}`
-    })));
-
-    // Existing: Hardcoded output check
-    if (options.checkHardcoding !== false) {
-      const hardcodingWarnings = detectHardcodedOutput(tree);
-      if (hardcodingWarnings.length > 0) {
-        reasons.push(...hardcodingWarnings.map(w => ({
-          ...w,
-          message: `[Notice] ${w.message}`
-        })));
-      }
+    // Check 3: Bad pattern matching (CodeNet-derived) via tree-sitter Query API
+    if (options.concept_name) {
+      const badPatternErrors = await checkBadPatterns(tree, options.concept_name, code);
+      reasons.push(...badPatternErrors);
     }
 
     // Structure analysis
@@ -701,12 +699,6 @@ async function verify(code, requirements = {}, options = {}) {
       });
     }
 
-    const novicePatterns = detectNovicePatterns(tree, code);
-    reasons.push(...novicePatterns.map(w => ({
-      ...w,
-      message: `[Notice] ${w.message}`
-    })));
-
     // Determine verification result
     const hasErrors = reasons.some(reason =>
       !reason.message.startsWith('[Notice]') &&
@@ -714,9 +706,11 @@ async function verify(code, requirements = {}, options = {}) {
        reason.message.includes('Empty body') ||
        reason.message.includes('Syntax error') ||
        reason.message.includes('Bad pattern') ||
-       reason.message.includes('Output dependency') ||
        reason.message.includes('starter/template') ||
-       reason.message.includes('too short'))
+       reason.message.includes('too short') ||
+       reason.message.includes('Loop condition uses only literals') ||
+       reason.message.includes('Conditional uses hardcoded') ||
+       reason.message.includes("doesn't affect program output"))
     );
 
     if (hasErrors) {
@@ -733,6 +727,18 @@ async function verify(code, requirements = {}, options = {}) {
     });
     return { is_verified: false, reasons };
   }
+}
+
+function canonicFallback(code) {
+  let c = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  c = c.replace(/"(?:\\.|[^"\\])*"/g, 'STR');
+  c = c.replace(/'(?:\\.|[^'\\])*'/g, 'CHAR');
+  c = c.replace(/\b\d+(\.\d+)?([eE][+-]?\d+)?[flL]?\b/g, 'NUM');
+  c = c.replace(/\b[a-zA-Z_]\w*\b/g, (match) => {
+    const keywords = ['int','float','double','char','bool','void','if','else','for','while','do','switch','case','default','break','continue','return','using','namespace','std','include','main'];
+    return keywords.includes(match) ? match : 'IDENT';
+  });
+  return c.trim();
 }
 
 module.exports = { verify, canonizeCode };

@@ -23,7 +23,6 @@ export default function OutputPanel({
   const hasError = Boolean(error || compilationLog);
   const hasOutput = Boolean(programOutput);
 
-  // Summary badge
   const testsSummary = testResults
     ? `${testResults.passing}/${testResults.total}`
     : null;
@@ -32,10 +31,10 @@ export default function OutputPanel({
     : 0;
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-card border-t border-border">
+    <div className="flex flex-col h-full min-h-0 bg-[#0B0F19]/90 backdrop-blur-md border-t border-white/[0.05]">
       {/* Sticky bar */}
-      <div className="flex items-center gap-0 h-9 px-2 border-b border-border bg-card shrink-0">
-        <div className="inline-flex items-center gap-1.5 h-full px-3 text-xs font-medium text-foreground border-b-2 -mb-px border-foreground">
+      <div className="flex items-center gap-0 h-9 px-2 border-b border-white/[0.06] bg-[#0B0F19]/80 backdrop-blur-sm shrink-0">
+        <div className="inline-flex items-center gap-1.5 h-full px-3 text-xs font-medium text-emerald-400 border-b-2 -mb-px border-emerald-400">
           <TerminalSquare className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
           Terminal
         </div>
@@ -46,10 +45,10 @@ export default function OutputPanel({
               className={cn(
                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
                 testResults.passed === true
-                  ? "bg-success/10 text-success border-success/20"
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                   : failedCount > 0
                   ? "bg-destructive/10 text-destructive border-destructive/20"
-                  : "bg-muted text-muted-foreground border-border/30",
+                  : "bg-white/[0.04] text-muted-foreground border-white/[0.06]",
               )}
             >
               {testResults.passed === true ? (
@@ -67,7 +66,7 @@ export default function OutputPanel({
               onClick={onClear}
               aria-label="Clear terminal"
               title="Clear terminal"
-              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
             >
               <Trash2 className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
               Clear
@@ -80,7 +79,7 @@ export default function OutputPanel({
         {/* Not run yet */}
         {!hasRun && !compilationLog && !programOutput && !error && (
           <EmptyState>
-            Press <strong>Run</strong> to compile and execute your code.
+            Press <strong className="text-emerald-400">Run</strong> to compile and execute your code.
           </EmptyState>
         )}
 
@@ -104,16 +103,11 @@ export default function OutputPanel({
   );
 }
 
-/**
- * CompilerErrorView — formats errors in DevC++ style:
- *   file:line: error message
- *   ^ (pointer)
- */
 function CompilerErrorView({ compilationLog, error }) {
   return (
     <div className="space-y-2">
       {compilationLog && (
-        <pre className="text-amber-500 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
+        <pre className="text-amber-400 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
           {compilationLog}
         </pre>
       )}

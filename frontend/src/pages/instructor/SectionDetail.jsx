@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Mail,
   MoreHorizontal,
   ArrowRight,
   Download,
@@ -12,18 +11,10 @@ import {
   AlertTriangle,
   RefreshCw,
   FileSpreadsheet,
+  RotateCw,
+  CheckCircle,
+  Check,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +22,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
 import InsightHeader from "@/components/ui/insight-header";
@@ -59,9 +52,8 @@ export default function SectionDetail() {
   const { sectionId: id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState("roster");
-  const [msgOpen, setMsgOpen] = useState(false);
-  const [msgBody, setMsgBody] = useState("");
-  const [msgSending, setMsgSending] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
 
   const { data: section, isLoading, isError, refetch } = useQuery({
     queryKey: ["section", id],
@@ -80,26 +72,27 @@ export default function SectionDetail() {
     if (!section?.code) return;
     try {
       await navigator.clipboard.writeText(section.code);
+      setCopied(true);
       toast.success("Join code copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy join code");
     }
   }, [section]);
 
-  const handleSendAtRiskMessage = useCallback(async () => {
-    if (!msgBody.trim() || !id) return;
-    setMsgSending(true);
+  const handleRotateCode = useCallback(async () => {
+    if (!id) return;
+    setRotating(true);
     try {
-      await api.post(`/api/sections/${id}/messages`, { message: msgBody.trim() });
-      toast.success("Message sent to all students in this section");
-      setMsgOpen(false);
-      setMsgBody("");
+      const { data } = await api.post(`/api/sections/${id}/rotate-code`);
+      toast.success(`New join code: ${data.code}`);
+      refetch();
     } catch {
-      toast.error("Failed to send message");
+      toast.error("Failed to rotate join code");
     } finally {
-      setMsgSending(false);
+      setRotating(false);
     }
-  }, [id, msgBody]);
+  }, [id, refetch]);
 
   const handleExportCSV = useCallback(async () => {
     if (!id) return;
@@ -194,17 +187,40 @@ export default function SectionDetail() {
             <p className="text-sm text-muted-foreground mt-1">
               {section.course_code} · {buildTerm()} · {studentCount} students
             </p>
+            {section.code && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                  Code: {section.code}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyJoinCode}
+                  className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+                  aria-label={`Copy join code ${section.code}`}
+                  title={`Copy code: ${section.code}`}
+                >
+                  {copied ? (
+                    <CheckCircle className="h-3 w-3 text-emerald-400" strokeWidth={2} />
+                  ) : (
+                    <Copy className="h-3 w-3" strokeWidth={1.5} />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRotateCode}
+                  disabled={rotating}
+                  className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Rotate join code"
+                  title="Rotate join code"
+                >
+                  <RotateCw className="h-3 w-3" strokeWidth={1.5} />
+                  {rotating ? "Rotating..." : "Rotate"}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="font-medium"
-              onClick={() => setMsgOpen(true)}
-            >
-              <Mail className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-              Message at-risk
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -229,6 +245,11 @@ export default function SectionDetail() {
                   <Copy className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Copy join code
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRotateCode} disabled={rotating}>
+                  <RotateCw className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+                  Rotate join code
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setTab("settings")}>
                   <Users className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Manage roster
@@ -254,14 +275,6 @@ export default function SectionDetail() {
               : flags === 0
                 ? `${atRisk} student${atRisk === 1 ? " is" : "s are"} at risk — no active integrity flags.`
                 : `${atRisk} student${atRisk === 1 ? " is" : "s are"} at risk; ${flags} have active integrity flag${flags === 1 ? "" : "s"}.`
-        }
-        action={
-          <Button asChild size="sm" className="font-medium">
-            <Link to={`/instructor/integrity?section=${id}`}>
-              Schedule intervention
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-            </Link>
-          </Button>
         }
       />
 
@@ -320,37 +333,10 @@ export default function SectionDetail() {
             sectionName={section.name}
             courseCode={section.course_code}
             onUpdated={() => refetch()}
+            onDeleted={() => navigate("/instructor/sections")}
           />
         </TabsContent>
       </Tabs>
-
-      {/* ---------- Message Dialog ---------- */}
-      <Dialog open={msgOpen} onOpenChange={setMsgOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Message Students</DialogTitle>
-            <DialogDescription>
-              Send an in-app notification to all students in {section.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            id="msg-body"
-            value={msgBody}
-            onChange={(e) => setMsgBody(e.target.value)}
-            placeholder="Write a message to your students…"
-            className="min-h-[120px]"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => { setMsgOpen(false); setMsgBody(""); }} disabled={msgSending}>
-              Cancel
-            </Button>
-            <Button onClick={handleSendAtRiskMessage} disabled={msgSending || !msgBody.trim()}>
-              {msgSending ? "Sending…" : "Send to All Students"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

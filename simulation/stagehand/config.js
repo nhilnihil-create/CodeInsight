@@ -21,6 +21,13 @@ const PERSONAS = {
     { name: 'Maria', email: 'maria@student.psu.edu', password: 'password123', tier: 'high' },
     { name: 'Alex', email: 'alex@student.psu.edu', password: 'password123', tier: 'medium' },
     { name: 'Jordan', email: 'jordan@student.psu.edu', password: 'password123', tier: 'struggling' },
+    { name: 'Chloe', email: 'chloe@student.psu.edu', password: 'password123', tier: 'high' },
+    { name: 'Derek', email: 'derek@student.psu.edu', password: 'password123', tier: 'struggling' },
+    { name: 'Emma', email: 'emma@student.psu.edu', password: 'password123', tier: 'struggling' },
+    { name: 'Fiona', email: 'fiona@student.psu.edu', password: 'password123', tier: 'medium' },
+    { name: 'George', email: 'george@student.psu.edu', password: 'password123', tier: 'medium' },
+    { name: 'Hannah', email: 'hannah@student.psu.edu', password: 'password123', tier: 'medium' },
+    { name: 'Ian', email: 'ian@student.psu.edu', password: 'password123', tier: 'struggling' },
   ],
 };
 

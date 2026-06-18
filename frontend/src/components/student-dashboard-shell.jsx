@@ -1,19 +1,22 @@
 import { cn } from "@/lib/utils";
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
+import MotionContainer from "@/components/ui/motion-container";
 
 /**
  * StudentDashboardShell
- * Unified layout wrapper for every student dashboard sub-page.
+ * Fluid layout wrapper for student dashboard sub-pages.
  *
- * Contract
- *   - Width         w-full (fills parent content wrapper edge-to-edge)
- *   - Padding       Inherited from Layout wrapper (p-6 lg:p-8)
- *   - Vertical gap  space-y-6
- *   - Header        optional breadcrumb + subtitle + action row
+ * Updated for glassmorphic redesign:
+ *   - MotionContainer wraps children for staggered page-load animation
+ *   - Relaxed vertical spacing with varied rhythm
+ *   - No padding — Layout.jsx provides scroll context + padding rails
  *
- * No padding or negative margins here — Layout.jsx's content wrapper
- * provides the scroll context and padding rails. The shell is purely
- * a structural container with vertical spacing for its children.
+ * Props
+ *   - breadcrumb  Array<{ label, href? }>
+ *   - subtitle    string
+ *   - action      ReactNode
+ *   - className   string
+ *   - children    ReactNode
  */
 export default function StudentDashboardShell({
   breadcrumb = [],
@@ -34,7 +37,7 @@ export default function StudentDashboardShell({
       )}
     >
       {hasHeader ? (
-        <header className="space-y-2">
+        <header className="space-y-2 mb-6">
           {breadcrumb.length > 0 ? (
             <PageBreadcrumb crumbs={breadcrumb} />
           ) : null}
@@ -50,7 +53,9 @@ export default function StudentDashboardShell({
           ) : null}
         </header>
       ) : null}
-      {children}
+      <MotionContainer stagger={0.05} delay={0.05}>
+        {children}
+      </MotionContainer>
     </div>
   );
 }

@@ -1,0 +1,46 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]: CodeInsight
+          - generic [ref=e8]: Student
+        - button "Close sidebar" [ref=e9]:
+          - img [ref=e10]
+      - navigation [ref=e13]:
+        - generic [ref=e14]:
+          - link "My Exercises" [ref=e15] [cursor=pointer]:
+            - /url: /student/dashboard
+            - img [ref=e16]
+            - generic [ref=e18]: My Exercises
+          - link "My Progress" [ref=e19] [cursor=pointer]:
+            - /url: /student/progress
+            - img [ref=e20]
+            - generic [ref=e23]: My Progress
+          - link "My Profile" [ref=e24] [cursor=pointer]:
+            - /url: /student/profile
+            - img [ref=e25]
+            - generic [ref=e28]: My Profile
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e33]: MS
+          - generic [ref=e34]:
+            - generic [ref=e35]: Maria Student
+            - generic [ref=e36]: maria@student.psu.edu
+        - button "Logout" [ref=e37]:
+          - img [ref=e38]
+          - text: Logout
+    - main [ref=e41]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - navigation "Breadcrumb" [ref=e46]:
+            - list [ref=e47]:
+              - listitem [ref=e48]:
+                - link "Student" [ref=e49] [cursor=pointer]:
+                  - /url: /student/dashboard
+                - img [ref=e50]
+              - listitem [ref=e52]:
+                - generic [ref=e53]: My Learning Dashboard
+          - paragraph [ref=e55]: Patterns detected in your work — always hypotheses, never verdicts.
+        - generic [ref=e58]: Loading integrity data…
+  - region "Notifications alt+T"

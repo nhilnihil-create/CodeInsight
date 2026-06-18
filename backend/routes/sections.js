@@ -24,7 +24,7 @@ router.get('/',                         verifyToken,                            
 router.get('/students-all', verifyToken, requireRole('instructor'), ctrl.getStudentsAcrossSections);
 router.get('/:id',                      verifyToken,                                validate.params(v.idParam),        ctrl.getOne);
 router.post('/:id/enroll',              verifyToken, requireRole('instructor'),     validate.body(v.enrollPayload),    validate.params(v.idParam), ctrl.enroll);
-router.delete('/:id/enroll/:studentId', verifyToken, requireRole('instructor'),     validate.params(v.idParam),        ctrl.unenroll);
+router.delete('/:id/enroll/:studentId', verifyToken, requireRole('instructor'),     validate.params(v.enrollParams),    ctrl.unenroll);
 router.get('/:id/students',             verifyToken,                                validate.params(v.idParam),        ctrl.getStudents);
 router.get('/:section_id/students-with-scores', verifyToken, requireRole('instructor'), ctrl.getStudentsWithScores);
 router.get('/:section_id/exercises',    verifyToken, requireRole('instructor'),     ctrl.getSectionExercises);
@@ -51,7 +51,6 @@ router.get('/:id/export',             verifyToken, requireRole('instructor'), va
 router.get('/:id/audit',                verifyToken, requireRole('instructor'),     validate.params(v.idParam),        ctrl.getAuditLog);
 router.get('/audit/all',                verifyToken, requireRole('admin'),          ctrl.getDeptAudit);
 router.put('/:id',                      verifyToken, requireRole('instructor'),     ctrl.update);
+router.delete('/:id',                   verifyToken, requireRole('instructor'),     validate.params(v.idParam),        ctrl.delete);
 router.patch('/:id/policy',             verifyToken, requireRole('instructor'),     validate.body(v.policyUpdate),     validate.params(v.idParam), ctrl.updatePolicy);
-router.post('/:id/messages',            verifyToken, requireRole('instructor'),     validate.params(v.idParam),        ctrl.sendMessage);
-
 module.exports = router;

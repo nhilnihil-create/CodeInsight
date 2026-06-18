@@ -39,7 +39,7 @@ async function createWorker() {
   const worker = new Worker(
     'submissions',
     async (job) => {
-      const { exerciseId, code, studentId, timeSpentSeconds, behavioralData, submissionId } = job.data;
+      const { exerciseId, code, studentId, timeSpentSeconds, submissionId } = job.data;
 
       // Update progress
       await job.updateProgress(10);
@@ -91,59 +91,37 @@ async function createWorker() {
         const insRes = await db.query(
           `INSERT INTO submissions
            (student_id, exercise_id, code, is_correct, attempt_number, time_spent_seconds,
-            is_verified, verification_note, tab_switch_count, paste_count, idle_time_seconds)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+            is_verified, verification_note)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
           [
             studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0,
             !!verifyRes.is_verified, verifyRes.reasons?.join('; ') || '',
-            behavioralData?.tabSwitchCount || 0, behavioralData?.pasteCount || 0, behavioralData?.idleTimeSeconds || 0,
           ]
         );
         savedSubmissionId = insRes.rows[0].id;
       }
 
-      await job.updateProgress(80);
-
-      // Multi-vector plagiarism detection (lightweight — same as submissionController)
-      try {
-        const { normalizeAST } = require('../services/astHasher');
-        const astResult = normalizeAST(code, 'cpp');
-
-        await integrityFlagEngine.persistASTHashes(savedSubmissionId, exerciseId, studentId, astResult);
-
-        if (astResult.usedFallback) {
-          const bypassFlag = integrityFlagEngine.createParserBypassFlag(astResult.parseError);
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id, exerciseId, studentId,
-            flagType: bypassFlag.type, severity: bypassFlag.severity,
-            evidence: bypassFlag.evidence, contextBehaviors: [],
-            status: 'flagged', submissionId: savedSubmissionId,
-          });
+      // Log verification failures into verification_logs for instructor review
+      if (!verifyRes.is_verified && verifyRes.reasons && verifyRes.reasons.length > 0) {
+        try {
+          await db.query(
+            `INSERT INTO verification_logs (submission_id, student_id, exercise_id, verification_type, reason)
+             VALUES ($1, $2, $3, 'bad_pattern', $4)`,
+            [savedSubmissionId, studentId, exerciseId, verifyRes.reasons.join('; ') || 'Unknown']
+          );
+        } catch (vlErr) {
+          console.warn('Failed to log verification result:', vlErr.message);
         }
-
-        const peerResult = await integrityFlagEngine.detectPeerPlagiarism(
-          astResult.windows, exerciseId, studentId, astResult.fullHash
-        );
-        for (const flag of peerResult.flags) {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id, exerciseId, studentId,
-            flagType: flag.type, severity: flag.severity,
-            evidence: flag.evidence, contextBehaviors: [],
-            status: 'flagged', submissionId: savedSubmissionId,
-          });
-        }
-      } catch (err) {
-        console.warn('[Worker] Integrity check failed:', err.message);
       }
 
-      await job.updateProgress(90);
+      await job.updateProgress(80);
 
-      // Behavioral anomaly detection
+      // Academic integrity checks (paper flags 1 & 2: hardcoding, blank template)
       try {
         const flags = await academicIntegrityEngine.evaluateIntegrity({
           code, starterCode: exercise.starter_code || '', studentId, exerciseId,
           submission: { is_correct: allPassed, test_results: tcResults, time_spent_seconds: timeSpentSeconds || 0, submission_id: savedSubmissionId },
-          exercise, behavioralData: behavioralData || {},
+          exercise,
         });
 
         for (const flag of flags) {
@@ -155,7 +133,35 @@ async function createWorker() {
           });
         }
       } catch (err) {
-        console.warn('[Worker] Behavioral check failed:', err.message);
+        console.warn('[Worker] Academic integrity check failed:', err.message);
+      }
+
+      await job.updateProgress(90);
+
+      // Behavioral anomaly detection (paper flag 3: instant success, extreme speed)
+      try {
+        const behavioralDetector = require('../services/behavioralAnomalyDetector');
+        const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
+          studentId,
+          exerciseId,
+          submissionId: savedSubmissionId,
+          is_correct: allPassed,
+          time_spent_seconds: timeSpentSeconds || 0,
+          attempt_number: 0, // worker doesn't have attempt_number readily; detector will query
+          sectionId: exercise.section_id,
+        });
+
+        for (const flag of behavioralFlags) {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id, exerciseId, studentId,
+            flagType: flag.type, severity: flag.severity,
+            evidence: flag.evidence || {},
+            contextBehaviors: flag.context_behaviors || [],
+            status: 'flagged', submissionId: savedSubmissionId,
+          });
+        }
+      } catch (err) {
+        console.warn('[Worker] Behavioral anomaly detection failed:', err.message);
       }
 
       await job.updateProgress(100);

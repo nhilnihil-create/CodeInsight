@@ -102,7 +102,7 @@ exports.getOne = async (req, res, next) => {
         WHERE sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=s.id)) AS total_submissions,
        (SELECT COUNT(*) FROM alerts al WHERE al.section_id=s.id AND al.is_reviewed=false) AS open_alert_count,
        (SELECT COUNT(DISTINCT if2.student_id) FROM integrity_flags if2 WHERE if2.section_id=s.id AND if2.status='flagged') AS integrity_flags_count,
-       (SELECT COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END)::INTEGER FROM cds_scores cs WHERE cs.section_id=s.id) AS at_risk_count,
+       (SELECT COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END)::INTEGER FROM cds_scores cs WHERE cs.section_id=s.id) AS at_risk_count,
        (SELECT AVG(cs.cds) FROM cds_scores cs WHERE cs.section_id=s.id) AS avg_cds
        FROM sections s JOIN users u ON u.id=s.instructor_id
        WHERE s.id=$1`, [req.params.id]
@@ -140,10 +140,17 @@ exports.enroll = async (req, res, next) => {
 
 exports.unenroll = async (req, res, next) => {
   try {
-    await db.query(
-      'DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2',
-      [req.params.studentId, req.params.id]
-    );
+    const { studentId, id } = req.params;
+    await db.query('DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+
+    // Cascade cleanup: remove analytics data for this student in this section
+    // so old section data doesn't persist in student-facing analytics.
+    await db.query('DELETE FROM cds_scores WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM integrity_flags WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM alerts WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM student_concept_metrics WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM analytics_alerts WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+
     res.json({ message: 'Student removed from section' });
   } catch (err) { next(err); }
 };
@@ -343,6 +350,11 @@ exports.updateMembership = async (req, res, next) => {
         return res.status(400).json({ error: 'dropReason is required to drop a student' });
       }
       await db.query('DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM cds_scores WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM integrity_flags WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM alerts WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM student_concept_metrics WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM analytics_alerts WHERE student_id=$1 AND section_id=$2', [mid, id]);
       await writeAuditLog(id, req.user.id, 'student_dropped', { studentId: mid, reason });
       return res.json({ message: 'Student dropped' });
     }
@@ -427,6 +439,20 @@ exports.update = async (req, res, next) => {
     if (!r.rows.length) return res.status(404).json({ message: 'Section not found' });
     await writeAuditLog(id, req.user.id, 'section_updated', { fields: fields.map(f => f.split('=')[0]) });
     res.json(r.rows[0]);
+  } catch (err) { next(err); }
+};
+
+exports.delete = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const sec = await db.query('SELECT * FROM sections WHERE id=$1', [id]);
+    if (!sec.rows.length) return res.status(404).json({ error: 'Section not found' });
+    if (sec.rows[0].instructor_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this section' });
+    }
+    await writeAuditLog(id, req.user.id, 'section_deleted', { name: sec.rows[0].name });
+    await db.query('DELETE FROM sections WHERE id=$1', [id]);
+    res.json({ deleted: true, id: Number(id) });
   } catch (err) { next(err); }
 };
 

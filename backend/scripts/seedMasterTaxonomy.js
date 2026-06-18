@@ -16,6 +16,16 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    if (i === 3) code += '-';
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 const db = new Pool({
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
@@ -27,25 +37,25 @@ const db = new Pool({
 // ── 1. Expand concepts to 20 rows ──────────────────────────────────────────
 
 const NEW_CONCEPTS = [
-  // [name, knowledge_area_code, slug, bloom_level, difficulty_tier, ast_nodes[]]
-  ['File I/O',        'SDF-FPC', 'file-io',        'apply',    2, ['function_definition']],
-  ['Scope',           'SDF-PMD', 'scope',          'analyze',  2, ['block']],
-  ['Enums',           'SDF-FPC', 'enums',          'understand', 1, []],
-  ['Structs',         'SDF-FDS', 'structs',        'understand', 2, ['struct_declaration']],
-  ['Pointers',        'SDF-FDS', 'pointers',       'analyze',  3, ['pointer_declarator','pointer_expression']],
-  ['Strings',         'SDF-FPC', 'strings',        'understand', 1, ['string_literal']],
-  ['Input/Output',    'SDF-FPC', 'input-output',   'apply',    1, ['call_expression']],
-  ['Switch/Case',     'SDF-PMD', 'switch-case',    'apply',    2, ['switch_statement']],
-  ['Nested Loops',    'SDF-PMD', 'nested-loops',   'analyze',  3, ['for_statement','while_statement']],
-  ['Recursion',       'SDF-PMD', 'recursion',      'evaluate', 4, ['function_definition']],
-  ['Dynamic Memory',  'SDF-FDS', 'dynamic-memory', 'analyze',  4, ['call_expression']],
-  ['Linked Lists',    'SDF-FDS', 'linked-lists',   'analyze',  4, ['struct_declaration','pointer_declarator']],
-  ['Error Handling',  'SDF-PMD', 'error-handling', 'apply',    2, ['if_statement']],
-  ['Type Casting',    'SDF-FPC', 'type-casting',   'understand', 2, ['cast_expression']],
-  ['Preprocessor',    'SDF-OOP', 'preprocessor',   'remember', 1, []],
-  ['Namespaces',      'SDF-OOP', 'namespaces',     'understand', 2, []],
-  ['Inheritance',     'SDF-OOP', 'inheritance',    'apply',    4, ['class_specifier']],
-  ['Polymorphism',    'SDF-OOP', 'polymorphism',   'evaluate', 4, ['class_specifier','function_definition']],
+  // [name, knowledge_area_code, slug, bloom_level, ast_nodes[]]
+  ['File I/O',        'SDF-FPC', 'file-io',        'apply',    ['function_definition']],
+  ['Scope',           'SDF-PMD', 'scope',          'analyze',  ['block']],
+  ['Enums',           'SDF-FPC', 'enums',          'understand', []],
+  ['Structs',         'SDF-FDS', 'structs',        'understand', ['struct_declaration']],
+  ['Pointers',        'SDF-FDS', 'pointers',       'analyze',  ['pointer_declarator','pointer_expression']],
+  ['Strings',         'SDF-FPC', 'strings',        'understand', ['string_literal']],
+  ['Input/Output',    'SDF-FPC', 'input-output',   'apply',    ['call_expression']],
+  ['Switch/Case',     'SDF-PMD', 'switch-case',    'apply',    ['switch_statement']],
+  ['Nested Loops',    'SDF-PMD', 'nested-loops',   'analyze',  ['for_statement','while_statement']],
+  ['Recursion',       'SDF-PMD', 'recursion',      'evaluate', ['function_definition']],
+  ['Dynamic Memory',  'SDF-FDS', 'dynamic-memory', 'analyze',  ['call_expression']],
+  ['Linked Lists',    'SDF-FDS', 'linked-lists',   'analyze',  ['struct_declaration','pointer_declarator']],
+  ['Error Handling',  'SDF-PMD', 'error-handling', 'apply',    ['if_statement']],
+  ['Type Casting',    'SDF-FPC', 'type-casting',   'understand', ['cast_expression']],
+  ['Preprocessor',    'SDF-OOP', 'preprocessor',   'remember', []],
+  ['Namespaces',      'SDF-OOP', 'namespaces',     'understand', []],
+  ['Inheritance',     'SDF-OOP', 'inheritance',    'apply',    ['class_specifier']],
+  ['Polymorphism',    'SDF-OOP', 'polymorphism',   'evaluate', ['class_specifier','function_definition']],
 ];
 
 // ── 2. Additional dependencies ─────────────────────────────────────────────
@@ -463,12 +473,12 @@ async function run() {
     }
 
     let newCount = 0;
-    for (const [name, ka, slug, bloom, tier, astNodes] of NEW_CONCEPTS) {
+    for (const [name, ka, slug, bloom, astNodes] of NEW_CONCEPTS) {
       if (!existingNames.has(name.toLowerCase())) {
         await client.query(
-          `INSERT INTO concepts (name, knowledge_area_code, slug, bloom_level, difficulty_tier, ast_nodes)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [name, ka, slug, bloom, tier, astNodes]
+          `INSERT INTO concepts (name, knowledge_area_code, slug, bloom_level, ast_nodes)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [name, ka, slug, bloom, astNodes]
         );
         existingMap[name.toLowerCase()] = (await client.query('SELECT lastval() AS id')).rows[0].id;
         newCount++;
@@ -520,15 +530,22 @@ async function run() {
 
     if (section.rows.length === 0) {
       const secResult = await client.query(
-        `INSERT INTO sections (name, course_code, school_year, instructor_id, join_policy, max_size)
-         VALUES ('Introduction to Programming I', 'ITP1', '2025-2026', $1, 'code', 50)
+        `INSERT INTO sections (name, course_code, school_year, instructor_id, code, join_policy, max_size)
+         VALUES ('Introduction to Programming I', 'ITP1', '2025-2026', $1, $2, 'code', 50)
          RETURNING id`,
-        [instructorId]
+        [instructorId, generateCode()]
       );
       sectionId = secResult.rows[0].id;
       console.log(`  ✓ Created ITP1 section (id: ${sectionId})`);
     } else {
       sectionId = section.rows[0].id;
+      // Ensure the section has a join code
+      const existingCode = await client.query(`SELECT code FROM sections WHERE id = $1`, [sectionId]);
+      if (!existingCode.rows[0]?.code) {
+        const newCode = generateCode();
+        await client.query(`UPDATE sections SET code = $1 WHERE id = $2`, [newCode, sectionId]);
+        console.log(`  ✓ Generated join code for existing ITP1 section: ${newCode}`);
+      }
       console.log(`  ✓ Using existing ITP1 section (id: ${sectionId})`);
     }
 
@@ -546,8 +563,8 @@ async function run() {
       if (existing.rows.length === 0) {
         const result = await client.query(
           `INSERT INTO exercises (title, description, concept_id, section_id, created_by,
-            test_cases, starter_code, reference_solution, mode)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'learning')
+            test_cases, starter_code, reference_solution)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING id`,
           [ex.title, ex.description, primaryConceptId, sectionId, instructorId,
            JSON.stringify(ex.test_cases), ex.starter_code, ex.reference_solution]

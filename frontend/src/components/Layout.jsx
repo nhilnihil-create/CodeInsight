@@ -4,25 +4,19 @@ import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 /**
- * App shell — scroll discipline (2026-06-09 refactor).
+ * App shell — viewport-locked, zero-gap layout.
  *
- * Root:        h-screen overflow-hidden — viewport-locked, no browser scroll.
- * Sidebar:     fixed left, own vertical scroll, decoupled from content.
- * Main:        flex-1 flex flex-col h-full overflow-hidden — no scroll here.
- * ContentPane: THE SOLE scroll container. flex-1 overflow-y-auto with
- *              custom-scroll thin tracking so only this pane scrolls.
+ * Root:        h-screen w-screen overflow-hidden flex — rigid viewport boundary.
+ * Sidebar:     fixed left, h-full flex-col, own scroll, decoupled from content.
+ * Main:        flex-1 h-full flex flex-col overflow-hidden — no scroll.
+ * ContentPane: flex-1 overflow-y-auto custom-scroll — THE sole scroll container.
  *
- * Code editor exception: Monaco editor is edge-to-edge (no padding, no
- * max-width) and the theme toggle is hidden on it. The code editor paths are:
+ * Code editor exception: Monaco renders edge-to-edge (no padding, no
+ * max-width). The code editor paths are:
  *   - /student/code-editor
  *   - /student/code-editor/:exerciseId
- *   - /student/exercises/:exerciseId  (the exercise detail IS the editor)
- * The bare /student/exercises list page is NOT a code editor and keeps
- * the standard gutter.
- *
- * `pageTitle` was removed (2026-06-06): it was never rendered — Layout
- * just dropped it on the floor. Page-level headers now live in
- * <StudentDashboardShell> instead.
+ *   - /student/exercises/:exerciseId
+ * The bare /student/exercises list page keeps the standard gutter.
  */
 const CODE_EDITOR_EXACT = new Set(["/student/code-editor"]);
 const CODE_EDITOR_EXERCISE_RE = /^\/student\/exercises\/[^/]+/;
@@ -37,21 +31,30 @@ export default function Layout({ children }) {
     CODE_EDITOR_EXERCISE_RE.test(pathname);
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-50 overflow-hidden">
+    <div className="h-screen w-screen overflow-hidden flex bg-[#0B0F19]">
       <Sidebar />
       <main
         className={cn(
-          "flex h-screen w-full flex-1 flex-col overflow-hidden bg-slate-950/95 transition-[margin] duration-300 ease-in-out",
+          "flex-1 h-full flex flex-col overflow-hidden transition-[margin] duration-300 ease-in-out",
           isOpen ? "ml-[220px]" : "ml-[70px]"
         )}
       >
         <div
           className={cn(
-            "flex w-full flex-1 flex-col overflow-y-auto custom-scroll",
-            isCodeEditor ? "max-w-none p-0" : "p-6 lg:p-8"
+            "mesh-bg noise-overlay relative flex w-full flex-1 flex-col",
+            isCodeEditor
+              ? "max-w-none p-0 overflow-hidden"
+              : "overflow-y-auto custom-scroll p-6 lg:p-8"
           )}
         >
-          {children}
+          <div
+            className={cn(
+              "relative z-10",
+              isCodeEditor && "flex-1 min-h-0 flex flex-col"
+            )}
+          >
+            {children}
+          </div>
         </div>
       </main>
     </div>

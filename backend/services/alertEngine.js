@@ -46,14 +46,8 @@ async function generateMicroConceptAlert(params, db) {
 
   if (!detectedIssues || detectedIssues.length === 0) return;
 
-  // Only generate alerts for significant findings (not informational)
-  const significantIssues = detectedIssues.filter(issue =>
-    issue.severity === 'high' || issue.severity === 'medium'
-  );
-
-  if (significantIssues.length === 0) return;
-
-  const issueSummary = significantIssues.map(i => `${i.name}: ${i.recommendation || i.description}`).join('; ');
+  // All detected micro-concept issues are treated as significant
+  const issueSummary = detectedIssues.map(i => `${i.name}: ${i.recommendation || i.description}`).join('; ');
 
   // Check if alert already exists for this student/exercise
   const existing = await db.query(

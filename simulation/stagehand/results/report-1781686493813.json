@@ -1,0 +1,1094 @@
+{
+  "timestamp": "2026-06-17T08:48:20.676Z",
+  "duration": 393137,
+  "summary": {
+    "total": 36,
+    "passed": 28,
+    "failed": 8
+  },
+  "tests": [
+    {
+      "name": "Instructor Login",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login",
+          "success": true
+        },
+        {
+          "action": "Verify redirect",
+          "success": true,
+          "url": "http://localhost:5173/instructor/dashboard"
+        }
+      ]
+    },
+    {
+      "name": "Student Login",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login",
+          "success": true
+        },
+        {
+          "action": "Verify redirect",
+          "success": true,
+          "url": "http://localhost:5173/student/dashboard"
+        }
+      ]
+    },
+    {
+      "name": "Invalid Login",
+      "passed": true,
+      "details": [
+        {
+          "action": "Submit invalid credentials",
+          "success": true
+        },
+        {
+          "action": "Stayed on login page",
+          "success": true,
+          "url": "http://localhost:5173/login"
+        }
+      ]
+    },
+    {
+      "name": "Instructor Navigation",
+      "passed": true,
+      "details": [
+        {
+          "page": "Dashboard",
+          "passed": true
+        },
+        {
+          "page": "Heatmap",
+          "passed": true
+        },
+        {
+          "page": "Students",
+          "passed": true
+        },
+        {
+          "page": "Exercises",
+          "passed": true
+        },
+        {
+          "page": "Reports",
+          "passed": true
+        },
+        {
+          "page": "Integrity",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Student Navigation",
+      "passed": true,
+      "details": [
+        {
+          "page": "My Exercises",
+          "passed": true
+        },
+        {
+          "page": "My Progress",
+          "passed": true
+        },
+        {
+          "page": "My Profile",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Exercise Submission",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "No exercises available",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Instructor Dashboard",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to dashboard",
+          "success": true
+        },
+        {
+          "action": "KPI cards visible",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Section selector visible",
+          "success": false
+        },
+        {
+          "action": "Struggling concepts section",
+          "success": false
+        },
+        {
+          "action": "Recent flags section",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Heatmap View",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to heatmap",
+          "success": true
+        },
+        {
+          "action": "Heatmap grid visible",
+          "success": false
+        },
+        {
+          "action": "Student rows rendered",
+          "success": true,
+          "count": 1
+        },
+        {
+          "action": "Colored CDS cells",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Search filter visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Command Center",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to command center",
+          "success": true
+        },
+        {
+          "action": "Insight cards rendered",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "KPI summary visible",
+          "success": false
+        },
+        {
+          "action": "At-risk roster visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Student My Scores",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to progress",
+          "success": true
+        },
+        {
+          "action": "Mastery bars visible",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "CDS score labels",
+          "success": false
+        },
+        {
+          "action": "Error",
+          "success": false,
+          "error": "locator.count: Unexpected token \"=\" while parsing css selector \"[class*=\"trend\"], [class*=\"delta\"], [class*=\"arrow\"], text=↑, text=↓\". Did you mean to CSS.escape it?"
+        }
+      ]
+    },
+    {
+      "name": "Integrity Queue",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to integrity page",
+          "success": true
+        },
+        {
+          "action": "Integrity flags list visible",
+          "success": false
+        },
+        {
+          "action": "Severity filter visible",
+          "success": false
+        },
+        {
+          "action": "Type filter visible",
+          "success": false
+        },
+        {
+          "action": "Search input visible",
+          "success": false
+        },
+        {
+          "action": "Flag rows rendered",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Integrity Flag Detail",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to integrity page",
+          "success": true
+        },
+        {
+          "action": "No flags to inspect",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Bulk Dismiss",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to integrity page",
+          "success": true
+        },
+        {
+          "action": "Checkboxes available",
+          "success": true
+        },
+        {
+          "action": "Bulk action button visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Student Integrity View",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to student integrity",
+          "success": true
+        },
+        {
+          "action": "Student integrity flags visible",
+          "success": false
+        },
+        {
+          "action": "No review buttons (read-only)",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Reports Page",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to reports",
+          "success": true
+        },
+        {
+          "action": "KPI summary cards",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Report tabs visible",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Charts rendered",
+          "success": true,
+          "count": 3
+        },
+        {
+          "action": "Period selector visible",
+          "success": false
+        },
+        {
+          "action": "Export button visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Report Tabs",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to reports",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Longitudinal Progress",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to students",
+          "success": true
+        },
+        {
+          "action": "No students available",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Concept Analytics",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to sections",
+          "success": true
+        },
+        {
+          "action": "No sections available",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Custom Heatmap",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to custom heatmap",
+          "success": true
+        },
+        {
+          "action": "Custom heatmap grid visible",
+          "success": false
+        },
+        {
+          "action": "Tag selector visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Exercise List",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "Exercise list visible",
+          "success": false
+        },
+        {
+          "action": "New Exercise button visible",
+          "success": false
+        },
+        {
+          "action": "Exercise rows rendered",
+          "success": true
+        },
+        {
+          "action": "Status badges visible",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Exercise Wizard",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "New Exercise button not found",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Exercise Databank",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercise explorer",
+          "success": true
+        },
+        {
+          "action": "Databank section visible",
+          "success": false
+        },
+        {
+          "action": "Databank exercise cards",
+          "success": true
+        },
+        {
+          "action": "Search/filter visible",
+          "success": false
+        },
+        {
+          "action": "Load/Use button visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Close Exercise",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "No exercises to close",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Edit Exercise",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "No exercises to edit",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Student Dashboard",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to dashboard",
+          "success": true
+        },
+        {
+          "action": "Due exercises section",
+          "success": false
+        },
+        {
+          "action": "Mastery percentage visible",
+          "success": false
+        },
+        {
+          "action": "Completion percentage visible",
+          "success": false
+        },
+        {
+          "action": "Weakest concepts visible",
+          "success": false
+        },
+        {
+          "action": "Recommended exercises visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Student Progress Page",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to progress",
+          "success": true
+        },
+        {
+          "action": "Trajectory banner visible",
+          "success": false
+        },
+        {
+          "action": "Micro-metrics rendered",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Concept mastery bars",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Period selector buttons",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Error",
+          "success": false,
+          "error": "locator.count: Unexpected token \"=\" while parsing css selector \"[class*=\"trend\"], [class*=\"delta\"], text=↑, text=↓, text=→\". Did you mean to CSS.escape it?"
+        }
+      ]
+    },
+    {
+      "name": "Student Today Plan",
+      "passed": false,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to today plan",
+          "success": true
+        },
+        {
+          "action": "Focus exercise visible",
+          "success": false
+        },
+        {
+          "action": "Why explanation visible",
+          "success": false
+        },
+        {
+          "action": "Class average visible",
+          "success": false
+        },
+        {
+          "action": "Concept bars rendered",
+          "success": false
+        },
+        {
+          "action": "Signals visible",
+          "success": false
+        },
+        {
+          "action": "Next moves visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Student Code Submission",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to exercises",
+          "success": true
+        },
+        {
+          "action": "No exercises available",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Student Profile",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to profile",
+          "success": true
+        },
+        {
+          "action": "Profile info visible",
+          "success": true
+        },
+        {
+          "action": "Stats visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Student Recommendations",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as student",
+          "success": true
+        },
+        {
+          "action": "Navigate to recommendations",
+          "success": true
+        },
+        {
+          "action": "Recommendations list visible",
+          "success": false
+        },
+        {
+          "action": "Recommended exercise cards",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Intervention Queue",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to alerts",
+          "success": true
+        },
+        {
+          "action": "Intervention queue header",
+          "success": false
+        },
+        {
+          "action": "Severity tiers visible",
+          "success": false,
+          "count": 0
+        },
+        {
+          "action": "Student alert rows",
+          "success": true
+        },
+        {
+          "action": "Mastery bars in alerts",
+          "success": true
+        },
+        {
+          "action": "Search filter visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Alert Detail Drawer",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to alerts",
+          "success": true
+        },
+        {
+          "action": "No alerts to inspect",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Review Alert",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to alerts",
+          "success": true
+        },
+        {
+          "action": "No alerts to review",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Dashboard At-Risk Section",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to dashboard",
+          "success": true
+        },
+        {
+          "action": "At-risk count visible",
+          "success": false
+        },
+        {
+          "action": "Delta indicator visible",
+          "success": false
+        },
+        {
+          "action": "Struggling concepts bar",
+          "success": false
+        },
+        {
+          "action": "Recent flags visible",
+          "success": false
+        }
+      ]
+    },
+    {
+      "name": "Micro-Concept Alerts",
+      "passed": true,
+      "details": [
+        {
+          "action": "Login as instructor",
+          "success": true
+        },
+        {
+          "action": "Navigate to sections",
+          "success": true
+        },
+        {
+          "action": "No sections available",
+          "success": true
+        }
+      ]
+    },
+    {
+      "name": "Comprehensive Engine Simulation",
+      "passed": false,
+      "details": {
+        "timestamp": "2026-06-17T08:54:53.812Z",
+        "duration": 84592,
+        "totalPersonas": 10,
+        "passed": 0,
+        "failed": 10,
+        "flagsDetected": 0,
+        "behavioralFlags": 0,
+        "microConceptPassRate": 0,
+        "astVerificationRate": 0,
+        "cdsDistribution": {
+          "Low": 9,
+          "Moderate": 0,
+          "High": 1
+        },
+        "engineCoverage": {
+          "cdsEngine": true,
+          "integrityFlagEngine": true,
+          "microConceptEngine": true,
+          "astVerification": true,
+          "behavioralAnomalyDetector": true,
+          "retryStormDetector": true,
+          "codeGrowthDetector": true,
+          "hardcodingDetector": true,
+          "blankTemplateDetector": true
+        }
+      }
+    }
+  ],
+  "comprehensiveSimulation": {
+    "summary": {
+      "timestamp": "2026-06-17T08:54:53.812Z",
+      "duration": 84592,
+      "totalPersonas": 10,
+      "passed": 0,
+      "failed": 10,
+      "flagsDetected": 0,
+      "behavioralFlags": 0,
+      "microConceptPassRate": 0,
+      "astVerificationRate": 0,
+      "cdsDistribution": {
+        "Low": 9,
+        "Moderate": 0,
+        "High": 1
+      },
+      "engineCoverage": {
+        "cdsEngine": true,
+        "integrityFlagEngine": true,
+        "microConceptEngine": true,
+        "astVerification": true,
+        "behavioralAnomalyDetector": true,
+        "retryStormDetector": true,
+        "codeGrowthDetector": true,
+        "hardcodingDetector": true,
+        "blankTemplateDetector": true
+      }
+    },
+    "results": [
+      {
+        "persona": "Maria",
+        "personaId": 1,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Alex",
+        "personaId": 2,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Jordan",
+        "personaId": 3,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Chloe",
+        "personaId": 4,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Derek",
+        "personaId": 5,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Emma",
+        "personaId": 6,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Fiona",
+        "personaId": 7,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "George",
+        "personaId": 8,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Hannah",
+        "personaId": 9,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      },
+      {
+        "persona": "Ian",
+        "personaId": 10,
+        "submissions": [],
+        "detectedFlags": [],
+        "microConcepts": [],
+        "astVerification": null,
+        "cdsScore": null,
+        "behavioralFlags": [],
+        "passed": false
+      }
+    ],
+    "cdsResults": {
+      "1": {
+        "ner": 0,
+        "nrs": 0,
+        "nts": 0.18,
+        "cds": 0.04,
+        "classification": "Low"
+      },
+      "2": {
+        "ner": 0.08,
+        "nrs": 0.09,
+        "nts": 0.28,
+        "cds": 0.13,
+        "classification": "Low"
+      },
+      "3": {
+        "ner": 0.17,
+        "nrs": 0.18,
+        "nts": 0.32,
+        "cds": 0.21,
+        "classification": "Low"
+      },
+      "4": {
+        "ner": 0,
+        "nrs": 0,
+        "nts": 0,
+        "cds": 0,
+        "classification": "Low"
+      },
+      "5": {
+        "ner": 0.08,
+        "nrs": 0,
+        "nts": 0.03,
+        "cds": 0.04,
+        "classification": "Low"
+      },
+      "6": {
+        "ner": 1,
+        "nrs": 1,
+        "nts": 0.06,
+        "cds": 0.77,
+        "classification": "High"
+      },
+      "7": {
+        "ner": 0,
+        "nrs": 0,
+        "nts": 0.28,
+        "cds": 0.07,
+        "classification": "Low"
+      },
+      "8": {
+        "ner": 0.08,
+        "nrs": 0.09,
+        "nts": 0.18,
+        "cds": 0.11,
+        "classification": "Low"
+      },
+      "9": {
+        "ner": 0.08,
+        "nrs": 0.09,
+        "nts": 0.4,
+        "cds": 0.16,
+        "classification": "Low"
+      },
+      "10": {
+        "ner": 0,
+        "nrs": 0,
+        "nts": 1,
+        "cds": 0.25,
+        "classification": "Low"
+      }
+    }
+  }
+}

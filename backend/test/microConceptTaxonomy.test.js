@@ -14,7 +14,7 @@ describe('Micro-Concept Taxonomy Test Suite', function() {
       assert.notStrictEqual(MICRO_CONCEPT_RULES, null);
     });
 
-    it('should have all 7 concepts', function() {
+    it('should have all 25 concepts', function() {
       const expectedConcepts = [
         'Datatypes',
         'Variables',
@@ -22,7 +22,25 @@ describe('Micro-Concept Taxonomy Test Suite', function() {
         'Loops',
         'Functions',
         'Arrays',
-        'OOP'
+        'OOP',
+        'Pointers',
+        'Strings',
+        'Input/Output',
+        'Switch/Case',
+        'Nested Loops',
+        'Recursion',
+        'File I/O',
+        'Scope',
+        'Enums',
+        'Structs',
+        'Dynamic Memory',
+        'Linked Lists',
+        'Error Handling',
+        'Type Casting',
+        'Preprocessor',
+        'Namespaces',
+        'Inheritance',
+        'Polymorphism'
       ];
 
       expectedConcepts.forEach(concept => {

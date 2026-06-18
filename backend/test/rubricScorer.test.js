@@ -340,23 +340,19 @@ describe('Rubric Scorer — End-to-End Scenarios', function() {
   });
 });
 
-// ── Assessment Mode Filtering (in rubricScorer median query) ──────────────────
+// ── Practice Exclusion (in rubricScorer median query) ──────────────────────────
 
-describe('Rubric Scorer — Assessment Mode Filtering', function() {
-  it('median query filters by mode=assessment AND is_practice IS NOT TRUE', function() {
-    // This is a documentation test — the actual SQL in rubricScorer.js line 62-63:
-    // WHERE s.exercise_id = $1 AND s.time_spent_seconds > 0
-    //   AND e.mode = 'assessment' AND s.is_practice IS NOT TRUE
-    // This ensures practice/learning submissions don't pollute assessment median
+describe('Rubric Scorer — Practice Exclusion', function() {
+  it('median query filters by is_practice IS NOT TRUE', function() {
+    // Mode (learning/assessment) has been removed from the system.
+    // Only practice submissions are excluded from median calculation.
     const sql = `
       SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY time_spent_seconds) AS median_time
       FROM submissions s
       JOIN exercises e ON e.id = s.exercise_id
       WHERE s.exercise_id = $1 AND s.time_spent_seconds > 0
-        AND e.mode = 'assessment'
         AND s.is_practice IS NOT TRUE
     `;
-    assert.ok(sql.includes("e.mode = 'assessment'"));
     assert.ok(sql.includes('s.is_practice IS NOT TRUE'));
   });
 });

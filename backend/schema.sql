@@ -70,12 +70,11 @@ CREATE TABLE IF NOT EXISTS concepts (
   ast_nodes           TEXT[],
   knowledge_area_code VARCHAR(20),
   slug                VARCHAR(100) UNIQUE,
-  bloom_level         VARCHAR(20) DEFAULT 'apply',
-  difficulty_tier     INT DEFAULT 1
+  bloom_level         VARCHAR(20) DEFAULT 'apply'
 );
 
 -- ── Exercises ───────────────────────────────────────────────────────────────
--- V2 additions: mode, rubric_config, is_validated, search_vector
+-- V2 additions: rubric_config, is_validated, search_vector
 
 CREATE TABLE IF NOT EXISTS exercises (
   id                SERIAL PRIMARY KEY,
@@ -96,10 +95,8 @@ CREATE TABLE IF NOT EXISTS exercises (
   track_nts         BOOLEAN DEFAULT true,
   auto_alert        BOOLEAN DEFAULT true,
   closed_at         TIMESTAMP,
-  mode              VARCHAR(20) DEFAULT 'learning' CHECK (mode IN ('learning', 'assessment')),
   rubric_config     JSONB DEFAULT '{}',
   is_validated      BOOLEAN DEFAULT false,
-  difficulty_index  DECIMAL(5,4),
   search_vector     tsvector,
   created_at        TIMESTAMP DEFAULT NOW()
 );
@@ -215,7 +212,6 @@ CREATE TABLE IF NOT EXISTS section_concept_metrics (
   concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
   crs VARCHAR(20) DEFAULT 'unknown',
   crs_score DECIMAL(5,2) DEFAULT 0,
-  difficulty_index DECIMAL(5,4) DEFAULT 0,
   student_count INT DEFAULT 0,
   at_risk_count INT DEFAULT 0,
   last_updated TIMESTAMPTZ DEFAULT NOW(),
@@ -229,19 +225,16 @@ CREATE TABLE IF NOT EXISTS exercise_bank (
   title       VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
   concept     VARCHAR(100) NOT NULL,
-  difficulty  VARCHAR(20),
   sequence_order INT DEFAULT 0,
   test_cases  JSONB NOT NULL DEFAULT '[]',
   starter_code TEXT,
   sample_solution TEXT,
-  mode        VARCHAR(20) DEFAULT 'learning' CHECK (mode IN ('learning', 'assessment')),
   rubric_config JSONB DEFAULT '{}',
   is_validated BOOLEAN DEFAULT false,
   created_at  TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_exercise_bank_concept ON exercise_bank(concept);
-CREATE INDEX IF NOT EXISTS idx_exercise_bank_difficulty ON exercise_bank(difficulty);
 
 -- ── Submissions ─────────────────────────────────────────────────────────────
 -- V2 additions: is_practice, cppcheck_warnings, submitted_at, behavioral tracking
@@ -345,20 +338,6 @@ CREATE TABLE IF NOT EXISTS integrity_flags (
   reviewed_at         TIMESTAMP,
   created_at          TIMESTAMP DEFAULT NOW(),
   UNIQUE(exercise_id, student_id, flag_type)
-);
-
--- ── Notifications ───────────────────────────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS notifications (
-  id                  SERIAL PRIMARY KEY,
-  student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  section_id          INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-  exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-  message             TEXT NOT NULL,
-  notification_type   VARCHAR(50) NOT NULL DEFAULT 'cds_computation',
-  is_read             BOOLEAN DEFAULT false,
-  created_at          TIMESTAMP DEFAULT NOW(),
-  UNIQUE(student_id, exercise_id, notification_type)
 );
 
 -- ── Verification Logs ───────────────────────────────────────────────────────
@@ -491,17 +470,17 @@ CREATE TRIGGER exercises_search_vector_update
 
 -- ── SEED DATA ───────────────────────────────────────────────────────────────
 
-INSERT INTO concepts (name, ast_nodes, knowledge_area_code, slug, bloom_level, difficulty_tier) VALUES
-  ('Datatypes',    ARRAY[]::TEXT[], 'SDF-FPC', 'datatypes',    'remember',   1),
-  ('Variables',    ARRAY[]::TEXT[], 'SDF-FPC', 'variables',    'understand', 1),
-  ('Conditionals', ARRAY['if_statement','switch_statement'], 'SDF-PMD', 'conditionals', 'apply',    2),
-  ('Loops',        ARRAY['for_statement','while_statement','do_statement'], 'SDF-PMD', 'loops',      'apply',    2),
-  ('Functions',    ARRAY['function_definition'], 'SDF-PMD', 'functions',    'analyze',  3),
-  ('Arrays',       ARRAY['array_declarator','subscript_expression'], 'SDF-FDS', 'arrays',     'apply',    2),
-  ('OOP',          ARRAY['class_specifier'], 'SDF-OOP', 'oop',          'evaluate', 4),
-  ('Pointers',     ARRAY['pointer_declarator','pointer_expression'], 'SDF-FDS', 'pointers',   'analyze',  3),
-  ('Strings',      ARRAY['string_literal'], 'SDF-FPC', 'strings',      'understand', 1),
-  ('Input/Output', ARRAY['call_expression'], 'SDF-FPC', 'input-output', 'apply',    1)
+INSERT INTO concepts (name, ast_nodes, knowledge_area_code, slug, bloom_level) VALUES
+  ('Datatypes',    ARRAY[]::TEXT[], 'SDF-FPC', 'datatypes',    'remember'),
+  ('Variables',    ARRAY[]::TEXT[], 'SDF-FPC', 'variables',    'understand'),
+  ('Conditionals', ARRAY['if_statement','switch_statement'], 'SDF-PMD', 'conditionals', 'apply'),
+  ('Loops',        ARRAY['for_statement','while_statement','do_statement'], 'SDF-PMD', 'loops',      'apply'),
+  ('Functions',    ARRAY['function_definition'], 'SDF-PMD', 'functions',    'analyze'),
+  ('Arrays',       ARRAY['array_declarator','subscript_expression'], 'SDF-FDS', 'arrays',     'apply'),
+  ('OOP',          ARRAY['class_specifier'], 'SDF-OOP', 'oop',          'evaluate'),
+  ('Pointers',     ARRAY['pointer_declarator','pointer_expression'], 'SDF-FDS', 'pointers',   'analyze'),
+  ('Strings',      ARRAY['string_literal'], 'SDF-FPC', 'strings',      'understand'),
+  ('Input/Output', ARRAY['call_expression'], 'SDF-FPC', 'input-output', 'apply')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO users (name, email, password_hash, role) VALUES

@@ -3,19 +3,24 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Sparkles,
-  MessageSquare,
-  Clock,
   ChevronRight,
   AlertCircle,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import EmptyState from "@/components/ui/empty-state";
 import InsightHeader from "@/components/ui/insight-header";
-import EvidenceRow from "@/components/ui/evidence-row";
+import GlassDivider from "@/components/ui/glass-divider";
+import GlassPanel, {
+  GlassPanelHeader,
+  GlassPanelTitle,
+  GlassPanelContent,
+} from "@/components/ui/glass-panel";
+import MasteryBar, { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import StudentDashboardShell from "@/components/student-dashboard-shell";
+import JoinSectionGate from "@/components/join-section-gate";
+import useHasSections from "@/hooks/useHasSections";
 import api from "@/services/api";
 
 function formatToday() {
@@ -27,23 +32,37 @@ function formatToday() {
 }
 
 const FILL_TONE = {
-  low: "bg-destructive",
+  low: "bg-success",
   moderate: "bg-warning",
-  high: "bg-success",
+  high: "bg-destructive",
 };
 
 function Skeleton({ className }) {
   return <div className={cn("animate-pulse rounded-md bg-muted", className)} />;
 }
 
+/* ── Stagger config ──────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
+
 export default function StudentDashboard() {
+  const { hasSections, checking, recheck } = useHasSections();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
+    if (hasSections === null || !hasSections) return;
     let cancelled = false;
-    async function fetchDashboard() {
+    async function load() {
       try {
         setLoading(true);
         setError(null);
@@ -55,11 +74,49 @@ export default function StudentDashboard() {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchDashboard();
+    load();
     return () => { cancelled = true; };
-  }, []);
+  }, [hasSections, fetchKey]);
 
-  // ---------- Loading skeleton ----------
+  const handleJoined = () => {
+    recheck();
+    setFetchKey((k) => k + 1);
+  };
+
+  // ---------- Checking sections ----------
+  if (checking) {
+    return (
+      <StudentDashboardShell>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <Skeleton className="h-9 w-24" />
+          </div>
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-28 w-full rounded-none" />
+            ))}
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+          <Skeleton className="h-48 w-full rounded-2xl" />
+        </div>
+      </StudentDashboardShell>
+    );
+  }
+
+  // ---------- No sections — show join gate ----------
+  if (!hasSections) {
+    return <JoinSectionGate onJoined={handleJoined} />;
+  }
+
+  // ---------- Loading page data ----------
   if (loading) {
     return (
       <StudentDashboardShell>
@@ -71,15 +128,17 @@ export default function StudentDashboard() {
             </div>
             <Skeleton className="h-9 w-24" />
           </div>
-          <Skeleton className="h-24 w-full rounded-lg" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}
+          <Skeleton className="h-24 w-full rounded-2xl" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-28 w-full rounded-none" />
+            ))}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
-            <Skeleton className="h-64 w-full rounded-lg" />
-            <Skeleton className="h-64 w-full rounded-lg" />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
-          <Skeleton className="h-48 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
         </div>
       </StudentDashboardShell>
     );
@@ -109,27 +168,19 @@ export default function StudentDashboard() {
   const nearest = due?.nearestDeadline;
   const mastery = data.mastery;
   const completion = data.completion;
-  const streak = data.streak;
   const avgCds = data.avgCds ?? 0;
   const weakest = data.weakestConcepts ?? [];
-  const feedback = data.recentFeedback ?? [];
   const recs = data.recommended ?? [];
 
-  // Empty-state gate: no enrolled exercises at all → show EmptyState once.
-  const hasAnyData = mastery?.percentage > 0 || completion?.completed > 0 || streak?.current > 0 || weakest.length > 0 || feedback.length > 0 || recs.length > 0 || dueCount > 0;
+  // Empty-state gate: enrolled but no exercises assigned yet
+  const hasAnyData = mastery?.percentage > 0 || completion?.completed > 0 || weakest.length > 0 || recs.length > 0 || dueCount > 0;
   if (!hasAnyData && !nearest) {
     return (
       <StudentDashboardShell>
         <EmptyState
           icon={<Sparkles />}
-          title="Welcome to CodeInsight!"
-          description="You're not enrolled in any exercises yet. Your instructor will add you to a section to get started."
-          action={
-            <Button asChild variant="outline" size="sm">
-              <Link to="/student/sections">Browse sections</Link>
-            </Button>
-          }
-          footnote="Check back once your instructor publishes exercises."
+          title="No exercises yet"
+          description="Your instructor hasn't published exercises for your section yet. Check back soon!"
         />
       </StudentDashboardShell>
     );
@@ -137,258 +188,223 @@ export default function StudentDashboard() {
 
   return (
     <StudentDashboardShell>
-      {/* ---------- PageHeader ---------- */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="min-w-0 space-y-0.5">
-          <h1 className="text-xl font-semibold tracking-tight truncate sm:text-2xl">
-            {formatToday()}
-          </h1>
-          <p className="text-xs text-muted-foreground sm:text-sm">
-            {dueCount > 0
-              ? `${dueCount} exercise${dueCount > 1 ? 's' : ''} due this week`
-              : "No exercises due this week"}
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm" className="font-medium shrink-0">
-          <Link to="/student/exercises">
-            View all
-            <ChevronRight className="ml-1 h-3.5 w-3.5" strokeWidth={1.5} />
-          </Link>
-        </Button>
-      </header>
-
-      {/* ---------- Insight ---------- */}
-      {nearest ? (
-        <InsightHeader
-          eyebrow={dueCount > 0 ? "Due soon" : "All clear"}
-          insight={nearest
-            ? `Exercise ${nearest.id} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
-            : "You're all caught up on your exercises."}
-          description={nearest
-            ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
-            : "No deadlines approaching."}
-          action={
-            <Button asChild size="sm" className="font-medium">
-              <Link to={`/student/exercises/${nearest.id}`}>
-                Start Exercise {nearest.id}
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-              </Link>
-            </Button>
-          }
-        />
-      ) : null}
-
-      {/* ---------- Evidence ---------- */}
-      <EvidenceRow
-        chips={[
-          {
-            label: "Mastery",
-            value: `${mastery?.percentage ?? 0}%`,
-            delta: avgCds <= 0.33 ? -1 : avgCds > 0.66 ? 1 : 0,
-            series: mastery?.series ?? [],
-            comparison: "concept understanding",
-          },
-          {
-            label: "Completion",
-            value: `${completion?.percentage ?? 0}%`,
-            delta: completion?.completed ?? 0,
-            series: [],
-            comparison: `${completion?.total ?? 0} exercises total`,
-          },
-          {
-            label: "Streak",
-            value: `${streak?.current ?? 0} day${streak?.current !== 1 ? 's' : ''}`,
-            delta: streak?.best ?? 0,
-            series: streak?.series ?? [],
-            comparison: "personal best",
-          },
-        ]}
-      />
-
-      {/* ---------- Card: weakest concepts + feedback ---------- */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
-            <div className="space-y-1 min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Focus
-              </p>
-              <CardTitle className="text-sm font-semibold truncate">
-                {weakest.length > 0
-                  ? `Work on ${weakest[0].name.toLowerCase()}`
-                  : "No data yet"}
-              </CardTitle>
-            </div>
-            <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
-          </CardHeader>
-          <CardContent className="pt-4 space-y-3">
-            {weakest.length > 0 ? weakest.map((c) => {
-              const fillTone = FILL_TONE[c.level] ?? "bg-primary";
-              const displayValue = Math.round((1 - c.avgCds) * 100);
-              return (
-                <div
-                  key={c.name}
-                  className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-3 min-w-0"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {c.name}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {c.hint}
-                    </p>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden min-w-0">
-                    <div
-                      className={cn("h-full rounded-full transition-all", fillTone)}
-                      style={{ width: `${displayValue}%` }}
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                    {displayValue}%
-                  </span>
-                </div>
-              );
-            }) : (
-              <EmptyState
-                icon={<Sparkles />}
-                title="No progress yet"
-                description="Complete exercises to see your concept breakdown here."
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ---------- Card: recent feedback ---------- */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
-            <div className="space-y-1 min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                From instructor
-              </p>
-              <CardTitle className="text-sm font-semibold truncate">
-                Recent feedback
-              </CardTitle>
-            </div>
-            <MessageSquare
-              className="h-4 w-4 text-muted-foreground shrink-0"
-              strokeWidth={1.5}
-            />
-          </CardHeader>
-          <CardContent className="p-0">
-            {feedback.length > 0 ? (
-              <ul className="divide-y divide-border">
-                {feedback.map((n) => (
-                  <li key={n.id} className="px-4 py-3 sm:px-5 sm:py-4">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback className="text-[10px] font-semibold text-muted-foreground">
-                          {n.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium truncate">
-                            {n.author}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0 inline-flex items-center gap-1">
-                            <Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
-                            {n.when}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {n.body}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyState
-                icon={<MessageSquare />}
-                title="No feedback yet"
-                description="Your instructor will share feedback here after reviewing your submissions."
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ---------- Card: recommended next ---------- */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b border-border">
-          <div className="space-y-1 min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Up next
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+        {/* ═══════════════════════════════════════════════════════════
+            PAGE HEADER — floating typography
+           ═══════════════════════════════════════════════════════════ */}
+        <motion.header variants={fadeUp} className="flex items-center justify-between gap-3">
+          <div className="min-w-0 space-y-0.5">
+            <h1 className="text-2xl font-semibold tracking-tight truncate text-foreground">
+              {formatToday()}
+            </h1>
+            <p className="text-xs text-muted-foreground/60 sm:text-sm">
+              {dueCount > 0
+                ? `${dueCount} exercise${dueCount > 1 ? 's' : ''} due this week`
+                : "No exercises due this week"}
             </p>
-            <CardTitle className="text-sm font-semibold truncate">
-              Recommended next
-            </CardTitle>
           </div>
-          <Button asChild variant="ghost" size="sm" className="font-medium -mr-2">
+          <Button asChild variant="ghost" size="sm" className="font-medium shrink-0 text-muted-foreground hover:text-foreground">
             <Link to="/student/exercises">
-              See all
+              View all
               <ChevronRight className="ml-1 h-3.5 w-3.5" strokeWidth={1.5} />
             </Link>
           </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          {recs.length > 0 ? (
-            <ul className="divide-y divide-border">
-              {recs.map((r, idx) => (
-                <li key={r.id}>
-                  <Link
-                    to={`/student/exercises/${r.id}`}
-                    className="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4 transition-all duration-200 ease-out hover:bg-slate-900/80 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                  >
-                    <span
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground font-mono tabular-nums"
-                      aria-hidden="true"
-                    >
-                      {idx + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {r.title}
-                        </p>
-                        <ConceptTag code={r.concept} name={r.conceptName} />
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                        {r.blurb} · ~{r.minutes} min
-                      </p>
-                    </div>
-                    <ChevronRight
-                      className="h-4 w-4 text-muted-foreground shrink-0"
-                      strokeWidth={1.5}
-                      aria-hidden="true"
-                    />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState
-              icon={<Sparkles />}
-              title="No exercises available yet"
-              description="When your instructor publishes exercises, they'll appear here as recommendations."
-            />
-          )}
-        </CardContent>
-      </Card>
-    </StudentDashboardShell>
-  );
-}
+        </motion.header>
 
-function ConceptTag({ code, name }) {
-  return (
-    <span
-      className="shrink-0 inline-flex items-center rounded-full border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground"
-      title={name}
-    >
-      {code}
-    </span>
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION 1 — TRAJECTORY BANNER (glowing accent border)
+           ═══════════════════════════════════════════════════════════ */}
+        {nearest ? (
+          <motion.section variants={fadeUp}>
+            <InsightHeader
+              eyebrow={dueCount > 0 ? "Due soon" : "All clear"}
+              insight={nearest
+                ? `Exercise ${nearest.id} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
+                : "You're all caught up on your exercises."}
+              description={nearest
+                ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
+                : "No deadlines approaching."}
+              action={
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Button asChild size="sm" className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300">
+                    <Link to={`/student/exercises/${nearest.id}`}>
+                      Start Exercise {nearest.id}
+                      <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
+                    </Link>
+                  </Button>
+                </motion.div>
+              }
+            />
+          </motion.section>
+        ) : null}
+
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION 2 — FLOATING MICRO-METRICS (typography-first)
+           ═══════════════════════════════════════════════════════════ */}
+        <motion.div
+          variants={fadeUp}
+          className="grid grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]"
+        >
+          {[
+            { label: "Mastery", value: `${mastery?.percentage ?? 0}%`, sub: "concept understanding", accent: "text-teal-400" },
+            { label: "Completion", value: `${completion?.percentage ?? 0}%`, sub: `${completion?.completed ?? 0}/${completion?.total ?? 0} exercises`, accent: "text-emerald-400" },
+            { label: "Avg CDS", value: avgCds.toFixed(2), sub: avgCds <= 0.33 ? "on track" : avgCds <= 0.66 ? "moderate" : "needs focus", accent: avgCds <= 0.33 ? "text-emerald-400" : avgCds <= 0.66 ? "text-amber-400" : "text-rose-400" },
+          ].map((m) => (
+            <div
+              key={m.label}
+              className="relative flex flex-col gap-1 px-5 py-5 bg-white/[0.02] backdrop-blur-xl"
+            >
+              <span className="metric-label">{m.label}</span>
+              <span className={cn("text-3xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
+                {m.value}
+              </span>
+              <span className="text-[11px] text-muted-foreground/50">{m.sub}</span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION 3 — WEAKEST CONCEPTS
+           ═══════════════════════════════════════════════════════════ */}
+        <motion.div variants={fadeUp}>
+          {/* Weakest Concepts */}
+          <GlassPanel interactive>
+            <GlassPanelHeader>
+              <GlassPanelTitle>Focus areas</GlassPanelTitle>
+              <Sparkles className="h-4 w-4 text-muted-foreground/50" strokeWidth={1.5} />
+            </GlassPanelHeader>
+            <GlassPanelContent className="p-0">
+              {weakest.length > 0 ? (
+                <ul>
+                  {weakest.map((c, i) => {
+                    const cds = c.avgCds ?? (1 - (c.mastery ?? 0) / 100);
+                    const tier = tierForCds(cds);
+                    const meta = TIER_META[tier];
+                    const displayValue = Math.round((1 - cds) * 100);
+                    return (
+                      <li key={c.name}>
+                        <motion.div
+                          whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                          transition={{ duration: 0.15 }}
+                          className={cn(
+                            "grid grid-cols-[1fr_3.5rem] items-center gap-3 px-5 py-3.5",
+                            i < weakest.length - 1 && "border-b border-white/[0.04]"
+                          )}
+                        >
+                          <div className="min-w-0 space-y-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="text-sm font-medium text-foreground truncate">
+                                {c.name}
+                              </span>
+                              <span className="flex items-center gap-1.5 shrink-0">
+                                <span className={cn("w-1.5 h-1.5 rounded-full", meta.dot)} />
+                                <span className={cn("text-[10px] font-medium uppercase tracking-wider", meta.text)}>
+                                  {meta.label}
+                                </span>
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground/60 truncate">{c.hint}</p>
+                            <MasteryBar percent={displayValue} tier={tier} delay={i * 0.08} />
+                          </div>
+                          <span className="text-sm font-mono tabular-nums text-foreground font-semibold">
+                            {displayValue}%
+                          </span>
+                        </motion.div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="py-12">
+                  <EmptyState
+                    icon={<Sparkles />}
+                    title="No progress yet"
+                    description="Complete exercises to see your concept breakdown here."
+                  />
+                </div>
+              )}
+            </GlassPanelContent>
+          </GlassPanel>
+        </motion.div>
+
+        <GlassDivider />
+
+        {/* ═══════════════════════════════════════════════════════════
+            SECTION 4 — RECOMMENDED NEXT
+           ═══════════════════════════════════════════════════════════ */}
+        <motion.section variants={fadeUp}>
+          <GlassPanel interactive>
+            <GlassPanelHeader>
+              <div className="flex items-center gap-2">
+                <GlassPanelTitle>Recommended next</GlassPanelTitle>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                  Up next
+                </span>
+              </div>
+              <Button asChild variant="ghost" size="sm" className="font-medium -mr-2 text-muted-foreground hover:text-foreground">
+                <Link to="/student/exercises">
+                  See all
+                  <ChevronRight className="ml-1 h-3.5 w-3.5" strokeWidth={1.5} />
+                </Link>
+              </Button>
+            </GlassPanelHeader>
+            <GlassPanelContent className="p-0">
+              {recs.length > 0 ? (
+                <ul className="divide-y divide-white/[0.04]">
+                  {recs.map((r, idx) => (
+                    <li key={r.id}>
+                      <motion.div
+                        whileHover={{ backgroundColor: "rgba(255,255,255,0.025)", scale: 1.005 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <Link
+                          to={`/student/exercises/${r.id}`}
+                          className="flex items-center gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                        >
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] border border-white/[0.06] text-xs font-semibold text-muted-foreground font-mono tabular-nums"
+                            aria-hidden="true"
+                          >
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {r.title}
+                              </p>
+                              {r.concept && (
+                                <span className="shrink-0 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                                  {r.conceptName || r.concept}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground/50 truncate">
+                              {r.blurb} · ~{r.minutes} min
+                            </p>
+                          </div>
+                          <ChevronRight
+                            className="h-4 w-4 text-muted-foreground/40 shrink-0"
+                            strokeWidth={1.5}
+                            aria-hidden="true"
+                          />
+                        </Link>
+                      </motion.div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="py-12">
+                  <EmptyState
+                    icon={<Sparkles />}
+                    title="No exercises available yet"
+                    description="When your instructor publishes exercises, they'll appear here as recommendations."
+                  />
+                </div>
+              )}
+            </GlassPanelContent>
+          </GlassPanel>
+        </motion.section>
+      </motion.div>
+    </StudentDashboardShell>
   );
 }

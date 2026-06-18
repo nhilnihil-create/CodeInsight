@@ -81,7 +81,7 @@ exports.create = async (req, res, next) => {
             time_limit_minutes, test_cases, deadline, is_draft,
             track_ner, track_nrs, track_nts, auto_alert,
             starter_code, reference_solution, concept_ids,
-            mode, rubric_config } = req.body;
+            rubric_config } = req.body;
 
     const cRes = await db.query('SELECT id FROM concepts WHERE name=$1', [concept_name]);
     if (!cRes.rows.length) throw new AppError('Concept not found', 400, codes.VALIDATION, { field: 'concept_name' });
@@ -91,13 +91,13 @@ exports.create = async (req, res, next) => {
       `INSERT INTO exercises
        (title, description, concept_id, section_id, created_by, time_limit_minutes,
         test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
-        starter_code, reference_solution, mode, rubric_config)
+        starter_code, reference_solution, rubric_config, is_validated)
        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
       [title, description, concept_id, section_id, req.user.id,
        time_limit_minutes || 45, JSON.stringify(test_cases), deadline || null,
        is_draft, track_ner, track_nrs, track_nts, auto_alert,
        starter_code || null, reference_solution || null,
-       mode || 'learning', JSON.stringify(rubric_config || {})]
+       JSON.stringify(rubric_config || {}), false]
     );
 
     // Insert secondary concepts into exercise_concepts junction table
@@ -204,7 +204,7 @@ exports.update = async (req, res, next) => {
   try {
     const { title, description, concept_name, time_limit_minutes, test_cases, deadline,
             is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code,
-            mode, rubric_config } = req.body;
+            rubric_config } = req.body;
 
     // Build dynamic update
     const sets = [];
@@ -229,7 +229,6 @@ exports.update = async (req, res, next) => {
     addSet('track_nts', track_nts);
     addSet('auto_alert', auto_alert);
     addSet('starter_code', starter_code);
-    addSet('mode', mode);
     if (rubric_config !== undefined) {
       params.push(JSON.stringify(rubric_config));
       sets.push(`rubric_config = $${params.length}`);
@@ -379,8 +378,8 @@ exports.bulkPublish = async (req, res, next) => {
           `INSERT INTO exercises
             (title, description, concept_id, section_id, created_by, time_limit_minutes,
              test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
-             starter_code, reference_solution, mode, rubric_config)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+             starter_code, reference_solution)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            RETURNING id, title, concept_id, section_id`,
           [
             bank.title,
@@ -398,7 +397,6 @@ exports.bulkPublish = async (req, res, next) => {
             true,   // auto_alert
             bank.starter_code || null,
             bank.sample_solution || null,
-            bank.mode || 'learning',
             JSON.stringify(bank.rubric_config || {}),
           ]
         );
@@ -436,9 +434,9 @@ exports.getDatabank = async (req, res, next) => {
   try {
     // Get exercise_bank items
     const bankRes = await db.query(
-      `SELECT id, title, description, concept, difficulty, sequence_order,
+      `SELECT id, title, description, concept, sequence_order,
               test_cases, starter_code, sample_solution,
-              'bank' AS source, NULL AS difficulty_index
+              'bank' AS source
        FROM exercise_bank
        ORDER BY sequence_order, title`
     );
@@ -447,8 +445,8 @@ exports.getDatabank = async (req, res, next) => {
     const itpiRes = await db.query(
       `SELECT e.id, e.title, e.description, c.name AS concept,
               e.reference_solution AS sample_solution,
-              e.starter_code, e.test_cases, e.mode,
-              'seeded' AS source, e.difficulty_index
+              e.starter_code, e.test_cases,
+              'seeded' AS source
        FROM exercises e
        JOIN concepts c ON c.id = e.concept_id
        WHERE e.section_id = 51
@@ -462,14 +460,11 @@ exports.getDatabank = async (req, res, next) => {
       title: r.title,
       description: r.description,
       concept: r.concept,
-      difficulty: r.difficulty,
       test_cases: r.test_cases,
       starter_code: r.starter_code,
       sample_solution: r.sample_solution,
-      mode: 'learning',
       source: 'bank',
       sequence_order: r.sequence_order,
-      difficulty_index: null,
     }));
 
     const seededItems = itpiRes.rows.map(r => ({
@@ -477,14 +472,11 @@ exports.getDatabank = async (req, res, next) => {
       title: r.title,
       description: r.description,
       concept: r.concept,
-      difficulty: null,
       test_cases: r.test_cases,
       starter_code: r.starter_code,
       sample_solution: r.sample_solution,
-      mode: r.mode,
       source: 'seeded',
       sequence_order: 0,
-      difficulty_index: r.difficulty_index ? parseFloat(r.difficulty_index) : null,
     }));
 
     res.json([...bankItems, ...seededItems]);

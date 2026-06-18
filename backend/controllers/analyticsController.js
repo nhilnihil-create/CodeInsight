@@ -314,13 +314,17 @@ exports.studentProfile = async (req, res, next) => {
 
 exports.myScores = async (req, res, next) => {
   try {
-    // Return CDS scores for the authenticated student only
+    // Return CDS scores for the authenticated student only (scoped to current enrollments)
+    // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
     const r = await db.query(
       `SELECT cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts, cs.computed_at,
-              cs.exercise_id, c.name AS concept_name, ex.title AS exercise_title
+              cs.exercise_id, COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title
        FROM cds_scores cs
        JOIN exercises ex ON ex.id=cs.exercise_id
        JOIN concepts c ON c.id=ex.concept_id
+       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+       LEFT JOIN concepts pt ON pt.id = ect.concept_id
+       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
        WHERE cs.student_id=$1
        ORDER BY cs.computed_at DESC`,
       [req.user.id]

@@ -22,7 +22,7 @@ export default function StructureViolationsReport() {
     let active = true;
     const load = async () => {
       try {
-        const res = await api.get(`/api/instructor/sections/${sectionId}/structure-violations`);
+        const res = await api.get(`/api/analytics/sections/${sectionId}/structure-violations`);
         if (active) setViolations(res.data || []);
       } catch (err) {
         // network errors are expected

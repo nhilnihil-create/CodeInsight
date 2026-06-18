@@ -15,8 +15,12 @@ export function AuthProvider({ children }) {
       .get('/api/auth/me')
       .then((res) => {
         if (!cancelled) {
-          setUser(res.data);
-          setIsLoggedIn(true);
+          if (res.data) {
+            setUser(res.data);
+            setIsLoggedIn(true);
+          } else {
+            setIsLoggedIn(false);
+          }
         }
       })
       .catch(() => {

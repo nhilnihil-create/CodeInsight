@@ -101,9 +101,9 @@ const analyticsService = {
   },
 
   /**
-   * Get live peer rankings for an exercise (Student View)
+   * Get live peer rankings for an exercise (Instructor View)
    * @param {number} exerciseId
-   * @returns {Promise<Object>} Anonymous peer ranking
+   * @returns {Promise<Object>} Peer ranking with student names
    */
   getLivePeerRanking: (exerciseId) => {
     return api.get(`/api/analytics/live/${exerciseId}`);
@@ -116,6 +116,24 @@ const analyticsService = {
    */
   reviewIntegrityFlag: (flagId, data) => {
     return api.put(`/api/analytics/integrity-flags/${flagId}/review`, data);
+  },
+
+  /**
+   * Get unreviewed CDS-based alerts for a section (Intervention Queue)
+   * @param {number} sectionId
+   * @returns {Promise<Array>} Array of alert objects with student_name, exercise_title, etc.
+   */
+  getSectionAlerts: (sectionId) => {
+    return api.get(`/api/analytics/alerts/${sectionId}`);
+  },
+
+  /**
+   * Mark a CDS-based alert as reviewed
+   * @param {number} alertId
+   * @returns {Promise<Object>}
+   */
+  reviewAlert: (alertId) => {
+    return api.put(`/api/analytics/alerts/${alertId}/review`);
   }
 };
 

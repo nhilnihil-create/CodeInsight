@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/services/api";
-import { useBehavioralTracking } from "@/hooks/useBehavioralTracking";
 import EditorHeader from "./editor/EditorHeader";
 import ResizableWorkbench from "./editor/ResizableWorkbench";
 import MobileEditorTabs from "./editor/MobileEditorTabs";
@@ -105,21 +105,7 @@ export default function StudentCodeEditor() {
   const [rubricScore, setRubricScore] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [history, setHistory] = useState([]);
-  // Persistence key: per-exercise, versioned so stale values are ignored.
-  const STORAGE_KEY = `codeinsight:elapsed:${exerciseId}:v1`;
-
-  // On mount: restore persisted elapsed time for this exercise, or start at 0.
-  // If the student already solved this exercise (backend flag), the
-  // effect below resets to 0 after the exercise data arrives.
-  const [activeElapsedSeconds, setActiveElapsedSeconds] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    try {
-      const key = `codeinsight:elapsed:${exerciseId}:v1`;
-      const stored = window.localStorage?.getItem(key);
-      if (stored) { const n = parseInt(stored, 10); if (Number.isFinite(n) && n >= 0) return n; }
-    } catch { /* ignore */ }
-    return 0;
-  });
+  const [activeElapsedSeconds, setActiveElapsedSeconds] = useState(0);
   const [isSolved, setIsSolved] = useState(false);
   const [activeTab, setActiveTab] = useState(TAB_DEFAULT);
   const [isRunning, setIsRunning] = useState(false);
@@ -127,13 +113,12 @@ export default function StudentCodeEditor() {
   const [error, setError] = useState(null);
   const editorRef = useRef(null);
   const isSubmittingRef = useRef(false);
-  const { eventsRef } = useBehavioralTracking({ idleMs: 30_000 });
+  const behavioralCounts = useRef({ tabSwitches: 0, pastes: 0, idleSeconds: 0 });
+  const lastActivityRef = useRef(Date.now());
+  const idleTimerRef = useRef(null);
+  const editorContainerRef = useRef(null);
 
-  // Practice mode: student already has a correct submission for this exercise.
-  // Practice mode allows experimentation without affecting CDS analytics.
   const isCompleted = !!exercise?.isCompleted;
-  const [isPracticeMode, setIsPracticeMode] = useState(false);
-  const [practiceResult, setPracticeResult] = useState(null);
 
   useEffect(() => {
     const id = exerciseId;
@@ -182,33 +167,89 @@ export default function StudentCodeEditor() {
     };
   }, [exerciseId]);
 
-  // --- Stopwatch: runs in both modes, persists across exits -----------------
-  // Stops when the student solves the exercise (isSolved) or when in
-  // Review Mode (isCompleted). On unmount, persists elapsed to localStorage.
   useEffect(() => {
     if (isCompleted || isSolved) return undefined;
-
     const id = setInterval(() => {
       setActiveElapsedSeconds((s) => s + 1);
     }, 1000);
-
     return () => {
       clearInterval(id);
-      try {
-        window.localStorage?.setItem(STORAGE_KEY, String(activeElapsedSeconds));
-      } catch { /* ignore */ }
     };
-  }, [isCompleted, isSolved, exerciseId, activeElapsedSeconds]);
+  }, [isCompleted, isSolved]);
 
-  // --- Auto-submit when time runs out (Assessment Mode only) -----------------
+  // ── Passive Behavioral Logging (paper flag #5) ────────────────────────
+  // Track tab switches, paste events, and idle time. Sends cumulative
+  // counts with each submission AND asynchronously flushes raw events
+  // for audit trail every 10 seconds.
   useEffect(() => {
-    if (isCompleted || isSolved) return undefined;
-    const limit = exercise?.time_limit_minutes * 60;
-    if (exercise?.mode === 'assessment' && limit && activeElapsedSeconds >= limit) {
-      if (isSubmittingRef.current) return;
-      handleSubmit();
-    }
-  }, [activeElapsedSeconds, exercise, isCompleted, isSolved]);
+    if (!exerciseId || isCompleted || isSolved) return;
+
+    // Reset counters when entering a new exercise session
+    behavioralCounts.current = { tabSwitches: 0, pastes: 0, idleSeconds: 0 };
+    lastActivityRef.current = Date.now();
+
+    const events = [];
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        behavioralCounts.current.tabSwitches += 1;
+        events.push({ type: 'tab_switch', timestamp: new Date().toISOString() });
+      } else {
+        // Tab refocused — reset idle timer
+        lastActivityRef.current = Date.now();
+      }
+    };
+
+    const handlePaste = () => {
+      behavioralCounts.current.pastes += 1;
+      events.push({ type: 'paste', timestamp: new Date().toISOString() });
+      lastActivityRef.current = Date.now();
+    };
+
+    const handleActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    // Check idle every second — accumulate idle seconds when no activity
+    const handleIdleCheck = () => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      if (elapsed >= 1000) {
+        behavioralCounts.current.idleSeconds += 1;
+      }
+    };
+
+    // Flush events to backend every 10 seconds (audit trail)
+    let flushTimer = null;
+    const flushEvents = async () => {
+      if (events.length === 0) return;
+      const toSend = events.splice(0, events.length);
+      try {
+        await api.post('/api/student/behavioral-events', {
+          exerciseId: parseInt(exerciseId),
+          events: toSend,
+        });
+      } catch (_) {
+        // Non-fatal: don't break the editor if telemetry fails
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('keydown', handleActivity);
+    document.addEventListener('mousedown', handleActivity);
+    flushTimer = setInterval(flushEvents, 10000);
+    idleTimerRef.current = setInterval(handleIdleCheck, 1000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('keydown', handleActivity);
+      document.removeEventListener('mousedown', handleActivity);
+      clearInterval(flushTimer);
+      clearInterval(idleTimerRef.current);
+      flushEvents(); // Final flush on unmount
+    };
+  }, [exerciseId, isCompleted, isSolved]);
 
   const handleRun = async () => {
     if (!exerciseId) return;
@@ -232,36 +273,8 @@ export default function StudentCodeEditor() {
     }
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
-    if (isCompleted && isPracticeMode) {
-      // Practice mode submit — no CDS impact
-      setIsRunning(true);
-      try {
-        const r = await api.post(`/api/student/exercises/${exerciseId}/practice`, {
-          code,
-          language: 'cpp',
-          timeSpentSeconds: activeElapsedSeconds,
-        });
-        const data = r.data;
-        if (data.testResults) {
-          setPracticeResult(transformTestResults(data.testResults, data.compilerError));
-          setTestResults(practiceResult ? practiceResult : transformTestResults(data.testResults, data.compilerError));
-        }
-        if (data.allPassed) setIsSolved(true);
-        toast.success(
-          data.passed
-            ? `Practice: All tests passed! (does not affect CDS)`
-            : `Practice: Some tests failed (does not affect CDS)`
-        );
-      } catch (err) {
-        toast.error(err.response?.data?.message || err.message || "Practice submission failed");
-      } finally {
-        isSubmittingRef.current = false;
-        setIsRunning(false);
-      }
-      return;
-    }
     if (isCompleted) {
-      toast.info("You already completed this exercise. Switch to Practice Mode to continue editing.");
+      toast.info("Exercise already completed. Your CDS is locked.");
       isSubmittingRef.current = false;
       return;
     }
@@ -271,7 +284,9 @@ export default function StudentCodeEditor() {
         code,
         language: 'cpp',
         timeSpentSeconds: activeElapsedSeconds,
-        behavioralEvents: eventsRef.current,
+        tabSwitchCount: behavioralCounts.current.tabSwitches,
+        pasteCount: behavioralCounts.current.pastes,
+        idleTimeSeconds: behavioralCounts.current.idleSeconds,
       });
       const data = r.data;
       const hidden = data.hiddenTestCount ?? 0;
@@ -348,25 +363,18 @@ export default function StudentCodeEditor() {
   if (!exercise) return null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      {/* Practice Mode Banner */}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.99 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+      className="flex-1 h-full flex flex-col overflow-hidden bg-[#080C15]"
+    >
       {isCompleted && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-sm">
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-sm shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-amber-600">✓ Exercise Completed</span>
+            <span className="font-medium text-amber-400">✓ Exercise Completed</span>
             <span className="text-muted-foreground">— Your CDS is locked. Further submissions won't affect your score.</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsPracticeMode(!isPracticeMode)}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-              isPracticeMode
-                ? "bg-amber-500/20 text-amber-700 border border-amber-500/30"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {isPracticeMode ? "Practice Mode Active" : "Enable Practice Mode"}
-          </button>
         </div>
       )}
 
@@ -374,26 +382,24 @@ export default function StudentCodeEditor() {
         title={exercise.title}
         concepts={exercise.concepts}
         testResults={testResults}
-        mode={exercise.mode}
         timeLimitMinutes={exercise.time_limit_minutes}
         activeElapsedSeconds={activeElapsedSeconds}
         isRunning={isRunning}
         isReviewMode={isCompleted}
         onRun={handleRun}
-        onSubmit={isCompleted ? (isPracticeMode ? handleSubmit : undefined) : handleSubmit}
+        onSubmit={isCompleted ? undefined : handleSubmit}
         onBack={handleBack}
       />
 
-      {/* Rubric Scorecard (Assessment Mode only) */}
-      {rubricScore && exercise?.mode === 'assessment' && (
-        <div className="px-4 py-2 border-b border-border bg-muted/20">
+      {rubricScore && (
+        <div className="px-4 py-2 border-b border-white/[0.05] bg-[#131B2E]/40 backdrop-blur-md shrink-0">
           <div className="max-w-3xl mx-auto">
             <RubricScorecard rubricScore={rubricScore} />
           </div>
         </div>
       )}
 
-      <div className="hidden lg:flex flex-1 min-h-0">
+      <div className="hidden lg:flex flex-1 w-full overflow-hidden h-[calc(100vh-56px)]">
         <ResizableWorkbench
           exercise={exercise}
           code={code}
@@ -425,8 +431,8 @@ export default function StudentCodeEditor() {
           programOutput={testResults?.programOutput ?? ""}
           isReviewMode={isCompleted}
         />
-        <EditorActionBar onRun={handleRun} onSubmit={isCompleted ? (isPracticeMode ? handleSubmit : undefined) : handleSubmit} isRunning={isRunning} />
+        <EditorActionBar onRun={handleRun} onSubmit={isCompleted ? undefined : handleSubmit} isRunning={isRunning} />
       </div>
-    </div>
+    </motion.div>
   );
 }

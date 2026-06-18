@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
 import api from '../../services/api';
+import ClassMisconceptionReport from './ClassMisconceptionReport';
 
 /**
  * ExerciseAccordionRow — in-row accordion detail (push-down, 2026-06-09).
@@ -19,6 +22,7 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!sectionId || !exercise?.id) return;
@@ -28,7 +32,7 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
         setLoading(true);
         setError(null);
         const res = await api.get(`/api/analytics/sections/${sectionId}/class-insights/${exercise.id}`);
-        if (!cancelled) setReport(res.data);
+        if (!cancelled) setReport(res.data.report);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -99,15 +103,20 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
               </div>
             )}
 
-            {!loading && !error && report && report.mostCommonIssue ? (
-              <MisconceptionSummary report={report} />
-            ) : !loading && !error && report ? (
-              <div className="py-4 text-center text-sm text-muted-foreground">
-                {report.totalStudents === 0
-                  ? '⏳ No submissions yet. Check back after students complete the exercise.'
-                  : 'No misconception patterns detected.'}
-              </div>
-            ) : null}
+            {!loading && !error && report && (
+              <>
+                <ClassMisconceptionReport report={report} embedded />
+
+                {report.mostCommonIssue && (
+                  <div className="mt-3 flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => setModalOpen(true)}>
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+                      View full report
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
 
             {!loading && !error && !report && (
               <div className="py-4 text-center text-sm text-muted-foreground">
@@ -116,86 +125,16 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
             )}
           </div>
         </div>
+
+        {modalOpen && (
+          <ClassMisconceptionReport
+            report={report}
+            onClose={() => setModalOpen(false)}
+          />
+        )}
       </td>
     </tr>
   );
 }
 
-/**
- * MisconceptionSummary — lightweight inline rendering of the report
- * (avoids the modal overlay from ClassMisconceptionReport).
- */
-function MisconceptionSummary({ report }) {
-  return (
-    <div className="space-y-4">
-      {/* Metrics row */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-secondary rounded-lg p-3 text-center border border-border">
-          <div className="text-xl font-bold font-mono">{report.totalStudents}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Total Students</div>
-        </div>
-        <div className="bg-secondary rounded-lg p-3 text-center border border-border">
-          <div className="text-xl font-bold font-mono">{report.completedStudents || 0}</div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Completed</div>
-        </div>
-        <div className="bg-secondary rounded-lg p-3 text-center border border-border">
-          <div className="text-xl font-bold font-mono">
-            {report.completedStudents && report.totalStudents
-              ? ((report.completedStudents / report.totalStudents) * 100).toFixed(1)
-              : '0'}%
-          </div>
-          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Completion Rate</div>
-        </div>
-      </div>
 
-      {/* Issues */}
-      {report.mostCommonIssue && (
-        <div className="rounded-lg p-3 bg-chart-4/5 border-l-[3px] border-chart-4">
-          <div className="text-sm font-semibold">{report.mostCommonIssue}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            <strong>{report.affectedCount}</strong> students ({report.affectedPercent?.toFixed(1) || '0'}%)
-          </div>
-        </div>
-      )}
-
-      {report.secondIssue && (
-        <div className="rounded-lg p-3 bg-chart-2/5 border-l-[3px] border-chart-2">
-          <div className="text-sm font-semibold">{report.secondIssue}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            <strong>{report.secondCount || 0}</strong> students ({report.secondPercent?.toFixed(1) || '0'}%)
-          </div>
-        </div>
-      )}
-
-      {/* Insights grid */}
-      {(report.classSummary || report.recommendedAction) && (
-        <div className="grid grid-cols-2 gap-3">
-          {report.classSummary && (
-            <div className="bg-secondary rounded-lg p-3 border border-border">
-              <div className="text-xs font-semibold mb-1">📊 Class Summary</div>
-              <div className="text-xs text-muted-foreground leading-relaxed">{report.classSummary}</div>
-            </div>
-          )}
-          {report.rootCause && (
-            <div className="bg-secondary rounded-lg p-3 border border-border">
-              <div className="text-xs font-semibold mb-1">🔎 Root Cause</div>
-              <div className="text-xs text-muted-foreground leading-relaxed">{report.rootCause}</div>
-            </div>
-          )}
-          {report.recommendedAction && (
-            <div className="bg-chart-2/5 rounded-lg p-3 border border-chart-2/25">
-              <div className="text-xs font-semibold mb-1">💡 Recommended Action</div>
-              <div className="text-xs text-muted-foreground leading-relaxed">{report.recommendedAction}</div>
-            </div>
-          )}
-          {report.beforeAdvancing && (
-            <div className="bg-secondary rounded-lg p-3 border border-border">
-              <div className="text-xs font-semibold mb-1">✅ Before Advancing</div>
-              <div className="text-xs text-muted-foreground leading-relaxed">{report.beforeAdvancing}</div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}

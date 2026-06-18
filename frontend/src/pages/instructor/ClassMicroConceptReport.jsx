@@ -22,7 +22,7 @@ export default function ClassMicroConceptReport() {
     let active = true;
     const load = async () => {
       try {
-        const res = await api.get(`/api/instructor/sections/${sectionId}/micro-concept-report`);
+        const res = await api.get(`/api/analytics/sections/${sectionId}/micro-concept-report`);
         if (active) setReport(res.data);
       } catch (err) {
         // network errors are expected

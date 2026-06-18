@@ -100,7 +100,7 @@ export default function InstructorIntegrity() {
     setError(null);
     try {
       const res = await api.get("/api/analytics/integrity");
-      setFlags(res.data.flags || []);
+      setFlags((res.data.flags || []).map(f => ({ ...f, severity: (f.severity || "").toLowerCase() })));
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load integrity flags");
     } finally {
@@ -299,7 +299,7 @@ export default function InstructorIntegrity() {
         <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Integrity</h1>
           <p className="text-sm text-muted-foreground">
-            Behavioral and structural anomalies requiring instructor review.
+            Contextual indicators for instructor review. These flags are hypotheses, not verdicts.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

@@ -28,8 +28,8 @@ async function testExerciseSubmission() {
       await page.waitForTimeout(3000);
       steps.push({ action: 'Select exercise', success: true });
 
-      // Check for code editor (Monaco)
-      const hasEditor = await page.locator('.monaco-editor').isVisible({ timeout: 5000 }).catch(() => false);
+      // Check for code editor (Monaco or textarea)
+      const hasEditor = await page.locator('.monaco-editor, textarea, .cm-editor').first().isVisible({ timeout: 10000 }).catch(() => false);
       if (hasEditor) {
         steps.push({ action: 'Code editor loaded', success: true });
 

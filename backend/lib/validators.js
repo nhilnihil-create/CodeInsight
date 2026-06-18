@@ -33,7 +33,6 @@ const exerciseCreate = Joi.object({
   starter_code: Joi.string().allow('', null).max(20000).optional(),
   reference_solution: Joi.string().allow('', null).max(20000).optional(),
   concept_ids: Joi.array().items(Joi.string().trim().min(1).max(100)).optional(), // secondary concepts
-  mode: Joi.string().valid('learning', 'assessment').default('learning'),
   rubric_config: Joi.object().pattern(Joi.string(), Joi.number().min(0).max(100)).default({}),
 });
 
@@ -49,7 +48,6 @@ const exerciseUpdate = Joi.object({
   track_nts: Joi.boolean().optional(),
   auto_alert: Joi.boolean().optional(),
   starter_code: Joi.string().allow('', null).max(20000).optional(),
-  mode: Joi.string().valid('learning', 'assessment').optional(),
   rubric_config: Joi.object().optional(),
 });
 
@@ -89,18 +87,6 @@ const submitCode = Joi.object({
   exerciseId: Joi.number().integer().positive().required(),
   code: Joi.string().required(),
   timeSpentSeconds: Joi.number().integer().min(0).max(86400).default(0),
-  behavioralData: Joi.object({
-    tabSwitchCount: Joi.number().integer().min(0).default(0),
-    pasteCount: Joi.number().integer().min(0).default(0),
-    idleTimeSeconds: Joi.number().integer().min(0).default(0),
-  }).optional(),
-  behavioralEvents: Joi.array().items(
-    Joi.object({
-      type: Joi.string().valid('tab_blur', 'tab_focus', 'paste', 'keystroke_burst', 'idle_start', 'idle_end').required(),
-      timestamp: Joi.alternatives(Joi.date().iso(), Joi.string()).required(),
-      payload: Joi.object().unknown(true).optional(),
-    })
-  ).max(500).optional(),
 });
 
 const evaluationSubmit = Joi.object({
@@ -132,6 +118,7 @@ const login = Joi.object({
 });
 
 const idParam = Joi.object({ id: id.required() });
+const enrollParams = Joi.object({ id: id.required(), studentId: id.required() });
 
 const adminUserUpdate = Joi.object({
   name: name.optional(),
@@ -200,7 +187,7 @@ module.exports = {
   email, password, name, id, role, testCase,
   exerciseCreate, exerciseUpdate,
   sectionCreate, enrollPayload, membershipUpdate, policyUpdate, joinByCode,
-  submitCode, evaluationSubmit, register, login, idParam,
+  submitCode, evaluationSubmit, register, login, idParam, enrollParams,
   adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate,
   bulkImportCSV, rosterImportRows,
   bulkPublish, exerciseValidate,

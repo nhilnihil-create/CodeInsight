@@ -16,8 +16,8 @@ export default function ExerciseDetail() {
     <main className="mobile-content">
       <CodePreviewSurface
         data={data}
-        onRun={async () => { const r = await fetch(`/api/exercises/${id}/run`, { method: 'POST' }); setResults(await r.json()); }}
-        onSubmit={async () => { const r = await fetch(`/api/submissions`, { method: 'POST', body: JSON.stringify({ exerciseId: id, code: data?.code }) }); setResults(await r.json()); }}
+        onRun={async () => { const r = await fetch(`/api/student/exercises/${id}/run`, { method: 'POST', credentials: 'include' }); setResults(await r.json()); }}
+        onSubmit={async () => { const r = await fetch(`/api/student/exercises/${id}/submit`, { method: 'POST', credentials: 'include', body: JSON.stringify({ code: data?.code }) }); setResults(await r.json()); }}
       />
       <TestResultList data={results} />
       <OpenFullEditorHint />

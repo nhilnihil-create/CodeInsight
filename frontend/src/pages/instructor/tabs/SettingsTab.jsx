@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import api from "@/services/api";
 
-export default function SettingsTab({ sectionId, sectionName, courseCode, onUpdated }) {
+export default function SettingsTab({ sectionId, sectionName, courseCode, onUpdated, onDeleted }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(sectionName || "");
   const [course, setCourse] = useState(courseCode || "");
@@ -20,10 +20,14 @@ export default function SettingsTab({ sectionId, sectionName, courseCode, onUpda
   }, [sectionName, courseCode]);
 
   const { data: students = [], isLoading, refetch } = useQuery({
-    queryKey: ["section-students-list", sectionId],
+    queryKey: ["section-students", sectionId],
     queryFn: async () => {
-      const { data } = await api.get(`/api/sections/${sectionId}/students`);
-      return data;
+      const { data } = await api.get(`/api/sections/${sectionId}/students-with-scores`);
+      return data.map((s) => ({
+        id: s.id,
+        name: s.name,
+        email: s.email,
+      }));
     },
     enabled: !!sectionId,
   });
@@ -85,17 +89,34 @@ export default function SettingsTab({ sectionId, sectionName, courseCode, onUpda
     onError: () => toast.error("Failed to remove student"),
   });
 
+  const deleteSectionMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/api/sections/${sectionId}`);
+    },
+    onSuccess: () => {
+      toast.success("Section deleted");
+      queryClient.invalidateQueries({ queryKey: ["instructor-sections"] });
+      if (onDeleted) onDeleted();
+    },
+    onError: () => toast.error("Failed to delete section"),
+  });
+
   const handleAddStudent = () => {
     const v = newEmail.trim();
     if (!v) return;
     enrollMutation.mutate(v);
   };
 
+  const handleDelete = () => {
+    if (!confirm("Delete this section? All enrollments, exercises, submissions, and analytics will be permanently removed. This cannot be undone.")) return;
+    deleteSectionMutation.mutate();
+  };
+
   return (
     <div className="space-y-6">
       <InsightHeader insight="Section metadata and roster configuration." />
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="flex flex-col gap-6">
         {/* Section metadata */}
         <div className="rounded-lg border border-border bg-card shadow-sm">
           <div className="px-5 py-3 border-b border-border">
@@ -256,6 +277,32 @@ export default function SettingsTab({ sectionId, sectionName, courseCode, onUpda
             ))}
           </ul>
         )}
+      </div>
+
+      {/* Delete section */}
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 shadow-sm">
+        <div className="px-5 py-3 border-b border-destructive/20">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-destructive">
+            Danger zone
+          </p>
+          <h3 className="text-sm font-semibold mt-0.5">Delete section</h3>
+        </div>
+        <div className="p-5 flex items-center justify-between">
+          <p className="text-sm text-muted-foreground max-w-md">
+            Permanently delete this section and all associated data
+            (enrollments, exercises, submissions, and analytics).
+            This cannot be undone.
+          </p>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="font-medium shrink-0"
+            onClick={handleDelete}
+            disabled={deleteSectionMutation.isPending}
+          >
+            {deleteSectionMutation.isPending ? "Deleting…" : "Delete section"}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 /**
- * rubricScorer — 4-pillar rubric scoring for assessment-mode submissions.
+ * rubricScorer — 4-pillar rubric scoring for exercise submissions.
  *
  * Pillars:
  *   1. Functional correctness (visible test pass rate)
@@ -67,7 +67,7 @@ function calculateWeightedTotal(pillars, weights) {
 }
 
 /**
- * Score an assessment-mode submission.
+ * Score a submission with rubric.
  *
  * @param {number} submissionId - The submission to score
  * @param {number} exerciseId - The exercise ID
@@ -77,24 +77,23 @@ function calculateWeightedTotal(pillars, weights) {
 async function scoreSubmission(submissionId, exerciseId, rubricConfig) {
   // 1. Fetch submission details
   const subRes = await db.query(
-    `SELECT student_id, time_spent_seconds, test_results, cppcheck_warnings
+    `SELECT student_id, time_spent_seconds, cppcheck_warnings
      FROM submissions WHERE id = $1`,
     [submissionId]
   );
   if (!subRes.rows.length) return null;
   const sub = subRes.rows[0];
 
-  // 2. Fetch median time for this exercise (assessment mode only, excluding practice)
-  const medianRes = await db.query(
-    `SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.time_spent_seconds) AS median_time
-     FROM submissions s
-     JOIN exercises e ON e.id = s.exercise_id
-     WHERE s.exercise_id = $1 AND s.time_spent_seconds > 0
-       AND e.mode = 'assessment'
-       AND s.is_practice IS NOT TRUE`,
-    [exerciseId]
-  );
-  const medianTime = medianRes.rows[0]?.median_time || 0;
+    // 2. Fetch median time for this exercise (excluding practice)
+    const timeRes = await db.query(
+      `SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY s.time_spent_seconds) AS median
+        FROM submissions s
+        JOIN exercises e ON e.id = s.exercise_id
+        WHERE s.exercise_id = $1
+        AND s.is_practice IS NOT TRUE`,
+      [exerciseId]
+    );
+  const medianTime = timeRes.rows[0]?.median || 0;
 
   // 3. Fetch integrity flags count for the student on this exercise
   const flagsRes = await db.query(
@@ -105,8 +104,12 @@ async function scoreSubmission(submissionId, exerciseId, rubricConfig) {
   const flagCount = parseInt(flagsRes.rows[0]?.flag_count || 0);
 
   // 4. Parse JSON blocks safely
-  const testResults = Array.isArray(sub.test_results) ? sub.test_results : JSON.parse(sub.test_results || '[]');
-  const cppcheckWarnings = Array.isArray(sub.cppcheck_warnings) ? sub.cppcheck_warnings : JSON.parse(sub.cppcheck_warnings || '[]');
+  const testResults = (sub.test_results && Array.isArray(sub.test_results))
+    ? sub.test_results
+    : [];
+  const cppcheckWarnings = (sub.cppcheck_warnings && Array.isArray(sub.cppcheck_warnings))
+    ? sub.cppcheck_warnings
+    : JSON.parse(sub.cppcheck_warnings || '[]');
 
   // 5. Score individual pillars
   const pillars = {

@@ -5,7 +5,6 @@ const { AppError, codes } = require('../lib/AppError');
 
 const COOKIE_OPTS = {
   httpOnly: true,
-  sameSite: 'strict',
   secure: process.env.NODE_ENV === 'production',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: '/',
@@ -59,10 +58,20 @@ exports.login = async (req, res, next) => {
 
 exports.me = async (req, res, next) => {
   try {
+    // Backward compat: if middleware already decoded the token, use req.user
+    let userId = req.user?.id;
+    if (!userId) {
+      const authHeader = req.headers?.authorization;
+      const token = req.cookies?.ci_token || (authHeader && authHeader.split(' ')[1]);
+      if (!token) return res.json(null);
+      try { userId = jwt.verify(token, process.env.JWT_SECRET).id; }
+      catch { return res.json(null); }
+    }
+
     const result = await db.query(
-      'SELECT id,name,email,role FROM users WHERE id=$1', [req.user.id]
+      'SELECT id,name,email,role FROM users WHERE id=$1', [userId]
     );
-    if (!result.rows.length) throw new AppError('User not found', 404, codes.NOT_FOUND);
+    if (!result.rows.length) return res.json(null);
     res.json(result.rows[0]);
   } catch (err) { next(err); }
 };

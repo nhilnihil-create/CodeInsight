@@ -12,27 +12,20 @@ import { cn } from '@/lib/utils';
 
 /**
  * SectionFilter
- * Shared "All Sections / per-section" picker for the 8 instructor sidebar
- * pages (Dashboard, Heatmap, Students, Exercises, Warnings, Reports,
- * Violations, Integrity). The Section Management page (My Sections) and the
- * Developer page are excluded per user directive.
+ * Section picker for instructor pages. No "All Sections" option —
+ * always requires a specific section selection.
  *
  * Props
- *   - value:        currently selected sectionId (number|string) or 'all'.
- *                   'all' is the default initial value.
- *   - onChange:     (next: 'all' | number) => void
+ *   - value:        currently selected sectionId (number).
+ *   - onChange:     (next: number) => void
  *   - className:    optional wrapper className passthrough
- *   - placeholder:  trigger placeholder when value is empty (default "All Sections")
- *
- * Fetches /api/sections once on mount (cached) and exposes a shadcn
- * Select. The label is humanized from the section's `name` field and
- * `course_code` is appended when present for clarity.
+ *   - placeholder:  trigger placeholder when value is empty (default "Select section")
  */
 export default function SectionFilter({
-  value = 'all',
+  value,
   onChange,
   className,
-  placeholder = 'All Sections',
+  placeholder = 'Select section',
 }) {
   const { user } = useAuth();
   const [sections, setSections] = useState([]);
@@ -42,7 +35,6 @@ export default function SectionFilter({
     let cancelled = false;
     const load = async () => {
       try {
-        // Fetch sections from the generic endpoint (no instructor-specific route exists)
         const res = await api.get('/api/sections');
         const list = Array.isArray(res.data) ? res.data : [];
         if (!cancelled) {
@@ -60,9 +52,7 @@ export default function SectionFilter({
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  const triggerValue = value === 'all' || value === null || value === undefined
-    ? 'all'
-    : String(value);
+  const triggerValue = value != null ? String(value) : '';
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -71,14 +61,13 @@ export default function SectionFilter({
       </span>
       <Select
         value={triggerValue}
-        onValueChange={(v) => onChange?.(v === 'all' ? 'all' : Number(v))}
-        disabled={loading}
+        onValueChange={(v) => onChange?.(Number(v))}
+        disabled={loading || sections.length === 0}
       >
         <SelectTrigger className="h-9 min-w-[200px] bg-background text-foreground">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Sections</SelectItem>
           {sections.map((sec) => (
             <SelectItem key={sec.id} value={String(sec.id)}>
               {sec.name}

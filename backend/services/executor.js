@@ -15,7 +15,7 @@ const DOCKER_IMAGE = 'gcc:14-bookworm';
 const COMPILE_FLAGS = '-O1 -fno-omit-frame-pointer -fsanitize=address -std=c++17';
 
 function isSafe(code) {
-  // Remove comments before checking for blocked keywords to avoid false positives
+  if (!code) return true;
   const cleanCode = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   return !BLOCKED_REGEX.test(cleanCode);
 }
@@ -381,4 +381,8 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
   return results;
 }
 
-module.exports = { executeCode, runAgainstTestCases, runCppcheck };
+module.exports = {
+  executeCode, runAgainstTestCases, runCppcheck,
+  // Exported for unit testing
+  isSafe, parseSanitizerOutput, parseCompilerError,
+};

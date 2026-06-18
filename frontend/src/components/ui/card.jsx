@@ -6,7 +6,7 @@ const Card = React.forwardRef(function Card({ className, ...props }, ref) {
     <div
       ref={ref}
       className={cn(
-        "rounded-lg border bg-card/50 backdrop-blur-sm border-border/60 shadow-sm",
+        "relative rounded-xl glass-panel noise-overlay",
         className,
       )}
       {...props}
@@ -21,7 +21,7 @@ const CardHeader = React.forwardRef(function CardHeader(
   return (
     <div
       ref={ref}
-      className={cn("flex flex-col space-y-1.5 p-6", className)}
+      className={cn("relative z-10 flex flex-col space-y-1.5 p-5 border-b border-white/[0.06]", className)}
       {...props}
     />
   );
@@ -35,7 +35,7 @@ const CardTitle = React.forwardRef(function CardTitle(
     <h3
       ref={ref}
       className={cn(
-        "text-lg font-semibold leading-none tracking-tight",
+        "text-sm font-semibold leading-none tracking-tight",
         className,
       )}
       {...props}
@@ -50,7 +50,7 @@ const CardDescription = React.forwardRef(function CardDescription(
   return (
     <p
       ref={ref}
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm text-muted-foreground/70", className)}
       {...props}
     />
   );
@@ -60,7 +60,7 @@ const CardContent = React.forwardRef(function CardContent(
   { className, ...props },
   ref,
 ) {
-  return <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />;
+  return <div ref={ref} className={cn("relative z-10 p-5 pt-0", className)} {...props} />;
 });
 
 const CardFooter = React.forwardRef(function CardFooter(
@@ -70,7 +70,7 @@ const CardFooter = React.forwardRef(function CardFooter(
   return (
     <div
       ref={ref}
-      className={cn("flex items-center p-6 pt-0", className)}
+      className={cn("relative z-10 flex items-center p-5 pt-0", className)}
       {...props}
     />
   );

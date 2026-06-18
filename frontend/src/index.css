@@ -74,9 +74,9 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* DARK MODE — Default (spec §6.1) */
+/* DARK MODE — Default (spec §6.1) — Ultra-deep charcoal */
 :root {
-  --bg-0: #0B1120;
+  --bg-0: #0B0F19;
   --bg-1: #0F172A;
   --bg-2: #1E293B;
   --bg-3: #334155;
@@ -84,16 +84,7 @@
   --text-2: #94A3B8;
   --text-3: #64748B;
 
-  --cds-low: #22C55E;
-  --cds-mod: #FACC15;
-  --cds-high: #EF4444;
-  --cds-na: #7C3AED;
-
-  --trend-up: #22C55E;
-  --trend-down: #EF4444;
-  --trend-flat: #94A3B8;
-
-  --background: 224 53% 8%;
+  --background: 222 47% 7%;
   --foreground: 215 32% 86%;
 
   --card: 222 39% 13%;
@@ -310,6 +301,131 @@
   box-shadow: 0 1px 2px hsl(0 0% 0% / 0.05);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   GLASSMORPHIC DESIGN SYSTEM — CodeInsight v2 Unified
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Glass Panel — core translucent container ───────────────────────── */
+.glass-panel {
+  background: rgba(19, 27, 46, 0.40);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-panel-dense {
+  background: rgba(19, 27, 46, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  box-shadow:
+    0 4px 16px 0 rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── Mesh Gradient Background — the unified workspace canvas ────────── */
+.mesh-bg {
+  background:
+    radial-gradient(ellipse at 20% 50%, hsl(176 50% 67% / 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, hsl(256 35% 70% / 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, hsl(218 36% 21% / 0.05) 0%, transparent 50%),
+    hsl(var(--background));
+}
+
+/* ── Gradient Border Dividers ───────────────────────────────────────── */
+.glass-divider-h {
+  height: 1px;
+  background: linear-gradient(to right, transparent, hsl(0 0% 100% / 0.1), transparent);
+  border: none;
+}
+
+.glass-divider-v {
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, hsl(0 0% 100% / 0.1), transparent);
+  border: none;
+}
+
+/* ── Metric Typography — high-contrast variable weight ──────────────── */
+.metric-value {
+  font-family: var(--app-font-mono);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--foreground));
+}
+
+.metric-label {
+  font-family: var(--app-font-sans);
+  font-weight: 500;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
+/* ── Glow Accents — for active states and highlights ────────────────── */
+.glow-primary {
+  box-shadow:
+    0 0 0 1px hsl(var(--primary) / 0.2),
+    0 0 20px -4px hsl(var(--primary) / 0.15);
+}
+
+.glow-success {
+  box-shadow:
+    0 0 0 1px hsl(var(--success) / 0.2),
+    0 0 20px -4px hsl(var(--success) / 0.15);
+}
+
+.glow-destructive {
+  box-shadow:
+    0 0 0 1px hsl(var(--destructive) / 0.2),
+    0 0 20px -4px hsl(var(--destructive) / 0.15);
+}
+
+/* ── Interactive Hover Depth — physics-based feel ───────────────────── */
+.hover-glass {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.hover-glass:hover {
+  background: hsl(var(--card) / 0.55);
+  border-color: hsl(0 0% 100% / 0.12);
+  box-shadow:
+    0 12px 40px -8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 0 hsl(0 0% 100% / 0.08);
+  transform: translateY(-1px);
+}
+
+/* ── Segmented Picker Backdrop — animated indicator ─────────────────── */
+.picker-indicator {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: hsl(var(--card) / 0.8);
+  border: 1px solid hsl(0 0% 100% / 0.1);
+  border-radius: calc(var(--radius) - 2px);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 0 hsl(0 0% 100% / 0.06);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Ambient Noise Overlay — subtle texture for depth ───────────────── */
+.noise-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
 /* ── Alpha-blended status palette (replaces stoplight solids) ────────── */
 .status-safe {
   background: hsl(var(--success) / 0.1);
@@ -348,4 +464,103 @@
 .hover-lift:hover {
   background: hsl(var(--card) / 0.8);
   transform: scale(1.01);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   5-TIER SEMANTIC GRADIENT SYSTEM — Unified Cross-Portal
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Tier 5 — Excellent: CDS 0.00–0.20 (Mastery 80–100%) */
+.tier-excellent-bar {
+  background: linear-gradient(to right, #22c55e, #16a34a);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4), 0 0 4px rgba(34, 197, 94, 0.3);
+}
+.tier-excellent-dot { background-color: #22c55e; }
+.tier-excellent-text { color: #22c55e; }
+
+/* Tier 4 — Strong: CDS 0.21–0.40 (Mastery 60–79%) */
+.tier-strong-bar {
+  background: linear-gradient(to right, #34d399, #14b8a6);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.35), 0 0 4px rgba(52, 211, 153, 0.25);
+}
+.tier-strong-dot { background-color: #34d399; }
+.tier-strong-text { color: #34d399; }
+
+/* Tier 3 — Developing: CDS 0.41–0.60 (Mastery 40–59%) */
+.tier-developing-bar {
+  background: linear-gradient(to right, #f59e0b, #d97706);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35), 0 0 4px rgba(245, 158, 11, 0.25);
+}
+.tier-developing-dot { background-color: #f59e0b; }
+.tier-developing-text { color: #f59e0b; }
+
+/* Tier 2 — Needs Support: CDS 0.61–0.80 (Mastery 20–39%) */
+.tier-needs-support-bar {
+  background: linear-gradient(to right, #f97316, #ea580c);
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.35), 0 0 4px rgba(249, 115, 22, 0.25);
+}
+.tier-needs-support-dot { background-color: #f97316; }
+.tier-needs-support-text { color: #f97316; }
+
+/* Tier 1 — Critical: CDS 0.81–1.00 (Mastery 0–19%) */
+.tier-critical-bar {
+  background: linear-gradient(to right, #f43f5e, #dc2626);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.4), 0 0 4px rgba(244, 63, 94, 0.3);
+}
+.tier-critical-dot { background-color: #f43f5e; }
+.tier-critical-text { color: #f43f5e; }
+
+/* Tier 1 — Excellent Mastery (85%–100%): Slate/Low-Opacity Blue */
+.tier-excellent-mastery-bar {
+  background: linear-gradient(to right, #94a3b8, #64748b);
+  box-shadow: 0 0 10px rgba(148, 163, 184, 0.35), 0 0 4px rgba(148, 163, 184, 0.25);
+}
+.tier-excellent-mastery-dot { background-color: #94a3b8; }
+.tier-excellent-mastery-text { color: #94a3b8; }
+
+/* Tier 2 — Nominal Progress (65%–84%): Emerald Green */
+.tier-nominal-progress-bar {
+  background: linear-gradient(to right, #10b981, #059669);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35), 0 0 4px rgba(16, 185, 129, 0.25);
+}
+.tier-nominal-progress-dot { background-color: #10b981; }
+.tier-nominal-progress-text { color: #10b981; }
+
+/* Tier 3 — Moderate Challenge (45%–64%): Amber Yellow */
+.tier-moderate-challenge-bar {
+  background: linear-gradient(to right, #fbbf24, #f59e0b);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.35), 0 0 4px rgba(251, 191, 36, 0.25);
+}
+.tier-moderate-challenge-dot { background-color: #fbbf24; }
+.tier-moderate-challenge-text { color: #fbbf24; }
+
+/* Tier 4 — Significant Struggle (25%–44%): Orange */
+.tier-significant-struggle-bar {
+  background: linear-gradient(to right, #fb923c, #f97316);
+  box-shadow: 0 0 10px rgba(251, 146, 60, 0.35), 0 0 4px rgba(251, 146, 60, 0.25);
+}
+.tier-significant-struggle-dot { background-color: #fb923c; }
+.tier-significant-struggle-text { color: #fb923c; }
+
+/* Tier 5 — Critical Blocker (0%–24%): Vibrant Crimson */
+.tier-critical-blocker-bar {
+  background: linear-gradient(to right, #ef4444, #dc2626);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4), 0 0 4px rgba(239, 68, 68, 0.3);
+}
+.tier-critical-blocker-dot { background-color: #ef4444; }
+.tier-critical-blocker-text { color: #ef4444; }
+
+/* Mastery progress bar channel (shared across portals) */
+.mastery-track {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Tier color variables for dynamic theming */
+:root {
+  --tier-color-excellent: #94a3b8;
+  --tier-color-nominal: #10b981;
+  --tier-color-moderate: #fbbf24;
+  --tier-color-significant: #fb923c;
+  --tier-color-critical: #ef4444;
 }

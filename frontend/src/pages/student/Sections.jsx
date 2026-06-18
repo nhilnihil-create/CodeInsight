@@ -5,13 +5,37 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import StudentDashboardShell from '@/components/student-dashboard-shell';
 import api from '@/services/api';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+
+function getJoinErrorMessage(error) {
+  const status = error.response?.status;
+  const data = error.response?.data;
+
+  if (status === 404) return 'Invalid join code. Please check the code and try again.';
+  if (status === 403) {
+    if (data?.error?.includes('full')) return 'This section is full. Contact your instructor for availability.';
+    if (data?.error?.includes('closed')) return 'This section is not accepting new students at this time.';
+    return 'You cannot join this section.';
+  }
+  if (status === 409) return 'You are already enrolled in this section.';
+  if (status === 401) return 'Please log in to join a section.';
+  return data?.error || data?.message || 'Failed to join section. Please try again.';
+}
+
+function formatJoinCode(value) {
+  const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (cleaned.length > 3) {
+    return cleaned.slice(0, 3) + '-' + cleaned.slice(3, 6);
+  }
+  return cleaned;
+}
 
 export default function StudentSections() {
   const [sections, setSections] = useState([]);
   const [joinCode, setJoinCode] = useState('');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,21 +56,28 @@ export default function StudentSections() {
 
   const handleJoin = async () => {
     setError(null);
-    setSuccess(null);
     setJoining(true);
     try {
       await api.post('/api/sections/join', { code: joinCode });
-      setSuccess('Successfully joined the section!');
+      toast.success('Successfully joined the section!');
       setJoinCode('');
       // Refresh sections
       const res = await api.get('/api/sections');
       const all = Array.isArray(res.data) ? res.data : [];
       setSections(all.filter(s => !s.is_archived));
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to join section');
+      const msg = getJoinErrorMessage(err);
+      toast.error(msg);
+      setError(msg);
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleCodeChange = (e) => {
+    const formatted = formatJoinCode(e.target.value);
+    setJoinCode(formatted);
+    setError(null);
   };
 
   return (
@@ -84,7 +115,6 @@ export default function StudentSections() {
           <CardTitle className="text-sm">Join Another Section</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {success && <p className="text-sm text-green-600">{success}</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <p className="text-xs text-muted-foreground">
             Enter the 6-character code provided by your instructor.
@@ -93,12 +123,20 @@ export default function StudentSections() {
             <Input
               placeholder="e.g. K7P-3QX"
               value={joinCode}
-              onChange={e => setJoinCode(e.target.value.toUpperCase())}
+              onChange={handleCodeChange}
               maxLength={7}
+              disabled={joining}
               className="font-mono w-40"
             />
             <Button size="sm" disabled={joinCode.length < 7 || joining} onClick={handleJoin}>
-              {joining ? 'Joining...' : 'Join'}
+              {joining ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Joining...
+                </>
+              ) : (
+                'Join'
+              )}
             </Button>
           </div>
         </CardContent>

@@ -3,6 +3,8 @@ const router  = express.Router();
 const db = require('../config/db');
 const { runAgainstTestCases } = require('../services/executor');
 const cdsEngine = require('../services/cdsEngine');
+const academicIntegrityEngine = require('../services/academicIntegrityEngine');
+const integrityFlagEngine = require('../services/integrityFlagEngine');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { AppError, codes } = require('../lib/AppError');
 
@@ -62,7 +64,12 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     const { code } = req.body;
     if (!code) throw new AppError('Code required', 400, codes.VALIDATION);
 
-    const exRes = await db.query('SELECT * FROM exercises WHERE id = $1', [req.params.id]);
+    const exRes = await db.query(`
+      SELECT ex.*, c.name AS concept_name
+      FROM exercises ex
+      JOIN concepts c ON c.id = ex.concept_id
+      WHERE ex.id = $1
+    `, [req.params.id]);
     if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
 
     const exercise = exRes.rows[0];
@@ -111,10 +118,15 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
 // Submit code (all tests, save submission, persist behavioral events)
 router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
-    const { code, timeSpentSeconds, behavioralEvents = [] } = req.body;
+    const { code, timeSpentSeconds, tabSwitchCount = 0, pasteCount = 0, idleTimeSeconds = 0 } = req.body;
     if (!code) throw new AppError('Code required', 400, codes.VALIDATION);
 
-    const exRes = await db.query('SELECT * FROM exercises WHERE id = $1', [req.params.id]);
+    const exRes = await db.query(`
+      SELECT ex.*, c.name AS concept_name
+      FROM exercises ex
+      JOIN concepts c ON c.id = ex.concept_id
+      WHERE ex.id = $1
+    `, [req.params.id]);
     if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
 
     const exercise = exRes.rows[0];
@@ -146,6 +158,58 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       }];
     }
 
+    // ── Micro-Concept Analysis ─────────────────────────────────────────
+    const microConceptEngine = require('../services/microConceptEngine');
+    const compilerErrorsForMicro = allResults
+      .filter(r => r.error && (r.status === 'Compile Error' || r.status === 'Runtime Error'))
+      .map(r => r.error);
+
+    const microContext = {
+      ast: { node_types: [], if_count: 0, else_count: 0, has_private: false },
+      testResults: allResults.map(r => ({
+        input: r.input, expected: r.expected, actual: r.actual,
+        passed: r.passed, error: r.error
+      })),
+      compilerErrors: compilerErrorsForMicro,
+      code: code,
+      timeLimitHit: allResults.some(r => r.status === 'Time Limit Exceeded'),
+      exercise: {
+        concept_name: exercise.concept_name || '',
+        required_ast_nodes: [],
+        time_limit_minutes: exercise.time_limit_minutes,
+      }
+    };
+
+    try {
+      const parser = require('tree-sitter');
+      const CPP = require('tree-sitter-cpp');
+      const astParser = new parser();
+      astParser.setLanguage(CPP);
+      const tree = astParser.parse(code);
+      const nodeTypes = new Set();
+      (function traverse(node) {
+        nodeTypes.add(node.type);
+        for (let i = 0; i < node.childCount; i++) traverse(node.child(i));
+      })(tree.rootNode);
+      const types = Array.from(nodeTypes);
+      microContext.ast.node_types = types;
+      microContext.ast.if_count = types.filter(t => t === 'if_statement').length;
+      microContext.ast.else_count = types.filter(t => t === 'else_clause').length;
+      microContext.ast.has_private = types.some(t => t === 'private_section' || t === 'protected_section');
+    } catch (astError) {
+      microContext.ast.node_types = [];
+      microContext.ast.if_count = 0;
+      microContext.ast.else_count = 0;
+      microContext.ast.has_private = false;
+    }
+
+    let microConceptFeedback = null;
+    try {
+      microConceptFeedback = await microConceptEngine.getMicroConceptFeedback(microContext, exercise.concept_name || '');
+    } catch (mcError) {
+      console.warn('Micro-concept analysis failed:', mcError.message);
+    }
+
     const attemptRes = await db.query(
       'SELECT COUNT(*)::int AS count FROM submissions WHERE exercise_id = $1 AND student_id = $2',
       [req.params.id, req.user.id]
@@ -154,39 +218,12 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 
     const subRes = await db.query(`
       INSERT INTO submissions
-        (exercise_id, student_id, code, is_correct, attempt_number, time_spent_seconds, submitted_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        (exercise_id, student_id, code, is_correct, attempt_number, time_spent_seconds,
+         tab_switch_count, paste_count, idle_time_seconds, submitted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
-    `, [exercise.id, req.user.id, code, passed, attempt_number, timeSpentSeconds || 0]);
-
-    // Persist behavioral events (passive logging — HIGH #1)
-    if (Array.isArray(behavioralEvents) && behavioralEvents.length) {
-      try {
-        const values = [];
-        const placeholders = [];
-        behavioralEvents.forEach((ev, i) => {
-          const base = i * 5;
-          placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
-          values.push(
-            req.user.id,
-            exercise.id,
-            ev.type || 'unknown',
-            ev.timestamp || new Date().toISOString(),
-            JSON.stringify(ev.payload || {})
-          );
-        });
-        await db.query(
-          `INSERT INTO behavioral_events
-             (student_id, exercise_id, event_type, occurred_at, payload)
-           VALUES ${placeholders.join(',')}`,
-          values
-        );
-      } catch (evErr) {
-        // Non-fatal: behavioural events are observational
-        // eslint-disable-next-line no-console
-        console.warn('Failed to persist behavioral events:', evErr.message);
-      }
-    }
+    `, [exercise.id, req.user.id, code, passed, attempt_number, timeSpentSeconds || 0,
+        tabSwitchCount, pasteCount, idleTimeSeconds]);
 
     // Live CDS for student-facing display
     let liveCDS = null;
@@ -210,6 +247,160 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       console.warn('Live CDS calculation failed:', liveErr.message);
     }
 
+    // ── Passive Behavior Logging Flag ──────────────────────────────────
+    // Flag suspicious patterns: excessive tab switches, pastes, or idle time
+    const BEHAVIORAL_THRESHOLDS = {
+      TAB_SWITCH_HIGH: 5,
+      PASTE_HIGH: 3,
+      IDLE_RATIO_HIGH: 0.5,
+    };
+    const totalTime = timeSpentSeconds || 1;
+    const idleRatio = idleTimeSeconds / totalTime;
+    const behavioralSignals = [];
+    if (tabSwitchCount >= BEHAVIORAL_THRESHOLDS.TAB_SWITCH_HIGH) {
+      behavioralSignals.push(`${tabSwitchCount} tab switches`);
+    }
+    if (pasteCount >= BEHAVIORAL_THRESHOLDS.PASTE_HIGH) {
+      behavioralSignals.push(`${pasteCount} paste events`);
+    }
+    if (idleRatio >= BEHAVIORAL_THRESHOLDS.IDLE_RATIO_HIGH) {
+      behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
+    }
+
+    if (behavioralSignals.length > 0) {
+      const behavioralSeverity = behavioralSignals.length >= 2 ? 'high' : 'medium';
+      try {
+        await db.query(`
+          INSERT INTO integrity_flags
+            (section_id, exercise_id, student_id, submission_id, flag_type, severity,
+             evidence, context_behaviors, status, created_at)
+          VALUES ($1, $2, $3, $4, 'PASSIVE_BEHAVIOR_LOG', $5, $6, $7, 'flagged', NOW())
+          ON CONFLICT (exercise_id, student_id, flag_type)
+          DO UPDATE SET
+            severity = EXCLUDED.severity,
+            evidence = EXCLUDED.evidence,
+            context_behaviors = EXCLUDED.context_behaviors,
+            submission_id = EXCLUDED.submission_id
+        `, [
+          exercise.section_id, exercise.id, req.user.id, subRes.rows[0].id,
+          behavioralSeverity,
+          JSON.stringify({
+            tab_switch_count: tabSwitchCount,
+            paste_count: pasteCount,
+            idle_time_seconds: idleTimeSeconds,
+            total_time_seconds: totalTime,
+            idle_ratio: Math.round(idleRatio * 100) / 100,
+          }),
+          [
+            behavioralSignals.join('; '),
+            `Attempt #${attempt_number}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+          ],
+        ]);
+      } catch (flagErr) {
+        console.warn('Behavioral flag creation failed:', flagErr.message);
+      }
+    }
+
+    // ── Code Growth Anomaly (paper flag #4) ───────────────────────────
+    try {
+      const currentLineCount = (code || '').split('\n').length;
+      if (attempt_number > 1) {
+        const prevRes = await db.query(
+          'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+          [req.user.id, exercise.id, attempt_number - 1]
+        );
+        if (prevRes.rows.length > 0) {
+          const prevLineCount = (prevRes.rows[0].code || '').split('\n').length;
+          if (prevLineCount > 0) {
+            const growthPercent = ((currentLineCount - prevLineCount) / prevLineCount) * 100;
+            if (growthPercent > 30) {
+              await integrityFlagEngine.createFlag({
+                sectionId: exercise.section_id,
+                exerciseId: exercise.id,
+                studentId: req.user.id,
+                flagType: 'CODE_GROWTH_ANOMALY',
+                severity: 'high',
+                evidence: {
+                  baseline_lines: prevLineCount,
+                  student_lines: currentLineCount,
+                  growth_percent: Math.round(growthPercent),
+                  threshold: 30,
+                  attempt_number,
+                },
+                contextBehaviors: [
+                  `Code grew ${Math.round(growthPercent)}% in attempt #${attempt_number} (${prevLineCount} → ${currentLineCount} lines)`,
+                ],
+                status: 'flagged',
+              });
+            }
+          }
+        }
+      }
+    } catch (growthErr) {
+      console.warn('Code growth anomaly check failed:', growthErr.message);
+    }
+
+    // ── Academic Integrity Checks (HARDCODING, BLANK_TEMPLATE) ──────────
+    try {
+      const academicFlags = await academicIntegrityEngine.evaluateIntegrity({
+        code,
+        starterCode: exercise.starter_code || '',
+        studentId: req.user.id,
+        exerciseId: exercise.id,
+        submission: {
+          is_correct: passed,
+          test_results: allResults,
+          time_spent_seconds: timeSpentSeconds || 0,
+          submission_id: subRes.rows[0].id,
+        },
+        exercise,
+      });
+      for (const flag of academicFlags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId: exercise.id,
+          studentId: req.user.id,
+          flagType: flag.type,
+          severity: flag.severity,
+          evidence: flag.evidence || {},
+          contextBehaviors: flag.context_behaviors || [],
+          status: 'flagged',
+          submissionId: subRes.rows[0].id,
+        });
+      }
+    } catch (integrityError) {
+      console.warn('Academic integrity check failed:', integrityError.message);
+    }
+
+    // ── Behavioral Anomaly Detection ──────────────────────────────────
+    try {
+      const behavioralDetector = require('../services/behavioralAnomalyDetector');
+      const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
+        studentId: req.user.id,
+        exerciseId: exercise.id,
+        submissionId: subRes.rows[0].id,
+        is_correct: passed,
+        time_spent_seconds: timeSpentSeconds || 0,
+        attempt_number: attempt_number,
+        sectionId: exercise.section_id,
+      });
+      for (const flag of behavioralFlags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId: exercise.id,
+          studentId: req.user.id,
+          flagType: flag.type,
+          severity: flag.severity,
+          evidence: flag.evidence || {},
+          contextBehaviors: flag.context_behaviors || [],
+          status: 'flagged',
+          submissionId: subRes.rows[0].id,
+        });
+      }
+    } catch (behavioralError) {
+      console.warn('Behavioral anomaly detection failed:', behavioralError.message);
+    }
+
     res.status(201).json({
       ...subRes.rows[0],
       passed: subRes.rows[0].is_correct,
@@ -218,12 +409,13 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       hiddenTestCount: allTestCases.filter(tc => tc.hidden).length,
       liveCDS,
       isCompleted: subRes.rows[0].is_correct,
+      microConceptFeedback,
       message: 'Submission saved successfully',
     });
   } catch (err) { next(err); }
 });
 
-// ▶ PRACTICE — save attempt without impacting CDS analytics (post-completion mode)
+// ▶ PRACTICE — save attempt without impacting CDS analytics (post-completion)
 router.post('/exercises/:id/practice', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const { code, timeSpentSeconds } = req.body;
@@ -242,7 +434,7 @@ router.post('/exercises/:id/practice', verifyToken, requireRole('student'), asyn
       [req.user.id, req.params.id]
     );
     if (!completedRes.rows.length) {
-      throw new AppError('Exercise must be completed before practice mode', 403, codes.VALIDATION);
+      throw new AppError('Exercise must be completed before practice submission', 403, codes.VALIDATION);
     }
 
     const allTestCases = typeof exercise.test_cases === 'string'
@@ -338,13 +530,14 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
       .filter(ex => ex.deadline)
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))[0] || null;
 
-    // 2. CDS scores — avg + per-concept breakdown
+    // 2. CDS scores — avg + per-concept breakdown (only from current enrollments)
     const cdsRes = await db.query(`
       SELECT cs.cds, cs.classification, cs.exercise_id, c.name AS concept_name, ex.title AS exercise_title
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
       JOIN concepts c ON c.id = ex.concept_id
-      WHERE cs.student_id = $1
+      JOIN enrollments en ON en.section_id = ex.section_id
+      WHERE cs.student_id = $1 AND en.student_id = $1
       ORDER BY cs.computed_at DESC
     `, [studentId]);
     const scores = cdsRes.rows || [];
@@ -352,11 +545,18 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
       ? scores.reduce((sum, s) => sum + parseFloat(s.cds || 0), 0) / scores.length
       : 0;
 
-    // 3. Stats — exercise completion (activity metric, not mastery, learning mode only)
+    // 3. Stats — exercise completion (activity metric, not mastery)
     const statsRes = await db.query(`
       SELECT
         COUNT(DISTINCT ex.id)::int AS total,
-        (SELECT COUNT(DISTINCT s.exercise_id)::int FROM submissions s JOIN exercises ex2 ON s.exercise_id = ex2.id WHERE s.student_id = $1 AND s.is_correct = true AND ex2.mode = 'learning' AND s.is_practice IS NOT TRUE) AS completed
+        (SELECT COUNT(DISTINCT s.exercise_id)::int
+         FROM submissions s
+         JOIN exercises ex2 ON s.exercise_id = ex2.id
+         JOIN enrollments en2 ON en2.section_id = ex2.section_id
+         WHERE s.student_id = $1 AND s.is_correct = true
+           AND s.is_practice IS NOT TRUE
+           AND en2.student_id = $1
+        ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
       WHERE en.student_id = $1 AND ex.is_draft = false
@@ -366,46 +566,6 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
     // Mastery = 100 - avgCDS (inverse of difficulty)
     const masteryPct = Math.round((1 - avgCds) * 100);
-
-    // 4. Streak — consecutive days with submissions (learning mode only)
-    const streakRes = await db.query(`
-      SELECT DISTINCT DATE(s.submitted_at) AS active_date
-      FROM submissions s JOIN exercises ex ON s.exercise_id = ex.id
-      WHERE s.student_id = $1 AND s.submitted_at IS NOT NULL
-        AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE
-      ORDER BY active_date DESC
-    `, [studentId]);
-    const activeDays = (streakRes.rows || []).map(r => r.active_date);
-    let currentStreak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < activeDays.length; i++) {
-      const expected = new Date(today);
-      expected.setDate(expected.getDate() - i);
-      const actual = new Date(activeDays[i]);
-      actual.setHours(0, 0, 0, 0);
-      if (actual.getTime() === expected.getTime()) {
-        currentStreak++;
-      } else {
-        break;
-      }
-    }
-    // Best streak (simple: longest consecutive in the data)
-    let bestStreak = currentStreak;
-    let run = 1;
-    for (let i = 1; i < activeDays.length; i++) {
-      const prev = new Date(activeDays[i - 1]);
-      const curr = new Date(activeDays[i]);
-      prev.setHours(0, 0, 0, 0);
-      curr.setHours(0, 0, 0, 0);
-      const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24);
-      if (diff === 1) {
-        run++;
-        bestStreak = Math.max(bestStreak, run);
-      } else {
-        run = 1;
-      }
-    }
 
     // Weakest concepts: group by concept, take 3 lowest avg CDS
     const conceptMap = {};
@@ -420,7 +580,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
         avgCds: data.scores.reduce((a, b) => a + b, 0) / data.scores.length,
         exerciseCount: data.count,
       }))
-      .sort((a, b) => a.avgCds - b.avgCds)
+      .sort((a, b) => b.avgCds - a.avgCds)
       .slice(0, 3)
       .map(c => ({
         ...c,
@@ -428,47 +588,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
         hint: `${c.exerciseCount} exercise${c.exerciseCount !== 1 ? 's' : ''} completed`,
       }));
 
-    // 5. Notifications as "recent feedback"
-    const notifRes = await db.query(`
-      SELECT n.id, n.message, n.created_at, n.notification_type,
-             COALESCE(u.name, 'System') AS author_name
-      FROM notifications n
-      LEFT JOIN sections s ON s.id = n.section_id
-      LEFT JOIN users u ON u.id = s.instructor_id
-      WHERE n.student_id = $1
-      ORDER BY n.created_at DESC
-      LIMIT 5
-    `, [studentId]);
-    let recentFeedback = (notifRes.rows || []).map(n => ({
-      id: n.id,
-      author: n.author_name,
-      initials: n.author_name.split(' ').map(w => w[0]).filter(Boolean).join('').substring(0, 2).toUpperCase(),
-      when: formatRelativeTime(n.created_at),
-      body: n.message,
-    }));
-
-    // If no notifications, fall back to enrolled section instructor info
-    if (recentFeedback.length === 0) {
-      const instructorRes = await db.query(`
-        SELECT u.name, u.id
-        FROM enrollments en
-        JOIN sections s ON s.id = en.section_id
-        JOIN users u ON u.id = s.instructor_id
-        WHERE en.student_id = $1
-        LIMIT 1
-      `, [studentId]);
-      if (instructorRes.rows.length) {
-        recentFeedback.push({
-          id: 'welcome',
-          author: instructorRes.rows[0].name,
-          initials: instructorRes.rows[0].name.split(' ').map(w => w[0]).filter(Boolean).join('').substring(0, 2).toUpperCase(),
-          when: 'just now',
-          body: 'Welcome! Complete your first exercise to get personalized feedback here.',
-        });
-      }
-    }
-
-    // 6. Recommended exercises — pending ones sorted by CDS (lowest first)
+    // 5. Recommended exercises — pending ones sorted by CDS (lowest first)
     const recommended = pendingExercises
       .map(ex => ({
         id: ex.id,
@@ -497,21 +617,14 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
       },
       mastery: {
         percentage: masteryPct,
-        series: activeDays.slice(0, 5).reverse().map((_, i) => masteryPct),
       },
       completion: {
         percentage: completionPct,
         completed,
         total,
       },
-      streak: {
-        current: currentStreak,
-        best: bestStreak,
-        series: activeDays.slice(0, 5).reverse().map((_, i) => Math.min(currentStreak, i + 1)),
-      },
       avgCds: Math.round(avgCds * 100) / 100,
       weakestConcepts,
-      recentFeedback,
       recommended,
     });
   } catch (err) { next(err); }
@@ -539,11 +652,66 @@ router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, 
         rule: row.rule,
         exercise: row.exercise_title,
         description: `${row.rule} detected on ${row.exercise_title}.`,
-        evidence: Array.isArray(evidence) ? evidence.join('. ') : String(evidence || ''),
+        evidence: evidence !== null && typeof evidence === 'object' && !Array.isArray(evidence) ? JSON.stringify(evidence) : Array.isArray(evidence) ? evidence.join('. ') : String(evidence || ''),
         date: row.created_at,
       };
     });
     res.json({ flags });
+  } catch (err) { next(err); }
+});
+
+// ── Passive Behavioral Logging (paper flag #5) ──────────────────────────────
+// Receives browser-side telemetry: tab switches, paste events, idle time.
+// Stores in behavioral_events table for instructor context.
+
+router.post('/behavioral-events', verifyToken, requireRole('student'), async (req, res, next) => {
+  try {
+    const studentId = req.user.id;
+    const { exerciseId, events } = req.body;
+
+    if (!exerciseId || !Array.isArray(events) || events.length === 0) {
+      return res.status(400).json({ error: 'exerciseId and events array required' });
+    }
+
+    // Batch insert events (max 50 per request to prevent abuse)
+    const toInsert = events.slice(0, 50);
+    for (const event of toInsert) {
+      const { type, timestamp, payload } = event;
+      if (!type || !['tab_switch', 'paste', 'idle_start', 'idle_end'].includes(type)) continue;
+
+      await db.query(
+        `INSERT INTO behavioral_events (student_id, exercise_id, event_type, occurred_at, payload)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [studentId, exerciseId, type, timestamp || new Date(), JSON.stringify(payload || {})]
+      );
+    }
+
+    // Also update the submission's tab_switch_count and paste_count
+    // Find the latest submission for this student+exercise
+    const latestSub = await db.query(
+      `SELECT id FROM submissions
+       WHERE student_id = $1 AND exercise_id = $2
+       ORDER BY attempt_number DESC LIMIT 1`,
+      [studentId, exerciseId]
+    );
+
+    if (latestSub.rows.length > 0) {
+      const subId = latestSub.rows[0].id;
+      const tabSwitches = toInsert.filter(e => e.type === 'tab_switch').length;
+      const pastes = toInsert.filter(e => e.type === 'paste').length;
+
+      if (tabSwitches > 0 || pastes > 0) {
+        await db.query(
+          `UPDATE submissions
+           SET tab_switch_count = tab_switch_count + $1,
+               paste_count = paste_count + $2
+           WHERE id = $3`,
+          [tabSwitches, pastes, subId]
+        );
+      }
+    }
+
+    res.json({ received: toInsert.length });
   } catch (err) { next(err); }
 });
 
@@ -569,17 +737,20 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
     const allExercises = exercisesRes.rows || [];
     const pending = allExercises.filter(ex => ex.status === 'pending');
 
-    // 2. Concept-level CDS (avg across all exercises per concept) — using exercise_concept_tags (primary)
+    // 2. Concept-level CDS (avg across all exercises per concept)
+    // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
     const conceptCdsRes = await db.query(`
-      SELECT c.name AS concept_name,
+      SELECT COALESCE(pt.name, c.name) AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
              COUNT(cs.cds)::int AS completed_count
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
-      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-      JOIN concepts c ON c.id = ect.concept_id
+      JOIN concepts c ON c.id = ex.concept_id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
+      JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
       WHERE cs.student_id = $1
-      GROUP BY c.name
+      GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds DESC
     `, [studentId]);
 
@@ -614,17 +785,19 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
       }))
       .sort((a, b) => b.conceptCds - a.conceptCds)[0] || null;
 
-    // 5. Class avg on the focus concept — using exercise_concept_tags (primary)
+    // 5. Class avg on the focus concept
+    // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
     let classAvg = 0.5; // default
     if (focusEx) {
       const classRes = await db.query(`
         SELECT AVG(cs.cds)::float AS class_avg
         FROM cds_scores cs
         JOIN exercises ex ON ex.id = cs.exercise_id
-        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-        JOIN concepts c ON c.id = ect.concept_id
+        JOIN concepts c ON c.id = ex.concept_id
+        LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+        LEFT JOIN concepts pt ON pt.id = ect.concept_id
         JOIN enrollments en ON en.section_id = ex.section_id
-        WHERE c.name = $1 AND en.student_id = cs.student_id
+        WHERE COALESCE(pt.name, c.name) = $1 AND en.student_id = cs.student_id
       `, [focusEx.concept_name]);
       if (classRes.rows[0]?.class_avg != null) {
         classAvg = parseFloat(classRes.rows[0].class_avg);
@@ -695,9 +868,12 @@ router.get('/stats', verifyToken, requireRole('student'), async (req, res, next)
     `, [req.user.id]);
     const completedRes = await db.query(`
       SELECT COUNT(DISTINCT s.exercise_id)::int AS completed
-      FROM submissions s JOIN exercises ex ON s.exercise_id = ex.id
+      FROM submissions s
+      JOIN exercises ex ON s.exercise_id = ex.id
+      JOIN enrollments en ON en.section_id = ex.section_id
       WHERE s.student_id = $1 AND s.is_correct = true
-        AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE
+        AND s.is_practice IS NOT TRUE
+        AND en.student_id = $1
     `, [req.user.id]);
     const total = totalRes.rows[0].total || 0;
     const completed = completedRes.rows[0].completed || 0;
@@ -717,18 +893,20 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     const daysParam = Math.max(1, parseInt(req.query.days, 10) || 30);
     const interval = `${daysParam} days`;
 
-    // 1. Concept mastery — CDS aggregated by concept (using exercise_concept_tags primary)
-    // Matches Concept Analytics concept resolution
+    // 1. Concept mastery — CDS aggregated by concept (scoped to current enrollments)
+    // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
     const conceptCdsRes = await db.query(`
-      SELECT c.name AS concept_name,
+      SELECT COALESCE(pt.name, c.name) AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
              COUNT(cs.cds)::int AS exercise_count
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
-      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-      JOIN concepts c ON c.id = ect.concept_id
-      WHERE cs.student_id = $1 AND cs.computed_at > NOW() - INTERVAL '${interval}'
-      GROUP BY c.name
+      JOIN concepts c ON c.id = ex.concept_id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
+      JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
+      WHERE cs.student_id = $1
+      GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds ASC
     `, [studentId]);
 
@@ -737,7 +915,9 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       OOP: 'OP', Variables: 'VR', Datatypes: 'DT', Conditionals: 'CD',
     };
     const masteryConcepts = conceptCdsRes.rows.map(r => {
-      const masteryPct = Math.round((1 - parseFloat(r.avg_cds)) * 100);
+      // Default to 1 when no CDS scores exist (conservative: unknown = needs practice)
+      const avgCds = r.avg_cds != null ? parseFloat(r.avg_cds) : 1;
+      const masteryPct = Math.round((1 - avgCds) * 100);
       // Level reflects MASTERY (not difficulty). Higher mastery = better.
       // "strong" = student grasps the concept well; "developing" = moderate;
       // "needs_support" = struggling. Avoids "high/low" ambiguity where
@@ -748,7 +928,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
         concept_code: code,
         concept_name: r.concept_name,
         mastery: masteryPct,
-        cds: Math.round(parseFloat(r.avg_cds) * 100) / 100,
+        cds: Math.round(avgCds * 100) / 100,
         exerciseCount: r.exercise_count,
         level,
         delta: 0,
@@ -758,7 +938,14 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     // 2. Exercise completion percentage (activity, not mastery)
     const completionRes = await db.query(`
       SELECT COUNT(DISTINCT ex.id)::int AS total,
-             (SELECT COUNT(DISTINCT exercise_id)::int FROM submissions WHERE student_id = $1 AND is_correct = true) AS completed
+             (SELECT COUNT(DISTINCT s.exercise_id)::int
+              FROM submissions s
+              JOIN exercises ex2 ON s.exercise_id = ex2.id
+              JOIN enrollments en2 ON en2.section_id = ex2.section_id
+              WHERE s.student_id = $1 AND s.is_correct = true
+                AND s.is_practice IS NOT TRUE
+                AND en2.student_id = $1
+             ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
       WHERE en.student_id = $1 AND ex.is_draft = false
@@ -773,87 +960,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       ? Math.round(masteryConcepts.reduce((sum, c) => sum + c.mastery, 0) / masteryConcepts.length)
       : 0;
 
-    // 3b. Streak (learning mode only, exclude practice)
-    const streakRes = await db.query(`
-      SELECT DISTINCT DATE(s.submitted_at) AS active_date
-      FROM submissions s JOIN exercises ex ON s.exercise_id = ex.id
-      WHERE s.student_id = $1 AND s.submitted_at IS NOT NULL
-        AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE
-      ORDER BY active_date DESC
-    `, [studentId]);
-    const activeDays = (streakRes.rows || []).map(r => r.active_date);
-    let currentStreak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 0; i < activeDays.length; i++) {
-      const expected = new Date(today);
-      expected.setDate(expected.getDate() - i);
-      const actual = new Date(activeDays[i]);
-      actual.setHours(0, 0, 0, 0);
-      if (actual.getTime() === expected.getTime()) {
-        currentStreak++;
-      } else {
-        break;
-      }
-    }
-
-    // 4. Activity heatmap data — last 12 weeks, daily submission counts (learning mode only)
-    const activityRes = await db.query(`
-      SELECT DATE_TRUNC('day', s.submitted_at) AS day, COUNT(*)::int AS count
-      FROM submissions s JOIN exercises ex ON s.exercise_id = ex.id
-      WHERE s.student_id = $1 AND s.submitted_at > NOW() - INTERVAL '84 days'
-        AND ex.mode = 'learning' AND s.is_practice IS NOT TRUE
-      GROUP BY DATE_TRUNC('day', s.submitted_at)
-      ORDER BY day ASC
-    `, [studentId]);
-    const activityMap = {};
-    for (const row of activityRes.rows) {
-      const dayStr = row.day.toISOString().substring(0, 10);
-      activityMap[dayStr] = parseInt(row.count);
-    }
-    // Build 12-week array [week][dayOfWeek] = count
-    const heatWeeks = 12;
-    const heatData = Array.from({ length: heatWeeks }, () => Array(7).fill(0));
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    for (let w = heatWeeks - 1; w >= 0; w--) {
-      for (let d = 0; d < 7; d++) {
-        const date = new Date(now);
-        date.setDate(now.getDate() - ((heatWeeks - 1 - w) * 7 + (6 - d)));
-        const key = date.toISOString().substring(0, 10);
-        if (activityMap[key]) {
-          heatData[w][d] = activityMap[key];
-        }
-      }
-    }
-
-    // 5. Recent submissions
-    const submissionsRes = await db.query(`
-      SELECT s.id, s.exercise_id, e.title AS exercise_title, c.name AS concept_name,
-             s.is_correct, s.attempt_number, s.submitted_at,
-             s.time_spent_seconds, s.code_growth_delta
-      FROM submissions s
-      JOIN exercises e ON e.id = s.exercise_id
-      JOIN concepts c ON e.concept_id = c.id
-      WHERE s.student_id = $1
-      ORDER BY s.submitted_at DESC
-      LIMIT 50
-    `, [studentId]);
-
-    const submissions = submissionsRes.rows.map(row => ({
-      id: row.id,
-      exerciseId: row.exercise_id,
-      exercise: row.exercise_title,
-      concept: row.concept_name,
-      isCorrect: row.is_correct,
-      attempts: row.attempt_number,
-      submittedAt: row.submitted_at,
-      timeSpent: row.time_spent_seconds,
-      codeGrowth: row.code_growth_delta,
-      score: row.is_correct ? 1 : 0,
-    }));
-
-    // 6. Avg attempts per exercise
+    // 4. Avg attempts per exercise
     const avgAttemptsRes = await db.query(`
       SELECT AVG(attempt_count)::float AS avg_attempts
       FROM (SELECT exercise_id, MAX(attempt_number) AS attempt_count
@@ -868,16 +975,8 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
         completed,
         total,
       },
-      streak: {
-        current: currentStreak,
-      },
       avgAttempts: Math.round(avgAttempts * 10) / 10,
       concepts: masteryConcepts,
-      activity: {
-        weeks: heatWeeks,
-        data: heatData,
-      },
-      submissions,
     });
   } catch (err) { next(err); }
 });
@@ -905,15 +1004,17 @@ router.get('/concepts/all', verifyToken, requireRole('student'), async (req, res
     const studentId = req.user.id;
 
     const conceptCdsRes = await db.query(`
-      SELECT c.name AS concept_name,
+      SELECT COALESCE(pt.name, c.name) AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
              COUNT(cs.cds)::int AS exercise_count
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
-      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-      JOIN concepts c ON c.id = ect.concept_id
+      JOIN concepts c ON c.id = ex.concept_id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
+      JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
       WHERE cs.student_id = $1
-      GROUP BY c.name
+      GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds ASC
     `, [studentId]);
 
@@ -924,7 +1025,9 @@ router.get('/concepts/all', verifyToken, requireRole('student'), async (req, res
     };
 
     const concepts = conceptCdsRes.rows.map(r => {
-      const masteryPct = Math.round((1 - parseFloat(r.avg_cds)) * 100);
+      // Default to 1 when no CDS scores exist (conservative: unknown = needs practice)
+      const avgCds = r.avg_cds != null ? parseFloat(r.avg_cds) : 1;
+      const masteryPct = Math.round((1 - avgCds) * 100);
       const mastery = masteryPct / 100;
       const code = conceptCodes[r.concept_name] || r.concept_name.substring(0, 2).toUpperCase();
       return {

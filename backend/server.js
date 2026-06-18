@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors    = require('cors');
 const cookieParser = require('cookie-parser');
@@ -46,6 +47,7 @@ app.use('/api/student',     require('./routes/student'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/analytics',   require('./routes/analytics'));
 app.use('/api/analytics',   require('./routes/integrity'));
+app.use('/api/custom-tags', require('./routes/customTags'));
 app.use('/api/evaluation',  require('./routes/evaluation'));
 app.use('/api/admin',       require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
