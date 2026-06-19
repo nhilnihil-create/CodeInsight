@@ -85,7 +85,6 @@ describe('Misconception Rule Mining Integration', () => {
     await db.query('DELETE FROM exercises WHERE id = $1', [exerciseId]);
     await db.query("DELETE FROM concepts WHERE id = $1", [conceptId]);
     await db.query("DELETE FROM users WHERE email LIKE '_test_mining_%'");
-    await db.end();
   });
 
   it('discovers the most frequent remaining error pattern as top candidate', async () => {

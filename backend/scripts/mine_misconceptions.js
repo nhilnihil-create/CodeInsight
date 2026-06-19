@@ -32,7 +32,11 @@ async function main() {
 
   if (!exerciseId && !allExercises) {
     console.error('Usage: node scripts/mine_misconceptions.js --exercise=42 [--min-students=3] [--min-occurrences=5] [--output=path] [--dry-run]');
-    console.error('   or: node scripts/mine_misconceptions.js --all');
+    process.exit(1);
+  }
+
+  if (allExercises) {
+    console.error('--all is not yet implemented. Use --exercise=<id> for a specific exercise.');
     process.exit(1);
   }
 
