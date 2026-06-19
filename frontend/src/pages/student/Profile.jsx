@@ -1,94 +1,51 @@
 import { useState, useEffect } from 'react';
-import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-} from 'recharts';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { NEW_TIER_META } from '@/components/ui/mastery-bar';
 import StudentDashboardShell from '@/components/student-dashboard-shell';
+import GlassPanel, {
+  GlassPanelHeader,
+  GlassPanelTitle,
+  GlassPanelContent,
+} from '@/components/ui/glass-panel';
+import ConceptRadarPanel from '@/components/concept-radar/ConceptRadarPanel';
+import JoinSectionGate from '@/components/join-section-gate';
+import useHasSections from '@/hooks/useHasSections';
 import api from '../../services/api';
 
-/**
- * Student Concept Profile
- *
- * Derived from the design's Profile page but uses REAL data
- * (GET /api/analytics/my-scores). Aggregates the per-exercise CDS scores
- * into per-concept buckets, then renders a radar chart and per-concept cards.
- *
- * PRESERVED FUNCTIONALITY:
- *   - Real data source: /api/analytics/my-scores
- *   - Polling pattern (5s) — same as the rest of the app
- *   - CDS classification thresholds: 0-25 Low, 26-50 Medium, 51-75 High, 76+ Critical
- *
- * REPLACED (visual layer only):
- *   - Design's MOCK_RADAR_DATA → aggregated real CDS by concept
- *   - Hard-coded "Exercises Attempted" → real count from data
- */
-const getDifficultyBadge = (score) => {
-  if (score == null) return null;
-  if (score <= 25)
-    return (
-      <Badge variant="secondary" className="bg-green-500/10 text-green-700">
-        Low
-      </Badge>
-    );
-  if (score <= 50)
-    return (
-      <Badge variant="secondary" className="bg-blue-500/10 text-blue-700">
-        Medium
-      </Badge>
-    );
-  if (score <= 75)
-    return (
-      <Badge variant="secondary" className="bg-orange-500/10 text-orange-700">
-        High
-      </Badge>
-    );
-  return <Badge variant="destructive">Critical</Badge>;
+/* ── Stagger config ──────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
 };
 
-const aggregateByConcept = (scores) => {
-  const buckets = new Map();
-  for (const s of scores || []) {
-    const concept = s.concept_name || 'Unknown';
-    if (!buckets.has(concept)) {
-      buckets.set(concept, { subject: concept, total: 0, count: 0, attempts: 0 });
-    }
-    const b = buckets.get(concept);
-    b.total += Number(s.cds) || 0;
-    b.count += 1;
-    b.attempts += 1;
-  }
-  return Array.from(buckets.values()).map((b) => ({
-    subject: b.subject,
-    A: b.count > 0 ? Math.round((b.total / b.count) * 100) / 100 : 0,
-    attempts: b.attempts,
-  }));
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
 };
+
+const TIER_LEGEND = [
+  { tier: 'excellent', dot: 'bg-slate-500', range: '85%–100%', desc: 'Solid code structure with nominal compilation regressions.' },
+  { tier: 'nominal', dot: 'bg-emerald-500', range: '65%–84%', desc: 'Grasping core logic with expected trial-and-error corrections.' },
+  { tier: 'moderate', dot: 'bg-amber-500', range: '45%–64%', desc: 'Encountering minor structural roadblocks; review materials recommended.' },
+  { tier: 'significant', dot: 'bg-orange-500', range: '25%–44%', desc: 'High error density patterns detected. Code structure needs direct reinforcement.' },
+  { tier: 'critical', dot: 'bg-red-500', range: '0%–24%', desc: 'Stuck in severe compilation or logic loops. Immediate instructor assistance recommended.' },
+];
 
 export default function StudentProfile() {
+  const { hasSections, checking, recheck } = useHasSections();
   const [scores, setScores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
+    if (hasSections === null || !hasSections) return;
     let active = true;
     const load = async () => {
       try {
-        const res = await api.get('/analytics/my-scores');
+        const res = await api.get('/api/analytics/my-scores');
         if (active) setScores(res.data || []);
       } catch (err) {
-        // network errors are expected for unauthenticated users; leave empty
       } finally {
         if (active) setLoading(false);
       }
@@ -99,9 +56,30 @@ export default function StudentProfile() {
       active = false;
       clearInterval(t);
     };
-  }, []);
+  }, [hasSections, fetchKey]);
 
-  const radarData = aggregateByConcept(scores);
+  const handleJoined = () => {
+    recheck();
+    setFetchKey((k) => k + 1);
+  };
+
+  if (checking) {
+    return (
+      <StudentDashboardShell
+        breadcrumb={[
+          { label: 'Student', href: '/student/dashboard' },
+          { label: 'My Concept Profile' },
+        ]}
+        subtitle="Concept mastery and difficulty scores across programming topics."
+      >
+        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading profile...</div>
+      </StudentDashboardShell>
+    );
+  }
+
+  if (!hasSections) {
+    return <JoinSectionGate onJoined={handleJoined} />;
+  }
 
   return (
     <StudentDashboardShell
@@ -109,123 +87,49 @@ export default function StudentProfile() {
         { label: 'Student', href: '/student/dashboard' },
         { label: 'My Concept Profile' },
       ]}
-      subtitle="Understanding your Concept Difficulty Score (CDS) across different programming topics."
+      subtitle="Concept mastery and difficulty scores across programming topics."
     >
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>What is CDS?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <p>
-              The Concept Difficulty Score (CDS) measures how much you are
-              struggling with a specific programming concept.
-            </p>
-            <ul className="list-disc space-y-2 pl-5">
-              <li>
-                <strong className="text-foreground">0–25 (Low):</strong> You have
-                a strong grasp of this concept.
-              </li>
-              <li>
-                <strong className="text-foreground">26–50 (Medium):</strong>{' '}
-                Normal learning curve, some mistakes but recovering well.
-              </li>
-              <li>
-                <strong className="text-foreground">51–75 (High):</strong> You
-                are experiencing significant difficulty. Consider reviewing
-                materials.
-              </li>
-              <li>
-                <strong className="text-foreground">76–100 (Critical):</strong>{' '}
-                Severe difficulty detected. Reach out to your instructor for
-                help.
-              </li>
-            </ul>
-            <p>
-              CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS), normalized to a
-              0–100 scale.
-            </p>
-          </CardContent>
-        </Card>
+      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+        <div className="grid gap-5 md:grid-cols-3">
+          {/* ── Left Panel: 5-Tier Behavioral Legend ──────────────── */}
+          <motion.div variants={fadeUp} className="md:col-span-1">
+            <GlassPanel interactive className="h-full">
+              <GlassPanelHeader>
+                <GlassPanelTitle>Academic Status Legend</GlassPanelTitle>
+              </GlassPanelHeader>
+              <GlassPanelContent className="space-y-3">
+                {TIER_LEGEND.map((item) => {
+                  const meta = NEW_TIER_META[item.tier];
+                  return (
+                    <motion.div
+                      key={item.tier}
+                      whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-white/[0.04] bg-white/[0.02]"
+                    >
+                      <div className={cn("w-2 h-2 rounded-full mt-1 shrink-0", item.dot)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">{meta.label}</span>
+                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border", meta.dot.replace('bg-', 'bg-').replace('500', '500/20'), meta.text, `border-${item.dot.replace('bg-', '')}/30`)}>
+                            {item.range}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground/60 mt-1">{item.desc}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </GlassPanelContent>
+            </GlassPanel>
+          </motion.div>
 
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Overall Concept Footprint</CardTitle>
-            <CardDescription>
-              {radarData.length === 0
-                ? 'Submit some exercises to see your profile.'
-                : `${radarData.length} concepts, ${scores.length} submissions`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            {loading ? (
-              <Skeleton className="h-full w-full" />
-            ) : radarData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No data yet.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart
-                  cx="50%"
-                  cy="50%"
-                  outerRadius="80%"
-                  data={radarData}
-                >
-                  <PolarGrid />
-                  <PolarAngleAxis
-                    dataKey="subject"
-                    tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
-                  />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                  <Radar
-                    name="CDS"
-                    dataKey="A"
-                    stroke="hsl(var(--primary))"
-                    fill="hsl(var(--primary))"
-                    fillOpacity={0.6}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {radarData.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {radarData.map((data) => (
-            <Card key={data.subject}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg">{data.subject}</CardTitle>
-                  {getDifficultyBadge(data.A)}
-                </div>
-                <CardDescription>CDS: {data.A}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-1 text-sm text-muted-foreground">
-                  Submissions: {data.attempts}
-                </p>
-                <div className="mt-2 h-2 w-full rounded-full bg-muted">
-                  <div
-                    className={
-                      data.A > 75
-                        ? 'h-2 rounded-full bg-destructive'
-                        : data.A > 50
-                          ? 'h-2 rounded-full bg-orange-500'
-                          : data.A > 25
-                            ? 'h-2 rounded-full bg-blue-500'
-                            : 'h-2 rounded-full bg-green-500'
-                    }
-                    style={{ width: `${data.A}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {/* ── Right Panel: Concept Radar ────────────────────────── */}
+          <motion.div variants={fadeUp} className="md:col-span-2">
+            <ConceptRadarPanel scores={scores} loading={loading} />
+          </motion.div>
         </div>
-      )}
+      </motion.div>
     </StudentDashboardShell>
   );
 }

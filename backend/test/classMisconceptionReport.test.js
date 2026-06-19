@@ -6,8 +6,9 @@
 const assert = require('assert');
 
 // We need to mock the modules before requiring the service
+const mockDbQuery = jest.fn();
 jest.mock('../config/db', () => ({
-  query: jest.fn()
+  query: (...args) => mockDbQuery(...args)
 }));
 jest.mock('../services/microConceptEngine.js', () => ({
   getMicroConceptFeedback: jest.fn()
@@ -19,18 +20,26 @@ const microConceptEngine = require('../services/microConceptEngine.js');
 
 const { generateClassMisconceptionReport } = require('../services/classMisconceptionReport');
 
+// Helper: default mock for run_attempts queries (always return empty)
+function mockRunAttemptsEmpty(count = 1) {
+  for (let i = 0; i < count; i++) {
+    mockDbQuery.mockResolvedValueOnce({ rows: [] });
+  }
+}
+
 describe('Class Misconception Report Test Suite', function() {
   // Reset mocks before each test
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockDbQuery.mockClear();
+    microConceptEngine.getMicroConceptFeedback.mockClear();
   });
 
   describe('generateClassMisconceptionReport', function() {
     it('should return a report with zero students when no submissions exist', async function() {
       // Mock exercise exists
-      db.query.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test Exercise', concept_name: 'Variables', ast_nodes: '[]' }] });
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test Exercise', concept_name: 'Variables', ast_nodes: '[]' }] });
       // Mock no submissions
-      db.query.mockResolvedValueOnce({ rows: [] });
+      mockDbQuery.mockResolvedValueOnce({ rows: [] });
 
       const result = await generateClassMisconceptionReport(1);
 
@@ -49,12 +58,14 @@ describe('Class Misconception Report Test Suite', function() {
 
     it('should detect and report the most common issue when submissions exist', async function() {
       // Mock exercise exists
-      db.query.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test Exercise', concept_name: 'Variables', ast_nodes: '[]' }] });
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test Exercise', concept_name: 'Variables', ast_nodes: '[]' }] });
       // Mock submissions: two students, both with the same issue (undeclared variable)
-      db.query.mockResolvedValueOnce({ rows: [
-        { student_id: 1, attempt_number: 1, code: 'int x = 5; y = x + 10;', test_results: '[]', compiler_log: "error: 'y' was not declared in this scope" },
-        { student_id: 2, attempt_number: 1, code: 'int a = 5; b = a + 10;', test_results: '[]', compiler_log: "error: 'b' was not declared in this scope" }
+      mockDbQuery.mockResolvedValueOnce({ rows: [
+        { student_id: 1, attempt_number: 1, code: 'int x = 5; y = x + 10;', test_results: '[]', compiler_log: "error: 'y' was not declared in this scope", time_limit_hit: false },
+        { student_id: 2, attempt_number: 1, code: 'int a = 5; b = a + 10;', test_results: '[]', compiler_log: "error: 'b' was not declared in this scope", time_limit_hit: false }
       ] });
+      // Mock run_attempts queries (one per student)
+      mockRunAttemptsEmpty(2);
 
       // Mock microConceptEngine feedback for each submission
       // For the first submission
@@ -102,11 +113,13 @@ describe('Class Misconception Report Test Suite', function() {
 
     it('should handle AST parsing errors gracefully', async function() {
       // Mock exercise exists
-      db.query.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test Exercise', concept_name: 'Variables', ast_nodes: '[]' }] });
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ id: 1, title: 'Test Exercise', concept_name: 'Variables', ast_nodes: '[]' }] });
       // Mock submissions: one student with code that might cause AST parsing issues (but we'll mock the engine to return no feedback)
-      db.query.mockResolvedValueOnce({ rows: [
-        { student_id: 1, attempt_number: 1, code: 'invalid code @#$%', test_results: '[]', compiler_log: '' }
+      mockDbQuery.mockResolvedValueOnce({ rows: [
+        { student_id: 1, attempt_number: 1, code: 'invalid code @#$%', test_results: '[]', compiler_log: '', time_limit_hit: false }
       ] });
+      // Mock run_attempts query for the student
+      mockRunAttemptsEmpty(1);
 
       // Mock microConceptEngine feedback for the submission (no feedback)
       microConceptEngine.getMicroConceptFeedback.mockResolvedValueOnce({

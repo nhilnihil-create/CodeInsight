@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-06-17T08:26:35.763Z",
+  "duration": 19,
+  "summary": {
+    "total": 6,
+    "passed": 0,
+    "failed": 6
+  },
+  "tests": [
+    {
+      "name": "Instructor Login",
+      "passed": false,
+      "error": "Stagehand is not a constructor"
+    },
+    {
+      "name": "Student Login",
+      "passed": false,
+      "error": "Stagehand is not a constructor"
+    },
+    {
+      "name": "Invalid Login",
+      "passed": false,
+      "error": "Stagehand is not a constructor"
+    },
+    {
+      "name": "Instructor Navigation",
+      "passed": false,
+      "error": "Stagehand is not a constructor"
+    },
+    {
+      "name": "Student Navigation",
+      "passed": false,
+      "error": "Stagehand is not a constructor"
+    },
+    {
+      "name": "Exercise Submission",
+      "passed": false,
+      "error": "Stagehand is not a constructor"
+    }
+  ]
+}

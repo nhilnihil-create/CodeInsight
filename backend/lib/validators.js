@@ -8,9 +8,13 @@ const role = Joi.string().valid('instructor', 'student', 'admin');
 
 const testCase = Joi.object({
   input: Joi.string().allow('').default(''),
-  expected: Joi.string().allow('').default(''),
-  description: Joi.string().allow('').max(500).default(''),
-  hidden: Joi.boolean().default(false),
+  expectedOutput: Joi.string().allow('').default(''),
+  validationType: Joi.string().valid('exact', 'contains', 'regex').default('exact'),
+  isVisible: Joi.boolean().default(true),
+  // Backward compatibility: accept legacy 'expected' and 'hidden' fields
+  expected: Joi.string().allow('').optional(),
+  hidden: Joi.boolean().optional(),
+  description: Joi.string().allow('').max(500).optional(),
 });
 
 const exerciseCreate = Joi.object({
@@ -18,30 +22,33 @@ const exerciseCreate = Joi.object({
   description: Joi.string().allow('').max(20000).default(''),
   concept_name: Joi.string().trim().min(1).max(100).required(),
   section_id: id.required(),
-  time_limit_minutes: Joi.number().integer().min(1).max(600).default(45),
-  test_cases: Joi.array().items(testCase).min(2).required(),
+  time_limit_minutes: Joi.number().integer().min(0).max(600).default(45),
+  test_cases: Joi.array().items(testCase).min(1).required(),
   deadline: Joi.alternatives(Joi.date().iso(), Joi.string().allow(null, ''), Joi.allow(null)).optional(),
   is_draft: Joi.boolean().default(false),
   track_ner: Joi.boolean().default(true),
   track_nrs: Joi.boolean().default(true),
   track_nts: Joi.boolean().default(true),
   auto_alert: Joi.boolean().default(true),
-  starter_code: Joi.string().allow('').max(20000).optional(),
-  reference_solution: Joi.string().allow('').max(20000).optional(),
+  starter_code: Joi.string().allow('', null).max(20000).optional(),
+  reference_solution: Joi.string().allow('', null).max(20000).optional(),
+  concept_ids: Joi.array().items(Joi.string().trim().min(1).max(100)).optional(), // secondary concepts
+  rubric_config: Joi.object().pattern(Joi.string(), Joi.number().min(0).max(100)).default({}),
 });
 
 const exerciseUpdate = Joi.object({
   title: Joi.string().trim().min(1).max(200).optional(),
   description: Joi.string().allow('').max(20000).optional(),
-  time_limit_minutes: Joi.number().integer().min(1).max(600).optional(),
-  test_cases: Joi.array().items(testCase).min(2).optional(),
+  time_limit_minutes: Joi.number().integer().min(0).max(600).optional(),
+  test_cases: Joi.array().items(testCase).min(1).optional(),
   deadline: Joi.alternatives(Joi.date().iso(), Joi.string().allow(null, ''), Joi.allow(null)).optional(),
   is_draft: Joi.boolean().optional(),
   track_ner: Joi.boolean().optional(),
   track_nrs: Joi.boolean().optional(),
   track_nts: Joi.boolean().optional(),
   auto_alert: Joi.boolean().optional(),
-  starter_code: Joi.string().allow('').max(20000).optional(),
+  starter_code: Joi.string().allow('', null).max(20000).optional(),
+  rubric_config: Joi.object().optional(),
 });
 
 const sectionCreate = Joi.object({
@@ -77,15 +84,9 @@ const joinByCode = Joi.object({
 });
 
 const submitCode = Joi.object({
+  exerciseId: Joi.number().integer().positive().required(),
   code: Joi.string().required(),
   timeSpentSeconds: Joi.number().integer().min(0).max(86400).default(0),
-  behavioralEvents: Joi.array().items(
-    Joi.object({
-      type: Joi.string().valid('tab_blur', 'tab_focus', 'paste', 'keystroke_burst', 'idle_start', 'idle_end').required(),
-      timestamp: Joi.alternatives(Joi.date().iso(), Joi.string()).required(),
-      payload: Joi.object().unknown(true).optional(),
-    })
-  ).max(500).optional(),
 });
 
 const evaluationSubmit = Joi.object({
@@ -117,6 +118,7 @@ const login = Joi.object({
 });
 
 const idParam = Joi.object({ id: id.required() });
+const enrollParams = Joi.object({ id: id.required(), studentId: id.required() });
 
 const adminUserUpdate = Joi.object({
   name: name.optional(),
@@ -145,6 +147,16 @@ const adminConceptCreate = Joi.object({
   ast_nodes: Joi.array().items(Joi.string()).default([]),
 });
 
+const rosterImportRows = Joi.object({
+  rows: Joi.array().items(
+    Joi.object({
+      email: email.required(),
+      name: name.required(),
+    })
+  ).min(1).max(2000).required(),
+  create_missing_users: Joi.boolean().default(false),
+});
+
 const bulkImportCSV = Joi.object({
   rows: Joi.array().items(
     Joi.object({
@@ -155,10 +167,28 @@ const bulkImportCSV = Joi.object({
   create_missing_users: Joi.boolean().default(false),
 });
 
+const bulkPublish = Joi.object({
+  section_id: id.required(),
+  bank_ids: Joi.array().items(Joi.string().uuid()).min(1).max(50).required(),
+  deadline: Joi.alternatives(Joi.date().iso(), Joi.string().allow(null, '')).optional(),
+  time_limit_overrides: Joi.object().pattern(
+    Joi.string().uuid(),
+    Joi.number().integer().min(1).max(600)
+  ).optional(),
+});
+
+const exerciseValidate = Joi.object({
+  reference_solution: Joi.string().trim().min(1).max(20000).required(),
+  test_cases: Joi.array().items(testCase).min(1).required(),
+  time_limit_minutes: Joi.number().integer().min(0).max(600).default(45),
+});
+
 module.exports = {
   email, password, name, id, role, testCase,
   exerciseCreate, exerciseUpdate,
   sectionCreate, enrollPayload, membershipUpdate, policyUpdate, joinByCode,
-  submitCode, evaluationSubmit, register, login, idParam,
-  adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate, bulkImportCSV,
+  submitCode, evaluationSubmit, register, login, idParam, enrollParams,
+  adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate,
+  bulkImportCSV, rosterImportRows,
+  bulkPublish, exerciseValidate,
 };

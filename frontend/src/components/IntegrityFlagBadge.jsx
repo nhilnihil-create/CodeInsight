@@ -3,23 +3,17 @@ import React from 'react';
 /**
  * IntegrityFlagBadge — small pill that labels an integrity-flag type.
  *
- * Colors are resolved from shadcn semantic tokens (defined in
- * src/index.css) so the badge reads correctly in both light and dark
- * themes. The hue is preserved (red/amber/green/teal) so the visual
- * signal of "severity category" is stable, but the chroma is dialled
- * down in light mode to a softer, still legible fill.
+ * Per the research paper, the four deterministic integrity flags are:
+ *   1. HARDCODING — literal output instead of computed values
+ *   2. BLANK_TEMPLATE — no changes to starter code
+ *   3. BEHAVIORAL_ANOMALY — instant success or extreme speed
+ *   4. CODE_GROWTH_ANOMALY — >30% growth spike between submissions
+ *
+ * Colors use shadcn semantic tokens for light/dark theme support.
  */
 const IntegrityFlagBadge = ({ flagType }) => {
-  // Each entry: label + token name. bg is an `hsl()` string built from
-  // the active theme's --destructive / --chart-4 / --chart-2 / --primary
-  // (defined in src/index.css) with a low alpha so the pill stays subtle.
   const flagConfig = {
     HARDCODING: {
-      label: 'Hardcoding',
-      bg: 'hsl(0 84% 60% / 0.10)',
-      color: 'hsl(0 84% 40%)',
-    },
-    HARD_CODING: {
       label: 'Hardcoding',
       bg: 'hsl(0 84% 60% / 0.10)',
       color: 'hsl(0 84% 40%)',
@@ -39,15 +33,10 @@ const IntegrityFlagBadge = ({ flagType }) => {
       bg: 'hsl(142 71% 45% / 0.12)',
       color: 'hsl(142 71% 28%)',
     },
-    code_paste_detected: {
-      label: 'Code paste',
-      bg: 'hsl(0 84% 60% / 0.10)',
-      color: 'hsl(0 84% 40%)',
-    },
-    retry_storm: {
-      label: 'Retry storm',
-      bg: 'hsl(43 74% 66% / 0.18)',
-      color: 'hsl(32 81% 30%)',
+    PASSIVE_BEHAVIOR_LOG: {
+      label: 'Behavior Log',
+      bg: 'hsl(280 60% 60% / 0.12)',
+      color: 'hsl(280 60% 35%)',
     },
   };
 

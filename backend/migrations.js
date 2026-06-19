@@ -1,5 +1,7 @@
 // Database migrations/setup — verify tables and apply idempotent schema patches
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+const fs = require('fs');
 const db = require('./config/db');
 
 async function columnExists(table, column) {
@@ -7,6 +9,15 @@ async function columnExists(table, column) {
     `SELECT 1 FROM information_schema.columns
      WHERE table_name = $1 AND column_name = $2`,
     [table, column]
+  );
+  return result.rows.length > 0;
+}
+
+async function constraintExists(table, constraint) {
+  const result = await db.query(
+    `SELECT 1 FROM information_schema.table_constraints
+     WHERE table_name = $1 AND constraint_name = $2`,
+    [table, constraint]
   );
   return result.rows.length > 0;
 }
@@ -48,12 +59,51 @@ async function applySchemaPatches() {
     patches.push(addColumnIfMissing('sections', 'semester', 'TEXT'));
     patches.push(addColumnIfMissing('sections', 'join_policy', `TEXT NOT NULL DEFAULT 'code' CHECK (join_policy IN ('code', 'request', 'closed'))`));
     patches.push(addColumnIfMissing('sections', 'max_size', 'INTEGER NOT NULL DEFAULT 60'));
+    
+    // Add NOT NULL constraint to sections.code (if not already present)
+    if (await columnExists('sections', 'code')) {
+      try {
+        await db.query(`ALTER TABLE sections ALTER COLUMN code SET NOT NULL`);
+        console.log('✓ Added NOT NULL constraint to sections.code');
+      } catch (err) {
+        console.log('✓ sections.code NOT NULL constraint already exists');
+      }
+    }
+    
+    // Add UNIQUE constraint to sections.code (if not already present)
+    if (await columnExists('sections', 'code')) {
+      try {
+        await db.query(`ALTER TABLE sections ADD CONSTRAINT sections_code_key UNIQUE (code)`);
+        console.log('✓ Added UNIQUE constraint to sections.code');
+      } catch (err) {
+        console.log('✓ sections.code UNIQUE constraint already exists');
+      }
+    }
   }
 
   if (await tableExists('submissions')) {
     patches.push(addColumnIfMissing('submissions', 'code_growth_delta', 'INTEGER DEFAULT 0'));
     patches.push(addColumnIfMissing('submissions', 'is_verified', 'BOOLEAN DEFAULT true'));
     patches.push(addColumnIfMissing('submissions', 'verification_note', 'TEXT'));
+    patches.push(addColumnIfMissing('submissions', 'compiler_log', 'TEXT'));
+    patches.push(addColumnIfMissing('submissions', 'time_limit_hit', 'BOOLEAN DEFAULT false'));
+  }
+
+  if (!(await tableExists('run_attempts'))) {
+    await db.query(`
+      CREATE TABLE run_attempts (
+        id              SERIAL PRIMARY KEY,
+        student_id      INT REFERENCES users(id) ON DELETE CASCADE,
+        exercise_id     INT REFERENCES exercises(id) ON DELETE CASCADE,
+        code            TEXT NOT NULL,
+        compiler_log    TEXT,
+        error_count     INT DEFAULT 0,
+        time_limit_hit  BOOLEAN DEFAULT false,
+        run_at          TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_run_attempts_student_exercise ON run_attempts(student_id, exercise_id)`);
+    console.log('✓ Created run_attempts table');
   }
 
   if (await tableExists('cds_scores')) {
@@ -116,22 +166,6 @@ async function applySchemaPatches() {
     }
   }
 
-  if (!(await tableExists('behavioral_events'))) {
-    await db.query(`
-      CREATE TABLE behavioral_events (
-        id            SERIAL PRIMARY KEY,
-        student_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        exercise_id   INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-        event_type    VARCHAR(50) NOT NULL,
-        occurred_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-        payload       JSONB DEFAULT '{}'::jsonb,
-        created_at    TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    await db.query(`CREATE INDEX IF NOT EXISTS idx_behavioral_events_student_exercise ON behavioral_events (student_id, exercise_id)`);
-    console.log('✓ Created behavioral_events table');
-  }
-
   if (!(await tableExists('integrity_flags'))) {
     await db.query(`
       CREATE TABLE integrity_flags (
@@ -152,25 +186,6 @@ async function applySchemaPatches() {
       )
     `);
     console.log('✓ Created integrity_flags table');
-  }
-
-  if (!(await tableExists('notifications'))) {
-    await db.query(`
-      CREATE TABLE notifications (
-        id                  SERIAL PRIMARY KEY,
-        student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        section_id          INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-        exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
-        message             TEXT NOT NULL,
-        notification_type   VARCHAR(50) NOT NULL DEFAULT 'cds_computation',
-        is_read             BOOLEAN DEFAULT false,
-        created_at          TIMESTAMP DEFAULT NOW(),
-        UNIQUE(student_id, exercise_id, notification_type)
-      )
-    `);
-    console.log('✓ Created notifications table');
-  } else if (!(await columnExists('notifications', 'notification_type'))) {
-    patches.push(addColumnIfMissing('notifications', 'notification_type', `VARCHAR(50) NOT NULL DEFAULT 'cds_computation'`));
   }
 
   if (!(await tableExists('section_memberships'))) {
@@ -209,7 +224,73 @@ async function applySchemaPatches() {
     console.log('✓ Created section_audit_log table');
   }
 
+  // ── Migration 010: Taxonomy Refactor (ADRs 001-006) ─────────────────────
+  // Run standalone: node migrations/010_taxonomy_refactor.js
+  // Here we just check if it's been applied
+  if (await tableExists('concepts') && !(await columnExists('concepts', 'knowledge_area_code'))) {
+    console.log('⚠ Migration 010 (taxonomy refactor) not applied.');
+    console.log('  Run: node backend/migrations/010_taxonomy_refactor.js');
+  } else if (await tableExists('concepts')) {
+    console.log('✓ Migration 010 (taxonomy refactor) applied');
+  }
+
   await Promise.all(patches);
+}
+
+/**
+ * Run v2 migration SQL files idempotently.
+ * Each file is wrapped in a transaction on our end; the files themselves use
+ * IF NOT EXISTS / ADD COLUMN IF NOT EXISTS patterns for safety.
+ */
+async function applyV2Migrations() {
+  const migrationsDir = path.join(__dirname, 'migrations');
+  const v2Files = [
+    '20260610_v2_concepts.sql',
+    '20260610_v2_audit.sql',
+    '20260610_validation_mode.sql',
+    '20260614_custom_tags.sql',
+    '20260615_custom_tags_ka.sql',
+  ];
+
+  for (const file of v2Files) {
+    const filePath = path.join(migrationsDir, file);
+    if (!fs.existsSync(filePath)) {
+      console.warn(`⚠ v2 migration file not found: ${file}`);
+      continue;
+    }
+    const sql = fs.readFileSync(filePath, 'utf8');
+    // Check if tables already exist to skip idempotently
+    const baseName = file.replace('.sql', '');
+    const markers = {
+      '20260610_v2_concepts':        { table: 'exercise_concepts', label: 'exercise_concepts + FTS' },
+      '20260610_v2_audit':           { table: 'audit_log',      label: 'audit_log + cds_snapshots' },
+      '20260610_validation_mode':    { table: 'exercises',    col: 'is_validated', label: 'validation mode columns' },
+      '20260614_custom_tags':        { table: 'instructor_custom_tags', label: 'instructor_custom_tags + custom_tag_exercise_mappings' },
+      '20260615_custom_tags_ka':     { table: 'instructor_custom_tags', col: 'knowledge_area', label: 'custom_tags knowledge_area column' },
+    };
+    const marker = markers[baseName];
+    if (marker) {
+      if (marker.col && await tableExists(marker.table) && await columnExists(marker.table, marker.col)) {
+        console.log(`✓ ${marker.label} already applied`);
+        continue;
+      }
+      if (!marker.col && await tableExists(marker.table)) {
+        console.log(`✓ ${marker.label} already applied`);
+        continue;
+      }
+    }
+    try {
+      await db.query(sql);
+      console.log(`✓ Applied ${file}`);
+    } catch (err) {
+      // Ignore "already exists" errors for idempotency
+      if (err.code === '42P07' || err.code === '42701') {
+        console.log(`✓ ${marker?.label || file} already exists`);
+      } else {
+        console.warn(`⚠ v2 migration ${file} failed:`, err.message);
+      }
+    }
+  }
 }
 
 async function ensureTablesExist() {
@@ -219,7 +300,7 @@ async function ensureTablesExist() {
     const tables = [
       'users', 'sections', 'enrollments', 'concepts', 'exercises', 'submissions',
       'cds_scores', 'alerts', 'verification_logs', 'performance_logs', 'auto_close_log',
-      'integrity_flags', 'notifications'
+      'integrity_flags'
     ];
     const results = [];
 
@@ -237,6 +318,23 @@ async function ensureTablesExist() {
       await applySchemaPatches();
     } catch (patchErr) {
       console.warn('⚠ Schema patches skipped:', patchErr.message);
+    }
+
+    try {
+      await applyV2Migrations();
+    } catch (v2Err) {
+      console.warn('⚠ v2 migrations failed:', v2Err.message);
+    }
+
+    // verification_rules table (data-driven AST pattern matching)
+    if (!(await tableExists('verification_rules'))) {
+      try {
+        const { createVerificationRules } = require('./migrations/20260617_verification_rules');
+        await createVerificationRules(db);
+        console.log('✓ verification_rules table seeded');
+      } catch (vrErr) {
+        console.warn('⚠ verification_rules migration failed:', vrErr.message);
+      }
     }
 
     const criticalTables = ['users', 'sections', 'enrollments', 'concepts', 'exercises', 'submissions'];

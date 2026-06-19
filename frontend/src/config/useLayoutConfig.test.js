@@ -23,7 +23,7 @@ describe('getConfig (instructor, mobile)', () => {
   it('every widget ref across all 3 roles uses a canonical widget name', () => {
     const CANONICAL = new Set([
       // Instructor
-      'InstructorPriorityInsight', 'AtRiskQueue', 'AtRiskRoster', 'InterventionQueue',
+      'InstructorPriorityInsight', 'AtRiskQueue', 'AtRiskRoster',
       'TopStrugglingConcepts', 'ClassProfileRadar', 'WeeklyTeachingInsight',
       'IntegrityFlagCount', 'IntegrityFlagList', 'IntegrityFlagHistory',
       'IntegrityDrillNotice', 'SectionList',

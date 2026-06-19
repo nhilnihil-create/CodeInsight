@@ -1,17 +1,20 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useCallback } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Mail,
   MoreHorizontal,
   ArrowRight,
   Download,
   Copy,
-  Settings,
   Users,
   FileText,
+  AlertTriangle,
+  RefreshCw,
+  FileSpreadsheet,
+  RotateCw,
+  CheckCircle,
+  Check,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +22,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
@@ -26,9 +32,142 @@ import RosterTab from "./tabs/RosterTab";
 import AnalyticsTab from "./tabs/AnalyticsTab";
 import SubmissionsTab from "./tabs/SubmissionsTab";
 import SettingsTab from "./tabs/SettingsTab";
+import api from "@/services/api";
+
+async function fetchSection(id) {
+  const { data } = await api.get(`/api/sections/${id}`);
+  return data;
+}
+
+function buildSeriesArray(current) {
+  return Array.from({ length: 7 }, () => current);
+}
+
+/** Build a real-looking CDS time series (flat when no trend data exists). */
+function emptySeries() {
+  return [];
+}
 
 export default function SectionDetail() {
+  const { sectionId: id } = useParams();
+  const navigate = useNavigate();
   const [tab, setTab] = useState("roster");
+  const [copied, setCopied] = useState(false);
+  const [rotating, setRotating] = useState(false);
+
+  const { data: section, isLoading, isError, refetch } = useQuery({
+    queryKey: ["section", id],
+    queryFn: () => fetchSection(id),
+    enabled: !!id,
+  });
+
+  const buildTerm = useCallback(() => {
+    if (!section) return "";
+    const sem = section.semester || "Sem 1";
+    const year = section.school_year || "";
+    return year ? `${sem} · AY ${year}` : sem;
+  }, [section]);
+
+  const handleCopyJoinCode = useCallback(async () => {
+    if (!section?.code) return;
+    try {
+      await navigator.clipboard.writeText(section.code);
+      setCopied(true);
+      toast.success("Join code copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy join code");
+    }
+  }, [section]);
+
+  const handleRotateCode = useCallback(async () => {
+    if (!id) return;
+    setRotating(true);
+    try {
+      const { data } = await api.post(`/api/sections/${id}/rotate-code`);
+      toast.success(`New join code: ${data.code}`);
+      refetch();
+    } catch {
+      toast.error("Failed to rotate join code");
+    } finally {
+      setRotating(false);
+    }
+  }, [id, refetch]);
+
+  const handleExportCSV = useCallback(async () => {
+    if (!id) return;
+    try {
+      const { data: students } = await api.get(`/api/sections/${id}/students`);
+      const csvRows = students.map((s) =>
+        [
+          `"${(s.name || "").replace(/"/g, '""')}"`,
+          `"${(s.email || "").replace(/"/g, '""')}"`,
+          s.enrolled_at || "",
+        ].join(",")
+      );
+      const csv = ["Name,Email,Enrolled At", ...csvRows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `section-${id}-roster.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Roster exported as CSV");
+    } catch {
+      toast.error("Failed to export roster");
+    }
+  }, [id]);
+
+  const handleExportExcel = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api.get(`/api/sections/${id}/export`, {
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `section-${id}-report.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Section exported as Excel");
+    } catch {
+      toast.error("Failed to export section");
+    }
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 sm:space-y-8">
+        <div className="rounded-lg border border-border bg-card/50 py-12 px-6 text-center">
+          <p className="text-sm font-semibold text-foreground">Loading section…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !section) {
+    return (
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive flex-1">Failed to load section details.</p>
+          <Button size="sm" variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" strokeWidth={2} />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const atRisk = section.at_risk_count ?? 0;
+  const avgCds = Number(section.avg_cds ?? 0);
+  const flags = section.integrity_flags_count ?? 0;
+  const totalSubmissions = section.total_submissions ?? 0;
+  const studentCount = section.student_count ?? 0;
+  const exerciseCount = section.exercise_count ?? 0;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -37,23 +176,51 @@ export default function SectionDetail() {
         <PageBreadcrumb
           crumbs={[
             { label: "Sections", href: "/instructor/sections" },
-            { label: "Section 04" },
+            { label: section.name },
           ]}
         />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Section 04 — Intro CS
+              {section.name} — {section.course_code}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              CS101 · Sem 1 · AY 2025–2026 · 22 students
+              {section.course_code} · {buildTerm()} · {studentCount} students
             </p>
+            {section.code && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                  Code: {section.code}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyJoinCode}
+                  className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+                  aria-label={`Copy join code ${section.code}`}
+                  title={`Copy code: ${section.code}`}
+                >
+                  {copied ? (
+                    <CheckCircle className="h-3 w-3 text-emerald-400" strokeWidth={2} />
+                  ) : (
+                    <Copy className="h-3 w-3" strokeWidth={1.5} />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRotateCode}
+                  disabled={rotating}
+                  className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Rotate join code"
+                  title="Rotate join code"
+                >
+                  <RotateCw className="h-3 w-3" strokeWidth={1.5} />
+                  {rotating ? "Rotating..." : "Rotate"}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="font-medium">
-              <Mail className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-              Message at-risk
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -65,20 +232,30 @@ export default function SectionDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV}>
                   <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Export section
+                  Export CSV (Roster)
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportExcel}>
+                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+                  Export Excel (Full Report)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleCopyJoinCode}>
                   <Copy className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Copy join code
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRotateCode} disabled={rotating}>
+                  <RotateCw className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+                  Rotate join code
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setTab("settings")}>
                   <Users className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Manage roster
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate(`/instructor/reports?section=${id}`)}>
                   <FileText className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   View reports
                 </DropdownMenuItem>
@@ -90,24 +267,24 @@ export default function SectionDetail() {
 
       {/* ---------- Insight ---------- */}
       <InsightHeader
-        insight="6 students are at risk; 2 have active integrity flags."
-        action={
-          <Button asChild size="sm" className="font-medium">
-            <Link to="/instructor/integrity?section=4">
-              Schedule intervention
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-            </Link>
-          </Button>
+        insight={
+          atRisk === 0 && flags === 0
+            ? `${section.name} is on track — no at-risk students or integrity flags.`
+            : atRisk === 0
+              ? `No students at risk; ${flags} active integrity flag${flags === 1 ? "" : "s"}.`
+              : flags === 0
+                ? `${atRisk} student${atRisk === 1 ? " is" : "s are"} at risk — no active integrity flags.`
+                : `${atRisk} student${atRisk === 1 ? " is" : "s are"} at risk; ${flags} have active integrity flag${flags === 1 ? "" : "s"}.`
         }
       />
 
       {/* ---------- Evidence ---------- */}
       <EvidenceRow
         chips={[
-          { label: "At Risk",     value: 6,   delta: 1,  series: [3, 4, 4, 5, 5, 6, 6], comparison: "vs. last week" },
-          { label: "Avg CDS",     value: "0.71", delta: 0.04, series: [0.62, 0.64, 0.66, 0.68, 0.69, 0.70, 0.71], comparison: "rising" },
-          { label: "Open Flags",  value: 2,   delta: 0,  series: [1, 1, 2, 2, 2, 2, 2], comparison: "this week" },
-          { label: "Submissions", value: 142, delta: 18, series: [98, 108, 116, 122, 128, 136, 142], comparison: "this week" },
+          { label: "At Risk",     value: atRisk,    delta: null, series: emptySeries(), comparison: "this week" },
+          { label: "Avg CDS",     value: `${Math.round(avgCds * 100)}%`, delta: null, series: emptySeries(), comparison: "current" },
+          { label: "Open Flags",  value: flags,    delta: null, series: emptySeries(), comparison: "this week" },
+          { label: "Submissions", value: totalSubmissions, delta: null, series: emptySeries(), comparison: "all time" },
         ]}
       />
 
@@ -136,22 +313,28 @@ export default function SectionDetail() {
             value="settings"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
           >
-            <Settings className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+            <Users className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
             Settings
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="roster" className="mt-6">
-          <RosterTab />
+          <RosterTab sectionId={id} sectionName={section.name} />
         </TabsContent>
         <TabsContent value="analytics" className="mt-6">
-          <AnalyticsTab />
+          <AnalyticsTab sectionId={id} />
         </TabsContent>
         <TabsContent value="submissions" className="mt-6">
-          <SubmissionsTab />
+          <SubmissionsTab sectionId={id} />
         </TabsContent>
         <TabsContent value="settings" className="mt-6">
-          <SettingsTab />
+          <SettingsTab
+            sectionId={id}
+            sectionName={section.name}
+            courseCode={section.course_code}
+            onUpdated={() => refetch()}
+            onDeleted={() => navigate("/instructor/sections")}
+          />
         </TabsContent>
       </Tabs>
     </div>

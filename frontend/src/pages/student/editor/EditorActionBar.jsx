@@ -26,10 +26,16 @@ export default function EditorActionBar({ onRun, onSubmit, isRunning }) {
         <Play className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
         Run
       </Button>
-      <Button onClick={onSubmit} className="flex-1 font-medium">
-        <Send className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-        Submit
-      </Button>
+      {onSubmit ? (
+        <Button onClick={onSubmit} className="flex-1 font-medium">
+          <Send className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+          Submit
+        </Button>
+      ) : (
+        <span className="flex-1 inline-flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+          Review Mode
+        </span>
+      )}
     </div>
   );
 }

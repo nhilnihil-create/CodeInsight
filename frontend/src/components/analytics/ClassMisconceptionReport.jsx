@@ -1,136 +1,137 @@
-/**
- * Class-Wide Misconception Report Component
- * Displays aggregated misconception patterns post-exercise
- */
+import { useState } from 'react';
+import { X, AlertTriangle, Lightbulb, ChevronRight, TrendingUp, Target, Sparkles } from 'lucide-react';
 
-import React from 'react';
-import './ClassMisconceptionReport.css';
-
-function ClassMisconceptionReport({ report, onClose, embedded = false }) {
-  if (!report) {
-    return null;
-  }
-
-  const emptyState = !report.mostCommonIssue || report.totalStudents === 0;
-
-  const content = (
-      <div className={embedded ? 'class-misconception-embedded' : 'class-misconception-modal'}>
-        <div className="modal-header">
-          <div>
-            <h2 className="modal-title">Class-Wide Misconception Report</h2>
-            <p className="modal-subtitle">{report.exerciseTitle || 'Exercise Analysis'}</p>
-          </div>
-          {!embedded && onClose && (
-            <button className="btn-close" onClick={onClose}>&times;</button>
-          )}
-        </div>
-
-        <div className="modal-content">
-          {emptyState ? (
-            <div className="empty-state">
-              <p className="empty-message">
-                {report.totalStudents === 0
-                  ? '⏳ No submissions yet. Check back after students complete the exercise.'
-                  : 'No misconception patterns detected.'}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="metrics-grid">
-                <div className="metric-card">
-                  <div className="metric-value">{report.totalStudents}</div>
-                  <div className="metric-label">Total Students</div>
-                </div>
-                <div className="metric-card">
-                  <div className="metric-value">{report.completedStudents || 0}</div>
-                  <div className="metric-label">Completed</div>
-                </div>
-                <div className="metric-card">
-                  <div className="metric-value">
-                    {report.completedStudents && report.totalStudents
-                      ? ((report.completedStudents / report.totalStudents) * 100).toFixed(1)
-                      : '0'}%
-                  </div>
-                  <div className="metric-label">Completion Rate</div>
-                </div>
-              </div>
-
-              <div className="issues-section">
-                <h3 className="section-heading">Top Issues Identified</h3>
-
-                {report.mostCommonIssue && (
-                  <div className="issue-card primary">
-                    <div className="issue-rank">1</div>
-                    <div className="issue-content">
-                      <h4 className="issue-name">{report.mostCommonIssue}</h4>
-                      <div className="issue-stats">
-                        <span className="stat">
-                          <strong>{report.affectedCount}</strong> students ({report.affectedPercent.toFixed(1)}%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {report.secondIssue && (
-                  <div className="issue-card secondary">
-                    <div className="issue-rank">2</div>
-                    <div className="issue-content">
-                      <h4 className="issue-name">{report.secondIssue}</h4>
-                      <div className="issue-stats">
-                        <span className="stat">
-                          <strong>{report.secondCount}</strong> students ({report.secondPercent?.toFixed(1) || '0'}%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="insights-section">
-                <div className="insight-card">
-                  <h4 className="insight-title">📊 Class Summary</h4>
-                  <p className="insight-text">{report.classSummary}</p>
-                </div>
-
-                <div className="insight-card">
-                  <h4 className="insight-title">🔎 Root Cause</h4>
-                  <p className="insight-text">{report.rootCause}</p>
-                </div>
-
-                <div className="insight-card recommendation">
-                  <h4 className="insight-title">💡 Recommended Action</h4>
-                  <p className="insight-text">{report.recommendedAction}</p>
-                </div>
-
-                <div className="insight-card">
-                  <h4 className="insight-title">✅ Before Advancing</h4>
-                  <p className="insight-text">{report.beforeAdvancing}</p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {!embedded && onClose && (
-          <div className="modal-footer">
-            <button className="btn-close-action" onClick={onClose}>
-              Close Report
-            </button>
-          </div>
-        )}
-      </div>
-  );
-
-  if (embedded) {
-    return content;
-  }
-
+function MetricCard({ label, value, suffix = '' }) {
   return (
-    <div className="class-misconception-modal-overlay">
-      {content}
+    <div className="bg-muted/40 rounded-lg p-3 text-center border border-border">
+      <div className="text-xl font-bold font-mono tabular-nums">{value}{suffix}</div>
+      <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mt-0.5">{label}</div>
     </div>
   );
 }
 
-export default ClassMisconceptionReport;
+function IssueCard({ rank, issue, count, percent, isPrimary }) {
+  if (!issue) return null;
+  return (
+    <div className={`rounded-lg p-3 border-l-[3px] ${isPrimary ? 'border-chart-4 bg-chart-4/5' : 'border-chart-2 bg-chart-2/5'}`}>
+      <div className="flex items-start gap-3">
+        <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isPrimary ? 'bg-chart-4/20 text-chart-4' : 'bg-chart-2/20 text-chart-2'}`}>
+          {rank}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">{issue.name}</div>
+          {issue.description && (
+            <div className="text-xs text-muted-foreground mt-0.5">{issue.description}</div>
+          )}
+          <div className="text-xs text-muted-foreground mt-1">
+            <strong>{count}</strong> student{count === 1 ? '' : 's'} ({percent.toFixed(1)}%)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({ icon: Icon, title, text, highlight = false }) {
+  return (
+    <div className={`rounded-lg p-3 border ${highlight ? 'bg-chart-2/5 border-chart-2/25' : 'bg-muted/40 border-border'}`}>
+      <div className="flex items-start gap-2">
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" strokeWidth={1.5} />}
+        <div className="min-w-0">
+          <div className="text-xs font-semibold mb-0.5">{title}</div>
+          <div className="text-xs text-muted-foreground leading-relaxed">{text}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportBody({ report }) {
+  const emptyState = !report.mostCommonIssue || report.totalStudents === 0;
+
+  if (emptyState) {
+    return (
+      <div className="py-8 text-center">
+        <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" strokeWidth={1.5} />
+        <p className="text-sm text-muted-foreground">
+          {report.totalStudents === 0
+            ? 'No submissions yet. Check back after students complete the exercise.'
+            : 'No misconception patterns detected.'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <MetricCard label="Total Students" value={report.totalStudents} />
+        <MetricCard label="Affected" value={report.affectedCount} suffix={`/${report.totalStudents}`} />
+        <MetricCard label="Rate" value={report.affectedPercent} suffix="%" />
+      </div>
+
+      <div className="space-y-2">
+        <IssueCard rank={1} issue={report.mostCommonIssue} count={report.affectedCount} percent={report.affectedPercent} isPrimary />
+        {report.secondIssue && (
+          <IssueCard rank={2} issue={report.secondIssue} count={report.secondCount} percent={report.totalStudents > 0 ? (report.secondCount / report.totalStudents) * 100 : 0} />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {report.classSummary && <InsightCard icon={TrendingUp} title="Class Summary" text={report.classSummary} />}
+        {report.rootCause && <InsightCard icon={Target} title="Root Cause" text={report.rootCause} />}
+        {report.recommendedAction && <InsightCard icon={Lightbulb} title="Recommended Action" text={report.recommendedAction} highlight />}
+        {report.beforeAdvancing && <InsightCard icon={Sparkles} title="Before Advancing" text={report.beforeAdvancing} />}
+      </div>
+    </div>
+  );
+}
+
+export default function ClassMisconceptionReport({ report, onClose, embedded = false }) {
+  if (!report) return null;
+
+  const content = (
+    <div className={embedded ? '' : 'bg-background border border-border rounded-xl overflow-hidden shadow-lg'}>
+      {!embedded && (
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">Misconception Report</h2>
+            <p className="text-xs text-muted-foreground truncate">{report.exerciseTitle || 'Exercise Analysis'}</p>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="h-8 w-8 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
+      )}
+      <div className={embedded ? '' : 'p-4'}>
+        <ReportBody report={report} />
+      </div>
+      {!embedded && onClose && (
+        <div className="flex justify-end p-3 border-t border-border">
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Close Report <ChevronRight className="h-3 w-3" strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        {content}
+      </div>
+    </div>
+  );
+}

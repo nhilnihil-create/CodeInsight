@@ -1,21 +1,18 @@
 import axios from 'axios';
 
-const api = axios.create({ 
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://127.0.0.1:5000'),
+  withCredentials: true, // send httpOnly cookie with every request
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ci_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+// No Authorization header interceptor — the JWT lives in the httpOnly
+// ci_token cookie set by the backend and sent automatically via withCredentials.
 
 api.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('ci_token');
-      localStorage.removeItem('ci_user');
+    if (err.response?.status === 401 && window.location.pathname !== '/login') {
+      // Cookie expired or cleared — redirect to login unless already there.
       window.location.href = '/login';
     }
     return Promise.reject(err);

@@ -1,8 +1,11 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors    = require('cors');
+const cookieParser = require('cookie-parser');
 const { ensureTablesExist } = require('./migrations');
-const { startAutoCloseService } = require('./services/autoCloseService');
+const db = require('./config/db');
+const { startAutoCloseService, stopAutoCloseService } = require('./services/autoCloseService');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -25,6 +28,7 @@ app.use(cors({
 // Parse JSON with increased payload
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(cookieParser());
 
 // Request log (lightweight, opt-in via LOG_REQUESTS=1)
 if (process.env.LOG_REQUESTS === '1') {
@@ -43,9 +47,12 @@ app.use('/api/student',     require('./routes/student'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/analytics',   require('./routes/analytics'));
 app.use('/api/analytics',   require('./routes/integrity'));
+app.use('/api/custom-tags', require('./routes/customTags'));
 app.use('/api/evaluation',  require('./routes/evaluation'));
 app.use('/api/admin',       require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/search',        require('./routes/search'));
+app.use('/api/export',        require('./routes/export'));
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -61,7 +68,20 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 // Run migrations and start server
-ensureTablesExist().then(() => {
+ensureTablesExist().then(async () => {
+  // Initialize submission queue (non-blocking — falls back to sync if Redis unavailable)
+  try {
+    const submissionQueue = require('./queues/submissionQueue');
+    const queueReady = await submissionQueue.initQueue();
+    if (queueReady) {
+      console.log('[Server] Submission queue initialized (async mode available)');
+    } else {
+      console.log('[Server] Redis unavailable — submissions will process synchronously');
+    }
+  } catch (err) {
+    console.warn('[Server] Queue init failed:', err.message);
+  }
+
   app.listen(PORT, () => {
     console.log(`CodeInsight running on port ${PORT}`);
     console.log(`PostgreSQL connected`);
@@ -74,3 +94,15 @@ ensureTablesExist().then(() => {
     startAutoCloseService();
   });
 });
+
+// Graceful shutdown
+function shutdown(signal) {
+  console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  stopAutoCloseService();
+  // Close queue connection
+  const submissionQueue = require('./queues/submissionQueue');
+  submissionQueue.closeQueue().catch(() => {});
+  db.end().then(() => process.exit(0)).catch(() => process.exit(1));
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));

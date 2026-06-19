@@ -17,8 +17,7 @@
     "/instructor/command": {
       "primary":   { "widget": "InstructorPriorityInsight", "endpoint": "/api/analytics/instructor/priority-insight" },
       "secondary": [
-        { "widget": "AtRiskQueue",       "endpoint": "/api/analytics/instructor/at-risk-queue",       "showIf": "data.length > 0" },
-        { "widget": "InterventionQueue", "endpoint": "/api/analytics/instructor/intervention-queue", "showIf": "data.length > 0" }
+        { "widget": "AtRiskQueue",       "endpoint": "/api/analytics/instructor/at-risk-queue",       "showIf": "data.length > 0" }
       ],
       "tertiary": [
         { "widget": "TopStrugglingConcepts", "endpoint": "/api/analytics/instructor/concepts/top?k=N", "collapsed": true },

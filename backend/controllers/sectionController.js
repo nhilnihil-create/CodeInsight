@@ -1,7 +1,8 @@
 const db = require('../config/db');
 
-async function writeAuditLog(sectionId, actorId, action, meta = {}) {
-  await db.query(
+async function writeAuditLog(sectionId, actorId, action, meta = {}, queryFn = null) {
+  const q = queryFn || db.query.bind(db);
+  await q(
     `INSERT INTO section_audit_log (section_id, actor_id, action, meta) VALUES ($1, $2, $3, $4)`,
     [sectionId, actorId, action, JSON.stringify(meta)]
   );
@@ -17,7 +18,7 @@ function generateCode() {
   return code;
 }
 
-exports.create = async (req, res) => {
+exports.create = async (req, res, next) => {
   const { name, course_code, school_year, semester } = req.body;
   if (!name || !course_code)
     return res.status(400).json({ message: 'name and course_code required' });
@@ -28,10 +29,10 @@ exports.create = async (req, res) => {
     );
     await writeAuditLog(r.rows[0].id, req.user.id, 'section_created', { name, course_code });
     res.status(201).json(r.rows[0]);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.list = async (req, res) => {
+exports.list = async (req, res, next) => {
   try {
     let query, params;
     if (req.user.role === 'instructor') {
@@ -40,6 +41,7 @@ exports.list = async (req, res) => {
         (SELECT COUNT(*) FROM exercises ex WHERE ex.section_id=s.id) AS exercise_count,
         (SELECT COUNT(DISTINCT concept_id) FROM exercises ex WHERE ex.section_id=s.id) AS concept_count,
         (SELECT COUNT(*) FROM alerts al WHERE al.section_id=s.id AND al.is_reviewed=false) AS alert_count,
+        (SELECT COUNT(DISTINCT if2.student_id) FROM integrity_flags if2 WHERE if2.section_id=s.id AND if2.status='flagged') AS integrity_flags_count,
         (SELECT AVG(cs.cds) FROM cds_scores cs 
          WHERE cs.section_id=s.id) AS avg_cds
         FROM sections s WHERE s.instructor_id=$1 ORDER BY s.created_at DESC`;
@@ -54,30 +56,38 @@ exports.list = async (req, res) => {
     }
     const r = await db.query(query, params);
     
-    // For instructors, enrich data with difficulty distribution
+    // For instructors, enrich data with difficulty distribution (batched query)
     if (req.user.role === 'instructor') {
-      for (let section of r.rows) {
+      const sectionIds = r.rows.map(s => s.id);
+      if (sectionIds.length > 0) {
         const diffQuery = `
           SELECT 
+            section_id,
             COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END) AS low_count,
             COUNT(CASE WHEN cs.cds > 0.31 AND cs.cds <= 0.50 THEN 1 END) AS moderate_count,
             COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END) AS high_count
-          FROM cds_scores cs WHERE cs.section_id=$1
+          FROM cds_scores cs WHERE cs.section_id = ANY($1)
+          GROUP BY cs.section_id
         `;
-        const diffRes = await db.query(diffQuery, [section.id]);
-        const diff = diffRes.rows[0] || { low_count: 0, moderate_count: 0, high_count: 0 };
-        section.difficulty_distribution = {
-          low: parseInt(diff.low_count),
-          moderate: parseInt(diff.moderate_count),
-          high: parseInt(diff.high_count)
-        };
+        const diffRes = await db.query(diffQuery, [sectionIds]);
+        const diffMap = {};
+        for (const row of diffRes.rows) {
+          diffMap[row.section_id] = {
+            low: parseInt(row.low_count),
+            moderate: parseInt(row.moderate_count),
+            high: parseInt(row.high_count)
+          };
+        }
+        for (const section of r.rows) {
+          section.difficulty_distribution = diffMap[section.id] || { low: 0, moderate: 0, high: 0 };
+        }
       }
     }
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.getOne = async (req, res) => {
+exports.getOne = async (req, res, next) => {
   try {
     const sec = await db.query(
       `SELECT s.*, u.name AS instructor_name,
@@ -87,16 +97,22 @@ exports.getOne = async (req, res) => {
            SELECT ex.id, (SELECT COUNT(DISTINCT student_id) FROM submissions sub WHERE sub.exercise_id=ex.id AND sub.student_id IN (SELECT student_id FROM enrollments WHERE section_id=s.id)) AS submitted_count,
            (SELECT COUNT(*) FROM enrollments WHERE section_id=s.id) AS total_students
          FROM exercises ex WHERE ex.section_id=s.id
-         ) t WHERE t.submitted_count >= t.total_students) AS completed_exercises
+         ) t WHERE t.submitted_count >= t.total_students) AS completed_exercises,
+       (SELECT COUNT(DISTINCT student_id) FROM submissions sub 
+        WHERE sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=s.id)) AS total_submissions,
+       (SELECT COUNT(*) FROM alerts al WHERE al.section_id=s.id AND al.is_reviewed=false) AS open_alert_count,
+       (SELECT COUNT(DISTINCT if2.student_id) FROM integrity_flags if2 WHERE if2.section_id=s.id AND if2.status='flagged') AS integrity_flags_count,
+       (SELECT COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END)::INTEGER FROM cds_scores cs WHERE cs.section_id=s.id) AS at_risk_count,
+       (SELECT AVG(cs.cds) FROM cds_scores cs WHERE cs.section_id=s.id) AS avg_cds
        FROM sections s JOIN users u ON u.id=s.instructor_id
        WHERE s.id=$1`, [req.params.id]
     );
     if (!sec.rows.length) return res.status(404).json({ message: 'Section not found' });
     res.json(sec.rows[0]);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.enroll = async (req, res) => {
+exports.enroll = async (req, res, next) => {
   const { studentIds, emails } = req.body;
   const sectionId = req.params.id;
   try {
@@ -119,20 +135,27 @@ exports.enroll = async (req, res) => {
       enrolled++;
     }
     res.json({ message: `${enrolled} student(s) enrolled` });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.unenroll = async (req, res) => {
+exports.unenroll = async (req, res, next) => {
   try {
-    await db.query(
-      'DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2',
-      [req.params.studentId, req.params.id]
-    );
+    const { studentId, id } = req.params;
+    await db.query('DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+
+    // Cascade cleanup: remove analytics data for this student in this section
+    // so old section data doesn't persist in student-facing analytics.
+    await db.query('DELETE FROM cds_scores WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM integrity_flags WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM alerts WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM student_concept_metrics WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    await db.query('DELETE FROM analytics_alerts WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+
     res.json({ message: 'Student removed from section' });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.getStudents = async (req, res) => {
+exports.getStudents = async (req, res, next) => {
   try {
     const r = await db.query(
       `SELECT u.id, u.name, u.email, e.enrolled_at
@@ -141,30 +164,59 @@ exports.getStudents = async (req, res) => {
       [req.params.id]
     );
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
 // Get students with their latest CDS scores and submission counts
-exports.getStudentsWithScores = async (req, res) => {
+exports.getStudentsWithScores = async (req, res, next) => {
   try {
     const { section_id } = req.params;
     const r = await db.query(
-      `SELECT 
+      `SELECT
         u.id, u.name, u.email,
         (SELECT MAX(cds) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1) AS latest_cds,
-        (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id 
+        (SELECT cds FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1
+         ORDER BY cs.computed_at ASC LIMIT 1) AS first_cds,
+        (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id
          AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=$1)) AS submitted_count,
-        (SELECT COUNT(*) FROM exercises WHERE section_id=$1) AS total_exercises
+        (SELECT COUNT(*) FROM exercises WHERE section_id=$1) AS total_exercises,
+        (SELECT COUNT(*)::INTEGER FROM integrity_flags if2 WHERE if2.student_id=u.id AND if2.section_id=$1 AND if2.status='flagged') AS integrity_flag_count,
+        (SELECT MAX(submitted_at) FROM submissions sub WHERE sub.student_id=u.id
+         AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=$1)) AS last_active
        FROM users u JOIN enrollments e ON e.student_id=u.id
        WHERE e.section_id=$1 ORDER BY u.name`,
       [section_id]
     );
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
+};
+
+/**
+ * GET /api/sections/students-all
+ * Aggregates students across ALL sections owned by the instructor.
+ */
+exports.getStudentsAcrossSections = async (req, res, next) => {
+  try {
+    const instructorId = req.user.id;
+    const r = await db.query(
+      `SELECT DISTINCT
+        u.id, u.name, u.email,
+        (SELECT MAX(cds) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id IN (SELECT id FROM sections WHERE instructor_id=$1)) AS latest_cds,
+        (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id
+         AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id IN (SELECT id FROM sections WHERE instructor_id=$1))) AS submitted_count,
+        (SELECT COUNT(*) FROM exercises WHERE section_id IN (SELECT id FROM sections WHERE instructor_id=$1)) AS total_exercises,
+        (SELECT COUNT(*)::INTEGER FROM integrity_flags if2 WHERE if2.student_id=u.id AND if2.section_id IN (SELECT id FROM sections WHERE instructor_id=$1) AND if2.status='flagged') AS integrity_flag_count
+       FROM users u JOIN enrollments e ON e.student_id=u.id
+       WHERE e.section_id IN (SELECT id FROM sections WHERE instructor_id=$1)
+       ORDER BY u.name`,
+      [instructorId]
+    );
+    res.json(r.rows);
+  } catch (err) { next(err); }
 };
 
 // Get exercises for a section with stats
-exports.getSectionExercises = async (req, res) => {
+exports.getSectionExercises = async (req, res, next) => {
   try {
     const { section_id } = req.params;
     const r = await db.query(
@@ -190,12 +242,12 @@ exports.getSectionExercises = async (req, res) => {
       [section_id]
     );
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
 // ── New section management endpoints (spec §11.6) ─────────────────────────
 
-exports.rotateCode = async (req, res) => {
+exports.rotateCode = async (req, res, next) => {
   const { id } = req.params;
   try {
     const newCode = generateCode();
@@ -203,10 +255,10 @@ exports.rotateCode = async (req, res) => {
     if (!r.rows.length) return res.status(404).json({ error: 'Section not found' });
     await writeAuditLog(id, req.user.id, 'code_rotated', { code: newCode });
     res.json(r.rows[0]);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.joinSection = async (req, res) => {
+exports.joinSection = async (req, res, next) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ error: 'Code required' });
   try {
@@ -214,66 +266,64 @@ exports.joinSection = async (req, res) => {
     // on the section row inside the join transaction. This serializes concurrent
     // joins at the max_size boundary; the first wins, the second sees the
     // post-increment count and is rejected with "Section is full."
-    await db.query('BEGIN');
-    const sec = await db.query(
-      'SELECT * FROM sections WHERE code=$1 FOR UPDATE',
-      [code.toUpperCase()]
-    );
-    if (!sec.rows.length) {
-      await db.query('ROLLBACK');
-      return res.status(404).json({ error: 'Invalid code' });
-    }
-    const section = sec.rows[0];
-    if (section.join_policy === 'closed') {
-      await db.query('ROLLBACK');
-      return res.status(403).json({ error: 'Section is closed to new join requests' });
-    }
-
-    // Re-check max_size under the lock (defense: race-join at the cap).
-    if (section.max_size) {
-      const cnt = await db.query(
-        'SELECT COUNT(*)::int AS n FROM enrollments WHERE section_id=$1',
-        [section.id]
+    //
+    // Uses withTransaction() to ensure all queries run on the same pool client
+    // so the transaction (BEGIN / COMMIT / ROLLBACK) is coherent.
+    const result = await db.withTransaction(async (client) => {
+      const sec = await client.query(
+        'SELECT * FROM sections WHERE code=$1 FOR UPDATE',
+        [code.toUpperCase()]
       );
-      if (cnt.rows[0].n >= section.max_size) {
-        await db.query('ROLLBACK');
-        return res.status(403).json({ error: 'Section is full' });
+      if (!sec.rows.length) {
+        throw Object.assign(new Error('Invalid code'), { status: 404 });
       }
-    }
+      const section = sec.rows[0];
+      if (section.join_policy === 'closed') {
+        throw Object.assign(new Error('Section is closed to new join requests'), { status: 403 });
+      }
 
-    const existing = await db.query(
-      'SELECT * FROM enrollments WHERE student_id=$1 AND section_id=$2',
-      [req.user.id, section.id]
-    );
-    if (existing.rows.length) {
-      await db.query('ROLLBACK');
-      return res.status(409).json({ error: 'Already enrolled' });
-    }
+      // Re-check max_size under the lock (defense: race-join at the cap).
+      if (section.max_size) {
+        const cnt = await client.query(
+          'SELECT COUNT(*)::int AS n FROM enrollments WHERE section_id=$1',
+          [section.id]
+        );
+        if (cnt.rows[0].n >= section.max_size) {
+          throw Object.assign(new Error('Section is full'), { status: 403 });
+        }
+      }
 
-    if (section.join_policy === 'code') {
-      await db.query(
-        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2)',
+      const existing = await client.query(
+        'SELECT * FROM enrollments WHERE student_id=$1 AND section_id=$2',
         [req.user.id, section.id]
       );
-      await writeAuditLog(section.id, req.user.id, 'student_joined', { code });
-      await db.query('COMMIT');
-      return res.json({ message: 'Joined section', section });
-    }
+      if (existing.rows.length) {
+        throw Object.assign(new Error('Already enrolled'), { status: 409 });
+      }
 
-    await db.query(
-      'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
-      [req.user.id, section.id]
-    );
-    await writeAuditLog(section.id, req.user.id, 'student_requested_to_join', { code });
-    await db.query('COMMIT');
-    res.json({ message: 'Join request submitted' });
+      if (section.join_policy === 'code') {
+        await client.query(
+          'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+          [req.user.id, section.id]
+        );
+        await writeAuditLog(section.id, req.user.id, 'student_joined', { code }, client.query.bind(client));
+        return { message: 'Joined section', section };
+      }
+
+      await client.query(
+        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
+        [req.user.id, section.id]
+      );
+      await writeAuditLog(section.id, req.user.id, 'student_requested_to_join', { code }, client.query.bind(client));
+      return { message: 'Join request submitted' };
+    });
+    res.json(result);
   } catch (err) {
-    try { await db.query('ROLLBACK'); } catch (_) {}
-    res.status(500).json({ message: err.message });
+    next(err);
   }
 };
 
-exports.addMembership = async (req, res) => {
+exports.addMembership = async (req, res, next) => {
   const { id } = req.params;
   const { userId, role } = req.body;
   try {
@@ -282,11 +332,12 @@ exports.addMembership = async (req, res) => {
       [userId, id]
     );
     await writeAuditLog(id, req.user.id, 'student_joined', { userId, role: role || 'student' });
-    res.status(201).json(r.rows[0] || { message: 'Already enrolled' });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+    const status = r.rows.length ? 201 : 200;
+    res.status(status).json(r.rows[0] || { message: 'Already enrolled' });
+  } catch (err) { next(err); }
 };
 
-exports.updateMembership = async (req, res) => {
+exports.updateMembership = async (req, res, next) => {
   const { id, mid } = req.params;
   const { status, dropReason } = req.body;
   try {
@@ -299,14 +350,19 @@ exports.updateMembership = async (req, res) => {
         return res.status(400).json({ error: 'dropReason is required to drop a student' });
       }
       await db.query('DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM cds_scores WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM integrity_flags WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM alerts WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM student_concept_metrics WHERE student_id=$1 AND section_id=$2', [mid, id]);
+      await db.query('DELETE FROM analytics_alerts WHERE student_id=$1 AND section_id=$2', [mid, id]);
       await writeAuditLog(id, req.user.id, 'student_dropped', { studentId: mid, reason });
       return res.json({ message: 'Student dropped' });
     }
     res.json({ message: 'Membership updated' });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.bulkImport = async (req, res) => {
+exports.bulkImport = async (req, res, next) => {
   const { id } = req.params;
   const { emails } = req.body;
   if (!emails || !emails.length) return res.status(400).json({ error: 'Emails array required' });
@@ -322,10 +378,10 @@ exports.bulkImport = async (req, res) => {
     }
     await writeAuditLog(id, req.user.id, 'bulk_import_run', { count: enrolled, total: emails.length });
     res.json({ message: `${enrolled} of ${emails.length} students enrolled` });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.getAuditLog = async (req, res) => {
+exports.getAuditLog = async (req, res, next) => {
   const { id } = req.params;
   try {
     const r = await db.query(
@@ -335,10 +391,10 @@ exports.getAuditLog = async (req, res) => {
       [id]
     );
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.getDeptAudit = async (req, res) => {
+exports.getDeptAudit = async (req, res, next) => {
   try {
     const r = await db.query(
       `SELECT al.*, u.name AS actor_name, s.name AS section_name FROM section_audit_log al
@@ -347,10 +403,10 @@ exports.getDeptAudit = async (req, res) => {
        ORDER BY al.created_at DESC LIMIT 200`
     );
     res.json(r.rows);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
 
-exports.updatePolicy = async (req, res) => {
+exports.updatePolicy = async (req, res, next) => {
   const { id } = req.params;
   const { join_policy } = req.body;
   if (!['code', 'request', 'closed'].includes(join_policy)) {
@@ -360,5 +416,44 @@ exports.updatePolicy = async (req, res) => {
     const r = await db.query('UPDATE sections SET join_policy=$1 WHERE id=$2 RETURNING *', [join_policy, id]);
     await writeAuditLog(id, req.user.id, 'policy_changed', { from: r.rows[0].join_policy, to: join_policy });
     res.json(r.rows[0]);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) { next(err); }
 };
+
+exports.update = async (req, res, next) => {
+  const { id } = req.params;
+  const { name, course_code, school_year, semester } = req.body;
+  try {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+    if (name !== undefined) { fields.push(`name=$${idx++}`); values.push(name); }
+    if (course_code !== undefined) { fields.push(`course_code=$${idx++}`); values.push(course_code); }
+    if (school_year !== undefined) { fields.push(`school_year=$${idx++}`); values.push(school_year); }
+    if (semester !== undefined) { fields.push(`semester=$${idx++}`); values.push(semester); }
+    if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
+    values.push(id);
+    const r = await db.query(
+      `UPDATE sections SET ${fields.join(',')} WHERE id=$${idx} RETURNING *`,
+      values
+    );
+    if (!r.rows.length) return res.status(404).json({ message: 'Section not found' });
+    await writeAuditLog(id, req.user.id, 'section_updated', { fields: fields.map(f => f.split('=')[0]) });
+    res.json(r.rows[0]);
+  } catch (err) { next(err); }
+};
+
+exports.delete = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const sec = await db.query('SELECT * FROM sections WHERE id=$1', [id]);
+    if (!sec.rows.length) return res.status(404).json({ error: 'Section not found' });
+    if (sec.rows[0].instructor_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this section' });
+    }
+    await writeAuditLog(id, req.user.id, 'section_deleted', { name: sec.rows[0].name });
+    await db.query('DELETE FROM sections WHERE id=$1', [id]);
+    res.json({ deleted: true, id: Number(id) });
+  } catch (err) { next(err); }
+};
+
+

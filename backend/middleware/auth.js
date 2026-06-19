@@ -2,11 +2,14 @@ const jwt = require('jsonwebtoken');
 const { AppError, codes } = require('../lib/AppError');
 
 const verifyToken = (req, _res, next) => {
-  const header = req.headers['authorization'];
-  if (!header) return next(new AppError('No token provided', 401, codes.UNAUTHORIZED));
-
-  const token = header.split(' ')[1];
-  if (!token) return next(new AppError('Token missing', 401, codes.UNAUTHORIZED));
+  // Prefer httpOnly cookie (set by /api/auth/login), fall back to Authorization header
+  // for backwards compatibility with any external tooling.
+  let token = req.cookies?.ci_token;
+  if (!token) {
+    const header = req.headers['authorization'];
+    if (header) token = header.split(' ')[1];
+  }
+  if (!token) return next(new AppError('No token provided', 401, codes.UNAUTHORIZED));
 
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);

@@ -221,6 +221,132 @@ describe('Micro-Concept Engine Test Suite', function() {
     });
   });
 
+  describe('Pointers Rules', function() {
+    it('should run without crashing on pointer code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'int x = 5;\nint* p = &x;\ncout << *p;' }, 'Pointers');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Strings Rules', function() {
+    it('should run without crashing on string code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'string s = "hello";\ncout << s;' }, 'Strings');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Input/Output Rules', function() {
+    it('should run without crashing on IO code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'int x;\ncin >> x;\ncout << x;' }, 'Input/Output');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Switch/Case Rules', function() {
+    it('should run without crashing on switch code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'switch(x) { case 1: break; default: break; }' }, 'Switch/Case');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Nested Loops Rules', function() {
+    it('should run without crashing on nested loop code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'for(int i=0;i<3;i++) { for(int j=0;j<3;j++) {} }' }, 'Nested Loops');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Recursion Rules', function() {
+    it('should run without crashing on recursive code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'int fact(int n) { if(n<=1) return 1; return n*fact(n-1); }' }, 'Recursion');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('File I/O Rules', function() {
+    it('should run without crashing on file IO code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'ifstream fin("in.txt");\nfin >> x;' }, 'File I/O');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Scope Rules', function() {
+    it('should run without crashing on scope-related code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'int x = 5;\n{ int x = 10; }' }, 'Scope');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Enums Rules', function() {
+    it('should run without crashing on enum code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'enum Color { RED, GREEN, BLUE };' }, 'Enums');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Structs Rules', function() {
+    it('should run without crashing on struct code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'struct Point { int x; int y; };' }, 'Structs');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Dynamic Memory Rules', function() {
+    it('should run without crashing on dynamic memory code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'int* p = new int[10];\ndelete[] p;' }, 'Dynamic Memory');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Linked Lists Rules', function() {
+    it('should run without crashing on linked list code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'struct Node { int data; Node* next; };' }, 'Linked Lists');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Error Handling Rules', function() {
+    it('should run without crashing on try-catch code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'try { throw 5; } catch(int e) {}' }, 'Error Handling');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Type Casting Rules', function() {
+    it('should run without crashing on type casting code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'double d = 3.14;\nint i = (int)d;' }, 'Type Casting');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Preprocessor Rules', function() {
+    it('should run without crashing on preprocessor code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: '#include <iostream>\n#define PI 3.14' }, 'Preprocessor');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Namespaces Rules', function() {
+    it('should run without crashing on namespace code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'using namespace std;\ncout << "hello";' }, 'Namespaces');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Inheritance Rules', function() {
+    it('should run without crashing on inheritance code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'class Base {};\nclass Derived : public Base {};' }, 'Inheritance');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
+  describe('Polymorphism Rules', function() {
+    it('should run without crashing on polymorphism code', async function() {
+      const result = await microConceptEngine.getMicroConceptFeedback({ code: 'class Base { public: virtual void f() {} };\nclass Derived : public Base { void f() override {} };' }, 'Polymorphism');
+      assert.strictEqual(typeof result.hasFeedback, 'boolean');
+    });
+  });
+
   describe('Error Handling', function() {
     it('should handle null/undefined context gracefully', async function() {
       const result = await microConceptEngine.getMicroConceptFeedback(null, 'Variables');

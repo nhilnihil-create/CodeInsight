@@ -20,12 +20,150 @@ async function detectMicroConcepts(context, conceptName) {
     evidence: []
   };
 
+  // Guard against null context — provide safe defaults for all detectors
+  if (!context) context = {};
+  if (!context.ast) context.ast = {};
+  if (!context.testResults) context.testResults = [];
+  if (!context.compilerErrors) context.compilerErrors = [];
+  if (!context.code) context.code = '';
+  if (context.timeLimitHit === undefined) context.timeLimitHit = false;
+  if (!context.ast.node_types) context.ast.node_types = [];
+  if (context.ast.if_count === undefined) context.ast.if_count = 0;
+  if (context.ast.else_count === undefined) context.ast.else_count = 0;
+  if (context.ast.has_private === undefined) context.ast.has_private = false;
+  if (!context.required_ast_nodes) context.required_ast_nodes = [];
+  if (!context.exercise) context.exercise = {};
+
   // Get rules for the specific concept
   const conceptRules = MICRO_CONCEPT_RULES[conceptName] || [];
 
-  // Also run cross-cutting rules that might apply to any concept
-  const crossCuttingRules = [];
-  // Add any rules that apply across concepts here if needed
+  // Cross-cutting rules that apply to ANY submission regardless of concept
+  const crossCuttingRules = [
+    {
+      id: 'cc_missing_semicolon',
+      name: 'Missing Semicolon',
+      description: 'Syntax error: missing semicolon at end of statement',
+      detector: ({compilerErrors}) => compilerErrors.some(err =>
+        err.includes('expected') || err.includes('parse error')
+      ),
+      instructorMessage: 'Missing semicolon — every statement in C++ ends with ;',
+      studentMessage: 'Every statement in C++ must end with a semicolon (;).',
+      evidenceExtractor: ({compilerErrors}) => {
+        const err = compilerErrors.find(e => e.includes('expected'));
+        return err ? err.trim() : 'Syntax error: missing ;';
+      }
+    },
+    {
+      id: 'cc_unused_variable',
+      name: 'Variable Declared But Not Used',
+      description: 'Variable declared but never read or written to',
+      detector: ({compilerErrors}) => compilerErrors.some(err =>
+        err.includes('unused variable') ||
+        err.includes('set but not used')
+      ),
+      instructorMessage: 'Declared variable is never used. Remove unused variables to keep code clean.',
+      studentMessage: 'You declared a variable but never used it. Either use it or remove it.',
+      evidenceExtractor: ({compilerErrors}) => {
+        const err = compilerErrors.find(e => e.includes('unused'));
+        return err ? err.trim() : 'Unused variable';
+      }
+    },
+    {
+      id: 'cc_missing_return_main',
+      name: 'Missing return 0 in main()',
+      description: 'Main function without return 0; at the end',
+      detector: ({code}) => {
+        const hasMain = /\bmain\s*\(/.test(code);
+        const hasReturn = /return\s+0\s*;/.test(code);
+        return hasMain && !hasReturn;
+      },
+      instructorMessage: 'main() should return 0 to indicate successful program completion to the operating system.',
+      studentMessage: 'Add "return 0;" at the end of main() to indicate the program ran successfully.',
+      evidenceExtractor: () => 'main() missing return 0'
+    },
+    {
+      id: 'cc_using_namespace_std',
+      name: 'Using namespace std in Global Scope',
+      description: 'using namespace std; at file scope — considered bad practice in larger programs',
+      detector: ({code}) => {
+        const hasGlobalUsing = /^using\s+namespace\s+std\s*;/m.test(code);
+        return hasGlobalUsing;
+      },
+      instructorMessage: 'using namespace std; at file scope can cause naming collisions in larger programs. Use std:: prefix instead.',
+      studentMessage: 'For now it works, but in larger programs, use std::cout instead of cout to avoid naming conflicts.',
+      evidenceExtractor: () => 'using namespace std in global scope'
+    },
+    {
+      id: 'cc_comma_in_conditional',
+      name: 'Comma Operator in Conditional',
+      description: 'Using comma operator inside if or while condition — left operand value is discarded',
+      detector: ({code, compilerErrors}) => {
+        const commaInCondition = /(?:if|while|for)\s*\([^)]*,[^)]*\)/.test(code);
+        const commaWarning = compilerErrors.some(err =>
+          err.includes('comma') || (err.includes('left operand') && err.includes(','))
+        );
+        return commaInCondition || commaWarning;
+      },
+      instructorMessage: 'Comma operator in a conditional discards the left operand truth value. Only the rightmost expression determines the condition.',
+      studentMessage: 'In "if (x, y)", only y matters for the condition. Use && or || if you want to test both values.',
+      evidenceExtractor: ({code}) => {
+        const match = code.match(/(?:if|while|for)\s*\([^)]*,[^)]*\)/);
+        return match ? `Comma operator in: ${match[0].trim()}` : 'Comma operator in conditional';
+      }
+    },
+    {
+      id: 'cc_short_circuit_if',
+      name: 'Short-Circuit as If-Replacement',
+      description: 'Using logical && or || as control flow at statement level instead of if',
+      detector: ({code}) => {
+        const stmtLevelAnd = /(?:^|;)\s*\w+\s*[^;]*\&\&\s*\w+\s*\(/.test(code);
+        const stmtLevelOr = /(?:^|;)\s*\w+\s*[^;]*\|\|\s*\w+\s*\(/.test(code);
+        return stmtLevelAnd || stmtLevelOr;
+      },
+      instructorMessage: 'Using && or || as a control flow mechanism instead of if statements. This makes C++ code harder to read and debug.',
+      studentMessage: 'Replace "condition && action()" with "if (condition) { action(); }" for clarity.',
+      evidenceExtractor: ({code}) => {
+        const match = code.match(/(?:^|;)\s*\w+\s*[^;]*\&\&\s*\w+\s*\(/);
+        return match ? `Found: ${match[0].trim()}` : 'Short-circuit control flow';
+      }
+    },
+    {
+      id: 'cc_empty_loop_body',
+      name: 'Empty Loop Body',
+      description: 'Loop with empty or semicolon-only body — likely unintentional',
+      detector: ({code, compilerErrors}) => {
+        const emptyFor = /for\s*\([^)]*\)\s*;/.test(code);
+        const emptyWhile = /while\s*\([^)]*\)\s*;/.test(code);
+        const emptyDo = /do\s*;\s*while/.test(code);
+        const emptyWarning = compilerErrors.some(err =>
+          err.includes('empty body') || err.includes('-Wempty-body')
+        );
+        return emptyFor || emptyWhile || emptyDo || emptyWarning;
+      },
+      instructorMessage: 'Loop has an empty body (semicolon right after the loop header). The loop does nothing.',
+      studentMessage: 'Your loop body is empty. Keep the opening brace { on the same line as for/while to avoid accidental semicolons.',
+      evidenceExtractor: ({code}) => {
+        const match = code.match(/(?:for|while)\s*\([^)]*\)\s*;/);
+        return match ? `Empty loop: ${match[0].trim()}` : 'Empty loop body detected';
+      }
+    },
+    {
+      id: 'cc_macro_heavy',
+      name: 'Macro-Obfuscated Computation',
+      description: 'Heavy use of #define macros (> 5) without regular function definitions — logic hidden in macros',
+      detector: ({code}) => {
+        const defineCount = (code.match(/#define\s/g) || []).length;
+        const hasFuncDefs = /\w+\s+\([^)]*\)\s*\{/.test(code);
+        return defineCount > 5 && !hasFuncDefs;
+      },
+      instructorMessage: 'Excessive macros (#define) without regular function definitions. Macros obscure logic and bypass type checking.',
+      studentMessage: 'Replace #define macros with regular functions — they are type-safe and easier to debug.',
+      evidenceExtractor: ({code}) => {
+        const macros = (code.match(/#define\s/g) || []).length;
+        return `${macros} #define directives found, no function definitions`;
+      }
+    }
+  ];
 
   // Combine concept-specific and cross-cutting rules
   const allRules = [...conceptRules, ...crossCuttingRules];
@@ -137,7 +275,7 @@ function generateSummary(detectedIssues) {
 function generateSuggestedAction(detectedIssues) {
   if (detectedIssues.length === 0) return 'Continue practicing!';
 
-  // Provide concept-specific guidance
+  // Provide concept-specific guidance (all 25 concepts)
   const conceptSpecificActions = {
     'Datatypes': 'Review data types and ensure proper use of integers vs. floating-point numbers.',
     'Variables': 'Check variable declarations and scope. Ensure all variables are declared before use.',
@@ -145,7 +283,25 @@ function generateSuggestedAction(detectedIssues) {
     'Loops': 'Verify loop initialization, condition, and increment/decrement parts.',
     'Functions': 'Ensure functions have proper return statements and correct parameter types.',
     'Arrays': 'Check array indexing and bounds. Use loop variables for iteration.',
-    'OOP': 'Review class design, encapsulation, and access modifiers.'
+    'OOP': 'Review class design, encapsulation, and access modifiers.',
+    'Pointers': 'Understand pointer initialization, dereferencing (*p), and memory management.',
+    'Strings': 'Review std::string operations: concatenation, indexing, and the <string> header.',
+    'Input/Output': 'Check your stream operators (>> and << directions) and include <iostream>.',
+    'Switch/Case': 'Verify each case has a break; and consider adding a default: branch.',
+    'Nested Loops': 'Use different loop variables for inner vs outer loops. Reset accumulators each iteration.',
+    'Recursion': 'Verify your base case stops recursion. Trace execution for small inputs first.',
+    'File I/O': 'Check file open success with .is_open() and include <fstream>.',
+    'Scope': 'Variables are local to their { } block. Declare variables at the scope level you need.',
+    'Enums': 'Use enum class for type-safe enums. Initialize enum variables before use.',
+    'Structs': 'Initialize all struct fields. Pass large structs by const reference.',
+    'Dynamic Memory': 'Every new needs a matching delete. Every new[] needs a matching delete[].',
+    'Linked Lists': 'Check for nullptr during traversal. Update next pointers correctly when inserting.',
+    'Error Handling': 'Catch exceptions by const reference. Never leave catch blocks empty.',
+    'Type Casting': 'Prefer static_cast<Type>(value) over C-style casts. Watch for precision loss.',
+    'Preprocessor': 'Use #pragma once in headers. Wrap macro arguments and body in parentheses.',
+    'Namespaces': 'Use std:: prefix or add using namespace std;. Avoid ambiguous namespace references.',
+    'Inheritance': 'Base class destructors should be virtual. Call base constructors in initializer lists.',
+    'Polymorphism': 'Mark overriding functions with override keyword. Ensure base functions are virtual.'
   };
 
   // For multiple issues, provide general advice

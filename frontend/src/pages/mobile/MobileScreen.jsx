@@ -12,7 +12,6 @@ import { SnapshotMetrics }           from '../../components/mobile/SnapshotMetri
 import { EvaluationProgress }        from '../../components/mobile/EvaluationProgress.jsx';
 import { AtRiskQueue }               from '../../components/mobile/AtRiskQueue.jsx';
 import { AtRiskRoster }              from '../../components/mobile/AtRiskRoster.jsx';
-import { InterventionQueue }         from '../../components/mobile/InterventionQueue.jsx';
 import { ActionStack }               from '../../components/mobile/ActionStack.jsx';
 import { TopStrugglingConcepts }     from '../../components/mobile/TopStrugglingConcepts.jsx';
 import { WeakestConceptBar }         from '../../components/mobile/WeakestConceptBar.jsx';
@@ -34,7 +33,7 @@ import { Iso25010Instrument }        from '../../components/mobile/Iso25010Instr
 import { SectionList }               from '../../components/SectionList.jsx';
 
 const WIDGET_MAP = {
-  InstructorPriorityInsight, AtRiskQueue, AtRiskRoster, InterventionQueue,
+  InstructorPriorityInsight, AtRiskQueue, AtRiskRoster,
   TopStrugglingConcepts, WeakestConceptBar, ConceptMasteryBarSet, WeeklyProgress,
   WeeklyTeachingInsight, ClassProfileRadar, ActionStack, StudentTodayFocus,
   SnapshotMetrics, EvaluationProgress, Iso25010Instrument, AuditLog,

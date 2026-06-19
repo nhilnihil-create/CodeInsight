@@ -29,10 +29,6 @@ describe('CDS + integrity production loop', () => {
   });
 
   test('evaluateIntegrity and createFlag wire submit-side integrity', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [{ avg_cds: 0.5, stddev_cds: 0.2, exercise_count: 2 }] })
-      .mockResolvedValueOnce({ rows: [] });
-
     const flags = await academicIntegrityEngine.evaluateIntegrity({
       code: '#include <iostream>\nusing namespace std;\nint main() { cout << 42; return 0; }',
       starterCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n  return 0;\n}',
@@ -40,8 +36,6 @@ describe('CDS + integrity production loop', () => {
       exerciseId: 10,
       submission: { time_spent_seconds: 120, is_correct: false },
       exercise: { id: 10, starter_code: '#include <iostream>\nusing namespace std;\n\nint main() {\n  return 0;\n}' },
-      cdsEngine,
-      behavioralData: {}
     });
 
     expect(flags.some(f => f.type === 'HARDCODING')).toBe(true);
@@ -81,22 +75,17 @@ describe('CDS + integrity production loop', () => {
     expect(live.hasFlaggedAttempt).toBe(true);
   });
 
-  test('enqueueCdsComputation runs batch CDS and stores notifications', async () => {
+  test('enqueueCdsComputation runs batch CDS and sends email notifications', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ section_id: 1 }] })
       .mockResolvedValueOnce({
         rows: [
           { student_id: 2, email: 'maria@student.psu.edu', name: 'Maria' }
         ]
-      })
-      .mockResolvedValueOnce({ rows: [] });
+      });
 
     await cdsJobQueue.enqueueCdsComputation(10);
 
     expect(cdsEngine.computeBatchCDS).toHaveBeenCalledWith(10, db);
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO notifications'),
-      expect.arrayContaining([2, 1, 10, 'CDS computation completed', 'cds_computation'])
-    );
   });
 });

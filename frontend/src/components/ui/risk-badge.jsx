@@ -4,7 +4,7 @@
  * for arbitrary-hex CDS indicators across the app.
  *
  * Props
- *   - level  "low" | "moderate" | "high" | "na"
+ *   - level  "low" | "moderate" | "high" | "critical" | "na"
  *
  * Tokens only.
  */
@@ -12,6 +12,7 @@ const VARIANTS = {
   low: "bg-cds-low/10 text-cds-low border border-cds-low/20",
   moderate: "bg-cds-mod/10 text-cds-mod border border-cds-mod/20",
   high: "bg-cds-high/10 text-cds-high border border-cds-high/20",
+  critical: "bg-destructive/20 text-destructive border border-destructive/30",
   na: "bg-cds-na/10 text-cds-na border border-cds-na/20",
 };
 
@@ -19,6 +20,7 @@ const LABELS = {
   low: "Low",
   moderate: "Moderate",
   high: "High",
+  critical: "Critical",
   na: "N/A",
 };
 

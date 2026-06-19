@@ -39,7 +39,7 @@ export default function DecisionList({
 
   return (
     <ul
-      className="rounded-lg border border-border bg-card divide-y divide-border overflow-hidden"
+      className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm divide-y divide-border/40 overflow-hidden"
       role="list"
       aria-label="Decision list"
     >
@@ -59,8 +59,8 @@ export default function DecisionList({
               }
             }}
             className={cn(
-              "flex items-center gap-3 px-4 h-16 transition-colors cursor-pointer",
-              "hover:bg-muted/40",
+              "flex items-center gap-3 px-4 h-16 transition-all duration-200 ease-out cursor-pointer",
+              "hover:bg-slate-900/80 hover:scale-[1.01]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               highlighted && "bg-primary/5 border-l-2 border-primary",
             )}

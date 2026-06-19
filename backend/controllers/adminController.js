@@ -136,10 +136,11 @@ exports.listConcepts = async (req, res, next) => {
 
 exports.createConcept = async (req, res, next) => {
   try {
-    const { name, ast_nodes = [] } = req.body;
+    const { name, ast_nodes = [], knowledge_area_code, bloom_level, slug } = req.body;
     const r = await db.query(
-      'INSERT INTO concepts (name, ast_nodes) VALUES ($1, $2) RETURNING *',
-      [name, ast_nodes]
+      `INSERT INTO concepts (name, ast_nodes, knowledge_area_code, bloom_level, slug)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, ast_nodes, knowledge_area_code || null, bloom_level || 'apply', slug || null]
     );
     res.status(201).json({ concept: r.rows[0] });
   } catch (err) { next(err); }

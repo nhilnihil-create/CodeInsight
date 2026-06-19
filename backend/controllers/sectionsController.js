@@ -1,3 +1,7 @@
+// ⚠️ DEPRECATED — This file uses knex/knex-like syntax (`db('sections')`) on a
+// `pg.Pool` which is NOT callable as a function. Every handler would throw
+// `TypeError: db is not a function`. Not wired to any route.
+// Use `controllers/sectionController.js` (singular) instead.
 const db = require('../config/db');
 
 /**

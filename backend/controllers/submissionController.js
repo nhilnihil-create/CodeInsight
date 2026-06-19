@@ -3,6 +3,45 @@ const executor = require('../services/executor');
 const astVerifier = require('../services/astVerifier');
 const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
+const { gradeSubmission } = require('../services/streamMatcher');
+const errorReporter = require('../services/errorReporter');
+const analyticsEngine = require('../services/analyticsEngine');
+const conceptAnalytics = require('../services/conceptAnalytics');
+const submissionQueue = require('../queues/submissionQueue');
+
+/**
+ * Token counter for growth velocity monitoring.
+ * Counts C++ identifiers, keywords, operators, literals.
+ */
+function countTokens(code) {
+  if (!code) return 0;
+  const cleaned = code
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/"[^"]*"/g, '""')
+    .replace(/'[^']*'/g, "''");
+  const tokens = cleaned.match(/[a-zA-Z_]\w*|\d+|[+\-*/=<>!&|^~%]+/g) || [];
+  return tokens.length;
+}
+
+/**
+ * Log a behavioral event to the audit_log table.
+ * Non-fatal: logging errors do not break the submission flow.
+ */
+async function logAuditEvent(studentId, exerciseId, eventType, metadata = {}) {
+  try {
+    await db.query(
+      `INSERT INTO audit_log (student_id, exercise_id, event_type, metadata, occurred_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [studentId, exerciseId, eventType, JSON.stringify(metadata)]
+    );
+  } catch (err) {
+    // Silently skip — audit logging is non-blocking
+    if (err.code !== '42P01') { // Ignore "table not found" during dev setup
+      console.warn('Failed to log audit event:', err.message);
+    }
+  }
+}
 
 /**
  * Log performance metrics for ISO 25010 Performance Efficiency evaluation
@@ -41,6 +80,12 @@ exports.run = async (req, res) => {
     if (!ex.rows.length)
       return res.status(404).json({ message: 'Exercise not found' });
     const exercise = ex.rows[0];
+
+    // Log run attempt (audit trail)
+    if (req.user?.id) {
+      await logAuditEvent(req.user.id, exerciseId, 'run_clicked', { code_length: code.length });
+    }
+
     // Run against first visible test case only
     const visibleTC = exercise.test_cases.filter(tc => !tc.hidden);
     if (!visibleTC.length)
@@ -49,8 +94,8 @@ exports.run = async (req, res) => {
       code, visibleTC[0].input, exercise.time_limit_minutes * 60
     );
     const expectedOutput = visibleTC[0].expected || visibleTC[0].expected_output || '';
-    const passed = result.status === 'Success' &&
-                   result.output.trim() === expectedOutput.trim();
+    const grade = gradeSubmission(result.output || '', expectedOutput);
+    const passed = result.status === 'Success' && grade.passed;
 
     // Calculate response latency for performance logging
     const endTime = Date.now();
@@ -66,7 +111,23 @@ exports.run = async (req, res) => {
       userAgent: req.get('User-Agent') || ''
     });
 
-    res.json({ ...result, expected: expectedOutput, passed });
+    // Store every run attempt for misconception analysis
+    if (req.user?.id) {
+      const compileError = result.status === 'Compile Error' ? result.error : null;
+      const runTimeLimitHit = result.status === 'Time Limit Exceeded';
+      const errorCount = compileError
+        ? (compileError.match(/ERROR/g) || []).length
+        : result.status === 'Runtime Error' ? 1 : 0;
+
+      await db.query(
+        `INSERT INTO run_attempts
+         (student_id, exercise_id, code, compiler_log, error_count, time_limit_hit)
+         VALUES($1, $2, $3, $4, $5, $6)`,
+        [req.user.id, exerciseId, code, compileError, errorCount, runTimeLimitHit]
+      );
+    }
+
+    res.json({ ...result, expected: expectedOutput, passed, divergence: grade.divergenceIndex });
   } catch (err) {
     // Calculate response latency for performance logging even on error
     const endTime = Date.now();
@@ -89,7 +150,8 @@ exports.run = async (req, res) => {
 // Submit → — official submission, SAVES to database
 exports.submit = async (req, res) => {
   const startTime = Date.now();
-  const { exerciseId, code, timeSpentSeconds } = req.body;
+  const { exerciseId, code, timeSpentSeconds, tabSwitchCount = 0, pasteCount = 0, idleTimeSeconds = 0 } = req.body;
+
   const studentId = req.user.id;
   try {
     const ex = await db.query(
@@ -108,8 +170,7 @@ exports.submit = async (req, res) => {
     );
     const attemptNumber = attRes.rows[0].next;
 
-    // Calculate Code Growth Delta (Pillar 4: Jadud 2006)
-    // Calculate line-count delta from the previous attempt
+    // ── Code Growth Delta: line-count change from previous attempt ──────
     let codeGrowthDelta = 0;
     if (attemptNumber > 1) {
       const prevRes = await db.query(
@@ -123,12 +184,82 @@ exports.submit = async (req, res) => {
         codeGrowthDelta = currentLines - prevLines;
       }
     } else {
-      // For first attempt, delta is from starter code
+      // First attempt: delta from starter code
       const starterCode = exercise.starter_code || '';
       const currentLines = (code || '').split('\n').length;
       const starterLines = starterCode.split('\n').length;
       codeGrowthDelta = currentLines - starterLines;
     }
+
+    // ── Code Growth Anomaly (paper flag #4) ─────────────────────────────
+    // A growth spike between consecutive submissions can indicate bulk
+    // code insertion (pasting) rather than incremental coding. Threshold
+    // requires BOTH >50% growth AND >50 absolute lines to avoid false
+    // positives from legitimate additions (comments, error handling, etc.)
+    const CODE_GROWTH_PCT_THRESHOLD = 50;
+    const CODE_GROWTH_ABS_THRESHOLD = 50;
+    const currentLineCount = (code || '').split('\n').length;
+    let codeGrowthAnomaly = null;
+
+    if (attemptNumber > 1) {
+      // Compare against PREVIOUS submission's line count
+      const prevRes = await db.query(
+        'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+        [studentId, exerciseId, attemptNumber - 1]
+      );
+      if (prevRes.rows.length > 0) {
+        const prevLineCount = (prevRes.rows[0].code || '').split('\n').length;
+        if (prevLineCount > 0) {
+          const growthPercent = ((currentLineCount - prevLineCount) / prevLineCount) * 100;
+          codeGrowthAnomaly = {
+            baselineLines: prevLineCount,
+            studentLines: currentLineCount,
+            growthPercent: Math.round(growthPercent),
+            thresholdPct: CODE_GROWTH_PCT_THRESHOLD,
+            thresholdAbs: CODE_GROWTH_ABS_THRESHOLD,
+            flagged: growthPercent > CODE_GROWTH_PCT_THRESHOLD && currentLineCount > CODE_GROWTH_ABS_THRESHOLD,
+          };
+        }
+      }
+    }
+
+    // Flag code growth anomaly if triggered
+    if (codeGrowthAnomaly?.flagged) {
+      try {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId,
+          studentId,
+          flagType: 'CODE_GROWTH_ANOMALY',
+          severity: 'low',
+          evidence: {
+            summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
+            baseline_lines: codeGrowthAnomaly.baselineLines,
+            student_lines: codeGrowthAnomaly.studentLines,
+            growth_percent: codeGrowthAnomaly.growthPercent,
+            threshold_pct: codeGrowthAnomaly.thresholdPct,
+            threshold_abs: codeGrowthAnomaly.thresholdAbs,
+            attempt_number: attemptNumber,
+            confidence: 0.3,
+            innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
+          },
+          contextBehaviors: [
+            `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
+          ],
+          status: 'flagged',
+        });
+      } catch (flagErr) {
+        // Non-fatal: don't break submission flow
+        console.warn('Code growth anomaly flag creation failed:', flagErr.message);
+      }
+    }
+
+    // Log submission attempt (audit trail)
+    await logAuditEvent(studentId, exerciseId, 'submission_attempted', {
+      attempt_number: attemptNumber,
+      code_length: (code || '').length,
+      time_spent_seconds: timeSpentSeconds || 0
+    });
 
     // Handle blank submission (template-only or empty)
     const isBlank = !code || !code.trim() || code === exercise.starter_code;
@@ -136,9 +267,9 @@ exports.submit = async (req, res) => {
       const verification_note = 'Blank or template-only submission';
       const ins = await db.query(
         `INSERT INTO submissions
-         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta)
-         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8) RETURNING id`,
-        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta]
+         (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings)
+         VALUES($1,$2,$3,false,$4,$5,$6,$7,$8,$9) RETURNING id`,
+        [studentId, exerciseId, code || '', attemptNumber, timeSpentSeconds || 0, false, verification_note, codeGrowthDelta, '[]']
       );
 
       // Log verification failure
@@ -176,6 +307,29 @@ exports.submit = async (req, res) => {
     );
     const allPassed = tcResults.every(r => r.passed);
 
+    // Log pass/fail result
+    if (allPassed) {
+      await logAuditEvent(studentId, exerciseId, 'submission_passed', {
+        attempt_number: attemptNumber,
+        time_spent_seconds: timeSpentSeconds || 0
+      });
+    } else {
+      const failedCount = tcResults.filter(r => !r.passed).length;
+      await logAuditEvent(studentId, exerciseId, 'submission_failed', {
+        attempt_number: attemptNumber,
+        failed_count: failedCount,
+        total_count: tcResults.length
+      });
+    }
+
+    // Run cppcheck (advisory — stored in submission, shown to student)
+    let cppcheckWarnings = [];
+    try {
+      cppcheckWarnings = await executor.runCppcheck(code);
+    } catch (_) {
+      // Non-fatal: cppcheck is advisory
+    }
+
     // Get required nodes from the exercise's concept
     const requiredNodesRes = await db.query(
       'SELECT ast_nodes FROM concepts WHERE id=$1',
@@ -183,10 +337,25 @@ exports.submit = async (req, res) => {
     );
     const requiredNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
 
+    // Get concept name from database (needed by AST verifier and micro-concept analysis)
+    const conceptRes = await db.query(
+      'SELECT c.name FROM concepts c JOIN exercises e ON c.id = e.concept_id WHERE e.id = $1',
+      [exerciseId]
+    );
+    const conceptName = conceptRes.rows.length > 0 ? conceptRes.rows[0].name : 'Unknown';
+
     // Run AST verifier before saving submission
-    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code });
+    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code, concept_name: conceptName });
     const is_verified = !!verifyRes.is_verified;
     const verification_note = (verifyRes.reasons || []).map(r => r.message || JSON.stringify(r)).join('; ');
+
+    // GAP #7: Extract compiler errors from test results for micro-concept analysis
+    const compilerErrors = [];
+    for (const tc of tcResults) {
+      if (tc.error && (tc.status === 'Compile Error' || tc.status === 'Runtime Error')) {
+        compilerErrors.push(tc.error);
+      }
+    }
 
     // Run micro-concept analysis for specific feedback
     const microConceptEngine = require('../services/microConceptEngine');
@@ -199,22 +368,15 @@ exports.submit = async (req, res) => {
         passed: r.passed,
         error: r.error
       })),
-      compilerErrors: [], // Would need to extract from executor output
+      compilerErrors: compilerErrors, // GAP #7: populated from executor output
       code: code,
-      timeLimitHit: false, // Would need to check if execution timed out
+      timeLimitHit: tcResults.some(r => r.status === 'Time Limit Exceeded'),
       exercise: {
         concept_name: exercise.title, // Simplified - would need concept name from concepts table
         required_ast_nodes: exercise.ast_nodes || [],
         time_limit_minutes: exercise.time_limit_minutes
       }
     };
-
-    // Get concept name from database
-    const conceptRes = await db.query(
-      'SELECT c.name FROM concepts c JOIN exercises e ON c.id = e.concept_id WHERE e.id = $1',
-      [exerciseId]
-    );
-    const conceptName = conceptRes.rows.length > 0 ? conceptRes.rows[0].name : 'Unknown';
 
     // Update micro concept context with actual concept name and better AST data
     microContext.exercise.concept_name = conceptName;
@@ -233,23 +395,43 @@ exports.submit = async (req, res) => {
         }
       }
       traverse(tree.rootNode);
-      microContext.ast.node_types = Array.from(nodeTypes);
+      const types = Array.from(nodeTypes);
+      microContext.ast.node_types = types;
+      microContext.ast.if_count = types.filter(t => t === 'if_statement').length;
+      microContext.ast.else_count = types.filter(t => t === 'else_clause').length;
+      microContext.ast.has_private = types.some(t => t === 'private_section' || t === 'protected_section');
     } catch (astError) {
       // Fallback to empty if AST parsing fails
       microContext.ast.node_types = [];
+      microContext.ast.if_count = 0;
+      microContext.ast.else_count = 0;
+      microContext.ast.has_private = false;
     }
 
     const microConceptFeedback = await microConceptEngine.getMicroConceptFeedback(microContext, conceptName);
 
-    // Save submission (include verification fields and code growth delta)
+    // Build persisting compiler data from tcResults
+    const compilerLog = compilerErrors.join('\n');
+    const timeLimitHit = tcResults.some(r => r.status === 'Time Limit Exceeded');
+
+    // Save submission (include verification fields, code growth delta, cppcheck warnings, compiler_log, behavioral tracking)
     const insRes = await db.query(
       `INSERT INTO submissions
-       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta]
+       (student_id,exercise_id,code,is_correct,attempt_number,time_spent_seconds,is_verified,verification_note,code_growth_delta,cppcheck_warnings,compiler_log,time_limit_hit,tab_switch_count,paste_count,idle_time_seconds)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+      [studentId, exerciseId, code, allPassed, attemptNumber, timeSpentSeconds || 0, is_verified, verification_note, codeGrowthDelta, JSON.stringify(cppcheckWarnings), compilerLog, timeLimitHit, tabSwitchCount, pasteCount, idleTimeSeconds]
     );
 
     const submissionId = insRes.rows[0].id;
+
+    // Log exercise_completed on first correct submission (triggers Practice Mode in frontend)
+    if (allPassed && attemptNumber === 1) {
+      await logAuditEvent(studentId, exerciseId, 'exercise_completed', {
+        attempt_number: attemptNumber,
+        time_spent_seconds: timeSpentSeconds || 0,
+        cppcheck_warning_count: cppcheckWarnings.length
+      });
+    }
 
     // If verification failed, record a verification_log row
     if (!is_verified) {
@@ -260,7 +442,7 @@ exports.submit = async (req, res) => {
       );
     }
 
-    // Run academic integrity checks
+    // ── Academic Integrity Checks (paper flags 1 & 2) ───────────────────
     try {
       const academicIntegrityFlags = await academicIntegrityEngine.evaluateIntegrity({
         code,
@@ -274,28 +456,87 @@ exports.submit = async (req, res) => {
           submission_id: submissionId
         },
         exercise,
-        cdsEngine: require('../services/cdsEngine'), // Pass reference for historical data if needed
-        behavioralData: {} // Frontend would send this data - for now empty
       });
 
-      // Insert any integrity flags into the database
       for (const flag of academicIntegrityFlags) {
         await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId: exerciseId,
-          studentId: studentId,
-          flagType: flag.type,
-          severity: flag.severity,
+          sectionId: exercise.section_id, exerciseId, studentId,
+          flagType: flag.type, severity: flag.severity,
           evidence: flag.evidence || {},
           contextBehaviors: flag.context_behaviors || [],
           status: 'flagged',
           instructorNote: flag.instructor_note || '',
-          submissionId: submissionId
+          submissionId,
         });
       }
     } catch (integrityError) {
-      // Don't let integrity check errors break the submission flow
       console.warn('Academic integrity check failed:', integrityError.message);
+    }
+
+    // ── Behavioral Anomaly Detection (paper flag 3) ──────────────────────
+    try {
+      const behavioralDetector = require('../services/behavioralAnomalyDetector');
+      const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
+        studentId,
+        exerciseId,
+        submissionId,
+        is_correct: allPassed,
+        time_spent_seconds: timeSpentSeconds || 0,
+        attempt_number: attemptNumber,
+        sectionId: exercise.section_id,
+      });
+
+      for (const flag of behavioralFlags) {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id, exerciseId, studentId,
+          flagType: flag.type, severity: flag.severity,
+          evidence: flag.evidence || {},
+          contextBehaviors: flag.context_behaviors || [],
+          status: 'flagged',
+          submissionId,
+        });
+      }
+    } catch (behavioralError) {
+      console.warn('Behavioral anomaly detection failed:', behavioralError.message);
+    }
+
+    // ── Passive Behavior Logging Flag ──────────────────────────────────
+    // Telemetry-only: tab switches, paste events, idle time. Always LOW severity
+    // as these are contextual indicators, not evidence of misconduct.
+    const behavioralThresholds = { TAB_SWITCH_HIGH: 5, PASTE_HIGH: 3, IDLE_RATIO_HIGH: 0.5 };
+    const totalTime = timeSpentSeconds || 1;
+    const idleRatio = idleTimeSeconds / totalTime;
+    const behavioralSignals = [];
+    if (tabSwitchCount >= behavioralThresholds.TAB_SWITCH_HIGH) behavioralSignals.push(`${tabSwitchCount} tab switches`);
+    if (pasteCount >= behavioralThresholds.PASTE_HIGH) behavioralSignals.push(`${pasteCount} paste events`);
+    if (idleRatio >= behavioralThresholds.IDLE_RATIO_HIGH) behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
+    if (behavioralSignals.length > 0) {
+      try {
+        await integrityFlagEngine.createFlag({
+          sectionId: exercise.section_id,
+          exerciseId,
+          studentId,
+          flagType: 'PASSIVE_BEHAVIOR_LOG',
+          severity: 'low',
+          evidence: {
+            summary: behavioralSignals.join('; '),
+            tab_switch_count: tabSwitchCount,
+            paste_count: pasteCount,
+            idle_time_seconds: idleTimeSeconds,
+            total_time_seconds: totalTime,
+            idle_ratio: Math.round(idleRatio * 100) / 100,
+            attempt_number: attemptNumber,
+            confidence: 0.15,
+            innocent_explanation: 'Behavioral telemetry (tab switches, pastes, idle time) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt. Pasting from your own previous work is normal. Idle time may reflect thinking or debugging.',
+          },
+          contextBehaviors: [
+            behavioralSignals.join('; '),
+            `Attempt #${attemptNumber}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+          ],
+        });
+      } catch (flagErr) {
+        console.warn('Passive behavior flag creation failed:', flagErr.message);
+      }
     }
 
     // Split visible vs hidden results for response
@@ -312,6 +553,10 @@ exports.submit = async (req, res) => {
       count: hiddenResults.length,
       passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true
     };
+
+    // Deterministic test-case failure report (errorReporter)
+    const failureReport = errorReporter.processFailureReport(tcResults, exercise.test_cases);
+    const formattedFailures = errorReporter.formatForResponse(failureReport);
 
     // Calculate live CDS for display and persistence
     const cdsEngine = require('../services/cdsEngine');
@@ -336,24 +581,94 @@ exports.submit = async (req, res) => {
       console.warn('Error calculating or saving live CDS:', liveErr.message);
     }
 
-    // Prepare response with micro-concept feedback and code growth delta
+    // Analytics: track submission for at-risk detection (RETRY_STORM, LEARNING_PLATEAU)
+    analyticsEngine.trackSubmission({
+      studentId,
+      exerciseId,
+      isCorrect: allPassed,
+      sectionId: exercise.section_id,
+      attemptNumber,
+    }).catch(err => console.warn('[Analytics] Tracking failed:', err.message));
+
+    // Concept Analytics: live update CMI for affected student-concept pairs
+    conceptAnalytics.updateMetricsForSubmission(studentId, exerciseId)
+      .then(result => {
+        if (result.updated) {
+          responseData.conceptAnalytics = {
+            updated: true,
+            conceptsUpdated: result.conceptsUpdated,
+          };
+        }
+      })
+      .catch(err => console.warn('[ConceptAnalytics] Live update failed:', err.message));
+
+    // Compute growth velocity: token count delta per minute from previous attempt
+    let growthVelocity = null;
+    try {
+      const currentTokens = countTokens(code || '');
+      if (attemptNumber > 1) {
+        const prevRes = await db.query(
+          'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+          [studentId, exerciseId, attemptNumber - 1]
+        );
+        if (prevRes.rows.length > 0) {
+          const prevTokens = countTokens(prevRes.rows[0].code || '');
+          const tokenDelta = currentTokens - prevTokens;
+          const minutes = Math.max((timeSpentSeconds || 0) / 60, 0.0167);
+          growthVelocity = Math.round(tokenDelta / minutes);
+        }
+      } else {
+        const starterTokens = countTokens(exercise.starter_code || '');
+        const tokenDelta = currentTokens - starterTokens;
+        const minutes = Math.max((timeSpentSeconds || 0) / 60, 0.0167);
+        growthVelocity = Math.round(tokenDelta / minutes);
+      }
+    } catch (velErr) {
+      console.warn('Growth velocity computation failed:', velErr.message);
+    }
+
+    // Prepare response with micro-concept feedback, cppcheck warnings, code growth delta, and growth velocity
     const responseData = {
       attemptNumber,
       allPassed,
       results: visibleResults,
       hidden: hiddenSummary,
       codeGrowthDelta,
+      growthVelocity,
+      cppcheckWarnings: cppcheckWarnings.length > 0 ? cppcheckWarnings : undefined,
       liveCDS,
       verification: {
         is_verified: is_verified,
         note: verification_note || (is_verified ? 'Code structure verified' : 'Verification failed')
-      }
+      },
+      // Deterministic failure report (hints + sanitized errors)
+      failureReport: formattedFailures.length > 0 ? formattedFailures : undefined,
     };
 
     // Add micro-concept feedback if available
     if (microConceptFeedback.hasFeedback) {
       responseData.microConceptFeedback = microConceptFeedback;
+
+      // GAP #10: Generate alerts from micro-concept findings
+      try {
+        const alertEngine = require('../services/alertEngine');
+        await alertEngine.generateMicroConceptAlert({
+          studentId,
+          exerciseId,
+          sectionId: exercise.section_id,
+          conceptName,
+          detectedIssues: microConceptFeedback.detected || []
+        }, db);
+      } catch (alertErr) {
+        console.warn('Micro-concept alert generation failed:', alertErr.message);
+      }
     }
+
+    // Compute rubric score
+    const rubricScorer = require('../services/rubricScorer');
+    responseData.rubricScore = await rubricScorer.scoreSubmission(
+      submissionId, exerciseId, exercise.rubric_config || {}
+    );
 
     // Calculate response latency for performance logging
     const endTime = Date.now();
@@ -421,4 +736,89 @@ exports.studentSubmissions = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
+};
+
+// ── Async Submission (Queue-Based) ─────────────────────────────────────────
+
+/**
+ * POST /api/submissions/submit-async
+ * Decouples submission processing from HTTP request using BullMQ.
+ * Returns 202 Accepted with jobId for polling.
+ */
+exports.submitAsync = async (req, res) => {
+  const { exerciseId, code, timeSpentSeconds } = req.body;
+  const studentId = req.user.id;
+
+  if (!code || !code.trim()) {
+    return res.status(400).json({ message: 'No code provided' });
+  }
+
+  // Ensure queue is initialized
+  const queueReady = await submissionQueue.initQueue();
+
+  if (!queueReady) {
+    // Fallback: process synchronously
+    console.warn('[AsyncSubmit] Redis unavailable, falling back to sync');
+    return exports.submit(req, res);
+  }
+
+  // Pre-create submission record to get an ID (worker updates it)
+  let submissionId;
+  try {
+    const attRes = await db.query(
+      'SELECT COALESCE(MAX(attempt_number),0)+1 AS next FROM submissions WHERE student_id=$1 AND exercise_id=$2',
+      [studentId, exerciseId]
+    );
+    const attemptNumber = attRes.rows[0].next;
+
+    const insRes = await db.query(
+      `INSERT INTO submissions
+       (student_id, exercise_id, code, is_correct, attempt_number, time_spent_seconds,
+        is_verified, verification_note)
+       VALUES ($1,$2,$3,false,$4,$5,false,'queued') RETURNING id`,
+      [studentId, exerciseId, code, attemptNumber, timeSpentSeconds || 0]
+    );
+    submissionId = insRes.rows[0].id;
+  } catch (err) {
+    return res.status(500).json({ message: `Failed to queue submission: ${err.message}` });
+  }
+
+  // Add job to queue
+  try {
+    const jobId = await submissionQueue.addSubmissionJob({
+      exerciseId,
+      code,
+      studentId,
+      timeSpentSeconds: timeSpentSeconds || 0,
+      submissionId,
+    });
+
+    res.status(202).json({
+      message: 'Submission queued for evaluation',
+      jobId,
+      submissionId,
+      statusUrl: `/api/submissions/status/${jobId}`,
+    });
+  } catch (err) {
+    // Queue failed — clean up placeholder submission and fallback to sync
+    await db.query('DELETE FROM submissions WHERE id = $1', [submissionId]).catch(() => {});
+    console.warn('[AsyncSubmit] Queue add failed, falling back to sync:', err.message);
+    return exports.submit(req, res);
+  }
+};
+
+/**
+ * GET /api/submissions/status/:jobId
+ * Monitor worker processing state.
+ * Returns: { jobId, status, result, error, progress, createdAt, processedAt, finishedAt }
+ */
+exports.getJobStatus = async (req, res) => {
+  const { jobId } = req.params;
+
+  const status = await submissionQueue.getJobStatus(jobId);
+  if (!status) {
+    return res.status(404).json({ message: 'Job not found' });
+  }
+
+  res.json(status);
 };

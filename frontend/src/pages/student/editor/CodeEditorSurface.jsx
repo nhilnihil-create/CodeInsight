@@ -25,7 +25,7 @@ export default function CodeEditorSurface({
   value,
   onChange,
   onMount,
-  language = "python",
+  language = "cpp",
   readOnly = false,
 }) {
   const { theme } = useTheme();

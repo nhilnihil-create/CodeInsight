@@ -76,10 +76,10 @@ describe('Docker Sandbox — Security Controls Verification', function() {
     );
   });
 
-  it('uses --memory 64m Docker flag (memory limit)', function() {
+  it('uses --memory="256m" Docker flag (memory limit — upgraded from 64m)', function() {
     assert.ok(
-      executorSource.includes('--memory 64m') || executorSource.includes('--memory=64m'),
-      'Docker run must include memory limit'
+      executorSource.includes('--memory="256m"') || executorSource.includes('--memory=256m'),
+      'Docker run must include --memory="256m"'
     );
   });
 
@@ -87,6 +87,35 @@ describe('Docker Sandbox — Security Controls Verification', function() {
     assert.ok(
       executorSource.includes('--network none'),
       'Docker run must disable network access'
+    );
+  });
+
+  // Section 1: Sandbox Security Hardening
+  it('uses --pids-limit=32 (fork-bomb prevention)', function() {
+    assert.ok(
+      executorSource.includes('--pids-limit=32'),
+      'Docker run must include --pids-limit=32 for fork-bomb prevention'
+    );
+  });
+
+  it('uses --cpus="0.5" (CPU quota)', function() {
+    assert.ok(
+      executorSource.includes('--cpus="0.5"') || executorSource.includes('--cpus=0.5'),
+      'Docker run must include --cpus="0.5" for CPU quota'
+    );
+  });
+
+  it('uses --cap-drop=ALL (drop kernel privileges)', function() {
+    assert.ok(
+      executorSource.includes('--cap-drop=ALL'),
+      'Docker run must include --cap-drop=ALL to isolate from kernel namespaces'
+    );
+  });
+
+  it('uses --cap-add=DAC_OVERRIDE (allow volume mount reads)', function() {
+    assert.ok(
+      executorSource.includes('--cap-add=DAC_OVERRIDE'),
+      'Docker run must include --cap-add=DAC_OVERRIDE for volume mount access'
     );
   });
 
@@ -579,7 +608,7 @@ describe('Docker Sandbox — Attack Scenario Analysis', function() {
       const executorSource = fs.readFileSync(
         path.join(__dirname, '../services/executor.js'), 'utf8'
       );
-      assert.ok(executorSource.includes('--memory 64m'));
+      assert.ok(executorSource.includes('--memory="256m"') || executorSource.includes('--memory=256m'));
     });
 
     it('large array allocation passes isSafe but hits memory limit', function() {

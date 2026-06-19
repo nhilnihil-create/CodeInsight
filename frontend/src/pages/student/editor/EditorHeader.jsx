@@ -1,15 +1,14 @@
-import { Play, Send, Clock, ChevronLeft, Sun, Moon, ChevronDown } from "lucide-react";
+import { Play, Send, Clock, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /**
  * EditorHeader
- * Sticky h-12 header bar for the code editor.
+ * Sticky h-14 (56px) header bar for the code editor.
  *
- *   [Back]  Title + concept chips  |  N / M passing  |  Timer · Run · Submit · Language · Theme
+ *   [Back]  Title + concept chips  |  N / M passing  |  Timer · Run · Submit
  *
- * Tokens only.
+ * Emerald-accented glassmorphic theme.
  */
 const MAX_CHIPS = 3;
 const VISIBLE_CHIPS = 2;
@@ -18,18 +17,21 @@ export default function EditorHeader({
   title,
   concepts = [],
   testResults,
-  timerSeconds = 0,
+  timeLimitMinutes,
+  activeElapsedSeconds = 0,
   isRunning = false,
+  isReviewMode = false,
   onRun,
   onSubmit,
   onBack,
-  language = "C++",
-  languageOptions = [],
-  onLanguageChange,
 }) {
   const passing = testResults?.passing ?? 0;
   const total = testResults?.total ?? 0;
-  const { theme, setTheme } = useTheme();
+
+  const timeLimitSeconds = timeLimitMinutes ? timeLimitMinutes * 60 : 0;
+  const countdownSeconds = timeLimitSeconds > 0
+    ? Math.max(0, timeLimitSeconds - activeElapsedSeconds)
+    : 0;
 
   const visibleConcepts = concepts.slice(0, VISIBLE_CHIPS);
   const overflow = Math.max(0, concepts.length - VISIBLE_CHIPS);
@@ -37,7 +39,7 @@ export default function EditorHeader({
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-3 h-12 bg-card border-b border-border shadow-xs px-3 sm:px-4"
+      className="sticky top-0 z-20 flex items-center gap-3 h-14 min-h-[56px] bg-[#0D1220]/80 backdrop-blur-md border-b border-white/[0.05] shadow-xs px-6 shrink-0"
     >
       {/* Back */}
       {onBack ? (
@@ -47,7 +49,7 @@ export default function EditorHeader({
           onClick={onBack}
           aria-label="Back to exercises"
           title="Back to exercises"
-          className="h-8 w-8 shrink-0"
+          className="h-8 w-8 shrink-0 hover:bg-white/[0.04]"
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
         </Button>
@@ -55,14 +57,14 @@ export default function EditorHeader({
 
       {/* Left: title + concepts */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <h1 className="text-sm font-semibold tracking-tight truncate">{title}</h1>
+        <h1 className="text-sm font-semibold tracking-tight truncate text-white">{title}</h1>
         {concepts.length > 0 ? (
           <div className="hidden sm:flex items-center gap-1.5 min-w-0">
             {visibleConcepts.map((c) => (
               <span
                 key={c.name}
                 title={c.name}
-                className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                className="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
               >
                 {c.name}
               </span>
@@ -70,7 +72,7 @@ export default function EditorHeader({
             {showOverflowChip ? (
               <span
                 title={concepts.slice(VISIBLE_CHIPS).map((c) => c.name).join(", ")}
-                className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                className="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
               >
                 +{overflow} more
               </span>
@@ -85,8 +87,8 @@ export default function EditorHeader({
           className={cn(
             "text-xs font-mono tabular-nums px-2 py-0.5 rounded-full border",
             passing === total && total > 0
-              ? "bg-success/10 text-success border-success/20"
-              : "bg-muted/40 text-muted-foreground border-border",
+              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+              : "bg-white/[0.04] text-muted-foreground border-white/[0.06]",
           )}
           aria-label={`${passing} of ${total} tests passing`}
         >
@@ -94,83 +96,49 @@ export default function EditorHeader({
         </span>
       </div>
 
-      {/* Right: timer · Run · Submit · Language · Theme */}
+      {/* Right: timer · Run · Submit */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        <div className="hidden sm:flex items-center gap-1.5 text-sm font-mono tabular-nums text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
-          <span className="sr-only">Time remaining:</span>
-          <span aria-hidden="true">{formatTime(timerSeconds)}</span>
-        </div>
+        {/* Timer countdown */}
+        {timeLimitSeconds > 0 && countdownSeconds > 0 && (
+          <div className={cn(
+            "hidden sm:flex items-center gap-1.5 text-sm font-mono tabular-nums",
+            countdownSeconds <= 60 ? "text-destructive" : "text-muted-foreground",
+          )}>
+            <Clock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            <span className="sr-only">Time remaining:</span>
+            <span aria-hidden="true">{formatTime(countdownSeconds)}</span>
+          </div>
+        )}
 
-        {/* Language selector — simple <select> styled as a pill. */}
-        {languageOptions.length > 0 && onLanguageChange ? (
-          <label className="hidden md:inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            <span className="sr-only">Language</span>
-            <select
-              value={language}
-              onChange={(e) => onLanguageChange(e.target.value)}
-              className="appearance-none bg-transparent text-foreground pr-3 focus:outline-none cursor-pointer"
-              style={{ backgroundImage: "none" }}
-            >
-              {languageOptions.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="h-3 w-3 -ml-2 pointer-events-none" strokeWidth={1.75} aria-hidden="true" />
-          </label>
-        ) : null}
-
-        {/* Theme toggle — only one button (just flips). Hidden on small
-            screens to save space; the global ThemeToggle is reachable
-            from other pages. */}
         <button
           type="button"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          className="hidden sm:inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          {theme === "dark" ? (
-            <Sun className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
-          ) : (
-            <Moon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
-          )}
-        </button>
-
-        <Button
-          variant="ghost"
-          size="sm"
           onClick={onRun}
           disabled={isRunning}
-          className="font-medium"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:shadow-[0_0_20px_rgba(16,185,129,0.35)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Play className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
+          <Play className="h-3.5 w-3.5" strokeWidth={2} />
           Run
-          <KbdHint keys={["⌘", "↵"]} />
-        </Button>
-        <Button variant="default" size="sm" onClick={onSubmit} className="gap-1.5 px-4">
-          Submit
-          <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
-        </Button>
+          <span className="ml-1 hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono opacity-70">
+            <kbd className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border border-slate-950/20 bg-white/20">⌘</kbd>
+            <kbd className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border border-slate-950/20 bg-white/20">↵</kbd>
+          </span>
+        </button>
+        {isReviewMode ? (
+          <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-white/[0.04] text-[10px] font-medium text-muted-foreground border border-white/[0.06]">
+            Review Mode
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onSubmit}
+            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:brightness-110 transition-all"
+          >
+            Submit
+            <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </button>
+        )}
       </div>
     </header>
-  );
-}
-
-function KbdHint({ keys }) {
-  return (
-    <span className="ml-1.5 hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-muted-foreground">
-      {keys.map((k, i) => (
-        <kbd
-          key={i}
-          className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border border-border bg-muted/60 text-muted-foreground"
-        >
-          {k}
-        </kbd>
-      ))}
-    </span>
   );
 }
 

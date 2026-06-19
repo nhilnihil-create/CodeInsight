@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search } from 'lucide-react';
-import { MOCK_USERS, MOCK_STUDENT_STATS } from '@/data/mockData';
 import SectionFilter from '@/components/SectionFilter';
+import useLastSection from '@/hooks/useLastSection';
 import api from '@/services/api';
 
 /**
@@ -18,51 +18,46 @@ import api from '@/services/api';
  */
 export default function InstructorStudents() {
   const [search, setSearch] = useState('');
-  const [sectionId, setSectionId] = useState('all');
+  const [sectionId, setSectionId] = useLastSection();
   const [realStudents, setRealStudents] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (sectionId === 'all') {
-      setRealStudents(null);
-      return;
-    }
     let cancelled = false;
     const load = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const res = await api.get(`/api/sections/${sectionId}/students-with-scores`);
+        const url = `/api/sections/${sectionId}/students-with-scores`;
+        const res = await api.get(url);
         if (!cancelled) setRealStudents(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        if (!cancelled) setRealStudents([]);
+      } catch (err) {
+        if (!cancelled) {
+          setRealStudents([]);
+          setError(err.response?.data?.message || 'Failed to load students.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
     load();
     return () => { cancelled = true; };
   }, [sectionId]);
 
-  const students = (() => {
-    if (realStudents !== null) {
-      return realStudents
-        .map((s) => ({
-          id: s.id,
-          name: s.name,
-          studentId: s.studentId || s.student_id || '—',
-          email: s.email || '',
-        }))
-        .filter((u) => {
-          if (!search) return true;
-          const q = search.toLowerCase();
-          return u.name.toLowerCase().includes(q) || (u.studentId || '').toLowerCase().includes(q);
-        });
-    }
-    return MOCK_USERS.filter(
-      (u) =>
-        u.role === 'student' &&
-        (u.name.toLowerCase().includes(search.toLowerCase()) ||
-          u.studentId?.toLowerCase().includes(search.toLowerCase()))
-    );
-  })();
-
-  const statsById = Object.fromEntries(MOCK_STUDENT_STATS.map((s) => [s.studentId, s]));
+  const students = (realStudents || [])
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      studentId: s.studentId || s.student_id || String(s.id),
+      latestCds: s.latest_cds != null ? parseFloat(s.latest_cds) : null,
+      submittedCount: s.submitted_count ?? 0,
+    }))
+    .filter((u) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return u.name.toLowerCase().includes(q) || u.studentId.toLowerCase().includes(q);
+    });
 
   return (
     <div className="space-y-6">
@@ -86,6 +81,17 @@ export default function InstructorStudents() {
         </div>
       </div>
 
+      {loading ? (
+        <div className="py-16 text-center text-muted-foreground text-sm">
+          <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+          Loading students…
+        </div>
+      ) : error ? (
+        <div className="py-16 text-center">
+          <p className="text-sm text-destructive font-medium">{error}</p>
+          <p className="text-xs text-muted-foreground mt-1">Try selecting a different section or refreshing.</p>
+        </div>
+      ) : (
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -94,21 +100,23 @@ export default function InstructorStudents() {
                 <TableHead>Student</TableHead>
                 <TableHead>Student ID</TableHead>
                 <TableHead>Avg CDS</TableHead>
-                <TableHead>Strongest Concept</TableHead>
-                <TableHead>Last Active</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {students.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                    No students found matching your search.
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                    {realStudents?.length === 0
+                      ? 'No students enrolled in this section.'
+                      : 'No students found matching your search.'}
                   </TableCell>
                 </TableRow>
               ) : (
                 students.map((s) => {
-                  const stats = statsById[s.id] || statsById[s.studentId] || { avgCds: '—', highestConcept: '—', lastActiveDays: 0, hasAlert: false };
+                  const cdsPct = s.latestCds != null && !Number.isNaN(s.latestCds) ? Math.round(s.latestCds * 100) : null;
+                  const unstarted = cdsPct === null || s.submittedCount === 0;
+
                   return (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">
@@ -117,18 +125,16 @@ export default function InstructorStudents() {
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{s.studentId}</TableCell>
-                      <TableCell>{stats.avgCds}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{stats.highestConcept}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {stats.lastActiveDays === 0 ? 'today' : `${stats.lastActiveDays}d ago`}
+                      <TableCell className="font-mono tabular-nums">
+                        {cdsPct != null ? `${cdsPct}%` : '—'}
                       </TableCell>
                       <TableCell>
-                        {stats.hasAlert ? (
-                          <Badge variant="destructive">Alert</Badge>
+                        {unstarted ? (
+                          <Badge className="bg-cds-na/10 text-cds-na border border-cds-na/20">Unstarted</Badge>
+                        ) : cdsPct > 50 ? (
+                          <Badge className="bg-cds-high/10 text-cds-high border border-cds-high/15">At risk</Badge>
                         ) : (
-                          <Badge variant="outline">OK</Badge>
+                          <Badge className="bg-cds-low/10 text-cds-low border border-cds-low/15">OK</Badge>
                         )}
                       </TableCell>
                     </TableRow>
@@ -139,6 +145,7 @@ export default function InstructorStudents() {
           </Table>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

@@ -7,40 +7,32 @@ const assert = require('assert');
 // The main module also exports these
 const cdsEngine = require('../services/cdsEngine');
 
-// ── Helper: replicate the internal utility functions for isolated testing ──
-// Since mean/stddev/getNormalizedValue/classify are internal,
-// we test them through the observable behavior of the exported functions
-// and by duplicating the logic here for verification.
+// ── Helper: replicate the internal normalization for isolated testing ──
+// CDS v3: min-max normalization with p95 outlier capping.
 
-function mean(arr) {
-  if (!arr.length) return 0;
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
+function getNormalizedValue(value, allValues) {
+  const targetValue = Number(value);
+  const safeValues = (allValues || []).map(v => Number(v)).filter(v => !isNaN(v));
+
+  if (safeValues.length === 0) return { normalized: 0.00, min: 0, p95: 0 };
+
+  const sorted = [...safeValues].sort((a, b) => a - b);
+  const p95Index = Math.ceil(sorted.length * 0.95) - 1;
+  const p95 = sorted[Math.max(0, Math.min(p95Index, sorted.length - 1))];
+
+  const cappedValue = Math.min(targetValue, p95);
+  const min = safeValues.length > 0 ? Math.min(...safeValues) : 0;
+
+  const denominator = p95 - min;
+  if (denominator === 0) return { normalized: 0.00, min, p95 };
+
+  const normalized = Math.max(0, Math.min((cappedValue - min) / denominator, 1.0));
+  return { normalized: Number(parseFloat(normalized).toFixed(2)), min, p95 };
 }
 
-function stddev(arr) {
-  if (!arr.length) return 0;
-  const m = mean(arr);
-  const v = arr.reduce((a, b) => a + Math.pow(b - m, 2), 0) / arr.length;
-  return Math.sqrt(v);
-}
-
-function getNormalizedValue(value, allValues, capFactor = 2) {
-  const rawMax = Math.max(...allValues, 0);
-  const m = mean(allValues);
-  const s = stddev(allValues);
-  const cappedMax = Math.max(1, Math.ceil(m + capFactor * s));
-  const effectiveMax = Math.max(1, Math.min(rawMax, cappedMax));
-  const normalized = Math.min(value / effectiveMax, 1.0);
-  return { normalized, effectiveMax };
-}
-
-function classify(cds, isPreliminary = false) {
-  if (cds === null || cds === undefined) return 'Unscored';
-  const prefix = isPreliminary ? 'Preliminary - ' : '';
-  if (cds <= 0.33) return prefix + 'Low';
-  if (cds <= 0.66) return prefix + 'Moderate';
-  return prefix + 'High';
-}
+// Import the real classify and thresholds from cdsEngine
+// NOTE: These MUST match the authoritative source — no local copies!
+const { classify, CDS_THRESHOLDS } = require('../services/cdsEngine');
 
 // ── Classification Tests ─────────────────────────────────────────────────────
 
@@ -57,20 +49,20 @@ describe('CDS Engine — Classification', function() {
     assert.strictEqual(classify(0), 'Low');
   });
 
-  it('classifies 0.33 as Low (boundary)', function() {
-    assert.strictEqual(classify(0.33), 'Low');
+  it('classifies 0.31 as Low (exact boundary)', function() {
+    assert.strictEqual(classify(0.31), 'Low');
   });
 
-  it('classifies 0.34 as Moderate', function() {
-    assert.strictEqual(classify(0.34), 'Moderate');
+  it('classifies 0.32 as Moderate (just above Low)', function() {
+    assert.strictEqual(classify(0.32), 'Moderate');
   });
 
-  it('classifies 0.66 as Moderate (boundary)', function() {
-    assert.strictEqual(classify(0.66), 'Moderate');
+  it('classifies 0.50 as Moderate (exact boundary)', function() {
+    assert.strictEqual(classify(0.50), 'Moderate');
   });
 
-  it('classifies 0.67 as High', function() {
-    assert.strictEqual(classify(0.67), 'High');
+  it('classifies 0.51 as High', function() {
+    assert.strictEqual(classify(0.51), 'High');
   });
 
   it('classifies 1.0 as High', function() {
@@ -84,11 +76,12 @@ describe('CDS Engine — Classification', function() {
 
 // ── Normalization Function Tests ──────────────────────────────────────────────
 
-describe('CDS Engine — Normalization (getNormalizedValue)', function() {
+describe('CDS Engine — Normalization (getNormalizedValue v3 min-max + p95)', function() {
   it('returns 0 for empty array', function() {
-    const { normalized, effectiveMax } = getNormalizedValue(0, []);
+    const { normalized, min, p95 } = getNormalizedValue(0, []);
     assert.strictEqual(normalized, 0);
-    assert.strictEqual(effectiveMax, 1);
+    assert.strictEqual(min, 0);
+    assert.strictEqual(p95, 0);
   });
 
   it('returns 0 for value=0 with non-empty array', function() {
@@ -96,64 +89,80 @@ describe('CDS Engine — Normalization (getNormalizedValue)', function() {
     assert.strictEqual(normalized, 0);
   });
 
-  it('returns 1.0 for max value in array', function() {
-    const { normalized } = getNormalizedValue(10, [1, 3, 5, 10]);
+  it('returns 1.0 for max value in array (value reaches p95)', function() {
+    const { normalized, p95 } = getNormalizedValue(10, [1, 3, 5, 10]);
+    assert.strictEqual(p95, 10);
     assert.strictEqual(normalized, 1.0);
-  });
-
-  it('caps outlier values at mean + 2*stddev', function() {
-    // [1,1,1,1,100] — 100 is an outlier
-    const allValues = [1, 1, 1, 1, 100];
-    const m = mean(allValues);    // 20.8
-    const s = stddev(allValues);  // ~39.6
-    const cappedMax = Math.ceil(m + 2 * s); // ~100
-    // The outlier IS the max, so cap = rawMax = 100
-    const { effectiveMax } = getNormalizedValue(100, allValues);
-    assert.ok(effectiveMax <= 100, `effectiveMax ${effectiveMax} should be <= 100`);
   });
 
   it('normalizes mid-range value correctly', function() {
     const allValues = [2, 4, 6, 8, 10];
-    // mean=6, stddev=~2.83, cappedMax=ceil(6+5.66)=12, rawMax=10
-    // effectiveMax = min(10, 12) = 10
-    const { normalized, effectiveMax } = getNormalizedValue(5, allValues);
-    assert.strictEqual(effectiveMax, 10);
-    assert.strictEqual(normalized, 0.5);
+    // p95 of [2,4,6,8,10] with 5 elements: ceil(5*0.95)=5, p95Index=4 → p95=10
+    // min=2, cappedValue=5, normalized = (5-2)/(10-2) = 3/8 = 0.38
+    const { normalized, min, p95 } = getNormalizedValue(5, allValues);
+    assert.strictEqual(p95, 10);
+    assert.strictEqual(min, 2);
+    assert.strictEqual(normalized, 0.38);
   });
 
-  it('never exceeds 1.0 for values above effectiveMax', function() {
-    const { normalized } = getNormalizedValue(999, [1, 2, 3]);
-    assert.ok(normalized <= 1.0, `normalized ${normalized} should be <= 1.0`);
+  it('never exceeds 1.0 or goes below 0 (clamped range)', function() {
+    const high = getNormalizedValue(999, [1, 2, 3]);
+    assert.ok(high.normalized <= 1.0, `normalized ${high.normalized} should be <= 1.0`);
+    assert.ok(high.normalized >= 0, `normalized ${high.normalized} should be >= 0`);
+    const low = getNormalizedValue(0, [1, 2, 3]);
+    assert.ok(low.normalized >= 0, `normalized ${low.normalized} should be >= 0`);
   });
 
-  it('handles all-zeros array safely', function() {
-    const { normalized, effectiveMax } = getNormalizedValue(0, [0, 0, 0]);
-    assert.strictEqual(effectiveMax, 1);
+  it('handles all-zeros array safely (zero-variance → 0.00)', function() {
+    const { normalized, min, p95 } = getNormalizedValue(0, [0, 0, 0]);
+    assert.strictEqual(p95, 0);
+    assert.strictEqual(min, 0);
     assert.strictEqual(normalized, 0);
   });
 
-  it('handles single-value array', function() {
-    const { normalized, effectiveMax } = getNormalizedValue(5, [5]);
-    assert.strictEqual(effectiveMax, 5);
-    assert.strictEqual(normalized, 1.0);
+  it('handles single-value array → 0.00 (zero-variance)', function() {
+    const { normalized, min, p95 } = getNormalizedValue(5, [5]);
+    assert.strictEqual(min, 5);
+    assert.strictEqual(p95, 5);
+    assert.strictEqual(normalized, 0);
   });
 
-  it('effectiveMax is always >= 1 (no division by zero)', function() {
+  it('p95 is always >= min (no negative denominator)', function() {
     const cases = [[], [0], [0, 0, 0], [1], [5, 10, 15]];
     for (const arr of cases) {
       for (const val of [0, 1, 100]) {
-        const { effectiveMax } = getNormalizedValue(val, arr);
-        assert.ok(effectiveMax >= 1, `effectiveMax should be >= 1 for arr=${JSON.stringify(arr)}, val=${val}`);
+        const { p95, min } = getNormalizedValue(val, arr);
+        assert.ok(p95 >= min, `p95 (${p95}) should be >= min (${min}) for arr=${JSON.stringify(arr)}, val=${val}`);
       }
     }
   });
 
-  it('respects custom capFactor', function() {
-    const allValues = [1, 2, 3, 4, 5];
-    const { effectiveMax: ef1 } = getNormalizedValue(5, allValues, 1);
-    const { effectiveMax: ef2 } = getNormalizedValue(5, allValues, 3);
-    // capFactor=1 gives tighter cap than capFactor=3
-    assert.ok(ef1 <= ef2, `capFactor=1 effectiveMax (${ef1}) should be <= capFactor=3 effectiveMax (${ef2})`);
+  // ── NEW: Zero-Variance Roadblock ──────────────────────────────────────
+  it('ZERO-VARIANCE: all students have identical scores → normalized=0.00', function() {
+    const allValues = [15, 15, 15, 15, 15];
+    for (const v of allValues) {
+      const result = getNormalizedValue(v, allValues);
+      assert.strictEqual(result.normalized, 0.00);
+      assert.strictEqual(result.p95 - result.min, 0);
+    }
+  });
+
+  // ── NEW: p95 Outlier Capping ──────────────────────────────────────────
+  it('p95 CAPPING: extreme outlier truncated to 95th percentile', function() {
+    // 20 elements: 19 normal values (1-4) + 1 extreme outlier (150)
+    const allValues = [1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,150];
+    const outlierResult = getNormalizedValue(150, allValues);
+    assert.strictEqual(outlierResult.p95, 4);
+    assert.strictEqual(outlierResult.normalized, 1.00);
+  });
+
+  // ── NEW: Type Casting Protection ──────────────────────────────────────
+  it('TYPE CASTING: string inputs safely converted to numbers', function() {
+    const stringValues = ['1', '2', '3', '4', '5'];
+    const { normalized, min, p95 } = getNormalizedValue('3', stringValues);
+    assert.strictEqual(p95, 5);
+    assert.strictEqual(min, 1);
+    assert.strictEqual(normalized, 0.50);
   });
 });
 
@@ -162,7 +171,7 @@ describe('CDS Engine — Normalization (getNormalizedValue)', function() {
 describe('CDS Engine — Formula Calculation', function() {
   function calculateCDS(ner, nrs, nts) {
     const cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
-    return Math.round(cds * 10000) / 10000;
+    return Number(parseFloat(cds).toFixed(2));
   }
 
   it('calculates CDS with weights 0.40/0.35/0.25', function() {
@@ -190,9 +199,9 @@ describe('CDS Engine — Formula Calculation', function() {
     assert.strictEqual(cds, 0.25);
   });
 
-  it('rounds to 4 decimal places', function() {
+  it('rounds to 2 decimal places', function() {
     const cds = calculateCDS(0.3333, 0.6667, 0.5);
-    assert.ok(Number.isInteger(cds * 10000), `CDS ${cds} should have at most 4 decimal places`);
+    assert.ok(Number.isInteger(cds * 100), `CDS ${cds} should have at most 2 decimal places`);
   });
 
   it('never exceeds 1.0', function() {
@@ -282,7 +291,7 @@ describe('CDS Engine — NTS Time Exhaustion Edge Case', function() {
         return { ner: 1, nrs: 1, nts: 1, cds: 1.0, classification: 'High' };
       }
       const cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
-      return { ner, nrs, nts, cds: Math.round(cds * 10000) / 10000, classification: classify(cds) };
+      return { ner, nrs, nts, cds: Number(parseFloat(cds).toFixed(2)), classification: classify(cds) };
     }
 
     const result = handleTimeExhaustion(0.95, 0, 0.5, 0.5);
@@ -296,7 +305,7 @@ describe('CDS Engine — NTS Time Exhaustion Edge Case', function() {
         return { ner: 1, nrs: 1, nts: 1, cds: 1.0, classification: 'High' };
       }
       const cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
-      return { ner, nrs, nts, cds: Math.round(cds * 10000) / 10000, classification: classify(cds) };
+      return { ner, nrs, nts, cds: Number(parseFloat(cds).toFixed(2)), classification: classify(cds) };
     }
 
     const result = handleTimeExhaustion(0.95, 2, 0.3, 0.4);
@@ -310,7 +319,7 @@ describe('CDS Engine — NTS Time Exhaustion Edge Case', function() {
         return { ner: 1, nrs: 1, nts: 1, cds: 1.0, classification: 'High' };
       }
       const cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
-      return { ner, nrs, nts, cds: Math.round(cds * 10000) / 10000, classification: classify(cds) };
+      return { ner, nrs, nts, cds: Number(parseFloat(cds).toFixed(2)), classification: classify(cds) };
     }
 
     const result = handleTimeExhaustion(0.85, 0, 0.5, 0.5);
@@ -331,7 +340,7 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
     const nrs = 0;
     const nts = 0;
     let cds = (0.40 * ner) + (0.35 * nrs) + (0.25 * nts);
-    cds = Math.round(cds * 10000) / 10000;
+    cds = Number(parseFloat(cds).toFixed(2));
     return { score: Math.min(cds, 1), ner, nrs, nts, classification: classify(Math.min(cds, 1)) };
   }
 
@@ -387,12 +396,39 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
 // ── Classification Boundary Mismatch (document the bug) ──────────────────────
 
 describe('CDS Engine — Classification Boundary Audit', function() {
-  it('cdsEngine classification boundaries now harmonized with analytics (0.33, 0.66)', function() {
-    // V2 FIX: cdsEngine now uses 0.33 and 0.66, matching analytics controller
-    const cdsEngineLow = classify(0.32); // Now 'Low' (was 'Moderate' with 0.31 boundary)
+  it('cdsEngine classification boundaries harmonized with analytics (0.31, 0.50)', function() {
+    // V2 FIX: Centralized thresholds — LOW=0.31, MODERATE=0.50
+    const cdsEngineLow = classify(0.31);
     assert.strictEqual(cdsEngineLow, 'Low');
-    const cdsEngineModerate = classify(0.55); // Now 'Moderate' (was 'High' with 0.50 boundary)
+    const cdsEngineModerate = classify(0.50);
     assert.strictEqual(cdsEngineModerate, 'Moderate');
+    const cdsEngineHigh = classify(0.51);
+    assert.strictEqual(cdsEngineHigh, 'High');
+  });
+
+  it('classifies at exact boundary: 0.31 → Low', function() {
+    assert.strictEqual(classify(0.31), 'Low');
+  });
+
+  it('classifies just above low boundary: 0.311 → Moderate', function() {
+    assert.strictEqual(classify(0.311), 'Moderate');
+  });
+
+  it('classifies at exact moderate boundary: 0.50 → Moderate', function() {
+    assert.strictEqual(classify(0.50), 'Moderate');
+  });
+
+  it('classifies just above moderate boundary: 0.501 → High', function() {
+    assert.strictEqual(classify(0.501), 'High');
+  });
+
+  it('adds Preliminary prefix when isPreliminary=true', function() {
+    assert.strictEqual(classify(0.4, true), 'Preliminary - Moderate');
+  });
+
+  it('exports match centralized CDS_THRESHOLDS', function() {
+    assert.strictEqual(CDS_THRESHOLDS.LOW, 0.31);
+    assert.strictEqual(CDS_THRESHOLDS.MODERATE, 0.50);
   });
 });
 

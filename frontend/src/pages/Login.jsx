@@ -44,9 +44,10 @@ export default function Login() {
 
     try {
       const res = await api.post('/api/auth/login', { email, password });
-      login(res.data.token, res.data.user);
+      login(res.data.user);
 
-      const dest = res.data.user.role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
+      const role = res.data.user.role;
+      const dest = role === 'instructor' ? '/instructor/dashboard' : role === 'admin' ? '/admin' : '/student/dashboard';
       navigate(dest, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -146,6 +147,12 @@ export default function Login() {
               <div>Instructor: instructor@psu.edu</div>
               <div>Student: maria@student.psu.edu</div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Don&apos;t have an account?{' '}
+              <Link to="/register" className="font-medium text-primary hover:underline">
+                Sign up
+              </Link>
+            </p>
           </CardFooter>
         </Card>
       </div>
