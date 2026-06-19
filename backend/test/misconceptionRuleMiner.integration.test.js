@@ -88,7 +88,7 @@ describe('Misconception Rule Mining Integration', () => {
     await db.end();
   });
 
-  it('discovers the undeclared variable pattern as top candidate', async () => {
+  it('discovers the most frequent remaining error pattern as top candidate', async () => {
     const outputPath = `/tmp/test_candidates_${Date.now()}.json`;
     const result = await runFullPipeline({ exerciseId, outputPath, minStudents: 1, minOccurrences: 1 });
 
@@ -97,6 +97,10 @@ describe('Misconception Rule Mining Integration', () => {
 
     const topCandidate = result.candidates[0];
     expect(topCandidate.confidence).toBeGreaterThanOrEqual(80);
+    // The "undeclared identifier" cluster is filtered out by hasExistingRule() because
+    // its signature ("was not declared in this scope") matches the var_undeclared rule
+    // in the micro-concept taxonomy. Only the "expected ';'" (Syntax Error - Expected Token)
+    // cluster survives the filter and becomes the top candidate.
     expect(topCandidate.match_keywords.some(k => k.toLowerCase().includes('expected'))).toBe(true);
 
     const fs = require('fs');
