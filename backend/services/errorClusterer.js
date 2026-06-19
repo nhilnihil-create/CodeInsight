@@ -1,3 +1,39 @@
+const { MICRO_CONCEPT_RULES } = require('./microConceptTaxonomy');
+
+function hasExistingRule(signature) {
+  if (!signature) return false;
+
+  const allRules = [];
+  for (const conceptName of Object.keys(MICRO_CONCEPT_RULES)) {
+    allRules.push(...MICRO_CONCEPT_RULES[conceptName]);
+  }
+
+  try {
+    const engine = require('./microConceptEngine');
+    if (engine.crossCuttingRules) {
+      allRules.push(...engine.crossCuttingRules);
+    }
+  } catch (e) {
+    // proceed with taxonomy rules only
+  }
+
+  const sigLower = signature.toLowerCase();
+  const sigKeywords = sigLower.split(/\s+/).filter(w => w.length > 3);
+
+  for (const rule of allRules) {
+    const detectorStr = rule.detector ? rule.detector.toString().toLowerCase() : '';
+    const nameStr = (rule.name || '').toLowerCase();
+    const descStr = (rule.description || '').toLowerCase();
+
+    const matchCount = sigKeywords.filter(k =>
+      detectorStr.includes(k) || nameStr.includes(k) || descStr.includes(k)
+    ).length;
+    if (matchCount >= 2) return true;
+  }
+
+  return false;
+}
+
 function jaccardSimilarity(a, b) {
   const tokensA = new Set(a.split(/\s+/));
   const tokensB = new Set(b.split(/\s+/));
@@ -73,7 +109,9 @@ function clusterErrors(parsedErrors) {
 
 function rankClusters(clusters, { minStudents = 3, minOccurrences = 5 } = {}) {
   const filtered = clusters.filter(c =>
-    c.uniqueStudents.size >= minStudents && c.occurrences >= minOccurrences
+    c.uniqueStudents.size >= minStudents &&
+    c.occurrences >= minOccurrences &&
+    !hasExistingRule(c.signature)
   );
 
   filtered.sort((a, b) => {
@@ -88,5 +126,6 @@ function rankClusters(clusters, { minStudents = 3, minOccurrences = 5 } = {}) {
 module.exports = {
   jaccardSimilarity,
   clusterErrors,
-  rankClusters
+  rankClusters,
+  hasExistingRule
 };

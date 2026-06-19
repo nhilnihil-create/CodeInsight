@@ -7,6 +7,137 @@
 const { MICRO_CONCEPT_RULES } = require('./microConceptTaxonomy.js');
 
 /**
+ * Cross-cutting rules that apply to ANY submission regardless of concept.
+ * Defined at module scope so errorClusterer can check existing rule coverage.
+ */
+const crossCuttingRules = [
+  {
+    id: 'cc_missing_semicolon',
+    name: 'Missing Semicolon',
+    description: 'Syntax error: missing semicolon at end of statement',
+    detector: ({compilerErrors}) => compilerErrors.some(err =>
+      err.includes('expected') || err.includes('parse error')
+    ),
+    instructorMessage: 'Missing semicolon — every statement in C++ ends with ;',
+    studentMessage: 'Every statement in C++ must end with a semicolon (;).',
+    evidenceExtractor: ({compilerErrors}) => {
+      const err = compilerErrors.find(e => e.includes('expected'));
+      return err ? err.trim() : 'Syntax error: missing ;';
+    }
+  },
+  {
+    id: 'cc_unused_variable',
+    name: 'Variable Declared But Not Used',
+    description: 'Variable declared but never read or written to',
+    detector: ({compilerErrors}) => compilerErrors.some(err =>
+      err.includes('unused variable') ||
+      err.includes('set but not used')
+    ),
+    instructorMessage: 'Declared variable is never used. Remove unused variables to keep code clean.',
+    studentMessage: 'You declared a variable but never used it. Either use it or remove it.',
+    evidenceExtractor: ({compilerErrors}) => {
+      const err = compilerErrors.find(e => e.includes('unused'));
+      return err ? err.trim() : 'Unused variable';
+    }
+  },
+  {
+    id: 'cc_missing_return_main',
+    name: 'Missing return 0 in main()',
+    description: 'Main function without return 0; at the end',
+    detector: ({code}) => {
+      const hasMain = /\bmain\s*\(/.test(code);
+      const hasReturn = /return\s+0\s*;/.test(code);
+      return hasMain && !hasReturn;
+    },
+    instructorMessage: 'main() should return 0 to indicate successful program completion to the operating system.',
+    studentMessage: 'Add "return 0;" at the end of main() to indicate the program ran successfully.',
+    evidenceExtractor: () => 'main() missing return 0'
+  },
+  {
+    id: 'cc_using_namespace_std',
+    name: 'Using namespace std in Global Scope',
+    description: 'using namespace std; at file scope — considered bad practice in larger programs',
+    detector: ({code}) => {
+      const hasGlobalUsing = /^using\s+namespace\s+std\s*;/m.test(code);
+      return hasGlobalUsing;
+    },
+    instructorMessage: 'using namespace std; at file scope can cause naming collisions in larger programs. Use std:: prefix instead.',
+    studentMessage: 'For now it works, but in larger programs, use std::cout instead of cout to avoid naming conflicts.',
+    evidenceExtractor: () => 'using namespace std in global scope'
+  },
+  {
+    id: 'cc_comma_in_conditional',
+    name: 'Comma Operator in Conditional',
+    description: 'Using comma operator inside if or while condition — left operand value is discarded',
+    detector: ({code, compilerErrors}) => {
+      const commaInCondition = /(?:if|while|for)\s*\([^)]*,[^)]*\)/.test(code);
+      const commaWarning = compilerErrors.some(err =>
+        err.includes('comma') || (err.includes('left operand') && err.includes(','))
+      );
+      return commaInCondition || commaWarning;
+    },
+    instructorMessage: 'Comma operator in a conditional discards the left operand truth value. Only the rightmost expression determines the condition.',
+    studentMessage: 'In "if (x, y)", only y matters for the condition. Use && or || if you want to test both values.',
+    evidenceExtractor: ({code}) => {
+      const match = code.match(/(?:if|while|for)\s*\([^)]*,[^)]*\)/);
+      return match ? `Comma operator in: ${match[0].trim()}` : 'Comma operator in conditional';
+    }
+  },
+  {
+    id: 'cc_short_circuit_if',
+    name: 'Short-Circuit as If-Replacement',
+    description: 'Using logical && or || as control flow at statement level instead of if',
+    detector: ({code}) => {
+      const stmtLevelAnd = /(?:^|;)\s*\w+\s*[^;]*\&\&\s*\w+\s*\(/.test(code);
+      const stmtLevelOr = /(?:^|;)\s*\w+\s*[^;]*\|\|\s*\w+\s*\(/.test(code);
+      return stmtLevelAnd || stmtLevelOr;
+    },
+    instructorMessage: 'Using && or || as a control flow mechanism instead of if statements. This makes C++ code harder to read and debug.',
+    studentMessage: 'Replace "condition && action()" with "if (condition) { action(); }" for clarity.',
+    evidenceExtractor: ({code}) => {
+      const match = code.match(/(?:^|;)\s*\w+\s*[^;]*\&\&\s*\w+\s*\(/);
+      return match ? `Found: ${match[0].trim()}` : 'Short-circuit control flow';
+    }
+  },
+  {
+    id: 'cc_empty_loop_body',
+    name: 'Empty Loop Body',
+    description: 'Loop with empty or semicolon-only body — likely unintentional',
+    detector: ({code, compilerErrors}) => {
+      const emptyFor = /for\s*\([^)]*\)\s*;/.test(code);
+      const emptyWhile = /while\s*\([^)]*\)\s*;/.test(code);
+      const emptyDo = /do\s*;\s*while/.test(code);
+      const emptyWarning = compilerErrors.some(err =>
+        err.includes('empty body') || err.includes('-Wempty-body')
+      );
+      return emptyFor || emptyWhile || emptyDo || emptyWarning;
+    },
+    instructorMessage: 'Loop has an empty body (semicolon right after the loop header). The loop does nothing.',
+    studentMessage: 'Your loop body is empty. Keep the opening brace { on the same line as for/while to avoid accidental semicolons.',
+    evidenceExtractor: ({code}) => {
+      const match = code.match(/(?:for|while)\s*\([^)]*\)\s*;/);
+      return match ? `Empty loop: ${match[0].trim()}` : 'Empty loop body detected';
+    }
+  },
+  {
+    id: 'cc_macro_heavy',
+    name: 'Macro-Obfuscated Computation',
+    description: 'Heavy use of #define macros (> 5) without regular function definitions — logic hidden in macros',
+    detector: ({code}) => {
+      const defineCount = (code.match(/#define\s/g) || []).length;
+      const hasFuncDefs = /\w+\s+\([^)]*\)\s*\{/.test(code);
+      return defineCount > 5 && !hasFuncDefs;
+    },
+    instructorMessage: 'Excessive macros (#define) without regular function definitions. Macros obscure logic and bypass type checking.',
+    studentMessage: 'Replace #define macros with regular functions — they are type-safe and easier to debug.',
+    evidenceExtractor: ({code}) => {
+      const macros = (code.match(/#define\s/g) || []).length;
+      return `${macros} #define directives found, no function definitions`;
+    }
+  }
+];
+
+/**
  * Run micro-concept detection for a submission
  * @param {Object} context - Submission context for analysis
  * @param {string} conceptName - Name of the exercise concept (e.g., 'Conditionals')
@@ -36,134 +167,6 @@ async function detectMicroConcepts(context, conceptName) {
 
   // Get rules for the specific concept
   const conceptRules = MICRO_CONCEPT_RULES[conceptName] || [];
-
-  // Cross-cutting rules that apply to ANY submission regardless of concept
-  const crossCuttingRules = [
-    {
-      id: 'cc_missing_semicolon',
-      name: 'Missing Semicolon',
-      description: 'Syntax error: missing semicolon at end of statement',
-      detector: ({compilerErrors}) => compilerErrors.some(err =>
-        err.includes('expected') || err.includes('parse error')
-      ),
-      instructorMessage: 'Missing semicolon — every statement in C++ ends with ;',
-      studentMessage: 'Every statement in C++ must end with a semicolon (;).',
-      evidenceExtractor: ({compilerErrors}) => {
-        const err = compilerErrors.find(e => e.includes('expected'));
-        return err ? err.trim() : 'Syntax error: missing ;';
-      }
-    },
-    {
-      id: 'cc_unused_variable',
-      name: 'Variable Declared But Not Used',
-      description: 'Variable declared but never read or written to',
-      detector: ({compilerErrors}) => compilerErrors.some(err =>
-        err.includes('unused variable') ||
-        err.includes('set but not used')
-      ),
-      instructorMessage: 'Declared variable is never used. Remove unused variables to keep code clean.',
-      studentMessage: 'You declared a variable but never used it. Either use it or remove it.',
-      evidenceExtractor: ({compilerErrors}) => {
-        const err = compilerErrors.find(e => e.includes('unused'));
-        return err ? err.trim() : 'Unused variable';
-      }
-    },
-    {
-      id: 'cc_missing_return_main',
-      name: 'Missing return 0 in main()',
-      description: 'Main function without return 0; at the end',
-      detector: ({code}) => {
-        const hasMain = /\bmain\s*\(/.test(code);
-        const hasReturn = /return\s+0\s*;/.test(code);
-        return hasMain && !hasReturn;
-      },
-      instructorMessage: 'main() should return 0 to indicate successful program completion to the operating system.',
-      studentMessage: 'Add "return 0;" at the end of main() to indicate the program ran successfully.',
-      evidenceExtractor: () => 'main() missing return 0'
-    },
-    {
-      id: 'cc_using_namespace_std',
-      name: 'Using namespace std in Global Scope',
-      description: 'using namespace std; at file scope — considered bad practice in larger programs',
-      detector: ({code}) => {
-        const hasGlobalUsing = /^using\s+namespace\s+std\s*;/m.test(code);
-        return hasGlobalUsing;
-      },
-      instructorMessage: 'using namespace std; at file scope can cause naming collisions in larger programs. Use std:: prefix instead.',
-      studentMessage: 'For now it works, but in larger programs, use std::cout instead of cout to avoid naming conflicts.',
-      evidenceExtractor: () => 'using namespace std in global scope'
-    },
-    {
-      id: 'cc_comma_in_conditional',
-      name: 'Comma Operator in Conditional',
-      description: 'Using comma operator inside if or while condition — left operand value is discarded',
-      detector: ({code, compilerErrors}) => {
-        const commaInCondition = /(?:if|while|for)\s*\([^)]*,[^)]*\)/.test(code);
-        const commaWarning = compilerErrors.some(err =>
-          err.includes('comma') || (err.includes('left operand') && err.includes(','))
-        );
-        return commaInCondition || commaWarning;
-      },
-      instructorMessage: 'Comma operator in a conditional discards the left operand truth value. Only the rightmost expression determines the condition.',
-      studentMessage: 'In "if (x, y)", only y matters for the condition. Use && or || if you want to test both values.',
-      evidenceExtractor: ({code}) => {
-        const match = code.match(/(?:if|while|for)\s*\([^)]*,[^)]*\)/);
-        return match ? `Comma operator in: ${match[0].trim()}` : 'Comma operator in conditional';
-      }
-    },
-    {
-      id: 'cc_short_circuit_if',
-      name: 'Short-Circuit as If-Replacement',
-      description: 'Using logical && or || as control flow at statement level instead of if',
-      detector: ({code}) => {
-        const stmtLevelAnd = /(?:^|;)\s*\w+\s*[^;]*\&\&\s*\w+\s*\(/.test(code);
-        const stmtLevelOr = /(?:^|;)\s*\w+\s*[^;]*\|\|\s*\w+\s*\(/.test(code);
-        return stmtLevelAnd || stmtLevelOr;
-      },
-      instructorMessage: 'Using && or || as a control flow mechanism instead of if statements. This makes C++ code harder to read and debug.',
-      studentMessage: 'Replace "condition && action()" with "if (condition) { action(); }" for clarity.',
-      evidenceExtractor: ({code}) => {
-        const match = code.match(/(?:^|;)\s*\w+\s*[^;]*\&\&\s*\w+\s*\(/);
-        return match ? `Found: ${match[0].trim()}` : 'Short-circuit control flow';
-      }
-    },
-    {
-      id: 'cc_empty_loop_body',
-      name: 'Empty Loop Body',
-      description: 'Loop with empty or semicolon-only body — likely unintentional',
-      detector: ({code, compilerErrors}) => {
-        const emptyFor = /for\s*\([^)]*\)\s*;/.test(code);
-        const emptyWhile = /while\s*\([^)]*\)\s*;/.test(code);
-        const emptyDo = /do\s*;\s*while/.test(code);
-        const emptyWarning = compilerErrors.some(err =>
-          err.includes('empty body') || err.includes('-Wempty-body')
-        );
-        return emptyFor || emptyWhile || emptyDo || emptyWarning;
-      },
-      instructorMessage: 'Loop has an empty body (semicolon right after the loop header). The loop does nothing.',
-      studentMessage: 'Your loop body is empty. Keep the opening brace { on the same line as for/while to avoid accidental semicolons.',
-      evidenceExtractor: ({code}) => {
-        const match = code.match(/(?:for|while)\s*\([^)]*\)\s*;/);
-        return match ? `Empty loop: ${match[0].trim()}` : 'Empty loop body detected';
-      }
-    },
-    {
-      id: 'cc_macro_heavy',
-      name: 'Macro-Obfuscated Computation',
-      description: 'Heavy use of #define macros (> 5) without regular function definitions — logic hidden in macros',
-      detector: ({code}) => {
-        const defineCount = (code.match(/#define\s/g) || []).length;
-        const hasFuncDefs = /\w+\s+\([^)]*\)\s*\{/.test(code);
-        return defineCount > 5 && !hasFuncDefs;
-      },
-      instructorMessage: 'Excessive macros (#define) without regular function definitions. Macros obscure logic and bypass type checking.',
-      studentMessage: 'Replace #define macros with regular functions — they are type-safe and easier to debug.',
-      evidenceExtractor: ({code}) => {
-        const macros = (code.match(/#define\s/g) || []).length;
-        return `${macros} #define directives found, no function definitions`;
-      }
-    }
-  ];
 
   // Combine concept-specific and cross-cutting rules
   const allRules = [...conceptRules, ...crossCuttingRules];
@@ -351,5 +354,6 @@ async function getMicroConceptFeedback(context, conceptName) {
 module.exports = {
   getMicroConceptFeedback,
   detectMicroConcepts,
-  formatFeedback
+  formatFeedback,
+  crossCuttingRules
 };
