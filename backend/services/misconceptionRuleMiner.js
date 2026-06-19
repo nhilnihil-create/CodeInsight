@@ -7,7 +7,7 @@ const path = require('path');
 
 async function runFullPipeline({ exerciseId, minStudents = 3, minOccurrences = 5, outputPath } = {}) {
   const submissions = await db.query(
-    `SELECT s.id, s.student_id, s.exercise_id, s.compiler_log, s.test_results,
+    `SELECT s.id, s.student_id, s.exercise_id, s.compiler_log, s.test_feedback_hints,
             s.is_correct, e.concept_id, c.name AS concept_name
      FROM submissions s
      JOIN exercises e ON e.id = s.exercise_id
