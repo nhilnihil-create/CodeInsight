@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   Users,
   User,
+  Code,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -41,6 +42,16 @@ const instructorLinks = [
   { to: '/instructor/integrity',   label: 'Integrity',   icon: ShieldAlert },
 ];
 
+const adminLinks = [
+  { to: '/admin',                label: 'Overview',    icon: LayoutDashboard, end: true },
+  { to: '/admin/users',          label: 'Users',       icon: Users },
+  { to: '/admin/sections',       label: 'Sections',    icon: ListChecks },
+  { to: '/admin/concepts',       label: 'Concepts',    icon: Code },
+  { to: '/admin/exercises',      label: 'Exercises',   icon: PlusSquare },
+  { to: '/admin/evaluation',     label: 'Evaluation',  icon: TrendingUp },
+  { to: '/admin/audit',          label: 'Audit Log',   icon: ShieldAlert },
+];
+
 const studentLinks = [
   { to: '/student/dashboard', label: 'My Exercises', icon: Terminal, end: true },
   { to: '/student/progress',  label: 'My Progress',  icon: TrendingUp },
@@ -53,7 +64,9 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const links = user?.role === 'instructor' ? instructorLinks : studentLinks;
+  const links = user?.role === 'admin' ? adminLinks
+    : user?.role === 'instructor' ? instructorLinks
+    : studentLinks;
 
   const initials = (user?.name || '?')
     .split(' ')
@@ -97,7 +110,9 @@ export default function Sidebar() {
                 Code<span className="text-secondary-foreground">Insight</span>
               </div>
               <div className="mt-1 text-[9px] font-bold uppercase tracking-[2px] text-muted-foreground">
-                {user?.role === 'instructor' ? 'Instructor' : 'Student'}
+                {user?.role === 'admin' ? 'Admin'
+                : user?.role === 'instructor' ? 'Instructor'
+                : 'Student'}
               </div>
             </motion.div>
           )}
