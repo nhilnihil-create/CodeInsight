@@ -277,3 +277,57 @@ exports.overview = async (req, res, next) => {
     });
   } catch (err) { next(err); }
 };
+
+// =============================================================================
+// FLAGS
+// =============================================================================
+
+exports.listFlags = async (req, res, next) => {
+  try {
+    const { status, flag_type, limit = 100, offset = 0 } = req.query;
+    const where = [];
+    const params = [];
+    if (status) { params.push(status); where.push(`f.status = $${params.length}`); }
+    if (flag_type) { params.push(flag_type); where.push(`f.flag_type = $${params.length}`); }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    params.push(Math.min(Number(limit), 500)); const lIdx = params.length;
+    params.push(Math.max(Number(offset), 0)); const oIdx = params.length;
+    const r = await db.query(
+      `SELECT f.id, f.flag_type, f.severity, f.status, f.evidence, f.created_at,
+              u.name AS student_name, u.email AS student_email,
+              ex.title AS exercise_title, s.name AS section_name
+         FROM integrity_flags f
+         JOIN users u ON u.id = f.student_id
+         JOIN exercises ex ON ex.id = f.exercise_id
+         JOIN sections s ON s.id = f.section_id
+        ${whereSql}
+        ORDER BY f.created_at DESC LIMIT $${lIdx} OFFSET $${oIdx}`,
+      params
+    );
+    const c = await db.query(
+      `SELECT COUNT(*)::int AS total FROM integrity_flags f ${whereSql}`,
+      params.slice(0, params.length - 2)
+    );
+    res.json({ flags: r.rows, total: c.rows[0].total });
+  } catch (err) { next(err); }
+};
+
+exports.updateFlag = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, instructor_note } = req.body;
+    const allowed = ['flagged', 'resolved', 'dismissed'];
+    if (status && !allowed.includes(status)) {
+      throw new AppError(`Status must be one of: ${allowed.join(', ')}`, 400, codes.VALIDATION);
+    }
+    const r = await db.query(
+      `UPDATE integrity_flags SET status=COALESCE($1,status),
+       instructor_note=COALESCE($2,instructor_note),
+       reviewed_at=CASE WHEN $1 IS NOT NULL AND $1!='flagged' THEN NOW() ELSE reviewed_at END
+       WHERE id=$3 RETURNING id, flag_type, status, reviewed_at`,
+      [status ?? null, instructor_note ?? null, id]
+    );
+    if (!r.rows.length) throw new AppError('Flag not found', 404, codes.NOT_FOUND);
+    res.json({ flag: r.rows[0] });
+  } catch (err) { next(err); }
+};

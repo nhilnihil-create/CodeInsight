@@ -43,4 +43,8 @@ router.patch('/exercises/:id',      validate.params(v.idParam), ctrl.toggleExerc
 // Evaluation
 router.get('/evaluation',           ctrl.listEvaluation);
 
+// Flags
+router.get('/flags', ctrl.listFlags);
+router.patch('/flags/:id', validate.params(v.idParam), ctrl.updateFlag);
+
 module.exports = router;

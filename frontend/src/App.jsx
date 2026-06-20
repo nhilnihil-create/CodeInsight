@@ -58,6 +58,7 @@ import AdminConcepts from './pages/admin/Concepts';
 import AdminExercises from './pages/admin/Exercises';
 import AdminEvaluation from './pages/admin/Evaluation';
 import AdminAudit from './pages/admin/Audit';
+import AdminFlags from './pages/admin/Flags';
 import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
 import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
 import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
@@ -341,6 +342,11 @@ function AppContent() {
         <Route path="/admin/audit" element={
           <ProtectedRoute requiredRole="admin">
             <ModeSwitch mobile={<MobileAdminAudit />} desktop={<AdminAudit />} />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/flags" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminFlags />
           </ProtectedRoute>
         } />
 
