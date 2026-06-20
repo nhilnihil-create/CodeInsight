@@ -47,4 +47,7 @@ router.get('/evaluation',           ctrl.listEvaluation);
 router.get('/flags', ctrl.listFlags);
 router.patch('/flags/:id', validate.params(v.idParam), ctrl.updateFlag);
 
+// Audit log
+router.get('/audit-log', ctrl.listAdminAuditLog);
+
 module.exports = router;

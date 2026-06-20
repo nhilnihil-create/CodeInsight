@@ -2,6 +2,18 @@ const bcrypt = require('bcryptjs');
 const db     = require('../config/db');
 const { AppError, codes } = require('../lib/AppError');
 
+async function addAuditLog(adminId, action, targetType, targetId, details = {}) {
+  try {
+    await db.query(
+      `INSERT INTO admin_audit_log (admin_id, action, target_type, target_id, details)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [adminId, action, targetType, targetId ?? null, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('Failed to write admin audit log:', err.message);
+  }
+}
+
 // =============================================================================
 // USERS
 // =============================================================================
@@ -35,6 +47,7 @@ exports.createUser = async (req, res, next) => {
       'INSERT INTO users (name,email,password_hash,role) VALUES ($1,$2,$3,$4) RETURNING id,name,email,role,created_at',
       [name, email, hash, role]
     );
+    await addAuditLog(req.user.id, 'create', 'user', r.rows[0].id, { email, role });
     res.status(201).json({ user: r.rows[0] });
   } catch (err) { next(err); }
 };
@@ -53,6 +66,7 @@ exports.updateUser = async (req, res, next) => {
       [name ?? null, email ?? null, role ?? null, id]
     );
     if (!r.rows.length) throw new AppError('User not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'update', 'user', id, { name, email, role });
     res.json({ user: r.rows[0] });
   } catch (err) { next(err); }
 };
@@ -65,6 +79,7 @@ exports.deleteUser = async (req, res, next) => {
     }
     const r = await db.query('DELETE FROM users WHERE id=$1 RETURNING id', [id]);
     if (!r.rows.length) throw new AppError('User not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'delete', 'user', Number(id));
     res.json({ deleted: true, id: Number(id) });
   } catch (err) { next(err); }
 };
@@ -79,6 +94,7 @@ exports.resetPassword = async (req, res, next) => {
       [hash, id]
     );
     if (!r.rows.length) throw new AppError('User not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'reset_password', 'user', Number(id));
     res.json({ message: 'Password updated', user: { id: r.rows[0].id, name: r.rows[0].name } });
   } catch (err) { next(err); }
 };
@@ -120,6 +136,7 @@ exports.updateSection = async (req, res, next) => {
       [name ?? null, course_code ?? null, school_year ?? null, term ?? null, join_policy ?? null, max_size ?? null, id]
     );
     if (!r.rows.length) throw new AppError('Section not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'update', 'section', id, { name, course_code });
     res.json({ section: r.rows[0] });
   } catch (err) { next(err); }
 };
@@ -129,6 +146,7 @@ exports.deleteSection = async (req, res, next) => {
     const { id } = req.params;
     const r = await db.query('DELETE FROM sections WHERE id=$1 RETURNING id', [id]);
     if (!r.rows.length) throw new AppError('Section not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'delete', 'section', Number(id));
     res.json({ deleted: true, id: Number(id) });
   } catch (err) { next(err); }
 };
@@ -156,6 +174,7 @@ exports.createConcept = async (req, res, next) => {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [name, ast_nodes, knowledge_area_code || null, bloom_level || 'apply', slug || null]
     );
+    await addAuditLog(req.user.id, 'create', 'concept', r.rows[0].id, { name });
     res.status(201).json({ concept: r.rows[0] });
   } catch (err) { next(err); }
 };
@@ -165,6 +184,7 @@ exports.deleteConcept = async (req, res, next) => {
     const { id } = req.params;
     const r = await db.query('DELETE FROM concepts WHERE id=$1 RETURNING id', [id]);
     if (!r.rows.length) throw new AppError('Concept not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'delete', 'concept', Number(id));
     res.json({ deleted: true, id: Number(id) });
   } catch (err) { next(err); }
 };
@@ -180,6 +200,7 @@ exports.updateConcept = async (req, res, next) => {
       [name??null, ast_nodes??null, knowledge_area_code??null, bloom_level??null, id]
     );
     if (!r.rows.length) throw new AppError('Concept not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'update', 'concept', id, { name });
     res.json({ concept: r.rows[0] });
   } catch (err) { next(err); }
 };
@@ -216,6 +237,7 @@ exports.toggleExercise = async (req, res, next) => {
       [closed ? new Date().toISOString() : null, id]
     );
     if (!r.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, closed ? 'close' : 'reopen', 'exercise', Number(id));
     res.json({ exercise: r.rows[0] });
   } catch (err) { next(err); }
 };
@@ -328,6 +350,19 @@ exports.updateFlag = async (req, res, next) => {
       [status ?? null, instructor_note ?? null, id]
     );
     if (!r.rows.length) throw new AppError('Flag not found', 404, codes.NOT_FOUND);
+    await addAuditLog(req.user.id, 'flag_' + (status || 'updated'), 'integrity_flag', Number(id));
     res.json({ flag: r.rows[0] });
+  } catch (err) { next(err); }
+};
+
+exports.listAdminAuditLog = async (req, res, next) => {
+  try {
+    const r = await db.query(
+      `SELECT al.*, u.name AS admin_name, u.email AS admin_email
+         FROM admin_audit_log al
+         JOIN users u ON u.id = al.admin_id
+        ORDER BY al.created_at DESC LIMIT 200`
+    );
+    res.json({ logs: r.rows });
   } catch (err) { next(err); }
 };
