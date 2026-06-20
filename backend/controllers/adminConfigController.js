@@ -21,13 +21,12 @@ exports.updateSettings = async (req, res, next) => {
     );
     if (!r.rows.length) throw new AppError('Setting not found: ' + key, 404, codes.NOT_FOUND);
     try {
-      const db2 = require('../config/db');
-      await db2.query(
+      await db.query(
         `INSERT INTO admin_audit_log (admin_id, action, target_type, details)
          VALUES ($1, 'update_setting', 'system_setting', $2::jsonb)`,
         [req.user.id, JSON.stringify({ key, value })]
       );
-    } catch (_) {}
+    } catch (_) { console.warn('audit log write failed for setting update'); }
     res.json({ setting: r.rows[0] });
   } catch (err) { next(err); }
 };
