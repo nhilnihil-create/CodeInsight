@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, AlertTriangle, Lightbulb, ChevronRight, TrendingUp, Target, Sparkles } from 'lucide-react';
+import { X, AlertTriangle, ChevronRight, TrendingUp, Target, Code2 } from 'lucide-react';
 
 function MetricCard({ label, value, suffix = '' }) {
   return (
@@ -32,6 +32,25 @@ function IssueCard({ rank, issue, count, percent, isPrimary }) {
   );
 }
 
+function CommonErrorCard({ rank, error, totalStudents }) {
+  const pct = totalStudents > 0 ? ((error.count / totalStudents) * 100).toFixed(1) : '0.0';
+  return (
+    <div className="rounded-lg p-3 border-l-[3px] border-chart-3 bg-chart-3/5">
+      <div className="flex items-start gap-3">
+        <span className="text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-chart-3/20 text-chart-3">
+          {rank}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">{error.friendly}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            <strong>{error.count}</strong> student{error.count === 1 ? '' : 's'} ({pct}%)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InsightCard({ icon: Icon, title, text, highlight = false }) {
   return (
     <div className={`rounded-lg p-3 border ${highlight ? 'bg-chart-2/5 border-chart-2/25' : 'bg-muted/40 border-border'}`}>
@@ -47,16 +66,28 @@ function InsightCard({ icon: Icon, title, text, highlight = false }) {
 }
 
 function ReportBody({ report }) {
-  const emptyState = !report.mostCommonIssue || report.totalStudents === 0;
+  const hasCommonErrors = report.commonErrors && report.commonErrors.length > 0;
+  const hasTaxonomyIssues = !!report.mostCommonIssue;
+  const noData = report.totalStudents === 0;
+  const completelyEmpty = !hasCommonErrors && !hasTaxonomyIssues;
 
-  if (emptyState) {
+  if (noData) {
     return (
       <div className="py-8 text-center">
         <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" strokeWidth={1.5} />
         <p className="text-sm text-muted-foreground">
-          {report.totalStudents === 0
-            ? 'No submissions yet. Check back after students complete the exercise.'
-            : 'No misconception patterns detected.'}
+          No submissions yet. Check back after students complete the exercise.
+        </p>
+      </div>
+    );
+  }
+
+  if (completelyEmpty) {
+    return (
+      <div className="py-8 text-center">
+        <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" strokeWidth={1.5} />
+        <p className="text-sm text-muted-foreground">
+          No patterns detected.
         </p>
       </div>
     );
@@ -64,24 +95,40 @@ function ReportBody({ report }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <MetricCard label="Total Students" value={report.totalStudents} />
-        <MetricCard label="Affected" value={report.affectedCount} suffix={`/${report.totalStudents}`} />
-        <MetricCard label="Rate" value={report.affectedPercent} suffix="%" />
-      </div>
+      <MetricCard label="Total Students" value={report.totalStudents} />
 
-      <div className="space-y-2">
-        <IssueCard rank={1} issue={report.mostCommonIssue} count={report.affectedCount} percent={report.affectedPercent} isPrimary />
-        {report.secondIssue && (
-          <IssueCard rank={2} issue={report.secondIssue} count={report.secondCount} percent={report.totalStudents > 0 ? (report.secondCount / report.totalStudents) * 100 : 0} />
-        )}
-      </div>
+      {hasCommonErrors && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Code2 className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Common Class Errors</span>
+          </div>
+          <div className="space-y-2">
+            {report.commonErrors.map((err, i) => (
+              <CommonErrorCard key={err.normalized} rank={i + 1} error={err} totalStudents={report.totalStudents} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!hasCommonErrors && hasTaxonomyIssues && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Target className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Detected Patterns</span>
+          </div>
+          <div className="space-y-2">
+            <IssueCard rank={1} issue={report.mostCommonIssue} count={report.affectedCount} percent={report.affectedPercent} isPrimary />
+            {report.secondIssue && (
+              <IssueCard rank={2} issue={report.secondIssue} count={report.secondCount} percent={report.totalStudents > 0 ? (report.secondCount / report.totalStudents) * 100 : 0} />
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         {report.classSummary && <InsightCard icon={TrendingUp} title="Class Summary" text={report.classSummary} />}
-        {report.rootCause && <InsightCard icon={Target} title="Root Cause" text={report.rootCause} />}
-        {report.recommendedAction && <InsightCard icon={Lightbulb} title="Recommended Action" text={report.recommendedAction} highlight />}
-        {report.beforeAdvancing && <InsightCard icon={Sparkles} title="Before Advancing" text={report.beforeAdvancing} />}
+        {report.recommendedAction && <InsightCard icon={Target} title="Recommended Action" text={report.recommendedAction} highlight />}
       </div>
     </div>
   );

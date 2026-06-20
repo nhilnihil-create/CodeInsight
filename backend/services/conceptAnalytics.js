@@ -13,8 +13,8 @@
  *   CRS  (Concept Risk Score):     Per-section, per-concept risk classification.
  *          Formula: AVG(CDS) for all students on concept-tagged exercises.
  *          Rationale: Identifies concepts where the section as a whole struggles.
- *          Thresholds: critical (>0.70, ≥5 at-risk students), high (>0.50, ≥3),
- *          medium (>0.31), low (≤0.31). Maps to CDS thresholds for consistency.
+ *          Thresholds: critical (>0.80, ≥5 at-risk students), high (>0.60, ≥3),
+ *          medium (>0.40), low (≤0.40). Maps to CDS thresholds for consistency.
  *
  *   Velocity (Learning Velocity):  Per-student, per-concept weekly CMI change.
  *          Formula: (CMI_recent - CMI_baseline) / weeks_between
@@ -365,7 +365,7 @@ async function computeCRS(sectionId, dbClient) {
     const cdsRes = await client.query(
       `SELECT COUNT(DISTINCT cs.student_id) AS student_count,
               AVG(cs.cds) AS avg_cds,
-              COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.31) AS at_risk_count
+              COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.40) AS at_risk_count
        FROM cds_scores cs
        WHERE cs.exercise_id = ANY($1)
          AND cs.cds IS NOT NULL`,
@@ -402,13 +402,13 @@ async function computeCRS(sectionId, dbClient) {
  * Thresholds align with CDS classification for consistency.
  *
  * @param {number} crsScore - Average CDS (0-1)
- * @param {number} atRiskCount - Students with CDS > 0.31
+ * @param {number} atRiskCount - Students with CDS > 0.40
  * @returns {string} Risk classification
  */
 function _classifyCRS(crsScore, atRiskCount) {
-  if (crsScore > 0.70 && atRiskCount >= 5) return 'critical';
-  if (crsScore > 0.50 && atRiskCount >= 3) return 'high';
-  if (crsScore > 0.31) return 'medium';
+  if (crsScore > 0.80 && atRiskCount >= 5) return 'critical';
+  if (crsScore > 0.60 && atRiskCount >= 3) return 'high';
+  if (crsScore > 0.40) return 'medium';
   return 'low';
 }
 

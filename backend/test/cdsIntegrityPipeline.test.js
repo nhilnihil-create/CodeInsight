@@ -25,6 +25,7 @@ const integrityFlagEngine = require('../services/integrityFlagEngine');
 
 describe('CDS + integrity production loop', () => {
   beforeEach(() => {
+    cdsJobQueue.stopPolling();
     jest.clearAllMocks();
   });
 
@@ -75,17 +76,36 @@ describe('CDS + integrity production loop', () => {
     expect(live.hasFlaggedAttempt).toBe(true);
   });
 
-  test('enqueueCdsComputation runs batch CDS and sends email notifications', async () => {
+  test('enqueueCdsComputation inserts job and processQueue runs batch CDS', async () => {
+    // Insert into queue (consumed by enqueueCdsComputation)
     db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, exercise_id: 10, status: 'pending' }] });
+
+    await cdsJobQueue.enqueueCdsComputation(10);
+
+    // processQueue mock chain:
+    db.query
+      // 1. Claim job (loop iteration 1)
+      .mockResolvedValueOnce({ rows: [{ id: 1, exercise_id: 10, status: 'pending' }] })
+      // 2. notifyStudent — exercise lookup
       .mockResolvedValueOnce({ rows: [{ section_id: 1 }] })
+      // 3. notifyStudent — enrolled students
       .mockResolvedValueOnce({
         rows: [
           { student_id: 2, email: 'maria@student.psu.edu', name: 'Maria' }
         ]
-      });
+      })
+      // 4. processQueue — mark job done
+      .mockResolvedValueOnce({ rows: [] })
+      // 5. Claim job (loop iteration 2 — empty, breaks loop)
+      .mockResolvedValueOnce({ rows: [] });
 
-    await cdsJobQueue.enqueueCdsComputation(10);
+    await cdsJobQueue.processQueue();
 
     expect(cdsEngine.computeBatchCDS).toHaveBeenCalledWith(10, db);
+  });
+
+  afterEach(() => {
+    cdsJobQueue.stopPolling();
   });
 });

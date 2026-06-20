@@ -57,6 +57,7 @@ import AdminSectionsOverview from './pages/admin/Sections';
 import AdminConcepts from './pages/admin/Concepts';
 import AdminExercises from './pages/admin/Exercises';
 import AdminEvaluation from './pages/admin/Evaluation';
+import AdminAudit from './pages/admin/Audit';
 import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
 import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
 import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
@@ -339,7 +340,7 @@ function AppContent() {
         } />
         <Route path="/admin/audit" element={
           <ProtectedRoute requiredRole="admin">
-            <ModeSwitch mobile={<MobileAdminAudit />} desktop={<div style={{padding: 24}}>Admin audit view (TODO)</div>} />
+            <ModeSwitch mobile={<MobileAdminAudit />} desktop={<AdminAudit />} />
           </ProtectedRoute>
         } />
 

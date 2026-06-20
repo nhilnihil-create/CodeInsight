@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "@/lib/theme";
+import { useEditorPrefs } from "@/context/EditorPrefsContext";
 
 /**
  * CodeEditorSurface
@@ -29,10 +30,7 @@ export default function CodeEditorSurface({
   readOnly = false,
 }) {
   const { theme } = useTheme();
-  // TODO(redesign): wire to a real EditorPrefsContext / settings panel.
-  const fontSize = 14;
-  const tabSize = 4;
-  const wordWrap = false;
+  const { fontSize, tabSize, wordWrap } = useEditorPrefs();
 
   // Inject scoped Monaco background override on mount; clean up on unmount.
   useEffect(() => {

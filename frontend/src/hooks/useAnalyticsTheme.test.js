@@ -21,30 +21,30 @@ describe('computeCDSTier', () => {
     expect(result.label).toContain('Minimal Struggle');
   });
 
-  it('classifies 0.15 as tier 1 (boundary)', () => {
-    expect(computeCDSTier(0.15).tier).toBe(1);
+  it('classifies 0.20 as tier 1 (boundary)', () => {
+    expect(computeCDSTier(0.20).tier).toBe(1);
   });
 
-  it('classifies 0.16 as tier 2 (Expected Resistance)', () => {
-    const result = computeCDSTier(0.16);
+  it('classifies 0.21 as tier 2 (Expected Resistance)', () => {
+    const result = computeCDSTier(0.21);
     expect(result.tier).toBe(2);
     expect(result.label).toContain('Expected Resistance');
   });
 
-  it('classifies 0.55 as tier 3 (Moderate Friction)', () => {
-    const result = computeCDSTier(0.55);
+  it('classifies 0.60 as tier 3 (Moderate Friction)', () => {
+    const result = computeCDSTier(0.60);
     expect(result.tier).toBe(3);
     expect(result.label).toContain('Moderate Friction');
   });
 
-  it('classifies 0.75 as tier 4 (High Struggle)', () => {
-    const result = computeCDSTier(0.75);
+  it('classifies 0.80 as tier 4 (High Struggle)', () => {
+    const result = computeCDSTier(0.80);
     expect(result.tier).toBe(4);
     expect(result.label).toContain('High Struggle');
   });
 
-  it('classifies 0.76 as tier 5 (Critical Blocker)', () => {
-    const result = computeCDSTier(0.76);
+  it('classifies 0.81 as tier 5 (Critical Blocker)', () => {
+    const result = computeCDSTier(0.81);
     expect(result.tier).toBe(5);
     expect(result.label).toContain('Critical Blocker');
   });
@@ -64,9 +64,9 @@ describe('computeCDSTier', () => {
   });
 
   it('rounds to 2 decimal places', () => {
-    expect(computeCDSTier(0.156).tier).toBe(2);
-    expect(computeCDSTier(0.155).tier).toBe(2);
-    expect(computeCDSTier(0.154).tier).toBe(1);
+    expect(computeCDSTier(0.206).tier).toBe(2);
+    expect(computeCDSTier(0.205).tier).toBe(2);
+    expect(computeCDSTier(0.204).tier).toBe(1);
   });
 });
 
@@ -124,7 +124,7 @@ describe('computeMasteryTier', () => {
 
 describe('useAnalyticsTheme hook', () => {
   it('returns CDS theme by default', () => {
-    const { result } = renderHook(() => useAnalyticsTheme(0.8));
+    const { result } = renderHook(() => useAnalyticsTheme(0.85));
     expect(result.current.tier).toBe(5);
     expect(result.current.color).toBe('rose');
   });
@@ -148,7 +148,7 @@ describe('useAnalyticsTheme hook', () => {
   });
 
   it('falls back to CDS for unknown metricType', () => {
-    const { result } = renderHook(() => useAnalyticsTheme(0.8, 'UNKNOWN'));
+    const { result } = renderHook(() => useAnalyticsTheme(0.85, 'UNKNOWN'));
     expect(result.current.tier).toBe(5);
   });
 
@@ -168,7 +168,7 @@ describe('useAnalyticsTheme hook', () => {
       { initialProps: { value: 0.3 } }
     );
     expect(result.current.tier).toBe(2);
-    rerender({ value: 0.8 });
+    rerender({ value: 0.85 });
     expect(result.current.tier).toBe(5);
   });
 });

@@ -472,7 +472,7 @@ describe('CDS Integration — Full Pipeline (Submission → Batch CDS → Alerts
 
     // Verify classifications are set
     const classifications = rows.map(r => r.classification);
-    expect(classifications).toContain('Low'); // At least one Low
+    expect(classifications).toContain('Very Low'); // Best student should be Very Low (5-tier)
   });
 
   it('handles student with no submissions (Unscored)', async function() {

@@ -288,7 +288,7 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
                 ));
               }
             }}>
-              <SelectTrigger><SelectValue placeholder="Select primary concept" /></SelectTrigger>
+              <SelectTrigger data-testid="concept-trigger"><SelectValue placeholder="Select primary concept" /></SelectTrigger>
               <SelectContent>
                 {concepts.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
               </SelectContent>
@@ -729,6 +729,17 @@ export default function ExerciseWorkspace() {
       }).catch(() => {}) : Promise.resolve(),
     ]).finally(() => setLoading(false));
   }, [id, isEdit]);
+
+  // E2E test hook: expose programmatic concept selection
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.concept_name) {
+        setCurrentExercise(prev => ({ ...prev, concept_name: e.detail.concept_name }));
+      }
+    };
+    document.addEventListener('e2e:setConcept', handler);
+    return () => document.removeEventListener('e2e:setConcept', handler);
+  }, []);
 
   useEffect(() => { saveBasket(basket); }, [basket]);
 

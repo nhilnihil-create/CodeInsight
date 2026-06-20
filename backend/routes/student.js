@@ -584,7 +584,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
       .slice(0, 3)
       .map(c => ({
         ...c,
-        level: c.avgCds <= 0.33 ? 'low' : c.avgCds <= 0.66 ? 'moderate' : 'high',
+        level: c.avgCds <= 0.40 ? 'low' : c.avgCds <= 0.60 ? 'moderate' : 'high',
         hint: `${c.exerciseCount} exercise${c.exerciseCount !== 1 ? 's' : ''} completed`,
       }));
 
@@ -630,10 +630,98 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
   } catch (err) { next(err); }
 });
 
+/**
+ * Student submits context/explanation for an integrity flag.
+ * POST /api/student/integrity-flags/:id/respond
+ */
+router.post('/integrity-flags/:id/respond', verifyToken, requireRole('student'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { response } = req.body;
+    const studentId = req.user.id;
+
+    if (!response || typeof response !== 'string' || response.trim().length === 0) {
+      return res.status(400).json({ error: 'Response text is required' });
+    }
+    if (response.length > 2000) {
+      return res.status(400).json({ error: 'Response must be under 2000 characters' });
+    }
+
+    const flagRes = await db.query(
+      'SELECT id, student_id, status FROM integrity_flags WHERE id = $1',
+      [id]
+    );
+    if (flagRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Flag not found' });
+    }
+    const flag = flagRes.rows[0];
+    if (flag.student_id !== studentId) {
+      return res.status(403).json({ error: 'Not your flag' });
+    }
+    if (flag.status !== 'flagged') {
+      return res.status(400).json({ error: 'Flag has already been reviewed' });
+    }
+
+    await db.query(
+      `UPDATE integrity_flags
+       SET student_response = $1, student_responded_at = NOW()
+       WHERE id = $2`,
+      [response.trim(), id]
+    );
+
+    res.json({ message: 'Response submitted successfully' });
+  } catch (err) {
+    console.error('Error submitting flag response:', err);
+    res.status(500).json({ error: 'Failed to submit response' });
+  }
+});
+
 // Get student's own integrity flags
 router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const studentId = req.user.id;
+
+    // Stats
+    const statsRes = await db.query(`
+      SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'flagged') AS flagged,
+        COUNT(*) FILTER (WHERE status IN ('reviewed', 'dismissed')) AS reviewed
+      FROM integrity_flags WHERE student_id = $1
+    `, [studentId]);
+
+    const byTypeRes = await db.query(`
+      SELECT flag_type, COUNT(*) AS count
+      FROM integrity_flags WHERE student_id = $1
+      GROUP BY flag_type
+    `, [studentId]);
+
+    const cdsRes = await db.query(`
+      SELECT
+        ROUND(AVG(cds)::numeric, 2) AS avg_cds,
+        MAX(cds) AS max_cds
+      FROM cds_scores WHERE student_id = $1 AND cds IS NOT NULL AND visible = true
+    `, [studentId]);
+
+    const latestCdsRes = await db.query(`
+      SELECT classification FROM cds_scores
+      WHERE student_id = $1 AND cds IS NOT NULL AND visible = true
+      ORDER BY computed_at DESC LIMIT 1
+    `, [studentId]);
+
+    const totalCount = parseInt(statsRes.rows[0]?.total || 0, 10);
+    const flaggedCount = parseInt(statsRes.rows[0]?.flagged || 0, 10);
+    const reviewedCount = parseInt(statsRes.rows[0]?.reviewed || 0, 10);
+
+    const byType = {};
+    for (const row of byTypeRes.rows) {
+      byType[row.flag_type] = parseInt(row.count, 10);
+    }
+
+    const avgCds = cdsRes.rows[0]?.avg_cds ? parseFloat(cdsRes.rows[0].avg_cds) : null;
+    const maxCds = cdsRes.rows[0]?.max_cds ? parseFloat(cdsRes.rows[0].max_cds) : null;
+    const latestClassification = latestCdsRes.rows[0]?.classification || null;
+
     const r = await db.query(`
       SELECT i.id, i.flag_type AS rule, i.evidence, i.status, i.created_at,
              e.title AS exercise_title
@@ -656,7 +744,20 @@ router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, 
         date: row.created_at,
       };
     });
-    res.json({ flags });
+    res.json({
+      flags,
+      stats: {
+        totalFlags: totalCount,
+        flaggedCount,
+        reviewedCount,
+        byType,
+      },
+      cdsSummary: {
+        averageCds: avgCds,
+        highestCds: maxCds,
+        recentClassification: latestClassification,
+      },
+    });
   } catch (err) { next(err); }
 });
 
@@ -774,7 +875,7 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
       name: c.concept_name,
       cds: c.avgCds,
       delta: 0, // no historical delta yet
-      trend: c.avgCds <= 0.33 ? 'up' : c.avgCds <= 0.66 ? 'flat' : 'down',
+      trend: c.avgCds <= 0.40 ? 'up' : c.avgCds <= 0.60 ? 'flat' : 'down',
     }));
 
     // 4. Focus: pick the pending exercise with the highest concept CDS (hardest next)
@@ -809,10 +910,10 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
     if (conceptCds.length > 0) {
       const strongest = conceptCds[conceptCds.length - 1];
       const weakest = conceptCds[0];
-      if (strongest.avgCds <= 0.33) {
+      if (strongest.avgCds <= 0.40) {
         signals.push(`You have strong performance on ${strongest.concept_name} — consider advancing to harder exercises.`);
       }
-      if (weakest.avgCds >= 0.66) {
+      if (weakest.avgCds >= 0.60) {
         signals.push(`${weakest.concept_name} exercises take you longer than average — practice will help.`);
       }
     }

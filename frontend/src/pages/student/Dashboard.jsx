@@ -248,7 +248,7 @@ export default function StudentDashboard() {
           {[
             { label: "Mastery", value: `${mastery?.percentage ?? 0}%`, sub: "concept understanding", accent: "text-teal-400" },
             { label: "Completion", value: `${completion?.percentage ?? 0}%`, sub: `${completion?.completed ?? 0}/${completion?.total ?? 0} exercises`, accent: "text-emerald-400" },
-            { label: "Avg CDS", value: avgCds.toFixed(2), sub: avgCds <= 0.33 ? "on track" : avgCds <= 0.66 ? "moderate" : "needs focus", accent: avgCds <= 0.33 ? "text-emerald-400" : avgCds <= 0.66 ? "text-amber-400" : "text-rose-400" },
+            { label: "Avg CDS", value: avgCds.toFixed(2), sub: avgCds <= 0.20 ? "on track" : avgCds <= 0.40 ? "fair" : avgCds <= 0.60 ? "moderate" : avgCds <= 0.80 ? "needs focus" : "critical", accent: avgCds <= 0.20 ? "text-emerald-400" : avgCds <= 0.40 ? "text-teal-400" : avgCds <= 0.60 ? "text-amber-400" : avgCds <= 0.80 ? "text-orange-400" : "text-rose-400" },
           ].map((m) => (
             <div
               key={m.label}

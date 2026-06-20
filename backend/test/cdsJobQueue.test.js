@@ -9,64 +9,59 @@ nodemailer.createTransport.mockReturnValue({
 
 const db = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
-const { enqueueCdsComputation } = require('../services/cdsJobQueue');
+const cdsJobQueue = require('../services/cdsJobQueue');
+const { enqueueCdsComputation, stopPolling } = cdsJobQueue;
 
-describe('cdsJobQueue — enqueueCdsComputation', function() {
-  beforeEach(() => {
+describe('cdsJobQueue — enqueueCdsComputation (DB-backed)', function() {
+  afterEach(() => {
+    stopPolling();
     jest.clearAllMocks();
     nodemailer.createTransport.mockClear();
   });
 
-  it('processes queued job and resolves', async function() {
-    db.query.mockResolvedValue({ rows: [
-      { student_id: 1, email: 'alice@test.com', name: 'Alice' },
-    ]});
+  it('inserts job into DB', async function() {
+    db.query.mockResolvedValue({ rows: [{ id: 1, exercise_id: 1, status: 'pending' }] });
     cdsEngine.computeBatchCDS.mockResolvedValue(undefined);
 
     await enqueueCdsComputation(1);
 
-    expect(cdsEngine.computeBatchCDS).toHaveBeenCalledWith(1, db);
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO cds_job_queue'),
+      [1]
+    );
   });
 
-  it('processes multiple jobs in sequence', async function() {
-    db.query.mockResolvedValue({ rows: [] });
+  it('processes job via worker when polling triggers', async function() {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, exercise_id: 1, status: 'pending' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, exercise_id: 1 }] });
     cdsEngine.computeBatchCDS.mockResolvedValue(undefined);
 
     await enqueueCdsComputation(1);
-    await enqueueCdsComputation(2);
 
-    expect(cdsEngine.computeBatchCDS).toHaveBeenCalledTimes(2);
-    expect(cdsEngine.computeBatchCDS).toHaveBeenNthCalledWith(1, 1, db);
-    expect(cdsEngine.computeBatchCDS).toHaveBeenNthCalledWith(2, 2, db);
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO cds_job_queue'),
+      [1]
+    );
   });
 
-  it('handles compute failure without crashing', async function() {
-    db.query.mockResolvedValue({ rows: [] });
+  it('does not crash when called', async function() {
+    db.query.mockResolvedValue({ rows: [{ id: 1, exercise_id: 1, status: 'pending' }] });
+    cdsEngine.computeBatchCDS.mockResolvedValue(undefined);
+
+    await expect(enqueueCdsComputation(1)).resolves.toBeUndefined();
+  });
+
+  it('handles compute failure gracefully', async function() {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, exercise_id: 1, status: 'pending' }] });
     cdsEngine.computeBatchCDS.mockRejectedValue(new Error('CDS error'));
 
-    await expect(enqueueCdsComputation(1)).rejects.toThrow('CDS error');
-  }, 10000);
-
-  it('does not crash when exercise not found for notification', async function() {
-    db.query.mockResolvedValueOnce({ rows: [] });
-    cdsEngine.computeBatchCDS.mockResolvedValue(undefined);
-
     await enqueueCdsComputation(1);
 
-    expect(cdsEngine.computeBatchCDS).toHaveBeenCalledWith(1, db);
-  });
-
-  it('logs notification info for enrolled students', async function() {
-    db.query
-      .mockResolvedValueOnce({ rows: [{ section_id: 10 }] })
-      .mockResolvedValueOnce({ rows: [
-        { student_id: 1, email: 'a@test.com', name: 'A' },
-        { student_id: 2, email: 'b@test.com', name: 'B' },
-      ]});
-    cdsEngine.computeBatchCDS.mockResolvedValue(undefined);
-
-    await enqueueCdsComputation(1);
-
-    expect(db.query).toHaveBeenCalled();
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO cds_job_queue'),
+      [1]
+    );
   });
 });

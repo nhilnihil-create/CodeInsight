@@ -45,24 +45,32 @@ describe('CDS Engine — Classification', function() {
     assert.strictEqual(classify(undefined), 'Unscored');
   });
 
-  it('classifies 0.00 as Low', function() {
-    assert.strictEqual(classify(0), 'Low');
+  it('classifies 0.00 as Very Low', function() {
+    assert.strictEqual(classify(0), 'Very Low');
   });
 
-  it('classifies 0.31 as Low (exact boundary)', function() {
-    assert.strictEqual(classify(0.31), 'Low');
+  it('classifies 0.20 as Very Low (exact boundary)', function() {
+    assert.strictEqual(classify(0.20), 'Very Low');
   });
 
-  it('classifies 0.32 as Moderate (just above Low)', function() {
-    assert.strictEqual(classify(0.32), 'Moderate');
+  it('classifies 0.40 as Low (exact boundary)', function() {
+    assert.strictEqual(classify(0.40), 'Low');
   });
 
-  it('classifies 0.50 as Moderate (exact boundary)', function() {
+  it('classifies 0.45 as Moderate', function() {
+    assert.strictEqual(classify(0.45), 'Moderate');
+  });
+
+  it('classifies 0.50 as Moderate', function() {
     assert.strictEqual(classify(0.50), 'Moderate');
   });
 
-  it('classifies 0.51 as High', function() {
-    assert.strictEqual(classify(0.51), 'High');
+  it('classifies 0.60 as Moderate (exact boundary)', function() {
+    assert.strictEqual(classify(0.60), 'Moderate');
+  });
+
+  it('classifies 0.75 as Elevated', function() {
+    assert.strictEqual(classify(0.75), 'Elevated');
   });
 
   it('classifies 1.0 as High', function() {
@@ -70,7 +78,7 @@ describe('CDS Engine — Classification', function() {
   });
 
   it('adds Preliminary prefix when isPreliminary=true', function() {
-    assert.strictEqual(classify(0.5, true), 'Preliminary - Moderate');
+    assert.strictEqual(classify(0.5, true), 'Prelim-Moderate');
   });
 });
 
@@ -344,13 +352,13 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
     return { score: Math.min(cds, 1), ner, nrs, nts, classification: classify(Math.min(cds, 1)) };
   }
 
-  it('returns score=0 for empty testResults (classify gives Low, not Unscored)', function() {
-    // Note: instantCDS with [] gives cds=0 which classify() → 'Low'
+  it('returns score=0 for empty testResults (classify gives Very Low, not Unscored)', function() {
+    // Note: instantCDS with [] gives cds=0 which classify() → 'Very Low'
     // Only null/undefined cds gives 'Unscored'. Empty array is valid data.
     const result = instantCDS([]);
     assert.strictEqual(result.score, 0);
     assert.strictEqual(result.ner, 0);
-    assert.strictEqual(result.classification, 'Low'); // cds=0, not null
+    assert.strictEqual(result.classification, 'Very Low'); // cds=0, not null
   });
 
   it('returns all zeros for null testResults', function() {
@@ -359,14 +367,14 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
     assert.strictEqual(result.classification, 'Unscored');
   });
 
-  it('returns NER=1 when all tests fail → score=0.40 → Moderate', function() {
+  it('returns NER=1 when all tests fail → score=0.40 → Low', function() {
     const result = instantCDS([
       { passed: false }, { passed: false }, { passed: false }
     ]);
     assert.strictEqual(result.ner, 1);
     assert.strictEqual(result.score, 0.40);
-    // 0.40 is in the Moderate range (0.32-0.50) per cdsEngine thresholds
-    assert.strictEqual(result.classification, 'Moderate');
+    // 0.40 is the Low boundary per cdsEngine thresholds
+    assert.strictEqual(result.classification, 'Low');
   });
 
   it('returns NER=0 when all tests pass', function() {
@@ -375,7 +383,7 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
     ]);
     assert.strictEqual(result.ner, 0);
     assert.strictEqual(result.score, 0);
-    assert.strictEqual(result.classification, 'Low');
+    assert.strictEqual(result.classification, 'Very Low');
   });
 
   it('max instant CDS is 0.40 (not 1.0)', function() {
@@ -396,39 +404,53 @@ describe('CDS Engine — Instant CDS (single-run)', function() {
 // ── Classification Boundary Mismatch (document the bug) ──────────────────────
 
 describe('CDS Engine — Classification Boundary Audit', function() {
-  it('cdsEngine classification boundaries harmonized with analytics (0.31, 0.50)', function() {
-    // V2 FIX: Centralized thresholds — LOW=0.31, MODERATE=0.50
-    const cdsEngineLow = classify(0.31);
+  it('cdsEngine classification boundaries harmonized with analytics (0.20, 0.40, 0.60, 0.80)', function() {
+    // V3 FIX: Centralized thresholds — VERY_LOW=0.20, LOW=0.40, MODERATE=0.60, ELEVATED=0.80
+    const cdsEngineVeryLow = classify(0.20);
+    assert.strictEqual(cdsEngineVeryLow, 'Very Low');
+    const cdsEngineLow = classify(0.40);
     assert.strictEqual(cdsEngineLow, 'Low');
-    const cdsEngineModerate = classify(0.50);
+    const cdsEngineModerate = classify(0.60);
     assert.strictEqual(cdsEngineModerate, 'Moderate');
-    const cdsEngineHigh = classify(0.51);
+    const cdsEngineElevated = classify(0.80);
+    assert.strictEqual(cdsEngineElevated, 'Elevated');
+    const cdsEngineHigh = classify(0.81);
     assert.strictEqual(cdsEngineHigh, 'High');
   });
 
-  it('classifies at exact boundary: 0.31 → Low', function() {
-    assert.strictEqual(classify(0.31), 'Low');
+  it('classifies at exact very low boundary: 0.20 → Very Low', function() {
+    assert.strictEqual(classify(0.20), 'Very Low');
   });
 
-  it('classifies just above low boundary: 0.311 → Moderate', function() {
-    assert.strictEqual(classify(0.311), 'Moderate');
+  it('classifies just above very low boundary: 0.21 → Low', function() {
+    assert.strictEqual(classify(0.21), 'Low');
   });
 
-  it('classifies at exact moderate boundary: 0.50 → Moderate', function() {
-    assert.strictEqual(classify(0.50), 'Moderate');
+  it('classifies at exact moderate boundary: 0.60 → Moderate', function() {
+    assert.strictEqual(classify(0.60), 'Moderate');
   });
 
-  it('classifies just above moderate boundary: 0.501 → High', function() {
-    assert.strictEqual(classify(0.501), 'High');
+  it('classifies just above moderate boundary: 0.61 → Elevated', function() {
+    assert.strictEqual(classify(0.61), 'Elevated');
+  });
+
+  it('classifies at exact elevated boundary: 0.80 → Elevated', function() {
+    assert.strictEqual(classify(0.80), 'Elevated');
+  });
+
+  it('classifies just above elevated boundary: 0.81 → High', function() {
+    assert.strictEqual(classify(0.81), 'High');
   });
 
   it('adds Preliminary prefix when isPreliminary=true', function() {
-    assert.strictEqual(classify(0.4, true), 'Preliminary - Moderate');
+    assert.strictEqual(classify(0.4, true), 'Prelim-Low');
   });
 
   it('exports match centralized CDS_THRESHOLDS', function() {
-    assert.strictEqual(CDS_THRESHOLDS.LOW, 0.31);
-    assert.strictEqual(CDS_THRESHOLDS.MODERATE, 0.50);
+    assert.strictEqual(CDS_THRESHOLDS.VERY_LOW, 0.20);
+    assert.strictEqual(CDS_THRESHOLDS.LOW, 0.40);
+    assert.strictEqual(CDS_THRESHOLDS.MODERATE, 0.60);
+    assert.strictEqual(CDS_THRESHOLDS.ELEVATED, 0.80);
   });
 });
 

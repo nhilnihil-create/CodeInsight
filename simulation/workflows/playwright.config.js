@@ -17,10 +17,11 @@ module.exports = defineConfig({
   },
 
   webServer: {
-    command: 'echo "Services already running"',
-    url: 'http://localhost:5000/api/health',
+    command: 'node -e "setInterval(()=>{},86400000)"',
+    url: 'http://127.0.0.1:5000/api/health',
     reuseExistingServer: true,
     timeout: 10000,
+    ignoreHTTPSErrors: true,
   },
 
   projects: [

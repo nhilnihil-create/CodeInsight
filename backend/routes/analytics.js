@@ -38,6 +38,7 @@ router.get('/section/:id/hub', verifyToken, requireRole('instructor'), ctrl.getS
 router.get('/reports/:sectionId/summary', verifyToken, requireRole('instructor'), ctrl.getReportSummary);
 router.get('/reports/:sectionId/concept-mastery', verifyToken, requireRole('instructor'), ctrl.getConceptMasteryReport);
 router.get('/reports/:sectionId/completion', verifyToken, requireRole('instructor'), ctrl.getCompletionReport);
+router.get('/integrity-audit', verifyToken, requireRole('instructor'), ctrl.getIntegrityAudit);
 router.get('/reports/:sectionId/integrity-trends', verifyToken, requireRole('instructor'), ctrl.getIntegrityTrends);
 
 // Instructor Dashboard aggregate endpoint

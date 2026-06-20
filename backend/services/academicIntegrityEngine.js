@@ -60,8 +60,35 @@ function checkHardcoding(code, exercise, submission) {
       (hasLoops ? 1 : 0) +
       (hasConditionals ? 1 : 0);
 
+    // Disconfirming: comments explaining logic reduce suspicion
+    const hasExplanatoryComments = /\/\/.*(?:compute|calculate|sum|total|average|formula|result|output|print|display)/i.test(code);
+    const hasMultiLineComments = /\/\*[\s\S]*?\*\//.test(code);
+
+    // Disconfirming: detect known formula patterns that legitimately produce literals
+    const hasFormulaPattern = /(\w+)\s*\*\s*\(\s*\1\s*\+\s*1\s*\)\s*\/\s*2/.test(code); // n*(n+1)/2
+    const hasLoopWithAccumulator = /(for|while)\s*[\(].*[\+\-]?=\s/.test(code); // loop with +=
+
     // Clear hardcoding: outputs literals with minimal computation
     if (computationScore < 2 && !hasLoops) {
+      let confidence = matchesExpected === true ? 0.85 : 0.5;
+      // Reduce confidence if student provided explanatory comments
+      if (hasExplanatoryComments) confidence = Math.max(0.3, confidence - 0.25);
+      if (hasMultiLineComments) confidence = Math.max(0.3, confidence - 0.15);
+
+      // Disconfirming: if the literal is a trivial/common value (0, 1, 100) and exercise is simple
+      const isTrivialLiteral = literalValues.some(v => ['0', '1', '100', '10'].includes(v));
+      if (isTrivialLiteral && !matchesExpected) confidence = Math.min(confidence, 0.35);
+
+      // If code has a loop with accumulation AND outputs a literal, it may be legit
+      if (hasLoopWithAccumulator && computationScore < 2) confidence = Math.min(confidence, 0.4);
+
+      const innocentMsg = matchesExpected === true
+        ? 'Student may have used a direct formula (e.g., n*(n+1)/2) instead of a loop. Computation score is heuristic and may not capture all valid approaches.'
+        : 'No test cases available to cross-reference. Hardcoded literals without expected output correlation are less suspicious.';
+      const enhancedInnocent = hasExplanatoryComments
+        ? innocentMsg + ' Code contains explanatory comments suggesting the student understood the logic.'
+        : innocentMsg;
+
       return {
         type: 'HARDCODING',
         severity: 'HIGH',
@@ -73,16 +100,18 @@ function checkHardcoding(code, exercise, submission) {
           computationScore,
           literalValues,
           matchesExpectedOutput: matchesExpected,
-          confidence: matchesExpected === true ? 0.85 : 0.5,
-          innocent_explanation: matchesExpected === true
-            ? 'Student may have used a direct formula (e.g., n*(n+1)/2) instead of a loop. Computation score is heuristic and may not capture all valid approaches.'
-            : 'No test cases available to cross-reference. Hardcoded literals without expected output correlation are less suspicious.',
+          confidence,
+          hasExplanatoryComments,
+          innocent_explanation: enhancedInnocent,
         },
       };
     }
 
     // Ambiguous: has loops but no variables, outputs literals
     if (computationScore < 3 && hasLoops && !hasVariables) {
+      let confidence = matchesExpected === true ? 0.6 : 0.35;
+      if (hasExplanatoryComments) confidence = Math.max(0.2, confidence - 0.2);
+
       return {
         type: 'HARDCODING',
         severity: 'MEDIUM',
@@ -92,7 +121,8 @@ function checkHardcoding(code, exercise, submission) {
           computationScore,
           literalValues,
           matchesExpectedOutput: matchesExpected,
-          confidence: matchesExpected === true ? 0.6 : 0.35,
+          confidence,
+          hasExplanatoryComments,
           innocent_explanation: 'Student may be using a loop to print pre-computed values, or the exercise may only require literal output formatting. Loops with constants are not uncommon in introductory exercises.',
         },
       };
@@ -186,6 +216,9 @@ function checkHardcodingExtended(code, exercise, submission) {
       (hasLoops ? 1 : 0) +
       (hasConditionals ? 1 : 0);
 
+    // Disconfirming: comments explaining logic reduce suspicion
+    const hasExplanatoryComments = /\/\/.*(?:compute|calculate|sum|total|average|formula|result|output|print|display)/i.test(code);
+
     const flags = [];
 
     // 1. printf/puts literal pattern
@@ -194,7 +227,7 @@ function checkHardcodingExtended(code, exercise, submission) {
     for (const match of printfMatches) {
       const literalValue = match[1].trim();
       if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue || exp.includes(literalValue))) {
-        flags.push({
+        const flag = {
           type: 'HARDCODING',
           severity: 'HIGH',
           evidence: {
@@ -205,7 +238,9 @@ function checkHardcodingExtended(code, exercise, submission) {
             confidence: 0.8,
             innocent_explanation: 'Student may be printing a known result for debugging, or the exercise may have a trivial expected output. printf with format strings is normal C++ practice.',
           },
-        });
+        };
+        if (hasExplanatoryComments) flag.evidence.confidence = Math.max(0.3, flag.evidence.confidence - 0.2);
+        flags.push(flag);
       }
     }
 
@@ -218,7 +253,7 @@ function checkHardcodingExtended(code, exercise, submission) {
       for (const sm of stringMatches) {
         const content = sm.slice(1, -1);
         if (content && expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === content || exp.includes(content))) {
-          flags.push({
+          const flag = {
             type: 'HARDCODING',
             severity: 'HIGH',
             evidence: {
@@ -229,7 +264,9 @@ function checkHardcodingExtended(code, exercise, submission) {
               confidence: 0.75,
               innocent_explanation: 'Student may be implementing a character-by-character output as required by the exercise specification. putchar loops are a legitimate C++ technique.',
             },
-          });
+          };
+          if (hasExplanatoryComments) flag.evidence.confidence = Math.max(0.3, flag.evidence.confidence - 0.2);
+          flags.push(flag);
         }
       }
     }
@@ -241,7 +278,7 @@ function checkHardcodingExtended(code, exercise, submission) {
       for (const match of returnMatches) {
         const literalValue = match[1];
         if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue)) {
-          flags.push({
+          const flag = {
             type: 'HARDCODING',
             severity: 'MEDIUM',
             evidence: {
@@ -252,7 +289,9 @@ function checkHardcodingExtended(code, exercise, submission) {
               confidence: 0.5,
               innocent_explanation: 'Returning a literal from main() is standard C++ practice. Many exercises require a specific return value that matches the expected output threshold.',
             },
-          });
+          };
+          if (hasExplanatoryComments) flag.evidence.confidence = Math.max(0.3, flag.evidence.confidence - 0.2);
+          flags.push(flag);
         }
       }
     }
@@ -263,7 +302,7 @@ function checkHardcodingExtended(code, exercise, submission) {
     for (const match of ossMatches) {
       const literalValue = match[1].trim();
       if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue || exp.includes(literalValue))) {
-        flags.push({
+        const flag = {
           type: 'HARDCODING',
           severity: 'HIGH',
           evidence: {
@@ -274,7 +313,9 @@ function checkHardcodingExtended(code, exercise, submission) {
             confidence: 0.85,
             innocent_explanation: 'ostringstream with string concatenation is standard C++. The literal may be part of a larger formatted output, not standalone hardcoding.',
           },
-        });
+        };
+        if (hasExplanatoryComments) flag.evidence.confidence = Math.max(0.3, flag.evidence.confidence - 0.2);
+        flags.push(flag);
       }
     }
 
@@ -288,7 +329,7 @@ function checkHardcodingExtended(code, exercise, submission) {
     for (const match of stringLiteralMatches) {
       const literalValue = match[1].trim();
       if (expectedOutputs.length > 0 && expectedOutputs.some(exp => exp === literalValue || exp.includes(literalValue))) {
-        flags.push({
+        const flag = {
           type: 'HARDCODING',
           severity: 'HIGH',
           evidence: {
@@ -299,7 +340,9 @@ function checkHardcodingExtended(code, exercise, submission) {
             confidence: 0.7,
             innocent_explanation: 'std::string construction from literals is normal C++. The string may be used for comparison, not output. Context of usage matters.',
           },
-        });
+        };
+        if (hasExplanatoryComments) flag.evidence.confidence = Math.max(0.3, flag.evidence.confidence - 0.2);
+        flags.push(flag);
       }
     }
 

@@ -38,101 +38,67 @@ async function fetchExerciseCdsStats(exerciseId, sectionId) {
   return statsRes.rows[0] || {};
 }
 
+// Helper: build WHERE clause and params for section-scoped queries (all or single)
+function heatmapWhere(sectionId, instructorId, tablePrefix) {
+  if (sectionId === 'all') {
+    const prefix = tablePrefix ? `${tablePrefix}.` : '';
+    return {
+      where: `${prefix}section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`,
+      params: [String(instructorId)]
+    };
+  }
+  const prefix = tablePrefix ? `${tablePrefix}.` : '';
+  return {
+    where: `${prefix}section_id = $1`,
+    params: [sectionId]
+  };
+}
+
 exports.heatmap = async (req, res, next) => {
   const { sectionId } = req.params;
   const instructorId = req.user?.id;
-  const secCond = sectionId === 'all'
-    ? `ex.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`
-    : `ex.section_id = $1`;
-  const enrollCond = sectionId === 'all'
-    ? `e.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`
-    : `e.section_id = $1`;
-  const cdsCond = sectionId === 'all'
-    ? `cs.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`
-    : `cs.section_id = $1`;
-  const secParam = sectionId === 'all' ? [String(instructorId)] : [sectionId];
 
   try {
     // Get students in section(s) who have at least one non-null CDS score
-    let studentsQuery, studentsParams;
-    if (sectionId === 'all') {
-      studentsQuery = `
-        SELECT DISTINCT u.id, u.name FROM users u
-        JOIN cds_scores cs ON cs.student_id = u.id AND cs.cds IS NOT NULL
-        JOIN exercises ex ON ex.id = cs.exercise_id
-        WHERE ex.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)
-        ORDER BY u.name
-      `;
-      studentsParams = [instructorId];
-    } else {
-      studentsQuery = `
-        SELECT DISTINCT u.id, u.name FROM users u
-        JOIN cds_scores cs ON cs.student_id = u.id AND cs.cds IS NOT NULL
-        JOIN exercises ex ON ex.id = cs.exercise_id
-        WHERE ex.section_id = $1
-        ORDER BY u.name
-      `;
-      studentsParams = [sectionId];
-    }
-    const students = await db.query(studentsQuery, studentsParams);
+    const w = heatmapWhere(sectionId, instructorId, 'ex');
+    const studentsQuery = `
+      SELECT DISTINCT u.id, u.name FROM users u
+      JOIN cds_scores cs ON cs.student_id = u.id AND cs.cds IS NOT NULL
+      JOIN exercises ex ON ex.id = cs.exercise_id
+      WHERE ${w.where}
+      ORDER BY u.name
+    `;
+    const students = await db.query(studentsQuery, w.params);
 
     // Get CDS scores using exercise_concept_tags (primary tags only)
     // This matches Concept Analytics (CMI/CRS/Velocity) concept resolution
     // Only include non-null CDS scores to avoid empty cells
-    let scoresQuery, scoresParams;
-    if (sectionId === 'all') {
-      scoresQuery = `
-        SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
-                c.name AS concept_name, ex.title AS exercise_title
-        FROM cds_scores cs
-        JOIN exercises ex ON ex.id = cs.exercise_id
-        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-        JOIN concepts c ON c.id = ect.concept_id
-        WHERE cs.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)
-          AND cs.cds IS NOT NULL
-      `;
-      scoresParams = [instructorId];
-    } else {
-      scoresQuery = `
-        SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
-                c.name AS concept_name, ex.title AS exercise_title
-        FROM cds_scores cs
-        JOIN exercises ex ON ex.id = cs.exercise_id
-        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-        JOIN concepts c ON c.id = ect.concept_id
-        WHERE cs.section_id = $1
-          AND cs.cds IS NOT NULL
-      `;
-      scoresParams = [sectionId];
-    }
-    const scores = await db.query(scoresQuery, scoresParams);
+    const sw = heatmapWhere(sectionId, instructorId, 'cs');
+    const scoresQuery = `
+      SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
+              c.name AS concept_name, ex.title AS exercise_title
+      FROM cds_scores cs
+      JOIN exercises ex ON ex.id = cs.exercise_id
+      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      JOIN concepts c ON c.id = ect.concept_id
+      WHERE ${sw.where}
+        AND cs.cds IS NOT NULL
+    `;
+    const scores = await db.query(scoresQuery, sw.params);
 
     // Fetch only concepts actually used in this section's exercises (primary tags)
     // Ordered by name to match taxonomy
-    let conceptsQuery, conceptsParams;
-    if (sectionId === 'all') {
-      conceptsQuery = `
-        SELECT DISTINCT c.name
-        FROM concepts c
-        JOIN exercise_concept_tags ect ON ect.concept_id = c.id
-        JOIN exercises ex ON ex.id = ect.exercise_id
-        WHERE ex.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)
-          AND ect.is_primary = true
-        ORDER BY c.name
-      `;
-      conceptsParams = [instructorId];
-    } else {
-      conceptsQuery = `
-        SELECT DISTINCT c.name
-        FROM concepts c
-        JOIN exercise_concept_tags ect ON ect.concept_id = c.id
-        JOIN exercises ex ON ex.id = ect.exercise_id
-        WHERE ex.section_id = $1 AND ect.is_primary = true
-        ORDER BY c.name
-      `;
-      conceptsParams = [sectionId];
-    }
-    const conceptsRes = await db.query(conceptsQuery, conceptsParams);
+    const cw = heatmapWhere(sectionId, instructorId, 'ex');
+    const conceptsQuery = `
+      SELECT DISTINCT c.name
+      FROM concepts c
+      JOIN exercise_concept_tags ect ON ect.concept_id = c.id
+      JOIN exercises ex ON ex.id = ect.exercise_id
+      WHERE ${cw.where}
+        AND ect.is_primary = true
+      ORDER BY c.name
+    `;
+    const conceptsRes = await db.query(conceptsQuery, cw.params);
     const conceptsFromDb = conceptsRes.rows.map(r => r.name);
 
     const scoreMap = {};
@@ -694,8 +660,8 @@ exports.getSectionHub = async (req, res, next) => {
     const [cdsResult, submissionsResult, masteryResult, atRiskResult, flagsResult, membersResult] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id = $1`, [id]),
       db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE m.section_id = $1 AND s.is_practice IS NOT TRUE`, [id]),
-      db.query(`SELECT c.name, COALESCE(AVG(cm.cds), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.50) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
-      db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments m JOIN users u ON m.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id = $1 WHERE m.section_id = $1 GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.50 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, [id]),
+      db.query(`SELECT c.name, COALESCE(AVG(cm.cds), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.60) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
+      db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments m JOIN users u ON m.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id = $1 WHERE m.section_id = $1 GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.60 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, [id]),
       db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id = $1 AND status = 'flagged'`, [id]),
       db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id = $1`, [id]),
     ]);
@@ -743,8 +709,8 @@ exports.getCommandCenter = async (req, res, next) => {
     const [cdsRes, submissionsRes, conceptRes, atRiskRes, flagsRes, membersRes] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id IN (${placeholder})`, sectionIds),
       db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE submitted_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments en ON s.student_id = en.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE en.section_id IN (${placeholder}) AND s.is_practice IS NOT TRUE`, sectionIds),
-      db.query(`SELECT c.name, COALESCE(AVG(cs.cds), 0) as cds, COUNT(*) FILTER (WHERE cs.cds > 0.50) as at_risk_count FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments en ON cs.student_id = en.student_id WHERE en.section_id IN (${placeholder}) GROUP BY c.id, c.name ORDER BY cds DESC`, sectionIds),
-      db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments en JOIN users u ON en.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id IN (${placeholder}) WHERE en.section_id IN (${placeholder}) GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.50 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, sectionIds),
+      db.query(`SELECT c.name, COALESCE(AVG(cs.cds), 0) as cds, COUNT(*) FILTER (WHERE cs.cds > 0.60) as at_risk_count FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments en ON cs.student_id = en.student_id WHERE en.section_id IN (${placeholder}) GROUP BY c.id, c.name ORDER BY cds DESC`, sectionIds),
+      db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments en JOIN users u ON en.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id IN (${placeholder}) WHERE en.section_id IN (${placeholder}) GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.60 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, sectionIds),
       db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id IN (${placeholder}) AND status = 'flagged'`, sectionIds),
       db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id IN (${placeholder})`, sectionIds),
     ]);
@@ -768,13 +734,13 @@ exports.getCommandCenter = async (req, res, next) => {
       name: r.name,
       cds: Math.round(parseFloat(r.cds) * 100) / 100,
       delta: 0,
-      trend: parseFloat(r.cds) > 0.50 ? 'down' : parseFloat(r.cds) > 0.31 ? 'flat' : 'up',
+      trend: parseFloat(r.cds) > 0.60 ? 'down' : parseFloat(r.cds) > 0.40 ? 'flat' : 'up',
       atRiskCount: parseInt(r.at_risk_count) || 0,
     }));
 
     // 4. At-risk roster with risk tier and dominant concept
     const atRiskRoster = atRiskRes.rows.map(r => {
-      const riskTier = parseFloat(r.avg_cds) > 0.70 ? 'critical' : parseFloat(r.avg_cds) > 0.50 ? 'high' : 'medium';
+      const riskTier = parseFloat(r.avg_cds) > 0.80 ? 'critical' : parseFloat(r.avg_cds) > 0.60 ? 'high' : 'medium';
       return {
         id: r.id, name: r.name, riskTier,
         dominantConcept: '—', // derived below
@@ -928,18 +894,18 @@ exports.getInstructorDashboard = async (req, res, next) => {
       // 1. Student count
       db.query(`SELECT COUNT(*)::INTEGER AS count FROM enrollments WHERE ${secCond}`, secParam),
 
-      // 2. Current avg CDS
-      db.query(`SELECT COALESCE(AVG(cds), 0)::DOUBLE PRECISION AS avg_cds FROM cds_scores WHERE ${secCond}`, secParam),
+      // 2. Current avg CDS (within period)
+      db.query(`SELECT COALESCE(AVG(cds), 0)::DOUBLE PRECISION AS avg_cds FROM cds_scores WHERE ${secCond} AND computed_at > NOW() - ($2 || ' days')::INTERVAL`, [...secParam, String(days)]),
 
-      // 3. At-risk count (avg CDS > 0.50)
+      // 3. At-risk count (avg CDS > 0.50 within period)
       db.query(
         `SELECT COUNT(*)::INTEGER AS at_risk FROM (
           SELECT cs.student_id FROM cds_scores cs
-          WHERE ${secCond}
+          WHERE ${secCond} AND cs.computed_at > NOW() - ($2 || ' days')::INTERVAL
           GROUP BY cs.student_id
-          HAVING AVG(cs.cds) > 0.50
+          HAVING AVG(cs.cds) > 0.60
         ) sub`,
-        secParam
+        [...secParam, String(days)]
       ),
 
       // 4. Open integrity flag count (last 24h)
@@ -993,18 +959,18 @@ exports.getInstructorDashboard = async (req, res, next) => {
         [...secParam, String(days)]
       ),
 
-      // 6. Concept averages (for struggling concepts bar) — using exercise_concept_tags (primary)
+      // 6. Concept averages (for struggling concepts bar) — within period
       db.query(
         `SELECT c.name, COALESCE(AVG(cs.cds), 0)::DOUBLE PRECISION AS cds
          FROM cds_scores cs
          JOIN exercises ex ON cs.exercise_id = ex.id
          JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
          JOIN concepts c ON c.id = ect.concept_id
-         WHERE ${secCond.replace('section_id', 'cs.section_id')}
+         WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at > NOW() - ($2 || ' days')::INTERVAL
          GROUP BY c.id, c.name
          ORDER BY cds DESC
          LIMIT 5`,
-        secParam
+        [...secParam, String(days)]
       ),
 
       // 7. Recent integrity flags (latest 5)
@@ -1027,7 +993,7 @@ exports.getInstructorDashboard = async (req, res, next) => {
           WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL
             AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL
           GROUP BY cs.student_id
-          HAVING AVG(cs.cds) > 0.50
+          HAVING AVG(cs.cds) > 0.60
         ) sub`,
         [...secParam, String(days), String(days * 2)]
       ),
@@ -1062,14 +1028,16 @@ exports.getInstructorDashboard = async (req, res, next) => {
     const priorAvgCds = parseFloat(priorAvgCdsRes.rows[0]?.prior_avg_cds) || 0;
     const priorFlags = priorFlagsRes.rows[0]?.prior_count || 0;
 
-    // Mastery is derived from avg CDS
-    const mastery = Math.round((1 - avgCds) * 100);
-
     // Extract series for KPI sparklines
     const trendRows = dailyTrendRes.rows;
-    const atRiskSeries = trendRows.map(() => atRiskCount); // flat until we have per-day at-risk data
+    const atRiskSeries = trendRows.map(() => atRiskCount);
     const cdsSeries = trendRows.map(r => parseFloat(r.avg_cds));
     const masterySeries = trendRows.map(r => Math.round(parseFloat(r.avg_mastery)));
+
+    // Use latest day's values for KPIs so they match the tooltip
+    const latestRow = trendRows.length ? trendRows[trendRows.length - 1] : null;
+    const latestCds = latestRow ? parseFloat(latestRow.avg_cds) || 0 : avgCds;
+    const mastery = Math.round((1 - latestCds) * 100);
 
     // Weekly flag counts from actual integrity_flags data
     const flagSeries = trendRows.map(r => r.flag_count || 0);
@@ -1120,10 +1088,10 @@ exports.getInstructorDashboard = async (req, res, next) => {
         },
         {
           label: 'Avg CDS',
-          value: avgCds.toFixed(2),
-          delta: parseFloat((avgCds - priorAvgCds).toFixed(2)),
-          series: cdsSeries.filter(v => v > 0).length >= 2 ? cdsSeries : [0, avgCds],
-          comparison: avgCds > priorAvgCds ? 'worsening' : avgCds < priorAvgCds ? 'improving' : 'stable',
+          value: latestCds.toFixed(2),
+          delta: parseFloat((latestCds - priorAvgCds).toFixed(2)),
+          series: cdsSeries.filter(v => v > 0).length >= 2 ? cdsSeries : [0, latestCds],
+          comparison: latestCds > priorAvgCds ? 'worsening' : latestCds < priorAvgCds ? 'improving' : 'stable',
           inverted: true,
         },
         {
@@ -1131,7 +1099,7 @@ exports.getInstructorDashboard = async (req, res, next) => {
           value: `${mastery}%`,
           delta: mastery - Math.round((1 - priorAvgCds) * 100),
           series: masterySeries.filter(v => v > 0).length >= 2 ? masterySeries : [0, mastery],
-          comparison: 'this week',
+          comparison: 'latest',
         },
         {
           label: 'Flags',
@@ -1286,12 +1254,12 @@ exports.getReportSummary = async (req, res, next) => {
       ),
       // 3. At Risk
       db.query(
-        `SELECT ROUND((at_risk.cnt::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM (SELECT COUNT(*)::INTEGER AS cnt FROM (SELECT cs.student_id FROM cds_scores cs WHERE cs.${directWhere} GROUP BY cs.student_id HAVING AVG(cs.cds) > 0.50) sub) at_risk`,
+        `SELECT ROUND((at_risk.cnt::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM (SELECT COUNT(*)::INTEGER AS cnt FROM (SELECT cs.student_id FROM cds_scores cs WHERE cs.${directWhere} GROUP BY cs.student_id HAVING AVG(cs.cds) > 0.60) sub) at_risk`,
         sectionId === 'all' ? [String(instructorId)] : [sectionId]
       ),
-      // 4. Flags
+      // 4. Flags — count distinct flagged students, not total flags
       db.query(
-        `SELECT ROUND((COUNT(*)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - ($2 || ' days')::INTERVAL`,
+        `SELECT ROUND((COUNT(DISTINCT student_id)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - ($2 || ' days')::INTERVAL`,
         sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
       ),
       // 5. Daily submissions (exclude practice)
@@ -1306,7 +1274,7 @@ exports.getReportSummary = async (req, res, next) => {
       ),
       // 7. Daily at-risk
       db.query(
-        `SELECT d.date, COALESCE(daily.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT computed_at::DATE AS date, COUNT(DISTINCT student_id)::INTEGER AS cnt FROM (SELECT computed_at::DATE, student_id, AVG(cds) AS avg_cds FROM cds_scores WHERE ${directWhere} AND computed_at > NOW() - ($2 || ' days')::INTERVAL GROUP BY computed_at::DATE, student_id HAVING AVG(cds) > 0.50) at_risk GROUP BY date) daily ON d.date = daily.date ORDER BY d.date`,
+        `SELECT d.date, COALESCE(daily.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT computed_at::DATE AS date, COUNT(DISTINCT student_id)::INTEGER AS cnt FROM (SELECT computed_at::DATE, student_id, AVG(cds) AS avg_cds FROM cds_scores WHERE ${directWhere} AND computed_at > NOW() - ($2 || ' days')::INTERVAL GROUP BY computed_at::DATE, student_id HAVING AVG(cds) > 0.60) at_risk GROUP BY date) daily ON d.date = daily.date ORDER BY d.date`,
         sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
       ),
       // 8. Daily flags
@@ -1326,12 +1294,12 @@ exports.getReportSummary = async (req, res, next) => {
       ),
       // 11. Prior at-risk
       db.query(
-        `SELECT ROUND((at_risk.cnt::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM (SELECT COUNT(*)::INTEGER AS cnt FROM (SELECT cs.student_id FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL GROUP BY cs.student_id HAVING AVG(cs.cds) > 0.50) sub) at_risk`,
+        `SELECT ROUND((at_risk.cnt::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM (SELECT COUNT(*)::INTEGER AS cnt FROM (SELECT cs.student_id FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL GROUP BY cs.student_id HAVING AVG(cs.cds) > 0.60) sub) at_risk`,
         sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
       ),
-      // 12. Prior flags
+      // 12. Prior flags — count distinct flagged students
       db.query(
-        `SELECT ROUND(COUNT(*)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at < NOW() - ($2 || ' days')::INTERVAL AND created_at > NOW() - ($3 || ' days')::INTERVAL`,
+        `SELECT ROUND(COUNT(DISTINCT student_id)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at < NOW() - ($2 || ' days')::INTERVAL AND created_at > NOW() - ($3 || ' days')::INTERVAL`,
         sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
       ),
     ]);
@@ -1767,7 +1735,7 @@ exports.getConceptDiagnostic = async (req, res, next) => {
       `SELECT e.id, e.title, e.closed_at,
               COALESCE(AVG(cs.cds), 0) AS avg_cds,
               COUNT(DISTINCT cs.student_id) AS students_attempted,
-              COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.31) AS at_risk_count
+              COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.40) AS at_risk_count
        FROM exercises e
        LEFT JOIN cds_scores cs ON cs.exercise_id = e.id
        WHERE e.concept_id = $1 OR e.id IN (
@@ -1789,10 +1757,10 @@ exports.getConceptDiagnostic = async (req, res, next) => {
        ))
        AND cs.section_id = $2
        AND cs.cds IS NOT NULL
-       GROUP BY u.id, u.name
-       HAVING AVG(cs.cds) > 0.31
-       ORDER BY avg_cds DESC
-       LIMIT 20`,
+        GROUP BY u.id, u.name
+        HAVING AVG(cs.cds) > 0.40
+        ORDER BY avg_cds DESC
+        LIMIT 20`,
       [conceptId, sectionId]
     ) : { rows: [] };
 
@@ -2181,4 +2149,91 @@ exports.getClassConceptRadar = async (req, res, next) => {
     `, [sectionId]);
     res.json({ concepts: result.rows });
   } catch (err) { next(err); }
+};
+
+/**
+ * Integrity audit: aggregate flag statistics for bias detection.
+ * Returns per-section, per-type, and per-student breakdowns.
+ * GET /api/analytics/integrity-audit
+ */
+exports.getIntegrityAudit = async (req, res, next) => {
+  try {
+    const { section_id } = req.query;
+
+    // Total flags by type
+    const byType = await db.query(`
+      SELECT flag_type, COUNT(*) AS count, COUNT(*) FILTER (WHERE status = 'dismissed') AS dismissed
+      FROM integrity_flags
+      ${section_id ? 'WHERE section_id = $1' : ''}
+      GROUP BY flag_type
+      ORDER BY count DESC
+    `, section_id ? [section_id] : []);
+
+    // Total flags by severity
+    const bySeverity = await db.query(`
+      SELECT severity, COUNT(*) AS count
+      FROM integrity_flags
+      ${section_id ? 'WHERE section_id = $1' : ''}
+      GROUP BY severity
+      ORDER BY CASE severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END
+    `, section_id ? [section_id] : []);
+
+    // Flag rate: students with at least one flag as % of enrolled students
+    const flagRate = await db.query(`
+      SELECT
+        s.id AS section_id,
+        s.name AS section_name,
+        COUNT(DISTINCT e.student_id) AS enrolled,
+        COUNT(DISTINCT f.student_id) AS flagged_students,
+        ROUND(COUNT(DISTINCT f.student_id) * 100.0 / NULLIF(COUNT(DISTINCT e.student_id), 0), 1) AS flag_rate_pct,
+        COUNT(f.id) AS total_flags
+      FROM sections s
+      JOIN enrollments e ON e.section_id = s.id
+      LEFT JOIN integrity_flags f ON f.section_id = s.id
+      ${section_id ? 'WHERE s.id = $1' : ''}
+      GROUP BY s.id, s.name
+      ORDER BY flag_rate_pct DESC NULLS LAST
+    `, section_id ? [section_id] : []);
+
+    // Per-student flag count distribution
+    const perStudent = await db.query(`
+      SELECT flag_count, COUNT(*) AS student_count
+      FROM (
+        SELECT student_id, COUNT(*) AS flag_count
+        FROM integrity_flags
+        ${section_id ? 'WHERE section_id = $1' : ''}
+        GROUP BY student_id
+      ) sub
+      GROUP BY flag_count
+      ORDER BY flag_count
+    `, section_id ? [section_id] : []);
+
+    // Dismissal rate
+    const dismissalRate = await db.query(`
+      SELECT
+        flag_type,
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'dismissed') AS dismissed,
+        ROUND(COUNT(*) FILTER (WHERE status = 'dismissed') * 100.0 / NULLIF(COUNT(*), 0), 1) AS dismissal_rate_pct
+      FROM integrity_flags
+      ${section_id ? 'WHERE section_id = $1' : ''}
+      GROUP BY flag_type
+      ORDER BY dismissal_rate_pct DESC
+    `, section_id ? [section_id] : []);
+
+    res.json({
+      summary: {
+        totalFlags: byType.rows.reduce((sum, r) => sum + parseInt(r.count), 0),
+        totalDismissed: byType.rows.reduce((sum, r) => sum + parseInt(r.dismissed || '0'), 0),
+        sections: flagRate.rows,
+      },
+      byType: byType.rows,
+      bySeverity: bySeverity.rows,
+      perStudent: perStudent.rows,
+      dismissalRate: dismissalRate.rows,
+    });
+  } catch (err) {
+    console.error('getIntegrityAudit error:', err);
+    next(err);
+  }
 };

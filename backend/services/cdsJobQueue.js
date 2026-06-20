@@ -1,36 +1,75 @@
 const db = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
 const nodemailer = require('nodemailer');
-const queue = [];
-let isWorkerRunning = false;
 
-// Background job handler for CDS computation
+let isWorkerRunning = false;
+let pollingInterval = null;
+const POLL_INTERVAL_MS = 1000;
+
+// Start background polling for pending jobs
+function startPolling() {
+  if (pollingInterval) return;
+  pollingInterval = setInterval(processQueue, POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
+
 const processQueue = async () => {
-  if (!isWorkerRunning && queue.length > 0) {
-    isWorkerRunning = true;
-    let currentJob = null;
-    try {
-      while (queue.length > 0) {
-        currentJob = queue.shift();
-        await cdsEngine.computeBatchCDS(currentJob.exerciseId, db);
-        await notifyStudent(currentJob.exerciseId, 'CDS computation completed');
-        currentJob.resolve();
+  if (isWorkerRunning) return;
+  isWorkerRunning = true;
+
+  try {
+    while (true) {
+      // Atomically claim the next pending job
+      const jobRes = await db.query(
+        `UPDATE cds_job_queue
+         SET status = 'processing', started_at = NOW()
+         WHERE id = (
+           SELECT id FROM cds_job_queue
+           WHERE status = 'pending'
+           ORDER BY created_at ASC
+           LIMIT 1
+           FOR UPDATE SKIP LOCKED
+         )
+         RETURNING *`
+      );
+
+      if (jobRes.rows.length === 0) break;
+
+      const job = jobRes.rows[0];
+      try {
+        await cdsEngine.computeBatchCDS(job.exercise_id, db);
+        await notifyStudent(job.exercise_id, 'CDS computation completed');
+        await db.query(
+          `UPDATE cds_job_queue SET status = 'done', finished_at = NOW() WHERE id = $1`,
+          [job.id]
+        );
+      } catch (error) {
+        console.error('Background job failed:', error);
+        await db.query(
+          `UPDATE cds_job_queue SET status = 'failed', finished_at = NOW(), error = $1 WHERE id = $2`,
+          [error.message, job.id]
+        );
       }
-    } catch (error) {
-      console.error('Background job failed:', error);
-      if (currentJob) {
-        currentJob.reject(error);
-      }
-    } finally {
-      isWorkerRunning = false;
     }
+  } catch (error) {
+    console.error('Queue processing error:', error);
+  } finally {
+    isWorkerRunning = false;
   }
 };
 
 exports.enqueueCdsComputation = (exerciseId) => {
-  return new Promise((resolve, reject) => {
-    queue.push({ exerciseId, resolve, reject });
-    processQueue();
+  return db.query(
+    `INSERT INTO cds_job_queue (exercise_id) VALUES ($1) RETURNING *`,
+    [exerciseId]
+  ).then(() => {
+    if (!pollingInterval) startPolling();
   });
 };
 
@@ -94,7 +133,7 @@ async function sendEmailNotifications(students, message, exerciseId) {
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: parseInt(process.env.EMAIL_PORT),
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -108,8 +147,8 @@ async function sendEmailNotifications(students, message, exerciseId) {
     );
     const exerciseTitle = exerciseRes.rows.length ? exerciseRes.rows[0].title : 'Exercise';
 
-    // Send email to each student
-    for (const student of students) {
+    // Send email to each student with error isolation
+    const results = await Promise.allSettled(students.map(student => {
       const mailOptions = {
         from: process.env.EMAIL_FROM || 'noreply@codeinsight.psu.edu',
         to: student.email,
@@ -127,11 +166,22 @@ CodeInsight Team
         `.trim(),
       };
 
-      await transporter.sendMail(mailOptions);
-      console.log(`Email sent to ${student.email} (${student.name})`);
+      return transporter.sendMail(mailOptions);
+    }));
+
+    for (const [i, result] of results.entries()) {
+      if (result.status === 'fulfilled') {
+        console.log(`Email sent to ${students[i].email} (${students[i].name})`);
+      } else {
+        console.error(`Failed to send email to ${students[i].email}:`, result.reason);
+      }
     }
   } catch (err) {
     console.error('Error sending email notifications:', err);
-    // Don't throw - email failure shouldn't break the notification system
   }
 }
+
+exports.processQueue = processQueue;
+exports.stopPolling = stopPolling;
+
+// Polling is started lazily when the first job is enqueued

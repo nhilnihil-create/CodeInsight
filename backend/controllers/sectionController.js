@@ -63,9 +63,9 @@ exports.list = async (req, res, next) => {
         const diffQuery = `
           SELECT 
             section_id,
-            COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END) AS low_count,
-            COUNT(CASE WHEN cs.cds > 0.31 AND cs.cds <= 0.50 THEN 1 END) AS moderate_count,
-            COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END) AS high_count
+            COUNT(CASE WHEN cs.cds <= 0.40 THEN 1 END) AS low_count,
+            COUNT(CASE WHEN cs.cds > 0.40 AND cs.cds <= 0.80 THEN 1 END) AS elevated_count,
+            COUNT(CASE WHEN cs.cds > 0.80 THEN 1 END) AS critical_count
           FROM cds_scores cs WHERE cs.section_id = ANY($1)
           GROUP BY cs.section_id
         `;
@@ -74,12 +74,12 @@ exports.list = async (req, res, next) => {
         for (const row of diffRes.rows) {
           diffMap[row.section_id] = {
             low: parseInt(row.low_count),
-            moderate: parseInt(row.moderate_count),
-            high: parseInt(row.high_count)
+            elevated: parseInt(row.elevated_count),
+            critical: parseInt(row.critical_count)
           };
         }
         for (const section of r.rows) {
-          section.difficulty_distribution = diffMap[section.id] || { low: 0, moderate: 0, high: 0 };
+          section.difficulty_distribution = diffMap[section.id] || { low: 0, elevated: 0, critical: 0 };
         }
       }
     }
@@ -102,7 +102,7 @@ exports.getOne = async (req, res, next) => {
         WHERE sub.exercise_id IN (SELECT id FROM exercises WHERE section_id=s.id)) AS total_submissions,
        (SELECT COUNT(*) FROM alerts al WHERE al.section_id=s.id AND al.is_reviewed=false) AS open_alert_count,
        (SELECT COUNT(DISTINCT if2.student_id) FROM integrity_flags if2 WHERE if2.section_id=s.id AND if2.status='flagged') AS integrity_flags_count,
-       (SELECT COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END)::INTEGER FROM cds_scores cs WHERE cs.section_id=s.id) AS at_risk_count,
+       (SELECT COUNT(CASE WHEN cs.cds > 0.60 THEN 1 END)::INTEGER FROM cds_scores cs WHERE cs.section_id=s.id) AS at_risk_count,
        (SELECT AVG(cs.cds) FROM cds_scores cs WHERE cs.section_id=s.id) AS avg_cds
        FROM sections s JOIN users u ON u.id=s.instructor_id
        WHERE s.id=$1`, [req.params.id]
@@ -229,12 +229,12 @@ exports.getSectionExercises = async (req, res, next) => {
            (SELECT student_id FROM enrollments WHERE section_id=$1)) AS submitted_count,
         (SELECT AVG(cs.cds) FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS avg_cds,
-        (SELECT COUNT(CASE WHEN cs.cds <= 0.31 THEN 1 END)::INTEGER FROM cds_scores cs 
+        (SELECT COUNT(CASE WHEN cs.cds <= 0.40 THEN 1 END)::INTEGER FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS low_count,
-        (SELECT COUNT(CASE WHEN cs.cds > 0.31 AND cs.cds <= 0.50 THEN 1 END)::INTEGER FROM cds_scores cs 
-         WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS moderate_count,
-        (SELECT COUNT(CASE WHEN cs.cds > 0.50 THEN 1 END)::INTEGER FROM cds_scores cs 
-         WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS high_count
+        (SELECT COUNT(CASE WHEN cs.cds > 0.40 AND cs.cds <= 0.80 THEN 1 END)::INTEGER FROM cds_scores cs 
+         WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS elevated_count,
+        (SELECT COUNT(CASE WHEN cs.cds > 0.80 THEN 1 END)::INTEGER FROM cds_scores cs 
+         WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS critical_count
        FROM exercises ex
        JOIN concepts c ON c.id=ex.concept_id
        WHERE ex.section_id=$1

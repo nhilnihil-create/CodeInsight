@@ -39,18 +39,21 @@ function getNormalizedValue(value, allValues) {
   return { normalized, min: stats.min, p95: stats.p95 };
 }
 
-// ── Authoritative CDS Classification Thresholds ─────────────────────────────
+// ── Authoritative CDS Classification Thresholds (5‑tier) ────────────────────
 // Single source of truth — all callers MUST use these, not hardcode.
-// Rationale: ≤0.31 = Low (bottom third), ≤0.50 = Moderate (middle third),
-// >0.50 = High (top third). Defense-documented in capstone spec §4.2.
-const CDS_THRESHOLDS = { LOW: 0.31, MODERATE: 0.50 };
+// Rationale: ≤0.20 = Very Low (struggling), ≤0.40 = Low (below average),
+// ≤0.60 = Moderate (average), ≤0.80 = Elevated (above average),
+// >0.80 = High (mastering). Aligned with frontend mastery-bar.jsx.
+const CDS_THRESHOLDS = { VERY_LOW: 0.20, LOW: 0.40, MODERATE: 0.60, ELEVATED: 0.80 };
 
 function classify(cds, isPreliminary = false) {
-if (cds === null || cds === undefined) return 'Unscored';
-const prefix = isPreliminary ? 'Preliminary - ' : '';
-if (cds <= CDS_THRESHOLDS.LOW) return `${prefix}Low`;
-if (cds <= CDS_THRESHOLDS.MODERATE) return `${prefix}Moderate`;
-return `${prefix}High`;
+  if (cds === null || cds === undefined) return 'Unscored';
+  const prefix = isPreliminary ? 'Prelim-' : '';
+  if (cds <= CDS_THRESHOLDS.VERY_LOW) return `${prefix}Very Low`;
+  if (cds <= CDS_THRESHOLDS.LOW) return `${prefix}Low`;
+  if (cds <= CDS_THRESHOLDS.MODERATE) return `${prefix}Moderate`;
+  if (cds <= CDS_THRESHOLDS.ELEVATED) return `${prefix}Elevated`;
+  return `${prefix}High`;
 }
 
 // ── Batch CDS Computation ───────────────────────────────────────────────────
@@ -163,7 +166,9 @@ const minFailed = failedStats.min, p95Failed = failedStats.p95;
 const minTotal = totalStats.min, p95Total = totalStats.p95;
 const minTime = timeStats.min, p95Time = timeStats.p95;
 
-// ── Write CDS scores + snapshots per student ──────────────────────────────
+// ── Write CDS scores + snapshots (bulk INSERT ... ON CONFLICT) ──────────────
+const scoreRows = [];
+const snapshotRows = [];
 for (const student of students.rows) {
   const sid = student.id;
   const subs = subMap[sid];
@@ -176,8 +181,8 @@ for (const student of students.rows) {
     ner = null; nrs = null; nts = null; cds = null;
     classification = 'Unscored';
   } else if (excludedStudents.has(sid)) {
-    ner = 1; nrs = 1; nts = 1; cds = 1.0;
-    classification = 'High';
+    ner = null; nrs = null; nts = null; cds = null;
+    classification = 'Flagged-Pending';
     hasFlagged = subs.hasFlaggedAttempt;
     flagCount = subs.integrityFlagCount;
   } else {
@@ -197,25 +202,47 @@ for (const student of students.rows) {
     classification = classify(cds, isPreliminaryClass);
   }
 
-  // Upsert current score (UI display)
+  scoreRows.push([sid, exerciseId, exercise.section_id, ner, nrs, nts, cds, classification, hasFlagged, flagCount]);
+  snapshotRows.push([sid, exerciseId, ner, nrs, nts, cds, classification, minFailed, p95Failed, minTotal, p95Total, minTime, p95Time]);
+}
+
+// Bulk upsert cds_scores
+if (scoreRows.length > 0) {
+  const scoreParams = [];
+  const scoreValues = scoreRows.map((row, i) => {
+    const offset = i * 10;
+    row.forEach((v, j) => { scoreParams.push(v); });
+    return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},'batch',true,NOW())`;
+  }).join(',');
+
   await db.query(
     `INSERT INTO cds_scores
       (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,has_flagged_attempts,integrity_flag_count,source,visible,computed_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'batch',true,NOW())
+      VALUES ${scoreValues}
       ON CONFLICT (student_id,exercise_id)
-      DO UPDATE SET ner=$4,nrs=$5,nts=$6,cds=$7,classification=$8,has_flagged_attempts=$9,integrity_flag_count=$10,source='batch',visible=true,computed_at=NOW()`,
-    [sid, exerciseId, exercise.section_id, ner, nrs, nts, cds, classification, hasFlagged, flagCount]
+      DO UPDATE SET ner=EXCLUDED.ner,nrs=EXCLUDED.nrs,nts=EXCLUDED.nts,cds=EXCLUDED.cds,
+        classification=EXCLUDED.classification,has_flagged_attempts=EXCLUDED.has_flagged_attempts,
+        integrity_flag_count=EXCLUDED.integrity_flag_count,source='batch',visible=true,computed_at=NOW()`,
+    scoreParams
   );
+}
 
-  // Append-only snapshot with v3 normalization parameters (defense auditability)
+// Bulk insert snapshots
+if (snapshotRows.length > 0) {
+  const snapParams = [];
+  const snapValues = snapshotRows.map((row, i) => {
+    const offset = i * 13;
+    row.forEach((v, j) => { snapParams.push(v); });
+    return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},NOW())`;
+  }).join(',');
+
   await db.query(
     `INSERT INTO cds_snapshots
       (student_id,exercise_id,ner,nrs,nts,cds,classification,
        class_min_errors,class_p95_errors,class_min_attempts,class_p95_attempts,class_min_time,class_p95_time,
        calculated_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())`,
-    [sid, exerciseId, ner, nrs, nts, cds, classification,
-     minFailed, p95Failed, minTotal, p95Total, minTime, p95Time]
+      VALUES ${snapValues}`,
+    snapParams
   );
 }
 
@@ -327,11 +354,11 @@ try {
     return { ner: 0, nrs: 0, nts: 0, cds: 0, classification: 'Unscored', hasFlaggedAttempt: false, integrityFlagCount: 0 };
   }
 
-  // Integrity-flagged students get CDS=1 (same as batch mode)
+  // Integrity-flagged students get special classification (pending review)
   if (liveExcludedStudents.has(studentId)) {
     return {
-      ner: 1, nrs: 1, nts: 1, cds: 1,
-      classification: 'High',
+      ner: null, nrs: null, nts: null, cds: null,
+      classification: 'Flagged-Pending',
       hasFlaggedAttempt: studentData.hasFlaggedAttempt,
       integrityFlagCount: studentData.integrityFlagCount
     };

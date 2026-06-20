@@ -63,6 +63,8 @@ async function applySchemaPatches() {
     // Add NOT NULL constraint to sections.code (if not already present)
     if (await columnExists('sections', 'code')) {
       try {
+        // Ensure no NULL codes exist before adding NOT NULL constraint
+        await db.query(`UPDATE sections SET code = course_code || '-' || id WHERE code IS NULL`);
         await db.query(`ALTER TABLE sections ALTER COLUMN code SET NOT NULL`);
         console.log('✓ Added NOT NULL constraint to sections.code');
       } catch (err) {

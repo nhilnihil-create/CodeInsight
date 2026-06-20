@@ -16,7 +16,7 @@ const db = require('../config/db');
 
 // ── Thresholds ──────────────────────────────────────────────────────────────
 
-const MIN_PRIOR_FAILURES = 5;       // Minimum failed attempts before instant success is suspicious
+const MIN_PRIOR_FAILURES = 8;       // Minimum failed attempts before instant success is suspicious
 const SPEED_ZSCORE_THRESHOLD = 2.5; // Number of robust std devs below median for extreme speed flag
 const SPEED_ABSOLUTE_FLOOR = 60;    // Never flag if time exceeds this (seconds)
 const FAILURE_WINDOW_HOURS = 24;    // Only count failures within this window

@@ -172,13 +172,14 @@ exports.submit = async (req, res) => {
 
     // ── Code Growth Delta: line-count change from previous attempt ──────
     let codeGrowthDelta = 0;
+    let prevCode = null;
     if (attemptNumber > 1) {
       const prevRes = await db.query(
         'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
         [studentId, exerciseId, attemptNumber - 1]
       );
       if (prevRes.rows.length > 0) {
-        const prevCode = prevRes.rows[0].code || '';
+        prevCode = prevRes.rows[0].code || '';
         const currentLines = (code || '').split('\n').length;
         const prevLines = prevCode.split('\n').length;
         codeGrowthDelta = currentLines - prevLines;
@@ -197,7 +198,7 @@ exports.submit = async (req, res) => {
     // requires BOTH >50% growth AND >50 absolute lines to avoid false
     // positives from legitimate additions (comments, error handling, etc.)
     const CODE_GROWTH_PCT_THRESHOLD = 50;
-    const CODE_GROWTH_ABS_THRESHOLD = 50;
+    const CODE_GROWTH_ABS_THRESHOLD = 100;
     const currentLineCount = (code || '').split('\n').length;
     let codeGrowthAnomaly = null;
 
@@ -223,31 +224,39 @@ exports.submit = async (req, res) => {
       }
     }
 
-    // Flag code growth anomaly if triggered
+    // Flag code growth anomaly if triggered (graduated: first is warning only)
     if (codeGrowthAnomaly?.flagged) {
       try {
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId,
-          studentId,
-          flagType: 'CODE_GROWTH_ANOMALY',
-          severity: 'low',
-          evidence: {
+        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, 'CODE_GROWTH_ANOMALY');
+        if (priorFlags === 0) {
+          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, 'CODE_GROWTH_ANOMALY', {
             summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
-            baseline_lines: codeGrowthAnomaly.baselineLines,
-            student_lines: codeGrowthAnomaly.studentLines,
-            growth_percent: codeGrowthAnomaly.growthPercent,
-            threshold_pct: codeGrowthAnomaly.thresholdPct,
-            threshold_abs: codeGrowthAnomaly.thresholdAbs,
             attempt_number: attemptNumber,
-            confidence: 0.3,
-            innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
-          },
-          contextBehaviors: [
-            `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
-          ],
-          status: 'flagged',
-        });
+          });
+        } else {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id,
+            exerciseId,
+            studentId,
+            flagType: 'CODE_GROWTH_ANOMALY',
+            severity: 'low',
+            evidence: {
+              summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
+              baseline_lines: codeGrowthAnomaly.baselineLines,
+              student_lines: codeGrowthAnomaly.studentLines,
+              growth_percent: codeGrowthAnomaly.growthPercent,
+              threshold_pct: codeGrowthAnomaly.thresholdPct,
+              threshold_abs: codeGrowthAnomaly.thresholdAbs,
+              attempt_number: attemptNumber,
+              confidence: 0.3,
+              innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
+            },
+            contextBehaviors: [
+              `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
+            ],
+            status: 'flagged',
+          });
+        }
       } catch (flagErr) {
         // Non-fatal: don't break submission flow
         console.warn('Code growth anomaly flag creation failed:', flagErr.message);
@@ -414,6 +423,14 @@ exports.submit = async (req, res) => {
     const compilerLog = compilerErrors.join('\n');
     const timeLimitHit = tcResults.some(r => r.status === 'Time Limit Exceeded');
 
+    console.log('=== DEBUG compiler_log ===');
+    console.log('compilerErrors.length:', compilerErrors.length);
+    console.log('compilerLog length:', compilerLog ? compilerLog.length : 0);
+    console.log('compilerLog (first 200):', compilerLog ? compilerLog.substring(0, 200) : '(empty)');
+    console.log('tcResults[0]?.status:', tcResults[0]?.status);
+    console.log('tcResults[0]?.error:', tcResults[0]?.error ? tcResults[0].error.substring(0, 100) : '(none)');
+    console.log('allPassed:', allPassed);
+
     // Save submission (include verification fields, code growth delta, cppcheck warnings, compiler_log, behavioral tracking)
     const insRes = await db.query(
       `INSERT INTO submissions
@@ -459,9 +476,33 @@ exports.submit = async (req, res) => {
       });
 
       for (const flag of academicIntegrityFlags) {
+        const severity = (flag.severity || 'low').toUpperCase();
+        // HIGH severity (BLANK_TEMPLATE, direct HARDCODING) always flags immediately
+        if (severity === 'HIGH') {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id, exerciseId, studentId,
+            flagType: flag.type, severity: flag.severity,
+            evidence: flag.evidence || {},
+            contextBehaviors: flag.context_behaviors || [],
+            status: 'flagged',
+            instructorNote: flag.instructor_note || '',
+            submissionId,
+          });
+          continue;
+        }
+        // MEDIUM/LOW: graduated logic
+        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, flag.type);
+        if (priorFlags === 0) {
+          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, flag.type, {
+            summary: flag.evidence?.summary,
+            attempt_number: attemptNumber,
+          });
+          continue;
+        }
+        const effectiveSeverity = priorFlags === 1 ? 'low' : (flag.severity || 'low');
         await integrityFlagEngine.createFlag({
           sectionId: exercise.section_id, exerciseId, studentId,
-          flagType: flag.type, severity: flag.severity,
+          flagType: flag.type, severity: effectiveSeverity,
           evidence: flag.evidence || {},
           contextBehaviors: flag.context_behaviors || [],
           status: 'flagged',
@@ -487,9 +528,19 @@ exports.submit = async (req, res) => {
       });
 
       for (const flag of behavioralFlags) {
+        // Behavioral anomalies are LOW — graduated logic always applies
+        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, flag.type);
+        if (priorFlags === 0) {
+          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, flag.type, {
+            summary: flag.evidence?.summary,
+            attempt_number: attemptNumber,
+          });
+          continue;
+        }
+        const effectiveSeverity = priorFlags === 1 ? 'low' : (flag.severity || 'low');
         await integrityFlagEngine.createFlag({
           sectionId: exercise.section_id, exerciseId, studentId,
-          flagType: flag.type, severity: flag.severity,
+          flagType: flag.type, severity: effectiveSeverity,
           evidence: flag.evidence || {},
           contextBehaviors: flag.context_behaviors || [],
           status: 'flagged',
@@ -503,7 +554,7 @@ exports.submit = async (req, res) => {
     // ── Passive Behavior Logging Flag ──────────────────────────────────
     // Telemetry-only: tab switches, paste events, idle time. Always LOW severity
     // as these are contextual indicators, not evidence of misconduct.
-    const behavioralThresholds = { TAB_SWITCH_HIGH: 5, PASTE_HIGH: 3, IDLE_RATIO_HIGH: 0.5 };
+    const behavioralThresholds = { TAB_SWITCH_HIGH: 10, PASTE_HIGH: 5, IDLE_RATIO_HIGH: 0.7 };
     const totalTime = timeSpentSeconds || 1;
     const idleRatio = idleTimeSeconds / totalTime;
     const behavioralSignals = [];
@@ -512,28 +563,36 @@ exports.submit = async (req, res) => {
     if (idleRatio >= behavioralThresholds.IDLE_RATIO_HIGH) behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
     if (behavioralSignals.length > 0) {
       try {
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId,
-          studentId,
-          flagType: 'PASSIVE_BEHAVIOR_LOG',
-          severity: 'low',
-          evidence: {
+        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, 'PASSIVE_BEHAVIOR_LOG');
+        if (priorFlags === 0) {
+          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, 'PASSIVE_BEHAVIOR_LOG', {
             summary: behavioralSignals.join('; '),
-            tab_switch_count: tabSwitchCount,
-            paste_count: pasteCount,
-            idle_time_seconds: idleTimeSeconds,
-            total_time_seconds: totalTime,
-            idle_ratio: Math.round(idleRatio * 100) / 100,
             attempt_number: attemptNumber,
-            confidence: 0.15,
-            innocent_explanation: 'Behavioral telemetry (tab switches, pastes, idle time) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt. Pasting from your own previous work is normal. Idle time may reflect thinking or debugging.',
-          },
-          contextBehaviors: [
-            behavioralSignals.join('; '),
-            `Attempt #${attemptNumber}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
-          ],
-        });
+          });
+        } else {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id,
+            exerciseId,
+            studentId,
+            flagType: 'PASSIVE_BEHAVIOR_LOG',
+            severity: 'low',
+            evidence: {
+              summary: behavioralSignals.join('; '),
+              tab_switch_count: tabSwitchCount,
+              paste_count: pasteCount,
+              idle_time_seconds: idleTimeSeconds,
+              total_time_seconds: totalTime,
+              idle_ratio: Math.round(idleRatio * 100) / 100,
+              attempt_number: attemptNumber,
+              confidence: 0.15,
+              innocent_explanation: 'Behavioral telemetry (tab switches, pastes, idle time) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt. Pasting from your own previous work is normal. Idle time may reflect thinking or debugging.',
+            },
+            contextBehaviors: [
+              behavioralSignals.join('; '),
+              `Attempt #${attemptNumber}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+            ],
+          });
+        }
       } catch (flagErr) {
         console.warn('Passive behavior flag creation failed:', flagErr.message);
       }
@@ -627,6 +686,16 @@ exports.submit = async (req, res) => {
       console.warn('Growth velocity computation failed:', velErr.message);
     }
 
+    // Pre-submission integrity hints (educational, not punitive)
+    const preSubmissionCheck = require('../services/preSubmissionCheck');
+    const preCheckHints = preSubmissionCheck.runAllChecks(
+      code,
+      attemptNumber > 1 ? prevCode : null,
+      exercise.starter_code || '',
+      tabSwitchCount || 0,
+      pasteCount || 0
+    );
+
     // Prepare response with micro-concept feedback, cppcheck warnings, code growth delta, and growth velocity
     const responseData = {
       attemptNumber,
@@ -643,6 +712,7 @@ exports.submit = async (req, res) => {
       },
       // Deterministic failure report (hints + sanitized errors)
       failureReport: formattedFailures.length > 0 ? formattedFailures : undefined,
+      preCheckHints: preCheckHints.length > 0 ? preCheckHints : undefined,
     };
 
     // Add micro-concept feedback if available

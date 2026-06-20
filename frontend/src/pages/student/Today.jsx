@@ -164,7 +164,7 @@ export default function StudentToday() {
                   You. Class avg on this concept:{' '}
                   <CDSPillDelta
                     value={classAvg}
-                    classification={classAvg > 0.50 ? 'high' : 'mod'}
+                    classification={classAvg <= 0.20 ? 'very_low' : classAvg <= 0.40 ? 'low' : classAvg <= 0.60 ? 'moderate' : classAvg <= 0.80 ? 'elevated' : 'high'}
                   />
                 </p>
               </GlassPanelContent>
@@ -233,7 +233,7 @@ export default function StudentToday() {
                                 value={c.cds}
                                 delta={c.delta}
                                 trend={c.trend}
-                                classification={c.cds > 0.60 ? 'high' : c.cds > 0.40 ? 'mod' : 'low'}
+                                classification={c.cds <= 0.20 ? 'very_low' : c.cds <= 0.40 ? 'low' : c.cds <= 0.60 ? 'moderate' : c.cds <= 0.80 ? 'elevated' : 'high'}
                               />
                               <span className="flex items-center gap-1.5 shrink-0">
                                 <span className={cn("w-1.5 h-1.5 rounded-full", meta.dot)} />

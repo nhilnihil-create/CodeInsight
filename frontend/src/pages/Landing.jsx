@@ -18,6 +18,7 @@ import FeatureRow from '../components/FeatureRow';
 import AnimatedCounter from '../components/AnimatedCounter';
 import MagneticButton from '../components/MagneticButton';
 import ScrollProgress from '../components/ScrollProgress';
+import Logo from '../components/Logo';
 import {
   CDSVisual,
   HeatmapVisual,
@@ -31,13 +32,13 @@ const FEATURES = [
     icon: Activity,
     title: 'Concept Difficulty Score',
     description:
-      'Measures how much a student struggles on each exercise — combining errors, attempts, and time into a single score that adjusts to your class. Students see their score after every submission, and instructors get automatic at-risk alerts when scores cross thresholds.',
+      'Quantifies how much a student struggles per exercise — combining error rate, attempt count, and time into a single class-normalized score. Students see it live; instructors get at-risk alerts automatically.',
     details: [
-      'Students get a live difficulty score after each submission',
-      'Instructors see per-student, per-exercise scores with class-wide context',
-      'Automatic classification: Low, Moderate, or High difficulty',
-      'At-risk alerts generated when students consistently score high',
-      'Rubric breakdown shows exactly which pillar (correctness, speed, style, integrity) needs work',
+      'Three-component formula: Error Rate (40%), Attempts (35%), Time (25%)',
+      'Class-wide p95-capped normalization — scores are relative, not absolute',
+      'Five-tier classification from Very Low to High difficulty',
+      'Automatic at-risk alerts when scores cross thresholds',
+      'Live score after every submission, batch computation on exercise close',
     ],
     visual: <CDSVisual />,
     reverse: false,
@@ -46,9 +47,9 @@ const FEATURES = [
     icon: TrendingUp,
     title: 'Difficulty Heatmap',
     description:
-      'A bird\'s-eye view of your entire class — every student against every concept, color-coded so you can spot patterns in seconds. Drag columns to compare concepts, hover for details, and filter by student name.',
+      'Every student against every concept, color-coded so patterns surface in seconds. Spot which concepts are hardest and which students need help — all in one view.',
     details: [
-      '6 color tiers from green (easy) to red (needs help) — not just traffic lights',
+      'Five color tiers from green (low difficulty) to red (high difficulty)',
       'Drag columns to compare any two concepts side-by-side',
       'Hardest concepts automatically sort to the right',
       'Hover any cell for a quick breakdown of what\'s behind the score',
@@ -61,13 +62,13 @@ const FEATURES = [
     icon: ShieldCheck,
     title: 'Academic Integrity Monitoring',
     description:
-      'Five layers of integrity monitoring — not to punish, but to understand. Every flag is a hypothesis for review, not a verdict. Students see what was detected; instructors decide what to do about it.',
+      'Five layers of integrity analysis — not to punish, but to understand. Every flag is a hypothesis for instructor review, not an automatic verdict.',
     details: [
-      'Hardcoding — catches literal output instead of computed results',
-      'Blank/template — flags unmodified starter code submissions',
+      'Hardcoding detection — catches literal output instead of computed results',
+      'Blank/template detection — flags unmodified starter code submissions',
       'Behavioral anomaly — unusual timing patterns like sudden success after many failures',
-      'Code growth — flags sudden large code additions between attempts',
-      'Passive tracking — tab switches, paste events, and idle time logged during coding',
+      'Code growth spike — flags sudden large code additions between attempts',
+      'Passive tracking — tab switches, paste events, and idle time logged for context',
     ],
     visual: <IntegrityVisual />,
     reverse: false,
@@ -76,13 +77,13 @@ const FEATURES = [
     icon: ScanSearch,
     title: 'Code Structure Verification',
     description:
-      'Goes beyond pass/fail — checks that required programming constructs like loops, conditionals, and functions are actually present and doing real work in the code, not just written but never used.',
+      'Goes beyond pass/fail — verifies that required constructs like loops, conditionals, and functions are present, non-empty, and actually affect the output.',
     details: [
-      'Verifies loops, conditionals, and functions are present in submitted code',
-      'Catches empty bodies — code that compiles but does nothing',
-      'Detects common beginner mistakes like hardcoded conditions',
-      'Confirms that code actually affects the program\'s output',
-      'Works even without tree-sitter — falls back to regex analysis',
+      'AST-based verification using tree-sitter for precise C++ parsing',
+      'Detects empty bodies, hardcoded conditions, and dead code',
+      'Confirms constructs actually affect the program\'s output',
+      '50+ bad pattern rules across 25 C++ concepts',
+      'Falls back to regex analysis when tree-sitter is unavailable',
     ],
     visual: <ASTVisual />,
     reverse: true,
@@ -91,12 +92,12 @@ const FEATURES = [
     icon: BrainCircuit,
     title: 'Micro-Concept Analysis',
     description:
-      'Pinpoints exactly where students are confused — not just "wrong answer" but "integer division truncating decimals." Instructors get a class-wide view of which misconceptions are most common, with targeted suggestions for each.',
+      'Pinpoints exactly where students are confused — not just "wrong answer" but "integer division truncating decimals." Instructors see which misconceptions affect the most students.',
     details: [
-      '33 detection rules across 7 core C++ concepts',
+      '33 deterministic detection rules across 7 core C++ concepts',
       'Analyzes compiler errors, test output patterns, and code structure',
       'Each issue comes with a targeted suggestion for the student',
-      'Class-wide reports show which misconceptions affect the most students',
+      'Class-wide misconception reports generated on exercise close',
       'Covers Datatypes, Variables, Conditionals, Loops, Functions, Arrays, and OOP',
     ],
     visual: <MicroConceptVisual />,
@@ -141,6 +142,10 @@ export default function Landing() {
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
               Precision analytics for C++ education · PSU
+            </div>
+
+            <div className="mb-8 flex justify-center">
+              <Logo size={48} showText className="text-primary" />
             </div>
 
             <h1 className="mb-6 text-5xl font-extrabold tracking-tight text-balance md:text-7xl">
@@ -189,8 +194,8 @@ export default function Landing() {
               Built for Pampanga State University&apos;s College of Computer Studies, CodeInsight
               replaces guesswork with data. Instructors get dashboards that show which
               concepts need re-teaching and which students need help. Students get
-              immediate feedback on their submissions, including a rubric breakdown and
-              personalized learning recommendations.
+              immediate feedback on their submissions, including live difficulty scores
+              and targeted suggestions for improvement.
             </p>
           </div>
         </section>
@@ -214,10 +219,10 @@ export default function Landing() {
         <section className="relative z-10 border-t border-border/40 bg-card/30 px-6 py-16">
           <div className="mx-auto grid max-w-4xl grid-cols-2 gap-8 md:grid-cols-4">
             {[
+              { value: '50', suffix: '+', label: 'API Endpoints', icon: BarChart3 },
               { value: '5', label: 'Integrity Layers', icon: ShieldCheck },
-              { value: '25', label: 'Concepts × 4 Areas', icon: BarChart3 },
               { value: '33', label: 'Detection Rules', icon: BrainCircuit },
-              { value: '5', label: 'CDS Tiers', icon: Activity },
+              { value: '25', label: 'C++ Concepts', icon: Activity },
             ].map(({ value, suffix = '', label, icon: Icon }) => (
               <div key={label} className="text-center group cursor-default">
                 <div className="inline-flex items-center justify-center rounded-xl bg-primary/10 p-3 mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">

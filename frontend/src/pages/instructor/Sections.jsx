@@ -27,12 +27,12 @@ import CDSPillDelta from "@/components/ui/cds-pill-delta";
 import api from "@/services/api";
 import { toast } from "sonner";
 
-const LEVEL_THRESHOLDS = { low: 0.33, moderate: 0.66 };
 function computeLevel(avgCds) {
-  if (avgCds == null) return "low";
-  if (avgCds <= LEVEL_THRESHOLDS.low) return "low";
-  if (avgCds <= LEVEL_THRESHOLDS.moderate) return "moderate";
-  return "high";
+  if (avgCds == null || avgCds === 0) return "na";
+  if (avgCds <= 0.20) return "low";
+  if (avgCds <= 0.40) return "moderate";
+  if (avgCds <= 0.60) return "high";
+  return "critical";
 }
 
 function buildTerm(row) {

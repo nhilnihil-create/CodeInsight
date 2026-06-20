@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
+
 import api from '../../services/api';
 import ClassMisconceptionReport from './ClassMisconceptionReport';
 
@@ -22,7 +22,6 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!sectionId || !exercise?.id) return;
@@ -107,14 +106,7 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
               <>
                 <ClassMisconceptionReport report={report} embedded />
 
-                {report.mostCommonIssue && (
-                  <div className="mt-3 flex justify-end">
-                    <Button variant="outline" size="sm" onClick={() => setModalOpen(true)}>
-                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                      View full report
-                    </Button>
-                  </div>
-                )}
+                {report.mostCommonIssue && null}
               </>
             )}
 
@@ -126,12 +118,6 @@ export default function ExerciseAccordionRow({ exercise, sectionId, colSpan }) {
           </div>
         </div>
 
-        {modalOpen && (
-          <ClassMisconceptionReport
-            report={report}
-            onClose={() => setModalOpen(false)}
-          />
-        )}
       </td>
     </tr>
   );

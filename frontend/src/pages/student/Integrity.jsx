@@ -37,9 +37,12 @@ const FLAG_DESCRIPTIONS = {
 export default function StudentIntegrityView() {
   const { hasSections, checking, recheck } = useHasSections();
   const [flags, setFlags] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [cdsSummary, setCdsSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fetchKey, setFetchKey] = useState(0);
+  const [responseForm, setResponseForm] = useState({ flagId: null, text: '' });
 
   useEffect(() => {
     if (hasSections === null || !hasSections) return;
@@ -47,7 +50,12 @@ export default function StudentIntegrityView() {
     const load = async () => {
       try {
         const res = await api.get('/api/student/integrity-flags');
-        if (!cancelled) setFlags(res.data?.flags || []);
+        if (!cancelled) {
+          const data = res.data || {};
+          setFlags(data.flags || []);
+          setStats(data.stats || null);
+          setCdsSummary(data.cdsSummary || null);
+        }
       } catch (err) {
         if (!cancelled) setError(err.response?.data?.error || 'Failed to load integrity data');
       } finally {
@@ -117,6 +125,37 @@ export default function StudentIntegrityView() {
       ]}
       subtitle="Patterns detected in your work — always hypotheses, never verdicts."
     >
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold">{stats.totalFlags}</p>
+              <p className="text-xs text-muted-foreground">Total Flags</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-amber-500">{stats.flaggedCount}</p>
+              <p className="text-xs text-muted-foreground">Under Review</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-emerald-500">{stats.reviewedCount}</p>
+              <p className="text-xs text-muted-foreground">Reviewed</p>
+            </CardContent>
+          </Card>
+          {cdsSummary?.averageCds != null && (
+            <Card>
+              <CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold">{cdsSummary.averageCds}</p>
+                <p className="text-xs text-muted-foreground">Avg CDS Score</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Info banner */}
       <Card className="border-dashed border-muted-foreground/30 bg-muted/20">
         <CardContent className="p-4 text-sm text-muted-foreground">
@@ -166,6 +205,62 @@ export default function StudentIntegrityView() {
                 <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border-l-2 border-primary/30">
                   <strong>What happens next:</strong> {info.whatNext}
                 </div>
+
+                {flag.status === 'flagged' && !flag.student_response && responseForm.flagId !== flag.id && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setResponseForm({ flagId: flag.id, text: '' })}
+                      className="text-xs text-primary hover:underline cursor-pointer"
+                    >
+                      Add context for your instructor
+                    </button>
+                  </div>
+                )}
+                {responseForm.flagId === flag.id && (
+                  <div className="pt-2 space-y-2">
+                    <textarea
+                      className="w-full text-xs p-2 rounded border border-input bg-background resize-none"
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="Share any context about your submission process, sources you used, or challenges you faced..."
+                      value={responseForm.text}
+                      onChange={(e) => setResponseForm(prev => ({ ...prev, text: e.target.value }))}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.post(`/api/student/integrity-flags/${flag.id}/respond`, {
+                              response: responseForm.text
+                            });
+                            const updated = flags.map(f =>
+                              f.id === flag.id ? { ...f, student_response: responseForm.text } : f
+                            );
+                            setFlags(updated);
+                            setResponseForm({ flagId: null, text: '' });
+                          } catch (err) {
+                            console.error('Failed to submit response:', err);
+                          }
+                        }}
+                        className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded hover:bg-primary/90 cursor-pointer disabled:opacity-50"
+                        disabled={!responseForm.text?.trim()}
+                      >
+                        Submit
+                      </button>
+                      <button
+                        onClick={() => setResponseForm({ flagId: null, text: '' })}
+                        className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {flag.student_response && (
+                  <div className="text-xs bg-primary/5 p-2 rounded border-l-2 border-primary">
+                    <strong>Your context:</strong> {flag.student_response}
+                  </div>
+                )}
 
                 {flag.exercise && (
                   <p className="text-xs text-muted-foreground">

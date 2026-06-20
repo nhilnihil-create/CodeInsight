@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { EditorPrefsProvider } from './context/EditorPrefsContext.jsx'
 import { ToastProvider } from '@/hooks/use-toast'
 import './index.css'
 import './styles/mobile.css'   // <-- new
@@ -28,7 +29,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ToastProvider>
         <TooltipProvider delayDuration={150}>
           <AuthProvider>
+            <EditorPrefsProvider>
             <App />
+            </EditorPrefsProvider>
             <Toaster
               theme="dark"
               position="top-right"

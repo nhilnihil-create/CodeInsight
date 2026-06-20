@@ -125,7 +125,7 @@ async function seedSubmission(studentId, exerciseId, opts = {}) {
 
 async function clearTestTables() {
   const tables = [
-    'cds_snapshots', 'cds_scores', 'alerts', 'integrity_flags',
+    'cds_job_queue', 'cds_snapshots', 'cds_scores', 'alerts', 'integrity_flags',
     'submissions', 'exercises', 'enrollments', 'sections',
     'concepts', 'users'
   ];
@@ -147,6 +147,7 @@ async function clearTestTables() {
     ALTER SEQUENCE cds_snapshots_id_seq RESTART WITH 1;
     ALTER SEQUENCE alerts_id_seq RESTART WITH 1;
     ALTER SEQUENCE integrity_flags_id_seq RESTART WITH 1;
+    ALTER SEQUENCE cds_job_queue_id_seq RESTART WITH 1;
   `);
 }
 

@@ -9,7 +9,9 @@
     "seed:admin": "node scripts/seed_admin.js",
     "test": "jest --runInBand --detectOpenHandles --workerIdleMemoryLimit=512MB",
     "test:ci": "jest --runInBand --forceExit --workerIdleMemoryLimit=512MB",
-    "test:debug": "node --expose-gc --max-old-space-size=1024 node_modules/.bin/jest --runInBand --detectOpenHandles --logHeapUsage"
+    "test:debug": "node --expose-gc --max-old-space-size=1024 node_modules/.bin/jest --runInBand --detectOpenHandles --logHeapUsage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -32,6 +34,7 @@
     "tree-sitter-cpp": "^0.23.4"
   },
   "devDependencies": {
+    "eslint": "^8.57.0",
     "jest": "^30.4.2",
     "nodemon": "^3.0.1"
   }

@@ -21,12 +21,12 @@ import {
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
 
-const LEVEL_THRESHOLDS = { low: 0.33, moderate: 0.66 };
 function computeLevel(cds) {
-  if (cds == null) return "low";
-  if (cds <= LEVEL_THRESHOLDS.low) return "low";
-  if (cds <= LEVEL_THRESHOLDS.moderate) return "moderate";
-  return "high";
+  if (cds == null || cds === 0) return "na";
+  if (cds <= 0.20) return "low";
+  if (cds <= 0.40) return "moderate";
+  if (cds <= 0.60) return "high";
+  return "critical";
 }
 
 function timeAgo(dateStr) {
@@ -142,7 +142,7 @@ export default function RosterTab({ sectionId, sectionName }) {
             <li
               key={r.id}
               className="grid grid-cols-[1fr_5.5rem_4rem_5.5rem_2.5rem] items-center gap-3 px-4 h-14 hover:bg-muted/40 transition-colors cursor-pointer group"
-              onClick={() => navigate(`/instructor/students/${r.id}`)}
+              onClick={() => navigate(`/instructor/students/${r.id}?section=${sectionId}`)}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-7 w-7 shrink-0 rounded-full bg-muted text-xs font-semibold flex items-center justify-center text-muted-foreground">
@@ -180,7 +180,7 @@ export default function RosterTab({ sectionId, sectionName }) {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => navigate(`/instructor/students/${r.id}`)}>
+                  <DropdownMenuItem onSelect={() => navigate(`/instructor/students/${r.id}?section=${sectionId}`)}>
                     <ExternalLink className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
                     Open profile
                   </DropdownMenuItem>

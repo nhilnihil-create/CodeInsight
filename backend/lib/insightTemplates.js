@@ -7,7 +7,7 @@ const RULES = {
     name: 'Concept Difficulty Rising',
     evaluate: ({ conceptData, totalStudents }) => {
       const hardest = [...conceptData].sort((a, b) => b.cds - a.cds)[0];
-      if (!hardest || hardest.cds < 0.50) return null;
+      if (!hardest || hardest.cds < 0.40) return null;
       const atRisk = conceptData.reduce((sum, c) => sum + (c.atRiskCount || 0), 0);
       return {
         message: `${hardest.name} is the hardest concept this week, with ${hardest.atRiskCount} of ${totalStudents} students in High difficulty.`,

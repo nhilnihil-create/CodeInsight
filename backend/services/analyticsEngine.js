@@ -242,9 +242,9 @@ async function getDashboardAlerts(sectionId) {
          CASE
            WHEN al.classification = 'RETRY_STORM' THEN 'high'
            WHEN al.classification = 'LEARNING_PLATEAU' THEN 'moderate'
-           WHEN al.cds_score > 0.70 THEN 'critical'
-           WHEN al.cds_score > 0.50 THEN 'high'
-           WHEN al.cds_score > 0.31 THEN 'moderate'
+            WHEN al.cds_score > 0.80 THEN 'critical'
+            WHEN al.cds_score > 0.60 THEN 'high'
+            WHEN al.cds_score > 0.40 THEN 'moderate'
            ELSE 'low'
          END AS severity,
          (SELECT COUNT(*)::INTEGER FROM submissions
@@ -257,8 +257,8 @@ async function getDashboardAlerts(sectionId) {
        ORDER BY
          CASE
            WHEN al.classification = 'RETRY_STORM' THEN 1
-           WHEN al.cds_score > 0.70 THEN 2
-           WHEN al.cds_score > 0.50 THEN 3
+            WHEN al.cds_score > 0.80 THEN 2
+            WHEN al.cds_score > 0.60 THEN 3
            WHEN al.classification = 'LEARNING_PLATEAU' THEN 4
            ELSE 5
          END,

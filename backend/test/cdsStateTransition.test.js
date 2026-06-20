@@ -24,9 +24,8 @@ function makeStudent(id, name) {
 }
 
 // ── Helpers: explicitly set up mock db for computeBatchCDS ────────────────────
-// computeBatchCDS makes exactly: 3 prep queries (exercise, students, excludedFlags,
-// submissions) + 2 writes per student (cds_scores, cds_snapshots).
-// alertEngine.generateAlerts is mocked.
+// computeBatchCDS makes: 4 prep queries (exercise, students, excludedFlags,
+// submissions) + 2 bulk writes (cds_scores + cds_snapshots).
 
 async function runBatchCds(exerciseId, students, excludedFlags, submissions) {
   db.query
@@ -39,6 +38,33 @@ async function runBatchCds(exerciseId, students, excludedFlags, submissions) {
 
 function getScoreCalls() {
   return db.query.mock.calls.filter(c => c[0].includes('cds_scores'));
+}
+
+function getSnapshotCalls() {
+  return db.query.mock.calls.filter(c => c[0].includes('cds_snapshots'));
+}
+
+function findStudentInBulkScore(sid) {
+  const scoreCalls = getScoreCalls();
+  if (scoreCalls.length === 0) return null;
+  const params = scoreCalls[0][1];
+  for (let i = 0; i < params.length; i += 10) {
+    if (params[i] === sid) {
+      return {
+        sid: params[i],
+        exercise_id: params[i + 1],
+        section_id: params[i + 2],
+        ner: params[i + 3],
+        nrs: params[i + 4],
+        nts: params[i + 5],
+        cds: params[i + 6],
+        classification: params[i + 7],
+        hasFlagged: params[i + 8],
+        flagCount: params[i + 9],
+      };
+    }
+  }
+  return null;
 }
 
 // ── Test: 1. Zero-Variance Normalization ─────────────────────────────────────
@@ -73,12 +99,13 @@ describe('CDS State Transition — Zero-Variance Normalization', () => {
     await runBatchCds(exerciseId, students, [], subs);
     const scores = getScoreCalls();
 
-    expect(scores.length).toBe(3);
-    for (const call of scores) {
-      expect(call[1][6]).toBe(0);     // cds
-      expect(call[1][3]).toBe(0.00);  // ner
-      expect(call[1][4]).toBe(0.00);  // nrs
-      expect(call[1][5]).toBe(0.00);  // nts
+    expect(scores.length).toBe(1); // bulk INSERT
+    for (const sid of [1, 2, 3]) {
+      const s = findStudentInBulkScore(sid);
+      expect(s.cds).toBe(0);
+      expect(s.ner).toBe(0.00);
+      expect(s.nrs).toBe(0.00);
+      expect(s.nts).toBe(0.00);
     }
   });
 });
@@ -96,13 +123,10 @@ describe('CDS State Transition — Single Student Class', () => {
     ];
 
     await runBatchCds(exerciseId, students, [], subs);
-    const scores = getScoreCalls();
+    const s = findStudentInBulkScore(1);
 
-    expect(scores.length).toBe(1);
-    // Single student: single-value filteredSubMap → hasVariance=false → all 0.00
-    // isPreliminaryClass = true (1 < 3)
-    expect(scores[0][1][6]).toBe(0);
-    expect(scores[0][1][7]).toBe('Preliminary - Low');
+    expect(s.cds).toBe(0);
+    expect(s.classification).toBe('Prelim-Very Low');
   });
 });
 
@@ -110,7 +134,7 @@ describe('CDS State Transition — Single Student Class', () => {
 
 describe('CDS State Transition — All Students Have HARDCODING Flags', () => {
 
-  it('all HARDCODING students get CDS=1 (not 0 or Unscored)', async () => {
+  it('all HARDCODING students get CDS=null (not 0 or Unscored)', async () => {
     const exerciseId = 10;
     const students = [makeStudent(1, 'A'), makeStudent(2, 'B')];
     const excluded = [{ student_id: 1 }, { student_id: 2 }];
@@ -120,15 +144,14 @@ describe('CDS State Transition — All Students Have HARDCODING Flags', () => {
     ];
 
     await runBatchCds(exerciseId, students, excluded, subs);
-    const scores = getScoreCalls();
 
-    expect(scores.length).toBe(2);
-    for (const call of scores) {
-      expect(call[1][6]).toBe(1);    // cds
-      expect(call[1][3]).toBe(1);    // ner
-      expect(call[1][4]).toBe(1);    // nrs
-      expect(call[1][5]).toBe(1);    // nts
-      expect(call[1][7]).toBe('High');
+    for (const sid of [1, 2]) {
+      const s = findStudentInBulkScore(sid);
+      expect(s.cds).toBeNull();
+      expect(s.ner).toBeNull();
+      expect(s.nrs).toBeNull();
+      expect(s.nts).toBeNull();
+      expect(s.classification).toBe('Flagged-Pending');
     }
   });
 });
@@ -154,29 +177,31 @@ describe('CDS State Transition — NaN Protection in Normalization', () => {
     ];
 
     await runBatchCds(exerciseId, students, [], subs);
-    const scores = getScoreCalls();
 
-    expect(scores.length).toBe(3);
-    for (const call of scores) {
-      expect(Number.isNaN(call[1][3])).toBe(false); // ner
-      expect(Number.isNaN(call[1][4])).toBe(false); // nrs
-      expect(Number.isNaN(call[1][5])).toBe(false); // nts
-      expect(Number.isNaN(call[1][6])).toBe(false); // cds
-      expect(typeof call[1][5]).toBe('number');     // nts is a number, not NaN
+    const scores = getScoreCalls();
+    expect(scores.length).toBe(1); // bulk INSERT
+
+    for (const sid of [1, 2, 3]) {
+      const s = findStudentInBulkScore(sid);
+      expect(Number.isNaN(s.ner)).toBe(false);
+      expect(Number.isNaN(s.nrs)).toBe(false);
+      expect(Number.isNaN(s.nts)).toBe(false);
+      expect(Number.isNaN(s.cds)).toBe(false);
+      expect(typeof s.nts).toBe('number');
     }
 
     // Student 1 has null time → max_time=0 (due to || 0 in reduce)
     // normalizeWithStats(0, timeStats) → nts=0.00 (Math.max(0,0)/denom = 0)
-    const student1Score = scores.find(c => c[1][0] === 1);
-    expect(student1Score[1][5]).toBe(0.00);
+    const student1Score = findStudentInBulkScore(1);
+    expect(student1Score.nts).toBe(0.00);
   });
 });
 
 // ── Test: 5. HARDCODING vs BLANK_TEMPLATE Parity ─────────────────────────────
 
-describe('CDS State Transition — HARDCODING + BLANK_TEMPLATE Both Get CDS=1', () => {
+describe('CDS State Transition — HARDCODING + BLANK_TEMPLATE Both Get null CDS', () => {
 
-  it('HARDCODING and BLANK_TEMPLATE students both score CDS=1', async () => {
+  it('HARDCODING and BLANK_TEMPLATE students both get null CDS', async () => {
     const exerciseId = 10;
     const students = [makeStudent(1, 'Hardcoder'), makeStudent(2, 'BlankSub'), makeStudent(3, 'Normal')];
     const excluded = [{ student_id: 1 }, { student_id: 2 }];
@@ -188,25 +213,22 @@ describe('CDS State Transition — HARDCODING + BLANK_TEMPLATE Both Get CDS=1', 
     ];
 
     await runBatchCds(exerciseId, students, excluded, subs);
-    const scores = getScoreCalls();
 
-    expect(scores.length).toBe(3);
-    const hardcoder = scores.find(c => c[1][0] === 1);
-    const blankSub  = scores.find(c => c[1][0] === 2);
-    const normal    = scores.find(c => c[1][0] === 3);
+    const hardcoder = findStudentInBulkScore(1);
+    const blankSub  = findStudentInBulkScore(2);
+    const normal    = findStudentInBulkScore(3);
 
-    // Both integrity-flagged students get CDS=1
-    expect(hardcoder[1][6]).toBe(1);
-    expect(hardcoder[1][7]).toBe('High');
-    expect(blankSub[1][6]).toBe(1);
-    expect(blankSub[1][7]).toBe('High');
+    expect(hardcoder.cds).toBeNull();
+    expect(hardcoder.classification).toBe('Flagged-Pending');
+    expect(blankSub.cds).toBeNull();
+    expect(blankSub.classification).toBe('Flagged-Pending');
 
-    // Student 3 (normal): filteredSubMap has 1 entry → hasVariance=false → all 0 → CDS=0
-    expect(normal[1][6]).toBe(0);
-    expect(normal[1][3]).toBe(0.00);
-    expect(normal[1][4]).toBe(0.00);
-    expect(normal[1][5]).toBe(0.00);
-    expect(normal[1][7]).toBe('Low');
+    // Student 3 (normal): single entry filteredSubMap → hasVariance=false → all 0 → CDS=0
+    expect(normal.cds).toBe(0);
+    expect(normal.ner).toBe(0.00);
+    expect(normal.nrs).toBe(0.00);
+    expect(normal.nts).toBe(0.00);
+    expect(normal.classification).toBe('Very Low');
   });
 });
 
@@ -228,8 +250,8 @@ describe('CDS State Transition — Live CDS vs Batch CDS Parity', () => {
     ];
 
     await runBatchCds(exerciseId, students, excluded, subs);
-    const batchScore = getScoreCalls().find(c => c[1][0] === studentId);
-    const batchCds = batchScore[1][6];
+    const batchScore = findStudentInBulkScore(studentId);
+    const batchCds = batchScore.cds;
 
     // Reset for live mode (same data)
     jest.clearAllMocks();
@@ -244,7 +266,7 @@ describe('CDS State Transition — Live CDS vs Batch CDS Parity', () => {
     expect(liveResult.cds).toBe(batchCds);
   });
 
-  it('calculateLiveCDS returns CDS=1 for flagged student (matches batch)', async () => {
+  it('calculateLiveCDS returns CDS=null for flagged student (matches batch)', async () => {
     const exerciseId = 10;
     const studentId = 2;
 
@@ -258,11 +280,11 @@ describe('CDS State Transition — Live CDS vs Batch CDS Parity', () => {
       .mockResolvedValueOnce({ rows: [{ student_id: 2 }] });
 
     const liveResult = await calculateLiveCDS(studentId, exerciseId, db);
-    expect(liveResult.cds).toBe(1);
-    expect(liveResult.classification).toBe('High');
-    expect(liveResult.ner).toBe(1);
-    expect(liveResult.nrs).toBe(1);
-    expect(liveResult.nts).toBe(1);
+    expect(liveResult.cds).toBeNull();
+    expect(liveResult.classification).toBe('Flagged-Pending');
+    expect(liveResult.ner).toBeNull();
+    expect(liveResult.nrs).toBeNull();
+    expect(liveResult.nts).toBeNull();
   });
 });
 
@@ -284,26 +306,13 @@ describe('CDS State Transition — Post-Solution Cutoff + Flagged Attempt', () =
     ];
 
     await runBatchCds(exerciseId, students, [], subs);
-    const scores = getScoreCalls();
-    const s1 = scores.find(c => c[1][0] === 1);
+    const s1 = findStudentInBulkScore(1);
 
-    // Student 1: firstAccepted = attempt 4 (attempt 2 has flag_id=99). cutoff=4.
-    // counted = attempts 1-4. total=4, failed=2 (attempts 1,3), max_time=40.
-    // flaggedAttempts = 1 (attempt 2)
-    // Student 2: total=1, failed=0, max_time=50, no flags
-    // filteredSubMap = {1: {total:4, failed:2, max_time:40},
-    //                   2: {total:1, failed:0, max_time:50}}
-    // failedStats = computeClassStats([2, 0]) → min=0, p95=ceil(2*0.95)-1=1, p95=sorted[1]=2, denom=2
-    // totalStats = computeClassStats([4, 1]) → min=1, p95=ceil(2*0.95)-1=1, p95=sorted[1]=4, denom=3
-    // timeStats = computeClassStats([40, 50]) → min=40, p95=ceil(2*0.95)-1=1, p95=sorted[1]=50, denom=10
-    // normalized for student 1:
-    //   ner=(2-0)/2=1.0, nrs=(4-1)/3=1.0, nts=(40-40)/10=0.00
-    // CDS = 0.40*1 + 0.35*1 + 0.25*0 = 0.75
-    expect(s1[1][3]).toBe(1.0);   // ner
-    expect(s1[1][4]).toBe(1.0);   // nrs
-    expect(s1[1][5]).toBe(0.00);  // nts (capped=40, min=40 => 0/10 = 0)
-    expect(s1[1][8]).toBe(true);  // has flagged attempts
-    expect(s1[1][9]).toBe(1);     // flag count
+    expect(s1.ner).toBe(1.0);
+    expect(s1.nrs).toBe(1.0);
+    expect(s1.nts).toBe(0.00);
+    expect(s1.hasFlagged).toBe(true);
+    expect(s1.flagCount).toBe(1);
   });
 });
 
@@ -314,7 +323,6 @@ describe('CDS State Transition — Empty Class', () => {
   it('exercise with no enrolled students produces 0 processed', async () => {
     const exerciseId = 10;
     await runBatchCds(exerciseId, [], [], []);
-    // With 0 students, no writes happen
     const dbCalls = db.query.mock.calls.filter(c => c[0].includes('cds_scores') || c[0].includes('cds_snapshots'));
     expect(dbCalls.length).toBe(0);
   });
@@ -333,7 +341,6 @@ describe('CDS State Transition — getLivePeerRanking NULLS LAST', () => {
 
     const ranking = await getLivePeerRanking(10, db);
     expect(ranking).toHaveLength(3);
-    // ORDER BY cs.cds DESC NULLS LAST → 0.8, 0.5, null
     expect(ranking[0].cds).toBe(0.8);
     expect(ranking[1].cds).toBe(0.5);
     expect(ranking[2].cds).toBeNull();
@@ -376,28 +383,25 @@ describe('CDS State Transition — Mixed Flag Types Parity', () => {
     ];
 
     await runBatchCds(exerciseId, students, excluded, subs);
-    const scores = getScoreCalls();
 
-    expect(scores).toHaveLength(4);
-    const blank    = scores.find(c => c[1][0] === 1);
-    const hardcode = scores.find(c => c[1][0] === 2);
-    const normA    = scores.find(c => c[1][0] === 3);
-    const normB    = scores.find(c => c[1][0] === 4);
+    const blank    = findStudentInBulkScore(1);
+    const hardcode = findStudentInBulkScore(2);
+    const normA    = findStudentInBulkScore(3);
+    const normB    = findStudentInBulkScore(4);
 
-    // Both flagged → CDS=1
-    expect(blank[1][6]).toBe(1);
-    expect(hardcode[1][6]).toBe(1);
+    expect(blank).not.toBeNull();
+    expect(hardcode).not.toBeNull();
+    expect(normA).not.toBeNull();
+    expect(normB).not.toBeNull();
+
+    // Both flagged → CDS=null
+    expect(blank.cds).toBeNull();
+    expect(hardcode.cds).toBeNull();
 
     // Normal students: both have failed=0, total=1
-    // failedValues=[0,0] → hasVariance=false → ner=0.00
-    // totalValues=[1,1] → hasVariance=false → nrs=0.00
-    // timeValues=[30,60] → min=30, p95=ceil(2*0.95)-1=1, p95=60, denom=30
-    // normA: nts=(30-30)/30=0.00
-    // normB: nts=(60-30)/30=1.00
-    expect(normA[1][3]).toBe(0.00);  // ner
-    expect(normA[1][4]).toBe(0.00);  // nrs
-    expect(normA[1][5]).toBe(0.00);  // nts
-    // Student 4 (NormB): nts=(60-30)/30 = 1.0
-    expect(normB[1][5]).toBe(1.00);
+    expect(normA.ner).toBe(0.00);
+    expect(normA.nrs).toBe(0.00);
+    expect(normA.nts).toBe(0.00);
+    expect(normB.nts).toBe(1.00);
   });
 });

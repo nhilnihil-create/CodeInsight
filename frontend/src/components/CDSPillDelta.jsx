@@ -1,8 +1,11 @@
 import { cn } from '@/lib/utils';
 
 const CDS_CLASSES = {
+  very_low: 'cds-low',
   low: 'cds-low',
   mod: 'cds-mod',
+  moderate: 'cds-mod',
+  elevated: 'cds-high',
   high: 'cds-high',
   na: 'cds-na',
 };

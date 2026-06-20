@@ -66,45 +66,45 @@ describe('analyticsMapper — getCDSTier boundaries', function () {
     expect(r.color).toBe('slate');
   });
 
-  it('classifies 0.15 as Tier 1 (upper bound)', function () {
-    expect(getCDSTier(0.15).tier).toBe(1);
+  it('classifies 0.20 as Tier 1 (upper bound)', function () {
+    expect(getCDSTier(0.20).tier).toBe(1);
   });
 
-  it('classifies 0.16 as Tier 2 (Expected Resistance)', function () {
-    const r = getCDSTier(0.16);
+  it('classifies 0.21 as Tier 2 (Expected Resistance)', function () {
+    const r = getCDSTier(0.21);
     expect(r.tier).toBe(2);
     expect(r.label).toBe('Expected Resistance');
     expect(r.color).toBe('emerald');
   });
 
-  it('classifies 0.35 as Tier 2 (upper bound)', function () {
-    expect(getCDSTier(0.35).tier).toBe(2);
+  it('classifies 0.40 as Tier 2 (upper bound)', function () {
+    expect(getCDSTier(0.40).tier).toBe(2);
   });
 
-  it('classifies 0.36 as Tier 3 (Moderate Friction)', function () {
-    const r = getCDSTier(0.36);
+  it('classifies 0.41 as Tier 3 (Moderate Friction)', function () {
+    const r = getCDSTier(0.41);
     expect(r.tier).toBe(3);
     expect(r.label).toBe('Moderate Friction');
     expect(r.color).toBe('amber');
   });
 
-  it('classifies 0.55 as Tier 3 (upper bound)', function () {
-    expect(getCDSTier(0.55).tier).toBe(3);
+  it('classifies 0.60 as Tier 3 (upper bound)', function () {
+    expect(getCDSTier(0.60).tier).toBe(3);
   });
 
-  it('classifies 0.56 as Tier 4 (High Struggle Loop)', function () {
-    const r = getCDSTier(0.56);
+  it('classifies 0.61 as Tier 4 (High Struggle Loop)', function () {
+    const r = getCDSTier(0.61);
     expect(r.tier).toBe(4);
     expect(r.label).toBe('High Struggle Loop');
     expect(r.color).toBe('orange');
   });
 
-  it('classifies 0.75 as Tier 4 (upper bound)', function () {
-    expect(getCDSTier(0.75).tier).toBe(4);
+  it('classifies 0.80 as Tier 4 (upper bound)', function () {
+    expect(getCDSTier(0.80).tier).toBe(4);
   });
 
-  it('classifies 0.76 as Tier 5 (Critical Blocker)', function () {
-    const r = getCDSTier(0.76);
+  it('classifies 0.81 as Tier 5 (Critical Blocker)', function () {
+    const r = getCDSTier(0.81);
     expect(r.tier).toBe(5);
     expect(r.label).toBe('Critical Blocker');
     expect(r.color).toBe('rose');
@@ -197,12 +197,12 @@ describe('analyticsMapper — Type Coercion', function () {
 // ── 2-Decimal rounding fairness ────────────────────────────────────────
 
 describe('analyticsMapper — Rounding', function () {
-  it('rounds 0.155 to 0.16 → Tier 2', function () {
-    expect(getCDSTier(0.155).tier).toBe(2);
+  it('rounds 0.205 to 0.21 → Tier 2', function () {
+    expect(getCDSTier(0.205).tier).toBe(2);
   });
 
-  it('rounds 0.154 to 0.15 → Tier 1', function () {
-    expect(getCDSTier(0.154).tier).toBe(1);
+  it('rounds 0.204 to 0.20 → Tier 1', function () {
+    expect(getCDSTier(0.204).tier).toBe(1);
   });
 
   it('rounds mastery 84.995 to 85.00 → Tier 1', function () {

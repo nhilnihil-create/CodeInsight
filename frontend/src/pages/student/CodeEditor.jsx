@@ -107,6 +107,7 @@ export default function StudentCodeEditor() {
   const [history, setHistory] = useState([]);
   const [activeElapsedSeconds, setActiveElapsedSeconds] = useState(0);
   const [isSolved, setIsSolved] = useState(false);
+  const [preCheckHints, setPreCheckHints] = useState([]);
   const [activeTab, setActiveTab] = useState(TAB_DEFAULT);
   const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -114,6 +115,7 @@ export default function StudentCodeEditor() {
   const editorRef = useRef(null);
   const isSubmittingRef = useRef(false);
   const behavioralCounts = useRef({ tabSwitches: 0, pastes: 0, idleSeconds: 0 });
+  const pendingEventsRef = useRef([]);
   const lastActivityRef = useRef(Date.now());
   const idleTimerRef = useRef(null);
   const editorContainerRef = useRef(null);
@@ -186,14 +188,13 @@ export default function StudentCodeEditor() {
 
     // Reset counters when entering a new exercise session
     behavioralCounts.current = { tabSwitches: 0, pastes: 0, idleSeconds: 0 };
+    pendingEventsRef.current = [];
     lastActivityRef.current = Date.now();
-
-    const events = [];
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
         behavioralCounts.current.tabSwitches += 1;
-        events.push({ type: 'tab_switch', timestamp: new Date().toISOString() });
+        pendingEventsRef.current.push({ type: 'tab_switch', timestamp: new Date().toISOString() });
       } else {
         // Tab refocused — reset idle timer
         lastActivityRef.current = Date.now();
@@ -202,7 +203,7 @@ export default function StudentCodeEditor() {
 
     const handlePaste = () => {
       behavioralCounts.current.pastes += 1;
-      events.push({ type: 'paste', timestamp: new Date().toISOString() });
+      pendingEventsRef.current.push({ type: 'paste', timestamp: new Date().toISOString() });
       lastActivityRef.current = Date.now();
     };
 
@@ -221,8 +222,8 @@ export default function StudentCodeEditor() {
     // Flush events to backend every 10 seconds (audit trail)
     let flushTimer = null;
     const flushEvents = async () => {
-      if (events.length === 0) return;
-      const toSend = events.splice(0, events.length);
+      if (pendingEventsRef.current.length === 0) return;
+      const toSend = pendingEventsRef.current.splice(0, pendingEventsRef.current.length);
       try {
         await api.post('/api/student/behavioral-events', {
           exerciseId: parseInt(exerciseId),
@@ -280,6 +281,15 @@ export default function StudentCodeEditor() {
     }
     setIsRunning(true);
     try {
+      // Flush pending behavioral events BEFORE submit to prevent double-counting
+      if (pendingEventsRef.current.length > 0) {
+        const pending = pendingEventsRef.current.splice(0, pendingEventsRef.current.length);
+        api.post('/api/student/behavioral-events', {
+          exerciseId: parseInt(exerciseId),
+          events: pending,
+        }).catch(() => {});
+      }
+
       const r = await api.post(`/api/student/exercises/${exerciseId}/submit`, {
         code,
         language: 'cpp',
@@ -298,6 +308,9 @@ export default function StudentCodeEditor() {
       if (data.allPassed) setIsSolved(true);
       if (data.rubricScore) {
         setRubricScore(data.rubricScore);
+      }
+      if (data.preCheckHints) {
+        setPreCheckHints(data.preCheckHints);
       }
 
       toast.success(
@@ -328,6 +341,11 @@ export default function StudentCodeEditor() {
   const handleBack = useCallback(() => {
     navigate("/student/exercises");
   }, [navigate]);
+
+  const handleCodeChange = (newCode) => {
+    setPreCheckHints([]);
+    setCode(newCode);
+  };
 
   const handleClearTerminal = useCallback(() => {
     setTestResults((prev) => (prev ? { ...prev, programOutput: "" } : prev));
@@ -403,7 +421,7 @@ export default function StudentCodeEditor() {
         <ResizableWorkbench
           exercise={exercise}
           code={code}
-          onCodeChange={setCode}
+          onCodeChange={handleCodeChange}
           testResults={testResults}
           onMount={handleMount}
           language="cpp"
@@ -422,7 +440,7 @@ export default function StudentCodeEditor() {
           onTabChange={setActiveTab}
           exercise={exercise}
           code={code}
-          onCodeChange={setCode}
+          onCodeChange={handleCodeChange}
           testResults={testResults}
           onMount={handleMount}
           submissions={submissions}
@@ -433,6 +451,26 @@ export default function StudentCodeEditor() {
         />
         <EditorActionBar onRun={handleRun} onSubmit={isCompleted ? undefined : handleSubmit} isRunning={isRunning} />
       </div>
+
+      {preCheckHints.length > 0 && (
+        <div className="mt-3 space-y-2 px-4 pb-4">
+          {preCheckHints.map((hint, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-2 text-xs p-2 rounded border ${
+                hint.level === 'hint'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                  : 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+              }`}
+            >
+              <span className="mt-0.5 shrink-0">
+                {hint.level === 'hint' ? '💡' : 'ℹ️'}
+              </span>
+              <span>{hint.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }

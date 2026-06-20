@@ -125,7 +125,7 @@ const BAD_PATTERNS = {
     {
       id: 'address_of_local',
       description: 'Returning address of a local variable (dangling pointer)',
-      query: '(return_statement (addressof_expression (identifier) @local))',
+      query: '(return_statement (pointer_expression (identifier) @local))',
       message: 'Returning address of a local variable (dangling pointer)',
     },
     {
@@ -167,7 +167,7 @@ const BAD_PATTERNS = {
     {
       id: 'missing_break',
       description: 'case without break (unintentional fall-through)',
-      query: '(switch_statement (case_statement (compound_statement)))',
+      query: '(case_statement) @case',
       message: 'Missing break in case (possible unintentional fall-through)',
     },
     {
@@ -195,7 +195,7 @@ const BAD_PATTERNS = {
     {
       id: 'no_base_case',
       description: 'Recursive function without a base case (infinite recursion)',
-      query: '(function_definition (call_expression) @recursive_call)',
+      query: '(function_definition body: (compound_statement (expression_statement (call_expression) @recursive_call)))',
       message: 'Recursive function may have no base case — infinite recursion risk',
     },
     {
@@ -251,7 +251,7 @@ const BAD_PATTERNS = {
     {
       id: 'large_struct_by_value',
       description: 'Large struct passed by value instead of const reference',
-      query: '(function_definition (parameter_declaration (type_identifier) @type))',
+      query: '(function_definition (function_declarator (parameter_list (parameter_declaration (type_identifier) @type))))',
       message: 'Pass large structs by const reference to avoid copying',
     },
     {
@@ -299,7 +299,7 @@ const BAD_PATTERNS = {
     {
       id: 'catch_by_value',
       description: 'Exception caught by value instead of const reference',
-      query: '(catch_clause (parameter_declaration (type_identifier) @type))',
+      query: '(catch_clause (parameter_list (parameter_declaration (type_identifier) @type)))',
       message: 'Catch exceptions by const reference, not by value',
     },
   ],
@@ -321,7 +321,7 @@ const BAD_PATTERNS = {
     {
       id: 'macro_no_parens',
       description: 'Macro argument not wrapped in parentheses (operator precedence bug)',
-      query: '(preproc_function_def body: (preproc_arg) @arg)',
+      query: '(preproc_function_def (preproc_arg) @arg)',
       message: 'Wrap macro arguments and body in parentheses',
     },
     {
@@ -335,7 +335,7 @@ const BAD_PATTERNS = {
     {
       id: 'using_namespace_header',
       description: 'using namespace std; in a header file (namespace pollution)',
-      query: '(using_declaration (namespace_identifier (identifier)))',
+      query: '(using_declaration (identifier) @ns)',
       message: 'Avoid using namespace std in header files',
     },
     {

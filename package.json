@@ -10,11 +10,17 @@
     "test:ci-frontend": "npx vitest run --reporter=verbose --prefix frontend",
     "test:uat": "node tests/uat/runner.js",
     "test:stagehand": "node simulation/stagehand/runner.js",
-    "test:stagehand:verbose": "STAGEHAND_VERBOSE=true node simulation/stagehand/runner.js"
+    "test:stagehand:verbose": "STAGEHAND_VERBOSE=true node simulation/stagehand/runner.js",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
     "cross-env": "^10.1.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
     "jest": "^30.4.2",
     "pg": "^8.21.0",
     "tree-sitter": "^0.21.1",

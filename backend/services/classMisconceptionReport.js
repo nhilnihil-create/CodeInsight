@@ -6,6 +6,79 @@
 
 const db = require('../config/db');
 const microConceptEngine = require('./microConceptEngine.js');
+const errorNormalizer = require('./errorNormalizer');
+
+const STD_IDS = new Set([
+  'cout', 'cin', 'cerr', 'clog', 'endl', 'ws', 'ends', 'flush',
+  'string', 'vector', 'list', 'map', 'set', 'pair', 'queue', 'stack',
+  'ifstream', 'ofstream', 'fstream', 'fstream',
+  'istream', 'ostream', 'iostream', 'stringstream',
+  'max', 'min', 'swap', 'sort', 'find', 'reverse',
+  'size_t', 'nullptr'
+]);
+
+const ERROR_FRIENDLY_MAP = [
+  { pattern: /^expected ';'/, friendly: 'Missing semicolon \u2014 check if you forgot a ; at the end of a statement' },
+  { pattern: /^expected ',' or/, friendly: 'Missing comma or semicolon in a list \u2014 check parameter or expression lists' },
+  { pattern: /^expected '\)'/, friendly: 'Missing closing parenthesis \u2014 check that parentheses are balanced' },
+  { pattern: /^expected '\{'/, friendly: 'Missing opening brace \u2014 a code block needs a \u007b to begin' },
+  { pattern: /^expected '\}'/, friendly: 'Missing closing brace \u2014 a code block needs a \u007d to close' },
+  { pattern: /^expected primary-expression/, friendly: 'Missing operand or expression \u2014 check that all operators have operands' },
+  { pattern: /^expected type-specifier/, friendly: 'Variable or return type missing \u2014 declare types before using identifiers' },
+  { pattern: /^expected unqualified-id/, friendly: 'Name expected \u2014 check for a missing function or variable name in a declaration' },
+  { pattern: /^'<id>' was not declared/, friendly: 'Using an undeclared identifier \u2014 check the spelling or add a declaration before use' },
+  { pattern: /^'<id>' does not name a type/, friendly: 'Type name not recognized \u2014 you may need to include the right header file' },
+  { pattern: /^'<id>' is not a type/, friendly: 'Name used as a type but is not one \u2014 check your declaration syntax' },
+  { pattern: /^'<id>' cannot be used as a function/, friendly: 'Called a name that is not a function \u2014 check for missing parentheses or wrong name' },
+  { pattern: /^redefinition of/, friendly: 'Name declared twice \u2014 remove or rename the duplicate declaration' },
+  { pattern: /^'<id>' defined but not used/, friendly: 'Variable declared but never used \u2014 remove it or add code that uses it' },
+  { pattern: /^'<id>' is private/, friendly: 'Accessing a private member outside the class \u2014 use a public getter method' },
+  { pattern: /^'<id>' is protected/, friendly: 'Accessing a protected member from outside the class hierarchy' },
+  { pattern: /^no match for 'operator/, friendly: 'No matching operator for the given types \u2014 check operand types' },
+  { pattern: /^invalid conversion from/, friendly: 'Type mismatch in assignment \u2014 incompatible types cannot be converted automatically' },
+  { pattern: /^cannot convert/, friendly: 'Cannot convert between types \u2014 use an explicit cast or fix the types' },
+  { pattern: /^invalid operands/, friendly: 'Operator used with incompatible operand types \u2014 check both sides of the operator' },
+  { pattern: /^return-statement with no value/, friendly: 'Function declared to return a value but has a bare return with nothing' },
+  { pattern: /^return-statement with a value/, friendly: 'Void function should not return a value \u2014 remove the return value' },
+  { pattern: /^taking address of temporary/, friendly: 'Taking address of a temporary value \u2014 store it in a variable first' },
+  { pattern: /^invalid use of incomplete type/, friendly: 'Using a type before its full definition \u2014 reorder code or include the missing definition' },
+  { pattern: /^control reaches end of non-void function/, friendly: 'Function missing a return statement at the end \u2014 add a return value' },
+  { pattern: /^comparison between signed and unsigned/, friendly: 'Comparing signed and unsigned numbers \u2014 use matching types' },
+  { pattern: /^ISO C\+\+ forbids comparison between pointer and integer/, friendly: 'Comparing a pointer to an integer \u2014 check if you meant to dereference the pointer' },
+  { pattern: /^'<id>' in class '<id>' does not name a type/, friendly: 'Member type not found in class \u2014 check the member name or add the type definition' },
+  { pattern: /^no matching function for call/, friendly: 'No matching function for the given arguments \u2014 check parameter types and count' },
+  { pattern: /^call to '<id>' is ambiguous/, friendly: 'Ambiguous function call \u2014 multiple functions match the arguments' },
+  { pattern: /^reference to '<id>' is ambiguous/, friendly: 'Ambiguous reference \u2014 multiple declarations with the same name exist' },
+  { pattern: /^cannot bind/, friendly: 'Cannot bind a value to a reference \u2014 check that types match exactly' },
+  { pattern: /^array bound is not an integer constant/, friendly: 'Array size must be a compile-time constant \u2014 use a literal or constexpr value' },
+  { pattern: /^size of array.*negative/, friendly: 'Array size cannot be negative \u2014 check the size value' },
+  { pattern: /^zero-size array/, friendly: 'Array cannot have zero size \u2014 use a positive size or a dynamic container' },
+  { pattern: /^statement has no effect/, friendly: 'Statement has no effect on the program \u2014 check your logic' },
+  { pattern: /^suggest parentheses around assignment/, friendly: 'Assignment used as a condition \u2014 use == for comparison instead of =' },
+  { pattern: /^unknown type name/, friendly: 'Type name not recognized \u2014 check for missing #include or a typo' },
+  { pattern: /^use of undeclared identifier/, friendly: 'Identifier used without being declared \u2014 declare it first or fix the spelling' },
+  { pattern: /^expected ',' or '\.\.\.'/, friendly: 'Missing comma or ellipsis in a parameter list' },
+  { pattern: /^expected '\)' before ','/, friendly: 'Extra comma or missing parenthesis before a comma' },
+];
+
+function isStdNamespaceError(rawMessage) {
+  const match = rawMessage.match(/'([a-zA-Z_]\w*)'/);
+  if (match && STD_IDS.has(match[1])) {
+    if (/(?:was not declared|does not name a type|is not a type)/.test(rawMessage)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function toFriendlyText(normalized) {
+  for (const { pattern, friendly } of ERROR_FRIENDLY_MAP) {
+    if (pattern.test(normalized)) {
+      return friendly;
+    }
+  }
+  return `\u26a0\ufe0f ${normalized.replace(/<[^>]+>/g, '\u2026').substring(0, 60)}`;
+}
 
 /**
  * Generate class misconception report for a closed exercise
@@ -54,9 +127,8 @@ async function generateClassMisconceptionReport(exerciseId) {
         secondIssue: null,
         secondCount: 0,
         classSummary: 'No submissions found for this exercise.',
-        rootCause: 'Insufficient data',
-        recommendedAction: 'Wait for more student submissions.',
-        beforeAdvancing: 'Ensure students have attempted the exercise.'
+        commonErrors: [],
+        recommendedAction: 'Wait for more student submissions.'
       };
     }
 
@@ -84,15 +156,23 @@ async function generateClassMisconceptionReport(exerciseId) {
         secondIssue: null,
         secondCount: 0,
         classSummary: 'No valid student submissions found.',
-        rootCause: 'Insufficient data',
-        recommendedAction: 'Wait for more student submissions.',
-        beforeAdvancing: 'Ensure students have attempted the exercise.'
+        commonErrors: [],
+        recommendedAction: 'Wait for more student submissions.'
       };
     }
 
     // Analyze each student's latest submission for micro-concept issues
     const issueFrequency = {};
     const issueDetails = {};
+    const rawErrorFrequency = {};
+
+    function extractErrorMessage(logLine) {
+      let m = logLine.match(/\[Line \d+:\d+\] \w+:\s*(.+)/);
+      if (m) return m[1].trim();
+      m = logLine.match(/\berror:\s*(.+)/i);
+      if (m) return m[1].trim();
+      return logLine.trim();
+    }
 
     for (const submission of studentList) {
       // Read persisted test_results and compiler_log
@@ -118,6 +198,17 @@ async function generateClassMisconceptionReport(exerciseId) {
         runErrors.push(...lines);
       }
       const allErrors = [...new Set([...submissionErrors, ...runErrors])];
+
+      // Aggregate raw compiler errors for common-error display
+      for (const raw of allErrors) {
+        const msg = extractErrorMessage(raw);
+        if (!msg) continue;
+        if (isStdNamespaceError(msg)) continue;
+        const normalized = errorNormalizer.normalizeMessage(msg);
+        if (!normalized) continue;
+        if (!rawErrorFrequency[normalized]) rawErrorFrequency[normalized] = new Set();
+        rawErrorFrequency[normalized].add(submission.student_id);
+      }
 
       // Build context for micro-concept analysis
       const context = {
@@ -176,6 +267,18 @@ async function generateClassMisconceptionReport(exerciseId) {
       }
     }
 
+    // Aggregate most common raw compiler errors (across students)
+    const topRawErrors = Object.entries(rawErrorFrequency)
+      .map(([normalized, students]) => ({
+        normalized,
+        friendly: toFriendlyText(normalized),
+        count: students.size,
+        affectedPercent: totalStudents > 0 ? Math.round((students.size / totalStudents) * 1000) / 10 : 0
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .filter(e => e.count > 0);
+
     // Find most common and second most common issues
     const sortedIssues = Object.entries(issueFrequency)
       .map(([issueId, count]) => ({ issueId, count, details: issueDetails[issueId] }))
@@ -191,177 +294,29 @@ async function generateClassMisconceptionReport(exerciseId) {
     const affectedPercent = totalStudents > 0 ? Math.round((affectedCount / totalStudents) * 100) : 0;
     const secondCount = secondMostCommon ? secondMostCommon.count : 0;
 
-    // Generate narrative summary
+    // Generate data-driven narratives from actual compiler error patterns
     let classSummary = '';
-    let rootCause = '';
     let recommendedAction = '';
-    let beforeAdvancing = '';
 
-    if (mostCommonIssue) {
-      classSummary = `${affectedCount} out of ${totalStudents} students (${affectedPercent}%) showed "${mostCommonIssue.name}" - ${mostCommonIssue.description}.`;
+    if (topRawErrors.length > 0) {
+      const e1 = topRawErrors[0];
+      const e2 = topRawErrors[1];
 
-      // Generate root cause based on issue type
-      if (mostCommonIssue.id.includes('cond')) {
-        rootCause = 'Students may not have sufficient practice with boolean expressions and boundary conditions.';
-      } else if (mostCommonIssue.id.includes('loop')) {
-        rootCause = 'Students may struggle with loop initialization, condition, and increment/decrement concepts.';
-      } else if (mostCommonIssue.id.includes('var')) {
-        rootCause = 'Students may need more practice with variable declaration and scope concepts.';
-      } else if (mostCommonIssue.id.includes('func')) {
-        rootCause = 'Students may not fully understand function signatures, parameters, and return values.';
-      } else if (mostCommonIssue.id.includes('arr')) {
-        rootCause = 'Students may need additional practice with array indexing and bounds checking.';
-      } else if (mostCommonIssue.id.includes('dt')) {
-        rootCause = 'Students may confuse integer and floating-point data types, especially in division operations.';
-      } else if (mostCommonIssue.id.includes('ptr')) {
-        rootCause = 'Students have difficulty with pointer semantics: address-of (&), dereference (*), and pointer arithmetic.';
-      } else if (mostCommonIssue.id.includes('str')) {
-        rootCause = 'Students may not understand std::string as a distinct type requiring <string> header and correct operations.';
-      } else if (mostCommonIssue.id.includes('io_')) {
-        rootCause = 'Students confuse stream operator direction (>> for extraction, << for insertion) or forget <iostream>.';
-      } else if (mostCommonIssue.id.includes('sw_')) {
-        rootCause = 'Students may not understand switch fall-through behavior or the need for break and default cases.';
-      } else if (mostCommonIssue.id.includes('nl_')) {
-        rootCause = 'Students reuse the same loop variable in nested loops, causing inner loop to corrupt the outer loop counter.';
-      } else if (mostCommonIssue.id.includes('rec_')) {
-        rootCause = 'Students may not fully understand base cases and recurrence relations in recursive problem solving.';
-      } else if (mostCommonIssue.id.includes('fio_')) {
-        rootCause = 'Students may not check file open success or include the required <fstream> header.';
-      } else if (mostCommonIssue.id.includes('scp_')) {
-        rootCause = 'Students may not understand that variables declared inside { } blocks are local and not accessible outside.';
-      } else if (mostCommonIssue.id.includes('enum_')) {
-        rootCause = 'Students may not understand scope pollution from plain enums or the benefits of enum class.';
-      } else if (mostCommonIssue.id.includes('st_')) {
-        rootCause = 'Students may not initialize all struct fields or may pass large structs by value unnecessarily.';
-      } else if (mostCommonIssue.id.includes('dyn_')) {
-        rootCause = 'Students may not understand the pairing of new/delete and new[]/delete[], or risk dangling pointers.';
-      } else if (mostCommonIssue.id.includes('ll_')) {
-        rootCause = 'Students may not check for nullptr during linked list traversal or update next pointers correctly.';
-      } else if (mostCommonIssue.id.includes('err_')) {
-        rootCause = 'Students may catch exceptions by value (causing slicing) or leave catch blocks empty.';
-      } else if (mostCommonIssue.id.includes('cast_') || mostCommonIssue.id.includes('tc_')) {
-        rootCause = 'Students may use dangerous C-style casts and not understand narrowing conversion risks.';
-      } else if (mostCommonIssue.id.includes('pp_')) {
-        rootCause = 'Students may overuse #define macros instead of type-safe alternatives, or omit include guards.';
-      } else if (mostCommonIssue.id.includes('ns_')) {
-        rootCause = 'Students may not use std:: prefix correctly or may create ambiguous namespace references.';
-      } else if (mostCommonIssue.id.includes('inherit_') || mostCommonIssue.id.includes('inh_')) {
-        rootCause = 'Students may not understand virtual destructors, base constructor calls, or object slicing in inheritance.';
-      } else if (mostCommonIssue.id.includes('poly_')) {
-        rootCause = 'Students may not declare base functions as virtual or may have signature mismatches in overrides.';
-      } else if (mostCommonIssue.id.includes('oop')) {
-        rootCause = 'Students may not understand encapsulation principles: private data members and public accessor methods.';
-      } else if (mostCommonIssue.id.includes('cc_')) {
-        rootCause = 'Students may have general C++ syntax and style issues (missing semicolons, unused variables, etc.).';
-      } else {
-        rootCause = 'Students encountered difficulties with the specific programming constructs required for this exercise.';
-      }
+      classSummary = `${e1.count} of ${totalStudents} students (${e1.affectedPercent}%) encountered: "${e1.friendly}".`;
 
-      // Generate recommended action
-      if (mostCommonIssue.id.includes('cond_missing_else')) {
-        recommendedAction = 'Provide additional practice with if-else statements and have students trace through various test cases.';
-      } else if (mostCommonIssue.id.includes('loop_off_by_one')) {
-        recommendedAction = 'Use visual aids to show array indices and have students practice with fence-post problems.';
-      } else if (mostCommonIssue.id.includes('loop_missing_increment')) {
-        recommendedAction = 'Have students manually trace loop execution to see when the loop variable updates. Use a debugger step-through exercise.';
-      } else if (mostCommonIssue.id.includes('var_undeclared')) {
-        recommendedAction = 'Emphasize the declaration-before-use rule and have students identify variables in code snippets.';
-      } else if (mostCommonIssue.id.includes('var_uninitialized')) {
-        recommendedAction = 'Practice initializing all variables at the point of declaration with a known starting value.';
-      } else if (mostCommonIssue.id.includes('func_missing_return')) {
-        recommendedAction = 'Have students trace function execution paths and identify where return values are needed.';
-      } else if (mostCommonIssue.id.includes('func_wrong_signature')) {
-        recommendedAction = 'Have students match function declarations to calls, paying attention to parameter count and types.';
-      } else if (mostCommonIssue.id.includes('arr_out_of_bounds') || mostCommonIssue.id.includes('arr_hardcoded_index')) {
-        recommendedAction = 'Visualize array memory layout and practice accessing elements with loop variables instead of literal indices.';
-      } else if (mostCommonIssue.id.includes('dt_integer_division') || mostCommonIssue.id.includes('dt_wrong_output_type')) {
-        recommendedAction = 'Review integer vs floating-point arithmetic. Practice type casting with static_cast<double>().';
-      } else if (mostCommonIssue.id.includes('ptr_')) {
-        recommendedAction = 'Use pointer diagrams to visualize memory. Practice tracing pointer operations on paper before coding.';
-      } else if (mostCommonIssue.id.includes('str_')) {
-        recommendedAction = 'Review std::string header requirements and compare string operations vs C-string functions.';
-      } else if (mostCommonIssue.id.includes('io_')) {
-        recommendedAction = 'Practice stream operator direction: cin >> (extraction), cout << (insertion). Memorize the arrow direction rule.';
-      } else if (mostCommonIssue.id.includes('sw_')) {
-        recommendedAction = 'Review switch syntax: each case needs a break; to prevent fall-through, and a default: case for unexpected values.';
-      } else if (mostCommonIssue.id.includes('nl_')) {
-        recommendedAction = 'Use different loop variable names (i, j, k) for nested loops. Trace the outer and inner loop iterations separately on paper.';
-      } else if (mostCommonIssue.id.includes('rec_')) {
-        recommendedAction = 'Identify the base case and recurrence relation before coding. Trace n=0, n=1, n=2 on paper to verify correctness.';
-      } else if (mostCommonIssue.id.includes('fio_')) {
-        recommendedAction = 'Always check file open success with .is_open() before reading or writing. Include <fstream> header.';
-      } else if (mostCommonIssue.id.includes('scp_')) {
-        recommendedAction = 'Review block scope rules. Variables declared inside { } are local to that block and cannot be accessed outside.';
-      } else if (mostCommonIssue.id.includes('enum_')) {
-        recommendedAction = 'Use enum class for type-safe, scoped enumerations instead of plain enum to prevent name conflicts.';
-      } else if (mostCommonIssue.id.includes('st_')) {
-        recommendedAction = 'Initialize all struct fields before use. Pass large structs by const reference to avoid copying.';
-      } else if (mostCommonIssue.id.includes('dyn_')) {
-        recommendedAction = 'Every new needs a matching delete. Every new[] needs a matching delete[]. Set pointers to nullptr after delete.';
-      } else if (mostCommonIssue.id.includes('ll_')) {
-        recommendedAction = 'Draw linked list diagrams and trace pointer updates step by step. Always check for nullptr during traversal.';
-      } else if (mostCommonIssue.id.includes('err_')) {
-        recommendedAction = 'Catch exceptions by const reference. Never leave catch blocks empty — at minimum log the error.';
-      } else if (mostCommonIssue.id.includes('tc_') || mostCommonIssue.id.includes('cast_')) {
-        recommendedAction = 'Use static_cast<Type>() instead of C-style casts. Review narrowing conversions and precision loss when casting.';
-      } else if (mostCommonIssue.id.includes('pp_')) {
-        recommendedAction = 'Replace #define macros with constexpr variables or inline functions. Use #pragma once in headers.';
-      } else if (mostCommonIssue.id.includes('ns_')) {
-        recommendedAction = 'Use std:: prefix for standard library features. Avoid using namespace std in global scope of large projects.';
-      } else if (mostCommonIssue.id.includes('inh_') || mostCommonIssue.id.includes('inherit_')) {
-        recommendedAction = 'Add virtual destructors to base classes. Explicitly call base constructors in derived class initializer lists.';
-      } else if (mostCommonIssue.id.includes('poly_')) {
-        recommendedAction = 'Mark base class functions as virtual and derived class overrides with the override keyword to catch signature mismatches.';
-      } else if (mostCommonIssue.id.includes('oop_')) {
-        recommendedAction = 'Review encapsulation: make member variables private and provide public getter/setter methods.';
-      } else if (mostCommonIssue.id.includes('cc_comma')) {
-        recommendedAction = 'Teach that the comma operator in conditions only uses the rightmost value. Use && or || for compound conditions.';
-      } else if (mostCommonIssue.id.includes('cc_short_circuit')) {
-        recommendedAction = 'Discourage using && as a control-flow replacement for if statements. Emphasize readability over cleverness.';
-      } else if (mostCommonIssue.id.includes('cc_empty_loop')) {
-        recommendedAction = 'Warn about accidental semicolons after for/while. Use Allman-style braces or linter rules to prevent empty bodies.';
-      } else if (mostCommonIssue.id.includes('cc_macro_heavy')) {
-        recommendedAction = 'Teach modern C++ alternatives to macros: constexpr, inline functions, and templates.';
-      } else {
-        recommendedAction = `Review the concept of "${mostCommonIssue.name}" with targeted examples and practice problems.`;
-      }
+      const details = topRawErrors.map(e =>
+        `"${e.friendly}" (${e.count} student${e.count > 1 ? 's' : ''}, ${e.affectedPercent}%)`
+      ).join('; ');
 
-      if (mostCommonIssue.id.includes('cond_')) {
-        beforeAdvancing = 'Ensure students can evaluate boolean expressions confidently and use if/else for both branches before moving to switch or complex conditions.';
-      } else if (mostCommonIssue.id.includes('loop_') || mostCommonIssue.id.includes('nl_')) {
-        beforeAdvancing = 'Ensure students can trace loop iterations manually and understand initialization, condition, and increment before advancing to nested loops.';
-      } else if (mostCommonIssue.id.includes('var_') || mostCommonIssue.id.includes('scp_')) {
-        beforeAdvancing = 'Ensure students reliably declare variables before use and understand block scope before moving to functions.';
-      } else if (mostCommonIssue.id.includes('func_') || mostCommonIssue.id.includes('rec_')) {
-        beforeAdvancing = 'Ensure students understand function calls, parameters, and return values before advancing to recursion or function pointers.';
-      } else if (mostCommonIssue.id.includes('arr_')) {
-        beforeAdvancing = 'Ensure students can iterate arrays with loop variables and avoid out-of-bounds access before moving to dynamic arrays.';
-      } else if (mostCommonIssue.id.includes('dt_') || mostCommonIssue.id.includes('tc_') || mostCommonIssue.id.includes('cast_')) {
-        beforeAdvancing = 'Ensure students understand type distinctions and safe casting before advancing to generic programming or templates.';
-      } else if (mostCommonIssue.id.includes('ptr_') || mostCommonIssue.id.includes('dyn_') || mostCommonIssue.id.includes('ll_')) {
-        beforeAdvancing = 'Ensure students can confidently dereference pointers, manage allocation, and visualize memory before advancing to complex data structures.';
-      } else if (mostCommonIssue.id.includes('str_') || mostCommonIssue.id.includes('io_') || mostCommonIssue.id.includes('fio_')) {
-        beforeAdvancing = 'Ensure students master string and stream operations before advancing to file processing or serialization.';
-      } else if (mostCommonIssue.id.includes('sw_')) {
-        beforeAdvancing = 'Ensure students understand case/break/default flow before moving to state machines or dispatch patterns.';
-      } else if (mostCommonIssue.id.includes('oop_') || mostCommonIssue.id.includes('inh_') || mostCommonIssue.id.includes('inherit_') || mostCommonIssue.id.includes('poly_')) {
-        beforeAdvancing = 'Ensure students grasp encapsulation, inheritance, and polymorphism fundamentals before advancing to design patterns.';
-      } else if (mostCommonIssue.id.includes('st_')) {
-        beforeAdvancing = 'Ensure students properly initialize and pass structs before advancing to classes with methods.';
-      } else if (mostCommonIssue.id.includes('enum_')) {
-        beforeAdvancing = 'Ensure students use type-safe enum class and understand scoping before advancing to union types or variant.';
-      } else if (mostCommonIssue.id.includes('err_')) {
-        beforeAdvancing = 'Ensure students handle exceptions properly before advancing to RAII or resource management patterns.';
-      } else if (mostCommonIssue.id.includes('pp_') || mostCommonIssue.id.includes('ns_')) {
-        beforeAdvancing = 'Ensure students manage namespaces and preprocessor directives correctly before building multi-file projects.';
-      } else {
-        beforeAdvancing = `Ensure students can correctly implement ${mostCommonIssue.name.replace(/_/g, ' ')} in isolation before moving to more complex problems.`;
-      }
+      recommendedAction = `Most frequent: ${details}. Practice resolving these errors before advancing.`;
+
+    } else if (mostCommonIssue) {
+      classSummary = `${affectedCount} of ${totalStudents} students (${affectedPercent}%) showed "${mostCommonIssue.name}".`;
+      recommendedAction = `${mostCommonIssue.name} \u2014 ${mostCommonIssue.description}. Review with targeted examples before advancing.`;
+
     } else {
-      classSummary = `No significant misconceptions detected among the ${totalStudents} students who submitted this exercise.`;
-      rootCause = 'Students demonstrated adequate understanding of the core concepts.';
-      recommendedAction = 'Continue to the next concept or provide enrichment activities for advanced students.';
-      beforeAdvancing = 'Monitor for any emerging issues in the next exercise.';
+      classSummary = `No significant issues detected among ${totalStudents} students.`;
+      recommendedAction = 'No issues found. Proceed to next concept or provide enrichment activities.';
     }
 
     return {
@@ -383,10 +338,9 @@ async function generateClassMisconceptionReport(exerciseId) {
       } : null,
       secondCount,
       classSummary,
-      rootCause,
       recommendedAction,
-      beforeAdvancing,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      commonErrors: topRawErrors
     };
 
   } catch (error) {

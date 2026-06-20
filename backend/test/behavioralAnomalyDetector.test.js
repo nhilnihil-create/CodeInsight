@@ -17,7 +17,7 @@ describe('behavioralAnomalyDetector — detectInstantSuccess', function() {
     expect(result).toBeNull();
   });
 
-  it('returns null when there are fewer than 5 prior attempts', async function() {
+  it('returns null when there are fewer than 8 prior attempts', async function() {
     db.query.mockResolvedValue({ rows: [
       { attempt_number: 1, is_correct: false },
       { attempt_number: 2, is_correct: false },
@@ -37,29 +37,35 @@ describe('behavioralAnomalyDetector — detectInstantSuccess', function() {
       { attempt_number: 3, is_correct: false },
       { attempt_number: 4, is_correct: false },
       { attempt_number: 5, is_correct: false },
+      { attempt_number: 6, is_correct: false },
+      { attempt_number: 7, is_correct: false },
+      { attempt_number: 8, is_correct: false },
     ]});
     const result = await detectInstantSuccess({
-      studentId: 1, exerciseId: 1, is_correct: true, attempt_number: 6,
+      studentId: 1, exerciseId: 1, is_correct: true, attempt_number: 9,
     });
     expect(result).toBeNull();
   });
 
-  it('returns flag when 5+ consecutive failures followed by first success', async function() {
+  it('returns flag when 8+ consecutive failures followed by first success', async function() {
     db.query.mockResolvedValue({ rows: [
       { attempt_number: 1, is_correct: false },
       { attempt_number: 2, is_correct: false },
       { attempt_number: 3, is_correct: false },
       { attempt_number: 4, is_correct: false },
       { attempt_number: 5, is_correct: false },
+      { attempt_number: 6, is_correct: false },
+      { attempt_number: 7, is_correct: false },
+      { attempt_number: 8, is_correct: false },
     ]});
     const result = await detectInstantSuccess({
-      studentId: 1, exerciseId: 1, is_correct: true, attempt_number: 6,
+      studentId: 1, exerciseId: 1, is_correct: true, attempt_number: 9,
     });
     expect(result).not.toBeNull();
     expect(result.type).toBe('BEHAVIORAL_ANOMALY');
     expect(result.severity).toBe('LOW');
     expect(result.evidence.subtype).toBe('INSTANT_SUCCESS');
-    expect(result.evidence.priorFailureCount).toBe(5);
+    expect(result.evidence.priorFailureCount).toBe(8);
   });
 
   it('throws on database error', async function() {
@@ -182,6 +188,9 @@ describe('behavioralAnomalyDetector — detectBehavioralAnomalies', function() {
         { attempt_number: 3, is_correct: false },
         { attempt_number: 4, is_correct: false },
         { attempt_number: 5, is_correct: false },
+        { attempt_number: 6, is_correct: false },
+        { attempt_number: 7, is_correct: false },
+        { attempt_number: 8, is_correct: false },
       ]})
       .mockResolvedValueOnce({ rows: [
         { student_id: 1, fastest_time: '200' },
@@ -192,7 +201,7 @@ describe('behavioralAnomalyDetector — detectBehavioralAnomalies', function() {
       ]});
 
     const result = await detectBehavioralAnomalies({
-      studentId: 6, exerciseId: 1, is_correct: true, attempt_number: 6, time_spent_seconds: 30,
+      studentId: 6, exerciseId: 1, is_correct: true, attempt_number: 9, time_spent_seconds: 30,
     });
     expect(result.length).toBe(2);
     expect(result[0].type).toBe('BEHAVIORAL_ANOMALY');

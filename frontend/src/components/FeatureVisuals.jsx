@@ -52,17 +52,19 @@ function BarSegment({ percent, color, label }) {
 export function CDSVisual() {
   const [step, setStep] = useState(-1);
 
-  const pillars = [
-    { label: 'Functional', score: 100, weight: 40, color: 'bg-emerald-500' },
-    { label: 'Efficiency', score: 50, weight: 25, color: 'bg-amber-500' },
-    { label: 'Standards', score: 85, weight: 20, color: 'bg-emerald-500' },
-    { label: 'Integrity', score: 100, weight: 15, color: 'bg-emerald-500' },
+  const components = [
+    { label: 'NER', sublabel: 'Error Rate', value: 0.68, weight: 40, color: 'bg-amber-500' },
+    { label: 'NRS', sublabel: 'Attempts', value: 0.42, weight: 35, color: 'bg-emerald-500' },
+    { label: 'NTS', sublabel: 'Time Spent', value: 0.81, weight: 25, color: 'bg-orange-500' },
   ];
-  const total = Math.round(pillars.reduce((sum, p) => sum + (p.score * p.weight) / 100, 0));
+
+  const cds = components.reduce((sum, c) => sum + c.value * (c.weight / 100), 0);
+  const classification = cds <= 0.20 ? 'Very Low' : cds <= 0.40 ? 'Low' : cds <= 0.60 ? 'Moderate' : cds <= 0.80 ? 'Elevated' : 'High';
+  const classColor = cds <= 0.40 ? 'text-emerald-400' : cds <= 0.60 ? 'text-amber-400' : 'text-orange-400';
 
   useEffect(() => {
-    const timers = pillars.map((_, i) =>
-      setTimeout(() => setStep(i), 400 + i * 250)
+    const timers = components.map((_, i) =>
+      setTimeout(() => setStep(i), 400 + i * 300)
     );
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -70,18 +72,22 @@ export function CDSVisual() {
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-        <div className="text-[10px] text-primary font-semibold mb-3">Rubric Breakdown</div>
-        <div className="space-y-2">
-          {pillars.map(({ label, score, weight, color }, i) => (
+        <div className="text-[10px] text-primary font-semibold mb-1">Concept Difficulty Score</div>
+        <div className="font-mono text-[8px] text-muted-foreground/60 mb-3">CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS)</div>
+        <div className="space-y-2.5">
+          {components.map(({ label, sublabel, value, weight, color }, i) => (
             <div
               key={label}
-              className={`transition-all duration-300 ${step >= i ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}
+              className={`transition-all duration-400 ${step >= i ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}
             >
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[9px] text-muted-foreground">{label}</span>
-                <span className="text-[9px] text-muted-foreground">x{weight}%</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[10px] font-semibold text-foreground">{label}</span>
+                  <span className="text-[8px] text-muted-foreground/60">{sublabel}</span>
+                </div>
+                <span className="text-[8px] text-muted-foreground/60 font-mono">×{weight / 100}</span>
               </div>
-              <BarSegment percent={score} color={color} label="" />
+              <BarSegment percent={Math.round(value * 100)} color={color} label="" />
             </div>
           ))}
         </div>
@@ -89,22 +95,21 @@ export function CDSVisual() {
 
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-center">
-          <div className="text-[10px] text-muted-foreground mb-1">Weighted Total</div>
+          <div className="text-[9px] text-muted-foreground mb-1">CDS Score</div>
           <div className="text-3xl font-bold text-primary font-mono">
-            <AnimatedNumber value={total} />
-            <span className="text-lg">%</span>
+            <AnimatedNumber value={cds} />
           </div>
+          <div className={`text-[10px] font-semibold mt-0.5 ${classColor}`}>{classification}</div>
         </div>
         <div className="rounded-lg border border-border/40 bg-background/40 p-3 text-center space-y-1">
-          <div className="text-[10px] text-muted-foreground">Class Median</div>
-          <div className="text-lg font-bold font-mono text-foreground">2m 15s</div>
-          <div className="text-[9px] text-emerald-400">you: 1m 48s</div>
+          <div className="text-[9px] text-muted-foreground">Class p95</div>
+          <div className="text-lg font-bold font-mono text-foreground">0.54</div>
+          <div className="text-[8px] text-muted-foreground/60">normalized to class</div>
         </div>
       </div>
 
-      <div className="rounded-lg border border-border/40 bg-background/40 px-3 py-2 flex items-center justify-between text-[9px]">
-        <span className="text-muted-foreground">cppcheck warnings</span>
-        <span className="font-mono text-muted-foreground">0</span>
+      <div className="rounded-lg border border-border/40 bg-background/40 px-3 py-2 text-[9px] text-muted-foreground/70 text-center">
+        Class-wide p95-capped normalization — scores are relative, not absolute
       </div>
     </div>
   );
@@ -115,11 +120,11 @@ export function HeatmapVisual() {
   const [search, setSearch] = useState('');
 
   const tiers = [
-    { min: 0.01, max: 0.15, label: 'Very Low', cell: 'bg-slate-800/30 text-slate-500' },
-    { min: 0.16, max: 0.35, label: 'Low', cell: 'bg-emerald-500/20 text-emerald-400' },
-    { min: 0.36, max: 0.55, label: 'Moderate', cell: 'bg-amber-500/20 text-amber-400' },
-    { min: 0.56, max: 0.75, label: 'High', cell: 'bg-orange-500/25 text-orange-400' },
-    { min: 0.76, max: 1.00, label: 'Very High', cell: 'bg-rose-600/35 text-rose-400 font-bold' },
+    { min: 0.01, max: 0.20, label: 'Very Low', cell: 'bg-emerald-500/20 text-emerald-400' },
+    { min: 0.21, max: 0.40, label: 'Low', cell: 'bg-emerald-500/10 text-emerald-300/70' },
+    { min: 0.41, max: 0.60, label: 'Moderate', cell: 'bg-amber-500/20 text-amber-400' },
+    { min: 0.61, max: 0.80, label: 'Elevated', cell: 'bg-orange-500/25 text-orange-400' },
+    { min: 0.81, max: 1.00, label: 'High', cell: 'bg-rose-600/35 text-rose-400 font-bold' },
   ];
   const noData = 'bg-slate-900/60 text-slate-500';
 

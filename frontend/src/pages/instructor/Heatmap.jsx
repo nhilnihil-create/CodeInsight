@@ -9,18 +9,73 @@ import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SYSTEM 5-TIER CDS COLOR SYNCHRONIZATION
-   Mathematical ranges applied directly to cell backgrounds.
+   CONTINUOUS GRADIENT CDS COLOR SCALE
+   Smooth interpolation from teal (low) → amber (mid) → rose (high).
    ═══════════════════════════════════════════════════════════════════════════ */
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function lerpColor(c1, c2, t) {
+  return [
+    Math.round(lerp(c1[0], c2[0], t)),
+    Math.round(lerp(c1[1], c2[1], t)),
+    Math.round(lerp(c1[2], c2[2], t)),
+  ];
+}
+
+function cdsColor(cds) {
+  if (cds == null) return { bg: 'rgba(15,23,42,0.6)', text: 'text-slate-500', label: 'No Data' };
+  const v = Math.max(0, Math.min(1, Number(cds)));
+  if (v === 0) return { bg: 'rgba(15,23,42,0.6)', text: 'text-slate-500', label: 'No Data' };
+
+  const stops = [
+    { pos: 0.00, rgb: [26, 95, 80] },
+    { pos: 0.20, rgb: [16, 185, 129] },
+    { pos: 0.40, rgb: [245, 158, 11] },
+    { pos: 0.60, rgb: [249, 115, 22] },
+    { pos: 0.80, rgb: [225, 29, 72] },
+    { pos: 1.00, rgb: [190, 18, 60] },
+  ];
+
+  let lower = stops[0], upper = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (v >= stops[i].pos && v <= stops[i + 1].pos) {
+      lower = stops[i];
+      upper = stops[i + 1];
+      break;
+    }
+  }
+
+  const range = upper.pos - lower.pos || 1;
+  const t = (v - lower.pos) / range;
+  const rgb = lerpColor(lower.rgb, upper.rgb, t);
+
+  const alpha = lerp(0.15, 0.55, v);
+  const textColor = v < 0.20 ? 'text-slate-300' : v < 0.40 ? 'text-emerald-300' : v < 0.60 ? 'text-amber-300' : 'text-rose-300';
+
+  const label =
+    v <= 0.20 ? 'Very Low' :
+    v <= 0.40 ? 'Low' :
+    v <= 0.60 ? 'Moderate' :
+    v <= 0.80 ? 'High' : 'Very High';
+
+  return {
+    bg: `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`,
+    text: textColor,
+    label,
+  };
+}
 
 const CDS_TIERS = [
   { min: -1,   max: -1,   label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
   { min: 0.00, max: 0.00, label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
-  { min: 0.01, max: 0.15, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500',        text: 'text-slate-500' },
-  { min: 0.16, max: 0.35, label: 'Low',       cell: 'bg-emerald-500/20 text-emerald-400',    text: 'text-emerald-400' },
-  { min: 0.36, max: 0.55, label: 'Moderate',  cell: 'bg-amber-500/20 text-amber-400',        text: 'text-amber-400' },
-  { min: 0.56, max: 0.75, label: 'High',      cell: 'bg-orange-500/25 text-orange-400',      text: 'text-orange-400' },
-  { min: 0.76, max: 1.00, label: 'Very High', cell: 'bg-rose-600/35 text-rose-400 font-bold', text: 'text-rose-400' },
+  { min: 0.01, max: 0.20, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500',        text: 'text-slate-500' },
+  { min: 0.21, max: 0.40, label: 'Low',       cell: 'bg-emerald-500/20 text-emerald-400',    text: 'text-emerald-400' },
+  { min: 0.41, max: 0.60, label: 'Moderate',  cell: 'bg-amber-500/20 text-amber-400',        text: 'text-amber-400' },
+  { min: 0.61, max: 0.80, label: 'High',      cell: 'bg-orange-500/25 text-orange-400',      text: 'text-orange-400' },
+  { min: 0.81, max: 1.00, label: 'Very High', cell: 'bg-rose-600/35 text-rose-400 font-bold', text: 'text-rose-400' },
 ];
 
 function cdsTier(cds) {
@@ -39,15 +94,16 @@ function cdsTier(cds) {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 function Legend() {
-  const tiers = [CDS_TIERS[2], CDS_TIERS[3], CDS_TIERS[4], CDS_TIERS[5], CDS_TIERS[6]];
   return (
     <div className="flex items-center gap-2.5 flex-wrap">
-      {tiers.map((t) => (
-        <div key={t.label} className="flex items-center gap-1">
-          <div className={cn('w-3 h-2.5 rounded-[2px]', t.cell)} />
-          <span className="text-[9px] text-white/30 whitespace-nowrap">{t.label}</span>
-        </div>
-      ))}
+      <span className="text-[9px] text-white/30 whitespace-nowrap">Very Low</span>
+      <div
+        className="h-2.5 w-24 rounded-[2px]"
+        style={{
+          background: 'linear-gradient(to right, rgba(26,95,80,0.35), rgba(16,185,129,0.5), rgba(245,158,11,0.5), rgba(249,115,22,0.55), rgba(225,29,72,0.6))',
+        }}
+      />
+      <span className="text-[9px] text-white/30 whitespace-nowrap">Very High</span>
     </div>
   );
 }
@@ -59,7 +115,7 @@ function Legend() {
 const CELL_SIZE = 'w-10 h-10';
 
 function Cell({ cds, onHover, onLeave }) {
-  const tier = cdsTier(cds);
+  const color = cdsColor(cds);
 
   return (
     <div
@@ -68,13 +124,18 @@ function Cell({ cds, onHover, onLeave }) {
         'flex items-center justify-center rounded-[2px]',
         'text-[9px] font-mono tabular-nums select-none cursor-default',
         'transition-colors duration-75',
-        cds != null && cds > 0 ? tier.cell : 'bg-slate-900/60 border border-white/5',
       )}
+      style={{
+        backgroundColor: cds != null && cds > 0 ? color.bg : 'rgba(15,23,42,0.6)',
+        color: cds != null && cds > 0 ? undefined : undefined,
+      }}
       onMouseEnter={(e) => onHover?.(e)}
       onMouseMove={(e) => onHover?.(e)}
       onMouseLeave={onLeave}
     >
-      {cds != null && cds > 0 ? Number(cds).toFixed(2) : ''}
+      <span className={cds != null && cds > 0 ? color.text : 'text-slate-500'}>
+        {cds != null && cds > 0 ? Number(cds).toFixed(2) : ''}
+      </span>
     </div>
   );
 }
@@ -86,7 +147,7 @@ function Cell({ cds, onHover, onLeave }) {
 
 function PortalTooltip({ x, y, data, visible }) {
   if (!visible || !data) return null;
-  const tier = cdsTier(data.cds);
+  const color = cdsColor(data.cds);
 
   return createPortal(
     <div
@@ -109,9 +170,9 @@ function PortalTooltip({ x, y, data, visible }) {
         <span className={cn(
           'text-[9px] px-1.5 py-[1px] rounded-full font-medium',
           'bg-white/[0.08] border border-white/[0.08]',
-          tier.text,
+          color.text,
         )}>
-          {tier.label}
+          {color.label}
         </span>
       </div>
 

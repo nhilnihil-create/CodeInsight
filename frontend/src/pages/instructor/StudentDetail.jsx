@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import ConceptRadarPanel from "@/components/concept-radar/ConceptRadarPanel";
 import {
   MoreHorizontal,
+  ArrowLeft,
   ArrowRight,
   Download,
   UserMinus,
@@ -59,8 +60,30 @@ function timeAgo(dateStr) {
   return `${days}d`;
 }
 
+function evidenceToString(evidence) {
+  if (!evidence) return "No evidence";
+  if (typeof evidence === "string") return evidence;
+  try {
+    const obj = typeof evidence === "string" ? JSON.parse(evidence) : evidence;
+    if (Array.isArray(obj)) return obj.join("\n");
+    if (typeof obj === "object") {
+      return Object.entries(obj)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+    }
+    return String(evidence);
+  } catch {
+    return String(evidence);
+  }
+}
+
+const SEVERITY_RISK_LEVEL = { high: "high", medium: "moderate", low: "low", na: "na" };
+
 export default function InstructorStudentDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const sectionId = searchParams.get("section");
+  const [sectionName, setSectionName] = useState(null);
   const [tab, setTab] = useState("mastery");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerFlag, setDrawerFlag] = useState(null);
@@ -93,8 +116,14 @@ export default function InstructorStudentDetail() {
       }
     };
     fetchData();
+    if (sectionId) {
+      api.get(`/api/sections/${sectionId}`).then(res => {
+        if (!cancelled) setSectionName(res.data.name);
+      }).catch(() => {});
+    }
     return () => { cancelled = true; };
-  }, [id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, sectionId]);
 
   const profile = data?.profile || [];
   const student = data?.submissions?.student || { name: "Student", email: "" };
@@ -119,7 +148,7 @@ export default function InstructorStudentDetail() {
     return Object.entries(map).map(([name, vals]) => {
       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
       const pct = Math.round(avg * 100);
-      const level = avg <= 0.33 ? "low" : avg <= 0.66 ? "moderate" : "high";
+      const level = avg <= 0.20 ? "low" : avg <= 0.40 ? "moderate" : "high";
       return { concept: name, value: pct, level };
     });
   }, [cdsScores]);
@@ -152,7 +181,8 @@ export default function InstructorStudentDetail() {
   const activeFlags = integrityFlags.filter((f) => f.status !== "resolved");
 
   const openFlag = (item) => {
-    setDrawerFlag(item);
+    const full = integrityFlags.find((f) => f.id === item.id) || item;
+    setDrawerFlag(full);
     setDrawerOpen(true);
   };
 
@@ -205,11 +235,27 @@ export default function InstructorStudentDetail() {
     <div className="space-y-6 sm:space-y-8">
       {/* ---------- PageHeader ---------- */}
       <div className="space-y-2">
+        {sectionId && (
+          <Link
+            to={`/instructor/sections/${sectionId}`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+            Back to roster
+          </Link>
+        )}
         <PageBreadcrumb
-          crumbs={[
-            { label: "Students", href: "/instructor/students" },
-            { label: student.name },
-          ]}
+          crumbs={sectionId
+            ? [
+                { label: "Sections", href: "/instructor/sections" },
+                { label: sectionName || "Section", href: `/instructor/sections/${sectionId}` },
+                { label: student.name },
+              ]
+            : [
+                { label: "Students", href: "/instructor/students" },
+                { label: student.name },
+              ]
+          }
         />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-center gap-4 min-w-0">
@@ -223,7 +269,7 @@ export default function InstructorStudentDetail() {
                 <h1 className="text-2xl font-semibold tracking-tight truncate">
                   {student.name}
                 </h1>
-                <RiskBadge level={avgCds > 0.50 ? "high" : avgCds > 0.33 ? "moderate" : "low"} />
+                <RiskBadge level={avgCds <= 0.20 ? "low" : avgCds <= 0.40 ? "moderate" : avgCds <= 0.80 ? "high" : "critical"} />
               </div>
               <p className="text-sm text-muted-foreground truncate">
                 {student.email}
@@ -402,22 +448,55 @@ export default function InstructorStudentDetail() {
       <DetailDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={drawerFlag?.title ?? "Flag detail"}
-        subtitle={drawerFlag?.subtitle}
+        title={drawerFlag?.flag_type ?? "Flag detail"}
+        subtitle={drawerFlag?.exercise_title ? `${drawerFlag.exercise_title}` : ""}
       >
         {drawerFlag ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                Classification
-              </span>
-              <RiskBadge level={drawerFlag.level} />
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Classification
+                </p>
+                <RiskBadge level={SEVERITY_RISK_LEVEL[drawerFlag.severity] || "na"} />
+              </div>
+              <div className="text-right">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Flagged
+                </p>
+                <p className="text-sm font-mono tabular-nums">{timeAgo(drawerFlag.created_at)}</p>
+              </div>
             </div>
 
-            <div className="rounded-md border border-border bg-muted/40 p-4 space-y-2">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Evidence</p>
-              <p className="text-sm font-mono tabular-nums">{drawerFlag.subtitle}</p>
+            <div className="rounded-md border border-border bg-muted/40 p-4 space-y-1">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Exercise
+              </p>
+              <p className="text-sm font-medium">{drawerFlag.exercise_title || "—"}</p>
+              <p className="text-xs text-muted-foreground">Status: {drawerFlag.status || "flagged"}</p>
             </div>
+
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Evidence
+              </p>
+              <pre className="rounded-md bg-muted/40 p-3 font-mono text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                {evidenceToString(drawerFlag.evidence)}
+              </pre>
+            </div>
+
+            {drawerFlag.context_behaviors?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Context behaviors
+                </p>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  {drawerFlag.context_behaviors.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => setDrawerOpen(false)}>

@@ -8,7 +8,7 @@
  *   - showDelta  boolean (render the delta arrow at all)
  *
  * Score     font-mono tabular-nums, 2 decimal places
- * Level     low < 0.4 · moderate 0.4–0.7 · high > 0.7 (RiskBadge mapping)
+ * Level     very_low ≤ 0.20 · low ≤ 0.40 · moderate ≤ 0.60 · elevated ≤ 0.80 · high > 0.80
  * Delta     text-xs ml-1
  *             negative → text-success (improving)
  *             positive → text-destructive (worsening)
@@ -18,14 +18,18 @@
  */
 function levelFromValue(value) {
   if (typeof value !== "number" || Number.isNaN(value)) return "na";
-  if (value < 0.4) return "low";
-  if (value <= 0.7) return "moderate";
+  if (value <= 0.20) return "very_low";
+  if (value <= 0.40) return "low";
+  if (value <= 0.60) return "moderate";
+  if (value <= 0.80) return "elevated";
   return "high";
 }
 
 const PILL_TONE = {
+  very_low: "bg-cds-low/10 text-cds-low border border-cds-low/20",
   low: "bg-cds-low/10 text-cds-low border border-cds-low/20",
   moderate: "bg-cds-mod/10 text-cds-mod border border-cds-mod/20",
+  elevated: "bg-cds-high/10 text-cds-high border border-cds-high/20",
   high: "bg-cds-high/10 text-cds-high border border-cds-high/20",
   na: "bg-cds-na/10 text-cds-na border border-cds-na/20",
 };

@@ -144,14 +144,14 @@ export default function InstructorCommand() {
                   <CDSPillDelta
                     value={bar.cds}
                     delta={bar.delta}
-                    classification={bar.cds > 0.50 ? 'high' : bar.cds > 0.31 ? 'mod' : 'low'}
+                    classification={bar.cds <= 0.20 ? 'very_low' : bar.cds <= 0.40 ? 'low' : bar.cds <= 0.60 ? 'moderate' : bar.cds <= 0.80 ? 'elevated' : 'high'}
                     trend={bar.trend}
                   />
                   <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                     <div
                       className={cn(
                         'h-full rounded-full',
-                        bar.cds > 0.50 ? 'bg-[#EF4444]' : bar.cds > 0.31 ? 'bg-[#FACC15]' : 'bg-[#22C55E]'
+                        bar.cds <= 0.20 ? 'bg-[#22C55E]' : bar.cds <= 0.40 ? 'bg-[#14B8A6]' : bar.cds <= 0.60 ? 'bg-[#F59E0B]' : bar.cds <= 0.80 ? 'bg-[#F97316]' : 'bg-[#F43F5E]'
                       )}
                       style={{ width: `${(bar.cds / 1) * 100}%` }}
                     />

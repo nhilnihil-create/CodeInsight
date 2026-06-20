@@ -297,9 +297,12 @@ CREATE TABLE IF NOT EXISTS cds_snapshots (
   nts                NUMERIC(5,4),
   cds                NUMERIC(5,4),
   classification     VARCHAR(30),
-  class_max_errors   INT,
-  class_max_attempts INT,
-  effective_max_time INT,
+  class_min_errors   INT,
+  class_p95_errors   INT,
+  class_min_attempts INT,
+  class_p95_attempts INT,
+  class_min_time     INT,
+  class_p95_time     INT,
   calculated_at      TIMESTAMP DEFAULT NOW()
 );
 
@@ -380,6 +383,22 @@ CREATE TABLE IF NOT EXISTS auto_close_log (
   triggered_by   VARCHAR(50) DEFAULT 'auto_close_service',
   created_at     TIMESTAMP DEFAULT NOW()
 );
+
+-- ── CDS Job Queue ────────────────────────────────────────────────────────────
+-- DB-backed job queue for CDS computation (persists across restarts)
+
+CREATE TABLE IF NOT EXISTS cds_job_queue (
+  id          SERIAL PRIMARY KEY,
+  exercise_id INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  status      VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'done', 'failed')),
+  created_at  TIMESTAMP DEFAULT NOW(),
+  started_at  TIMESTAMP,
+  finished_at TIMESTAMP,
+  error       TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_cds_job_queue_status ON cds_job_queue(status);
+CREATE INDEX IF NOT EXISTS idx_cds_job_queue_created ON cds_job_queue(created_at);
 
 -- ── Audit Log (V2) ──────────────────────────────────────────────────────────
 -- Behavioral event trail for thesis evidence

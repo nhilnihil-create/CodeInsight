@@ -2,7 +2,7 @@
 // Spec §6.1. Mobile: tiny pill (numeric only) + small arrow. No Δ number.
 
 export function CDSPillDelta({ value, delta, mode = 'desktop' }) {
-  const cls = value >= 0.66 ? 'critical' : value >= 0.50 ? 'high' : value >= 0.31 ? 'medium' : 'low';
+  const cls = value <= 0.20 ? 'low' : value <= 0.40 ? 'medium' : value <= 0.80 ? 'elevated' : 'critical';
   const arrow = delta == null ? '▬' : delta > 0 ? '▲' : delta < 0 ? '▼' : '▬';
 
   if (mode === 'mobile') {

@@ -33,24 +33,24 @@ describe('CDS Engine — Classification (exported classify)', function() {
     expect(classify(undefined)).toBe('Unscored');
   });
 
-  it('classifies 0.00 as Low', function() {
-    expect(classify(0)).toBe('Low');
+  it('classifies 0.00 as Very Low', function() {
+    expect(classify(0)).toBe('Very Low');
   });
 
   it('classifies 0.31 as Low (exact boundary)', function() {
     expect(classify(0.31)).toBe('Low');
   });
 
-  it('classifies 0.311 as Moderate (just above Low)', function() {
-    expect(classify(0.311)).toBe('Moderate');
+  it('classifies 0.45 as Moderate', function() {
+    expect(classify(0.45)).toBe('Moderate');
   });
 
   it('classifies 0.50 as Moderate (exact boundary)', function() {
     expect(classify(0.50)).toBe('Moderate');
   });
 
-  it('classifies 0.501 as High (just above Moderate)', function() {
-    expect(classify(0.501)).toBe('High');
+  it('classifies 0.75 as Elevated', function() {
+    expect(classify(0.75)).toBe('Elevated');
   });
 
   it('classifies 1.0 as High', function() {
@@ -58,19 +58,19 @@ describe('CDS Engine — Classification (exported classify)', function() {
   });
 
   it('adds Preliminary prefix when isPreliminary=true', function() {
-    expect(classify(0.2, true)).toBe('Preliminary - Low');
-    expect(classify(0.4, true)).toBe('Preliminary - Moderate');
-    expect(classify(0.8, true)).toBe('Preliminary - High');
+    expect(classify(0.2, true)).toBe('Prelim-Very Low');
+    expect(classify(0.4, true)).toBe('Prelim-Low');
+    expect(classify(0.8, true)).toBe('Prelim-Elevated');
   });
 });
 
 describe('CDS Engine — Centralized Thresholds', function() {
-  it('exports LOW = 0.31', function() {
-    expect(CDS_THRESHOLDS.LOW).toBe(0.31);
+  it('exports LOW = 0.40', function() {
+    expect(CDS_THRESHOLDS.LOW).toBe(0.40);
   });
 
-  it('exports MODERATE = 0.50', function() {
-    expect(CDS_THRESHOLDS.MODERATE).toBe(0.50);
+  it('exports MODERATE = 0.60', function() {
+    expect(CDS_THRESHOLDS.MODERATE).toBe(0.60);
   });
 });
 
@@ -92,7 +92,7 @@ describe('CDS Engine — Instant CDS (calculateCDS)', function() {
     const result = calculateCDS([]);
     expect(result.score).toBe(0);
     expect(result.ner).toBe(0);
-    expect(result.classification).toBe('Low');
+    expect(result.classification).toBe('Very Low');
   });
 
   it('all tests pass → NER=0 → CDS=0', function() {
@@ -100,16 +100,16 @@ describe('CDS Engine — Instant CDS (calculateCDS)', function() {
       { passed: true }, { passed: true }
     ]);
     expect(result.score).toBe(0);
-    expect(result.classification).toBe('Low');
+    expect(result.classification).toBe('Very Low');
   });
 
-  it('all tests fail → NER=1 → CDS=0.40 → Moderate', function() {
+  it('all tests fail → NER=1 → CDS=0.40 → Low', function() {
     const result = calculateCDS([
       { passed: false }, { passed: false }, { passed: false }
     ]);
     expect(result.ner).toBe(1);
     expect(result.score).toBe(0.40);
-    expect(result.classification).toBe('Moderate');
+    expect(result.classification).toBe('Low');
   });
 
   it('partial failure → proportional NER', function() {
@@ -118,7 +118,7 @@ describe('CDS Engine — Instant CDS (calculateCDS)', function() {
     ]);
     expect(result.ner).toBe(0.5);
     expect(result.score).toBe(0.20);
-    expect(result.classification).toBe('Low');
+    expect(result.classification).toBe('Very Low');
   });
 
   it('max instant CDS is 0.40 (NER=1, NRS=0, NTS=0)', function() {
@@ -299,10 +299,10 @@ describe('CDS Engine — Formula (0.40*NER + 0.35*NRS + 0.25*NTS)', function() {
     expect(classify(cds)).toBe('High');
   });
 
-  it('strong student (0.1, 0.2, 0.05) → CDS = 0.12 → Low', function() {
+  it('strong student (0.1, 0.2, 0.05) → CDS = 0.12 → Very Low', function() {
     const cds = formula(0.1, 0.2, 0.05);
     expect(cds).toBe(0.12);
-    expect(classify(cds)).toBe('Low');
+    expect(classify(cds)).toBe('Very Low');
   });
 });
 
@@ -438,9 +438,9 @@ describe('CDS Engine — Minimum Class Size (<3 → Preliminary)', function() {
   });
 
   it('classify adds Preliminary prefix for small classes', function() {
-    expect(classify(0.2, true)).toBe('Preliminary - Low');
-    expect(classify(0.4, true)).toBe('Preliminary - Moderate');
-    expect(classify(0.8, true)).toBe('Preliminary - High');
+    expect(classify(0.2, true)).toBe('Prelim-Very Low');
+    expect(classify(0.4, true)).toBe('Prelim-Low');
+    expect(classify(0.8, true)).toBe('Prelim-Elevated');
   });
 });
 

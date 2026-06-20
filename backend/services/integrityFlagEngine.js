@@ -140,6 +140,34 @@ async function markFlagReviewed(flagId, instructorNote = null) {
   }
 }
 
+// ── Graduated Flagging ──────────────────────────────────────────────────────
+
+async function getWarningCount(studentId, exerciseId, flagType) {
+  try {
+    const result = await db.query(
+      `SELECT COUNT(*)::int AS cnt FROM behavioral_events
+       WHERE student_id = $1 AND exercise_id = $2 AND event_type = $3`,
+      [studentId, exerciseId, `warning_${flagType}`]
+    );
+    return result.rows[0].cnt;
+  } catch (err) {
+    console.error('Error getting warning count:', err);
+    return 0;
+  }
+}
+
+async function createWarningEvent(studentId, exerciseId, flagType, evidence) {
+  try {
+    await db.query(
+      `INSERT INTO behavioral_events (student_id, exercise_id, event_type, payload, occurred_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [studentId, exerciseId, `warning_${flagType}`, JSON.stringify(evidence)]
+    );
+  } catch (err) {
+    console.error('Error creating warning event:', err);
+  }
+}
+
 // ── Public API ──────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -148,4 +176,6 @@ module.exports = {
   getFlagsForSection,
   getFlagsForSubmission,
   markFlagReviewed,
+  getWarningCount,
+  createWarningEvent,
 };
