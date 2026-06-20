@@ -53,6 +53,7 @@ export default function AdminConcepts() {
   const [knowledgeArea, setKnowledgeArea] = useState('');
   const [bloomLevel, setBloomLevel] = useState('apply');
   const [busy, setBusy] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [filterKa, setFilterKa] = useState('all');
 
   const load = async () => {
@@ -182,7 +183,7 @@ export default function AdminConcepts() {
                   {c.name}
                 </Badge>
                 <div className="inline-flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0"><Edit3 className="h-3 w-3" /></Button>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditTarget(c)}><Edit3 className="h-3 w-3" /></Button>
                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => handleDelete(c)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
               </div>
@@ -211,6 +212,52 @@ export default function AdminConcepts() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!editTarget} onOpenChange={open => !open && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit concept</DialogTitle></DialogHeader>
+          {editTarget && <EditConceptForm concept={editTarget} onSaved={()=>{setEditTarget(null);load();}} onError={setError} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function EditConceptForm({ concept, onSaved, onError }) {
+  const [name,setName]=useState(concept.name);
+  const [astNodes,setAstNodes]=useState((concept.ast_nodes||[]).join(', '));
+  const [knowledgeArea,setKnowledgeArea]=useState(concept.knowledge_area_code||'');
+  const [bloomLevel,setBloomLevel]=useState(concept.bloom_level||'apply');
+  const [busy,setBusy]=useState(false);
+  const handleSubmit=async e=>{e.preventDefault();setBusy(true);try{
+    const payload={name};
+    payload.ast_nodes=astNodes.split(',').map(s=>s.trim()).filter(Boolean);
+    if(knowledgeArea)payload.knowledge_area_code=knowledgeArea;
+    if(bloomLevel)payload.bloom_level=bloomLevel;
+    await api.put(`/api/admin/concepts/${concept.id}`,payload);onSaved();
+  }catch(err){onError(err.response?.data?.message||err.message)}finally{setBusy(false)}};
+  return (<form onSubmit={handleSubmit} className="space-y-3">
+    <div className="space-y-1"><Label>Name</Label><Input value={name} onChange={e=>setName(e.target.value)} required/></div>
+    <div className="space-y-1"><Label>Knowledge Area</Label>
+      <Select value={knowledgeArea} onValueChange={setKnowledgeArea}>
+        <SelectTrigger><SelectValue placeholder="Select area (optional)"/></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="SDF-FPC">SDF-FPC (Fundamentals)</SelectItem>
+          <SelectItem value="SDF-FDS">SDF-FDS (Data Structures)</SelectItem>
+          <SelectItem value="SDF-PMD">SDF-PMD (Program Design)</SelectItem>
+          <SelectItem value="SDF-OOP">SDF-OOP (Object-Oriented)</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="space-y-1"><Label>Bloom Level</Label>
+      <Select value={bloomLevel} onValueChange={setBloomLevel}>
+        <SelectTrigger><SelectValue/></SelectTrigger>
+        <SelectContent>{Object.entries(BLOOM_LABELS).map(([k,v])=><SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+      </Select>
+    </div>
+    <div className="space-y-1"><Label>AST nodes (comma separated)</Label>
+      <Input value={astNodes} onChange={e=>setAstNodes(e.target.value)} placeholder="if_statement, switch_statement"/>
+    </div>
+    <DialogFooter><Button type="submit" disabled={busy}>{busy?'Saving...':'Save'}</Button></DialogFooter>
+  </form>);
 }

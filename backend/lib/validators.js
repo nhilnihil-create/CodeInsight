@@ -147,6 +147,13 @@ const adminConceptCreate = Joi.object({
   ast_nodes: Joi.array().items(Joi.string()).default([]),
 });
 
+const adminConceptUpdate = Joi.object({
+  name: Joi.string().trim().min(1).max(100).optional(),
+  ast_nodes: Joi.array().items(Joi.string()).optional(),
+  knowledge_area_code: Joi.string().trim().max(20).optional().allow('', null),
+  bloom_level: Joi.string().valid('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create').optional(),
+});
+
 const rosterImportRows = Joi.object({
   rows: Joi.array().items(
     Joi.object({
@@ -188,7 +195,7 @@ module.exports = {
   exerciseCreate, exerciseUpdate,
   sectionCreate, enrollPayload, membershipUpdate, policyUpdate, joinByCode,
   submitCode, evaluationSubmit, register, login, idParam, enrollParams,
-  adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate,
+  adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate, adminConceptUpdate,
   bulkImportCSV, rosterImportRows,
   bulkPublish, exerciseValidate,
 };

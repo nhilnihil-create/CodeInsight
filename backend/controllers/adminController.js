@@ -155,6 +155,21 @@ exports.deleteConcept = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.updateConcept = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, ast_nodes, knowledge_area_code, bloom_level } = req.body;
+    const r = await db.query(
+      `UPDATE concepts SET name=COALESCE($1,name), ast_nodes=COALESCE($2,ast_nodes),
+       knowledge_area_code=COALESCE($3,knowledge_area_code), bloom_level=COALESCE($4,bloom_level)
+       WHERE id=$5 RETURNING *`,
+      [name??null, ast_nodes??null, knowledge_area_code??null, bloom_level??null, id]
+    );
+    if (!r.rows.length) throw new AppError('Concept not found', 404, codes.NOT_FOUND);
+    res.json({ concept: r.rows[0] });
+  } catch (err) { next(err); }
+};
+
 // =============================================================================
 // EXERCISES (admin read-only view across all instructors)
 // =============================================================================

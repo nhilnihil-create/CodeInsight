@@ -33,6 +33,7 @@ router.delete('/sections/:id',      validate.params(v.idParam), ctrl.deleteSecti
 router.get('/concepts',             ctrl.listConcepts);
 router.post('/concepts',            validate.body(v.adminConceptCreate), ctrl.createConcept);
 router.delete('/concepts/:id',      validate.params(v.idParam), ctrl.deleteConcept);
+router.put('/concepts/:id',         validate.params(v.idParam), validate.body(v.adminConceptUpdate), ctrl.updateConcept);
 
 // Exercises
 router.get('/exercises',            ctrl.listExercises);
