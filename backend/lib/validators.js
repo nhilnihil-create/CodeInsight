@@ -184,6 +184,10 @@ const bulkPublish = Joi.object({
   ).optional(),
 });
 
+const adminPasswordReset = Joi.object({
+  password: Joi.string().min(8).max(128).required(),
+});
+
 const exerciseValidate = Joi.object({
   reference_solution: Joi.string().trim().min(1).max(20000).required(),
   test_cases: Joi.array().items(testCase).min(1).required(),
@@ -197,5 +201,5 @@ module.exports = {
   submitCode, evaluationSubmit, register, login, idParam, enrollParams,
   adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate, adminConceptUpdate,
   bulkImportCSV, rosterImportRows,
-  bulkPublish, exerciseValidate,
+  bulkPublish, exerciseValidate, adminPasswordReset,
 };

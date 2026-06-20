@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, UserPlus, Shield, User, Pencil, Trash2 } from 'lucide-react';
+import { Search, UserPlus, Shield, User, Pencil, Trash2, KeyRound } from 'lucide-react';
 import api from '../../services/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,10 @@ export default function AdminUsers() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [resetTarget, setResetTarget] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -147,6 +151,44 @@ export default function AdminUsers() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={resetTarget !== null} onOpenChange={(open) => { if (!open) setResetTarget(null); }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Reset Password for {resetTarget?.name}</DialogTitle></DialogHeader>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (resetPassword !== resetConfirm) return;
+              setResetBusy(true);
+              try {
+                await api.put(`/api/admin/users/${resetTarget.id}/reset-password`, { password: resetPassword });
+                setResetTarget(null);
+                setResetPassword('');
+                setResetConfirm('');
+                setError('Password updated successfully');
+              } catch (err) {
+                setError(err.response?.data?.message || err.message);
+              } finally {
+                setResetBusy(false);
+              }
+            }} className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="reset-password">New Password</Label>
+                <Input id="reset-password" type="password" value={resetPassword} onChange={e => setResetPassword(e.target.value)} required minLength={8} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="reset-confirm">Confirm Password</Label>
+                <Input id="reset-confirm" type="password" value={resetConfirm} onChange={e => setResetConfirm(e.target.value)} required />
+              </div>
+              {resetPassword && resetConfirm && resetPassword !== resetConfirm && (
+                <p className="text-xs text-destructive">Passwords do not match</p>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => { setResetTarget(null); setResetPassword(''); setResetConfirm(''); }}>Cancel</Button>
+                <Button type="submit" disabled={resetBusy || resetPassword !== resetConfirm || !resetPassword}>Reset</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {error && <p className="text-xs text-destructive">Failed to load: {error}</p>}
@@ -182,6 +224,7 @@ export default function AdminUsers() {
                   <td className="px-3 py-2.5 text-center">
                     <div className="inline-flex gap-1">
                       <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={() => openEdit(u)}><Pencil className="h-3 w-3" /></Button>
+                      <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={() => setResetTarget(u)}><KeyRound className="h-3 w-3" /></Button>
                       <Button variant="ghost" size="sm" className="h-6 text-[9px] text-destructive" onClick={() => handleDelete(u)}><Trash2 className="h-3 w-3" /></Button>
                     </div>
                   </td>

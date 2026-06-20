@@ -69,6 +69,20 @@ exports.deleteUser = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+    const hash = await bcrypt.hash(password, 10);
+    const r = await db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, name, email',
+      [hash, id]
+    );
+    if (!r.rows.length) throw new AppError('User not found', 404, codes.NOT_FOUND);
+    res.json({ message: 'Password updated', user: { id: r.rows[0].id, name: r.rows[0].name } });
+  } catch (err) { next(err); }
+};
+
 // =============================================================================
 // SECTIONS
 // =============================================================================

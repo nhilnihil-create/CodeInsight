@@ -23,6 +23,7 @@ router.get('/users',                validate.query(userListQuery), ctrl.listUser
 router.post('/users',               validate.body(v.adminUserCreate), ctrl.createUser);
 router.put('/users/:id',            validate.params(v.idParam), validate.body(v.adminUserUpdate), ctrl.updateUser);
 router.delete('/users/:id',         validate.params(v.idParam), ctrl.deleteUser);
+router.put('/users/:id/reset-password', validate.params(v.idParam), validate.body(v.adminPasswordReset), ctrl.resetPassword);
 
 // Sections
 router.get('/sections',             ctrl.listSections);
