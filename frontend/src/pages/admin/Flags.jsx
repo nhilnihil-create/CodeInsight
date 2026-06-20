@@ -45,13 +45,21 @@ export default function AdminFlags() {
   useEffect(() => { load(); }, [statusFilter]);
 
   const handleResolve = async (id) => {
-    await api.patch(`/api/admin/flags/${id}`, { status: 'resolved' });
-    await load();
+    try {
+      await api.patch(`/api/admin/flags/${id}`, { status: 'resolved' });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    }
   };
 
   const handleDismiss = async (id) => {
-    await api.patch(`/api/admin/flags/${id}`, { status: 'dismissed' });
-    await load();
+    try {
+      await api.patch(`/api/admin/flags/${id}`, { status: 'dismissed' });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    }
   };
 
   return (
