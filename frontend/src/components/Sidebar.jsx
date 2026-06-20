@@ -51,6 +51,7 @@ const adminLinks = [
   { to: '/admin/evaluation',     label: 'Evaluation',  icon: TrendingUp },
   { to: '/admin/flags',          label: 'Flags',       icon: ShieldAlert },
   { to: '/admin/audit',          label: 'Audit Log',   icon: ShieldAlert },
+  { to: '/admin/settings',       label: 'Settings',    icon: Settings },
 ];
 
 const studentLinks = [

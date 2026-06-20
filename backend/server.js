@@ -50,6 +50,7 @@ app.use('/api/analytics',   require('./routes/integrity'));
 app.use('/api/custom-tags', require('./routes/customTags'));
 app.use('/api/evaluation',  require('./routes/evaluation'));
 app.use('/api/admin',       require('./routes/admin'));
+app.use('/api/admin',       require('./routes/adminConfig'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/search',        require('./routes/search'));
 app.use('/api/export',        require('./routes/export'));

@@ -59,6 +59,7 @@ import AdminExercises from './pages/admin/Exercises';
 import AdminEvaluation from './pages/admin/Evaluation';
 import AdminAudit from './pages/admin/Audit';
 import AdminFlags from './pages/admin/Flags';
+import AdminSettings from './pages/admin/Settings';
 import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
 import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
 import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
@@ -347,6 +348,11 @@ function AppContent() {
         <Route path="/admin/flags" element={
           <ProtectedRoute requiredRole="admin">
             <AdminFlags />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/settings" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminSettings />
           </ProtectedRoute>
         } />
 

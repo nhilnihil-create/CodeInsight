@@ -328,6 +328,17 @@ async function ensureTablesExist() {
       console.warn('⚠ v2 migrations failed:', v2Err.message);
     }
 
+    // system_settings table (CDS thresholds, sandbox config)
+    if (!(await tableExists('system_settings'))) {
+      try {
+        const { up } = require('./migrations/20260620_system_settings');
+        await up(db);
+        console.log('✓ system_settings table seeded');
+      } catch (ssErr) {
+        console.warn('⚠ system_settings migration failed:', ssErr.message);
+      }
+    }
+
     // verification_rules table (data-driven AST pattern matching)
     if (!(await tableExists('verification_rules'))) {
       try {
