@@ -38,6 +38,7 @@ router.put('/concepts/:id',         validate.params(v.idParam), validate.body(v.
 
 // Exercises
 router.get('/exercises',            ctrl.listExercises);
+router.patch('/exercises/:id',      validate.params(v.idParam), ctrl.toggleExercise);
 
 // Evaluation
 router.get('/evaluation',           ctrl.listEvaluation);

@@ -207,6 +207,19 @@ exports.listExercises = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.toggleExercise = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { closed } = req.body;
+    const r = await db.query(
+      `UPDATE exercises SET closed_at = $1 WHERE id = $2 RETURNING id, title, closed_at`,
+      [closed ? new Date().toISOString() : null, id]
+    );
+    if (!r.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
+    res.json({ exercise: r.rows[0] });
+  } catch (err) { next(err); }
+};
+
 // =============================================================================
 // EVALUATION
 // =============================================================================

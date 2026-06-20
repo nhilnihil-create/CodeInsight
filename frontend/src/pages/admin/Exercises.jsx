@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, CheckCircle2, XCircle } from 'lucide-react';
 import api from '../../services/api';
@@ -13,21 +13,29 @@ export default function AdminExercises() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.get('/api/admin/exercises');
-        setExercises(res.data.exercises || []);
-      } catch (err) {
-        setError(err.response?.data?.message || err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get('/api/admin/exercises');
+      setExercises(res.data.exercises || []);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggleExercise = async (id, closed) => {
+    try {
+      await api.patch(`/api/admin/exercises/${id}`, { closed });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    }
+  };
 
   const filtered = exercises.filter(e =>
     !search ||
@@ -59,13 +67,14 @@ export default function AdminExercises() {
                 <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Creator</th>
                 <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Submissions</th>
                 <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" className="px-3 py-6 text-center text-muted-foreground">Loading exercises…</td></tr>
+                <tr><td colSpan="7" className="px-3 py-6 text-center text-muted-foreground">Loading exercises…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan="6" className="px-3 py-6 text-center text-muted-foreground">No exercises found.</td></tr>
+                <tr><td colSpan="7" className="px-3 py-6 text-center text-muted-foreground">No exercises found.</td></tr>
               ) : filtered.map(e => (
                 <tr key={e.id} className="border-b border-border/60 last:border-0 hover:bg-muted/20">
                   <td className="px-3 py-2.5 font-semibold text-foreground">{e.title}</td>
@@ -81,6 +90,16 @@ export default function AdminExercises() {
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Open</span>
                     )}
+                  </td>
+                  <td className="px-3 py-2.5 text-center">
+                    <Button
+                      variant={e.closed_at ? 'outline' : 'secondary'}
+                      size="sm"
+                      className="h-7 text-[10px]"
+                      onClick={() => toggleExercise(e.id, !e.closed_at)}
+                    >
+                      {e.closed_at ? 'Reopen' : 'Close'}
+                    </Button>
                   </td>
                 </tr>
               ))}
