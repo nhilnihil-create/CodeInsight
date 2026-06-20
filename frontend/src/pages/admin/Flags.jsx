@@ -29,6 +29,7 @@ export default function AdminFlags() {
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = {};
       if (statusFilter) params.status = statusFilter;
