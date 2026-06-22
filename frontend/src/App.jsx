@@ -22,13 +22,11 @@ import AcademicIntegrityFlags from './pages/instructor/AcademicIntegrityFlags';
 import StructureViolations from './pages/instructor/StructureViolations';
 import ClassMicroConceptReport from './pages/instructor/ClassMicroConceptReport';
 import InstructorCommand from './pages/instructor/Command';
-import InstructorCustomHeatmap from './pages/instructor/CustomHeatmap';
-import InstructorCustomTags from './pages/instructor/CustomTags';
+
 import StudentDashboard from './pages/student/Dashboard';
 import StudentToday from './pages/student/Today';
 import StudentRecommendations from './pages/student/Recommendations';
 import StudentSections from './pages/student/Sections';
-import StudentIntegrityView from './pages/student/Integrity';
 import StudentExerciseList from './pages/student/Exercises';
 import StudentCodeEditor from './pages/student/CodeEditor';
 import StudentProgress from './pages/student/Progress';
@@ -36,21 +34,6 @@ import StudentProfile from './pages/student/Profile';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import NotFound from './pages/NotFound';
-import { useMode } from './hooks/use-mobile.js';
-import { MobileChrome } from './components/MobileChrome.jsx';
-
-// Mobile page imports (14 total)
-import MobileInstructorCommand from './pages/mobile/instructor/Command.jsx';
-import MobileInstructorStudents from './pages/mobile/instructor/Students.jsx';
-import MobileInstructorConcepts from './pages/mobile/instructor/Concepts.jsx';
-import MobileInstructorIntegrity from './pages/mobile/instructor/Integrity.jsx';
-import MobileInstructorSections from './pages/mobile/instructor/Sections.jsx';
-import MobileStudentToday from './pages/mobile/student/Today.jsx';
-import MobileStudentExercises from './pages/mobile/student/Exercises.jsx';
-import MobileStudentExerciseDetail from './pages/mobile/student/ExerciseDetail.jsx';
-import MobileStudentProgress from './pages/mobile/student/Progress.jsx';
-import MobileStudentIntegrity from './pages/mobile/student/Integrity.jsx';
-import MobileStudentSections from './pages/mobile/student/Sections.jsx';
 import AdminOverview from './pages/admin/Overview';
 import AdminUsers from './pages/admin/Users';
 import AdminSectionsOverview from './pages/admin/Sections';
@@ -60,9 +43,6 @@ import AdminEvaluation from './pages/admin/Evaluation';
 import AdminAudit from './pages/admin/Audit';
 import AdminFlags from './pages/admin/Flags';
 import AdminSettings from './pages/admin/Settings';
-import MobileAdminOverview from './pages/mobile/admin/Overview.jsx';
-import MobileAdminEvaluation from './pages/mobile/admin/Evaluation.jsx';
-import MobileAdminAudit from './pages/mobile/admin/Audit.jsx';
 
 function ProtectedRoute({ children, requiredRole }) {
   const { isLoggedIn, user } = useAuth();
@@ -79,18 +59,9 @@ function ProtectedRoute({ children, requiredRole }) {
   return <Layout>{children}</Layout>;
 }
 
-function ModeSwitch({ mobile, desktop }) {
-  const mode = useMode();
-  // Spec §2.2: phone (mobile mode) gets the mobile page; tablet+desktop get desktop.
-  // We treat 'tablet' as desktop to avoid forcing a third layout surface (out of v1 scope).
-  if (mode === 'mobile' && mobile) return mobile;
-  return desktop;
-}
-
 function AppContent() {
   return (
     <BrowserRouter>
-      <MobileChrome />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -99,7 +70,7 @@ function AppContent() {
         {/* Instructor Routes — design paths canonical */}
         <Route path="/instructor/command" element={
           <ProtectedRoute requiredRole="instructor">
-            <ModeSwitch mobile={<MobileInstructorCommand />} desktop={<InstructorCommand />} />
+            <InstructorCommand />
           </ProtectedRoute>
         } />
         <Route path="/instructor/dashboard" element={
@@ -109,12 +80,12 @@ function AppContent() {
         } />
         <Route path="/instructor/heatmap" element={
           <ProtectedRoute requiredRole="instructor">
-            <ModeSwitch mobile={<MobileInstructorCommand />} desktop={<InstructorHeatmap />} />
+            <InstructorHeatmap />
           </ProtectedRoute>
         } />
         <Route path="/instructor/students" element={
           <ProtectedRoute requiredRole="instructor">
-            <ModeSwitch mobile={<MobileInstructorStudents />} desktop={<InstructorStudents />} />
+            <InstructorStudents />
           </ProtectedRoute>
         } />
         <Route path="/instructor/students/:id" element={
@@ -124,7 +95,7 @@ function AppContent() {
         } />
         <Route path="/instructor/exercises" element={
           <ProtectedRoute requiredRole="instructor">
-            <ModeSwitch mobile={<MobileInstructorConcepts />} desktop={<InstructorExercises />} />
+            <InstructorExercises />
           </ProtectedRoute>
         } />
         <Route path="/instructor/explorer" element={
@@ -170,7 +141,7 @@ function AppContent() {
         } />
         <Route path="/instructor/integrity" element={
           <ProtectedRoute requiredRole="instructor">
-            <ModeSwitch mobile={<MobileInstructorIntegrity />} desktop={<InstructorIntegrity />} />
+            <InstructorIntegrity />
           </ProtectedRoute>
         } />
         <Route path="/instructor/integrity/:id" element={
@@ -201,7 +172,7 @@ function AppContent() {
             Sections.jsx / SectionDetail.jsx / AcademicIntegrityFlags.jsx files. */}
         <Route path="/instructor/sections" element={
           <ProtectedRoute requiredRole="instructor">
-            <ModeSwitch mobile={<MobileInstructorSections />} desktop={<InstructorSections />} />
+            <InstructorSections />
           </ProtectedRoute>
         } />
         <Route path="/instructor/sections/:sectionId" element={
@@ -224,16 +195,7 @@ function AppContent() {
             <ClassMicroConceptReport />
           </ProtectedRoute>
         } />
-        <Route path="/instructor/sections/:sectionId/custom-heatmap" element={
-          <ProtectedRoute requiredRole="instructor">
-            <InstructorCustomHeatmap />
-          </ProtectedRoute>
-        } />
-        <Route path="/instructor/sections/:sectionId/custom-tags" element={
-          <ProtectedRoute requiredRole="instructor">
-            <InstructorCustomTags />
-          </ProtectedRoute>
-        } />
+
         <Route path="/instructor/my-sections" element={
           <ProtectedRoute requiredRole="instructor">
             <InstructorSections />
@@ -243,17 +205,12 @@ function AppContent() {
         {/* Student Routes */}
         <Route path="/student/today" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentToday />} desktop={<StudentToday />} />
+            <StudentToday />
           </ProtectedRoute>
         } />
         <Route path="/student/sections" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentSections />} desktop={<StudentSections />} />
-          </ProtectedRoute>
-        } />
-        <Route path="/student/integrity" element={
-          <ProtectedRoute requiredRole="student">
-            <StudentIntegrityView />
+            <StudentSections />
           </ProtectedRoute>
         } />
         <Route path="/student/recommendations" element={
@@ -268,24 +225,24 @@ function AppContent() {
         } />
         <Route path="/student/exercises" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentExercises />} desktop={<StudentExerciseList />} />
+            <StudentExerciseList />
           </ProtectedRoute>
         } />
         <Route path="/student/exercises/:exerciseId" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentExerciseDetail />} desktop={<StudentCodeEditor />} />
+            <StudentCodeEditor />
           </ProtectedRoute>
         } />
         <Route path="/student/progress" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentProgress />} desktop={<StudentProgress />} />
+            <StudentProgress />
           </ProtectedRoute>
         } />
 
         {/* Design-aligned URL paths (new aliases for design nav parity) */}
         <Route path="/student/dashboard" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentToday />} desktop={<StudentDashboard />} />
+            <StudentDashboard />
           </ProtectedRoute>
         } />
         <Route path="/student/code-editor" element={
@@ -295,24 +252,24 @@ function AppContent() {
         } />
         <Route path="/student/code-editor/:exerciseId" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentExerciseDetail />} desktop={<StudentCodeEditor />} />
+            <StudentCodeEditor />
           </ProtectedRoute>
         } />
         <Route path="/student/profile" element={
           <ProtectedRoute requiredRole="student">
-            <ModeSwitch mobile={<MobileStudentIntegrity />} desktop={<StudentProfile />} />
+            <StudentProfile />
           </ProtectedRoute>
         } />
 
         {/* Admin routes */}
         <Route path="/admin" element={
           <ProtectedRoute requiredRole="admin">
-            <ModeSwitch mobile={<MobileAdminOverview />} desktop={<AdminOverview />} />
+            <AdminOverview />
           </ProtectedRoute>
         } />
         <Route path="/admin/overview" element={
           <ProtectedRoute requiredRole="admin">
-            <ModeSwitch mobile={<MobileAdminOverview />} desktop={<AdminOverview />} />
+            <AdminOverview />
           </ProtectedRoute>
         } />
         <Route path="/admin/users" element={
@@ -342,7 +299,7 @@ function AppContent() {
         } />
         <Route path="/admin/audit" element={
           <ProtectedRoute requiredRole="admin">
-            <ModeSwitch mobile={<MobileAdminAudit />} desktop={<AdminAudit />} />
+            <AdminAudit />
           </ProtectedRoute>
         } />
         <Route path="/admin/flags" element={

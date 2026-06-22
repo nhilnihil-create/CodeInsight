@@ -659,7 +659,7 @@ exports.getSectionHub = async (req, res, next) => {
 
     const [cdsResult, submissionsResult, masteryResult, atRiskResult, flagsResult, membersResult] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id = $1`, [id]),
-      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE m.section_id = $1 AND s.is_practice IS NOT TRUE`, [id]),
+      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE m.section_id = $1`, [id]),
       db.query(`SELECT c.name, COALESCE(AVG(cm.cds), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.60) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
       db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments m JOIN users u ON m.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id = $1 WHERE m.section_id = $1 GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.60 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, [id]),
       db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id = $1 AND status = 'flagged'`, [id]),
@@ -708,7 +708,7 @@ exports.getCommandCenter = async (req, res, next) => {
     // 2. Aggregate CDS, submissions, mastery, flags across all sections
     const [cdsRes, submissionsRes, conceptRes, atRiskRes, flagsRes, membersRes] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id IN (${placeholder})`, sectionIds),
-      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE submitted_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments en ON s.student_id = en.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE en.section_id IN (${placeholder}) AND s.is_practice IS NOT TRUE`, sectionIds),
+      db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE submitted_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments en ON s.student_id = en.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE en.section_id IN (${placeholder})`, sectionIds),
       db.query(`SELECT c.name, COALESCE(AVG(cs.cds), 0) as cds, COUNT(*) FILTER (WHERE cs.cds > 0.60) as at_risk_count FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments en ON cs.student_id = en.student_id WHERE en.section_id IN (${placeholder}) GROUP BY c.id, c.name ORDER BY cds DESC`, sectionIds),
       db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments en JOIN users u ON en.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id IN (${placeholder}) WHERE en.section_id IN (${placeholder}) GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.60 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, sectionIds),
       db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id IN (${placeholder}) AND status = 'flagged'`, sectionIds),
@@ -754,7 +754,6 @@ exports.getCommandCenter = async (req, res, next) => {
       JOIN enrollments en ON s.student_id = en.student_id
       JOIN exercises ex ON s.exercise_id = ex.id
       WHERE en.section_id IN (${placeholder}) AND s.is_correct = true
-        AND s.is_practice IS NOT TRUE
     `, sectionIds);
     const completedEx = parseInt(completionRes.rows[0]?.completed) || 0;
     const totalExRes = await db.query(`SELECT COUNT(*) as total FROM exercises WHERE section_id IN (${placeholder}) AND is_draft = false`, sectionIds);
@@ -895,17 +894,17 @@ exports.getInstructorDashboard = async (req, res, next) => {
       db.query(`SELECT COUNT(*)::INTEGER AS count FROM enrollments WHERE ${secCond}`, secParam),
 
       // 2. Current avg CDS (within period)
-      db.query(`SELECT COALESCE(AVG(cds), 0)::DOUBLE PRECISION AS avg_cds FROM cds_scores WHERE ${secCond} AND computed_at > NOW() - ($2 || ' days')::INTERVAL`, [...secParam, String(days)]),
+      db.query(`SELECT COALESCE(AVG(cds), 0)::DOUBLE PRECISION AS avg_cds FROM cds_scores WHERE ${secCond} AND computed_at > NOW() - INTERVAL '1 day' * $2`, [...secParam, days]),
 
       // 3. At-risk count (avg CDS > 0.50 within period)
       db.query(
         `SELECT COUNT(*)::INTEGER AS at_risk FROM (
           SELECT cs.student_id FROM cds_scores cs
-          WHERE ${secCond} AND cs.computed_at > NOW() - ($2 || ' days')::INTERVAL
+          WHERE ${secCond} AND cs.computed_at > NOW() - INTERVAL '1 day' * $2
           GROUP BY cs.student_id
           HAVING AVG(cs.cds) > 0.60
         ) sub`,
-        [...secParam, String(days)]
+        [...secParam, days]
       ),
 
       // 4. Open integrity flag count (last 24h)
@@ -925,7 +924,7 @@ exports.getInstructorDashboard = async (req, res, next) => {
            COALESCE(f.cnt, 0)::INTEGER AS flag_count
          FROM (
            SELECT generate_series(
-             (NOW() - ($2 || ' days')::INTERVAL)::DATE,
+             (NOW() - INTERVAL '1 day' * $2)::DATE,
              NOW()::DATE,
              '1 day'::INTERVAL
            )::DATE AS date
@@ -936,7 +935,7 @@ exports.getInstructorDashboard = async (req, res, next) => {
              AVG(cs.cds) AS avg_cds,
              AVG(1 - cs.cds) * 100 AS avg_mastery
            FROM cds_scores cs
-           WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at > NOW() - ($2 || ' days')::INTERVAL
+           WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at > NOW() - INTERVAL '1 day' * $2
            GROUP BY cs.computed_at::DATE
          ) c ON d.date = c.date
          LEFT JOIN (
@@ -944,33 +943,34 @@ exports.getInstructorDashboard = async (req, res, next) => {
            FROM submissions sub
            JOIN enrollments e ON sub.student_id = e.student_id
            JOIN exercises ex ON sub.exercise_id = ex.id
-           WHERE ${secCond.replace('section_id', 'e.section_id')} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL
-             AND sub.is_practice IS NOT TRUE
+            WHERE ${secCond.replace('section_id', 'e.section_id')} AND sub.submitted_at > NOW() - INTERVAL '1 day' * $2
            GROUP BY sub.submitted_at::DATE
          ) sub ON d.date = sub.date
          LEFT JOIN (
            SELECT i.created_at::DATE AS date, COUNT(*)::INTEGER AS cnt
            FROM integrity_flags i
-           WHERE ${secCond.replace('section_id', 'i.section_id')} AND i.created_at > NOW() - ($2 || ' days')::INTERVAL
+           WHERE ${secCond.replace('section_id', 'i.section_id')} AND i.created_at > NOW() - INTERVAL '1 day' * $2
              AND i.status = 'flagged'
            GROUP BY i.created_at::DATE
          ) f ON d.date = f.date
          ORDER BY d.date`,
-        [...secParam, String(days)]
+        [...secParam, days]
       ),
 
       // 6. Concept averages (for struggling concepts bar) — within period
+      // Only concepts with avg CDS > 0.40 (i.e. "developing" tier or worse)
       db.query(
         `SELECT c.name, COALESCE(AVG(cs.cds), 0)::DOUBLE PRECISION AS cds
          FROM cds_scores cs
          JOIN exercises ex ON cs.exercise_id = ex.id
          JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
          JOIN concepts c ON c.id = ect.concept_id
-         WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at > NOW() - ($2 || ' days')::INTERVAL
+         WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at > NOW() - INTERVAL '1 day' * $2
          GROUP BY c.id, c.name
+         HAVING AVG(cs.cds) > 0.40
          ORDER BY cds DESC
          LIMIT 5`,
-        [...secParam, String(days)]
+        [...secParam, days]
       ),
 
       // 7. Recent integrity flags (latest 5)
@@ -990,12 +990,12 @@ exports.getInstructorDashboard = async (req, res, next) => {
       db.query(
         `SELECT COUNT(*)::INTEGER AS prior_at_risk FROM (
           SELECT cs.student_id FROM cds_scores cs
-          WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL
-            AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL
+          WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at < NOW() - INTERVAL '1 day' * $2
+            AND cs.computed_at > NOW() - INTERVAL '1 day' * $3
           GROUP BY cs.student_id
           HAVING AVG(cs.cds) > 0.60
         ) sub`,
-        [...secParam, String(days), String(days * 2)]
+        [...secParam, days, days * 2]
       ),
 
       // 9. Prior period avg CDS
@@ -1003,9 +1003,9 @@ exports.getInstructorDashboard = async (req, res, next) => {
         `SELECT COALESCE(AVG(cds), 0)::DOUBLE PRECISION AS prior_avg_cds
          FROM cds_scores
          WHERE ${secCond}
-           AND computed_at < NOW() - ($2 || ' days')::INTERVAL
-           AND computed_at > NOW() - ($3 || ' days')::INTERVAL`,
-        [...secParam, String(days), String(days * 2)]
+           AND computed_at < NOW() - INTERVAL '1 day' * $2
+           AND computed_at > NOW() - INTERVAL '1 day' * $3`,
+        [...secParam, days, days * 2]
       ),
 
       // 10. Prior period flag count
@@ -1013,9 +1013,9 @@ exports.getInstructorDashboard = async (req, res, next) => {
         `SELECT COUNT(*)::INTEGER AS prior_count
          FROM integrity_flags
          WHERE ${secCond} AND status = 'flagged'
-           AND created_at < NOW() - ($2 || ' days')::INTERVAL
-           AND created_at > NOW() - ($3 || ' days')::INTERVAL`,
-        [...secParam, String(days), String(days * 2)]
+           AND created_at < NOW() - INTERVAL '1 day' * $2
+           AND created_at > NOW() - INTERVAL '1 day' * $3`,
+        [...secParam, days, days * 2]
       ),
     ]);
 
@@ -1027,17 +1027,27 @@ exports.getInstructorDashboard = async (req, res, next) => {
     const priorAtRisk = priorAtRiskRes.rows[0]?.prior_at_risk || 0;
     const priorAvgCds = parseFloat(priorAvgCdsRes.rows[0]?.prior_avg_cds) || 0;
     const priorFlags = priorFlagsRes.rows[0]?.prior_count || 0;
+    console.log('[DEBUG] avgCdsRes.rows:', JSON.stringify(avgCdsRes.rows));
+    console.log('[DEBUG] secParam:', JSON.stringify([...secParam, days]));
+    console.log('[DEBUG] sectionId:', sectionId, 'days:', days, 'avgCds:', avgCds, 'priorAvgCds:', priorAvgCds);
 
     // Extract series for KPI sparklines
     const trendRows = dailyTrendRes.rows;
     const atRiskSeries = trendRows.map(() => atRiskCount);
     const cdsSeries = trendRows.map(r => parseFloat(r.avg_cds));
-    const masterySeries = trendRows.map(r => Math.round(parseFloat(r.avg_mastery)));
 
-    // Use latest day's values for KPIs so they match the tooltip
-    const latestRow = trendRows.length ? trendRows[trendRows.length - 1] : null;
-    const latestCds = latestRow ? parseFloat(latestRow.avg_cds) || 0 : avgCds;
-    const mastery = Math.round((1 - latestCds) * 100);
+    // Find the most recent day with actual CDS data — days with no submissions
+    // produce avg_cds = 0, which doesn't reflect the class average CDS
+    let latestRow = null;
+    for (let i = trendRows.length - 1; i >= 0; i--) {
+      if (parseFloat(trendRows[i].avg_cds) > 0) {
+        latestRow = trendRows[i];
+        break;
+      }
+    }
+    const latestCds = latestRow ? parseFloat(latestRow.avg_cds) : avgCds;
+    console.log('[DEBUG] trendRows:', JSON.stringify(trendRows.map(r => ({date: r.date, avg_cds: r.avg_cds}))));
+    console.log('[DEBUG] latestRow:', JSON.stringify(latestRow), 'latestCds:', latestCds);
 
     // Weekly flag counts from actual integrity_flags data
     const flagSeries = trendRows.map(r => r.flag_count || 0);
@@ -1052,7 +1062,6 @@ exports.getInstructorDashboard = async (req, res, next) => {
     const trend = trendRows.map(r => ({
       date: new Date(r.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
       cds: Math.round(parseFloat(r.avg_cds) * 100),
-      mastery: Math.round(parseFloat(r.avg_mastery)),
     }));
 
     // Struggling concepts
@@ -1093,13 +1102,6 @@ exports.getInstructorDashboard = async (req, res, next) => {
           series: cdsSeries.filter(v => v > 0).length >= 2 ? cdsSeries : [0, latestCds],
           comparison: latestCds > priorAvgCds ? 'worsening' : latestCds < priorAvgCds ? 'improving' : 'stable',
           inverted: true,
-        },
-        {
-          label: 'Mastery',
-          value: `${mastery}%`,
-          delta: mastery - Math.round((1 - priorAvgCds) * 100),
-          series: masterySeries.filter(v => v > 0).length >= 2 ? masterySeries : [0, mastery],
-          comparison: 'latest',
         },
         {
           label: 'Flags',
@@ -1226,15 +1228,15 @@ exports.getReportSummary = async (req, res, next) => {
       const sub = `(SELECT id FROM sections WHERE instructor_id = $1)`;
       exWhere = `ex.section_id IN ${sub}`;
       directWhere = `section_id IN ${sub}`;
-      exParams = [String(instructorId), String(days)];
-      directParams = [String(instructorId), String(days)];
+      exParams = [String(instructorId), days];
+      directParams = [String(instructorId), days];
     } else {
       const secRes = await db.query('SELECT id, instructor_id FROM sections WHERE id = $1', [sectionId]);
       if (!secRes.rows.length) return res.status(404).json({ error: 'Section not found' });
       exWhere = `ex.section_id = $1`;
       directWhere = `section_id = $1`;
-      exParams = [sectionId, String(days)];
-      directParams = [sectionId, String(days)];
+      exParams = [sectionId, days];
+      directParams = [sectionId, days];
     }
 
     const [
@@ -1247,9 +1249,9 @@ exports.getReportSummary = async (req, res, next) => {
         `SELECT ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS pct FROM cds_scores cs WHERE cs.${directWhere}`,
         sectionId === 'all' ? [String(instructorId)] : [sectionId]
       ),
-      // 2. Completion (exclude practice)
+      // 2. Completion
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL AND sub.is_practice IS NOT TRUE`,
+        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - INTERVAL '1 day' * $2`,
         exParams
       ),
       // 3. At Risk
@@ -1259,48 +1261,48 @@ exports.getReportSummary = async (req, res, next) => {
       ),
       // 4. Flags — count distinct flagged students, not total flags
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT student_id)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - ($2 || ' days')::INTERVAL`,
-        sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
+        `SELECT ROUND((COUNT(DISTINCT student_id)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - INTERVAL '1 day' * $2`,
+        sectionId === 'all' ? [String(instructorId), days] : [sectionId, days]
       ),
-      // 5. Daily submissions (exclude practice)
+      // 5. Daily submissions
       db.query(
-        `SELECT d.date, COALESCE(sub.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT sub.submitted_at::DATE AS date, COUNT(*)::INTEGER AS cnt FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - ($2 || ' days')::INTERVAL AND sub.is_practice IS NOT TRUE GROUP BY sub.submitted_at::DATE) sub ON d.date = sub.date ORDER BY d.date`,
+        `SELECT d.date, COALESCE(sub.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - INTERVAL '1 day' * $2)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT sub.submitted_at::DATE AS date, COUNT(*)::INTEGER AS cnt FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - INTERVAL '1 day' * $2 GROUP BY sub.submitted_at::DATE) sub ON d.date = sub.date ORDER BY d.date`,
         exParams
       ),
       // 6. Daily CDS
       db.query(
-        `SELECT d.date, COALESCE(c.avg_cds, 0)::DOUBLE PRECISION AS avg_cds FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT cs.computed_at::DATE AS date, AVG(cs.cds) AS avg_cds FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at > NOW() - ($2 || ' days')::INTERVAL GROUP BY cs.computed_at::DATE) c ON d.date = c.date ORDER BY d.date`,
-        sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
+        `SELECT d.date, COALESCE(c.avg_cds, 0)::DOUBLE PRECISION AS avg_cds FROM (SELECT generate_series((NOW() - INTERVAL '1 day' * $2)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT cs.computed_at::DATE AS date, AVG(cs.cds) AS avg_cds FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at > NOW() - INTERVAL '1 day' * $2 GROUP BY cs.computed_at::DATE) c ON d.date = c.date ORDER BY d.date`,
+        sectionId === 'all' ? [String(instructorId), days] : [sectionId, days]
       ),
       // 7. Daily at-risk
       db.query(
-        `SELECT d.date, COALESCE(daily.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT computed_at::DATE AS date, COUNT(DISTINCT student_id)::INTEGER AS cnt FROM (SELECT computed_at::DATE, student_id, AVG(cds) AS avg_cds FROM cds_scores WHERE ${directWhere} AND computed_at > NOW() - ($2 || ' days')::INTERVAL GROUP BY computed_at::DATE, student_id HAVING AVG(cds) > 0.60) at_risk GROUP BY date) daily ON d.date = daily.date ORDER BY d.date`,
-        sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
+        `SELECT d.date, COALESCE(daily.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - INTERVAL '1 day' * $2)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT computed_at::DATE AS date, COUNT(DISTINCT student_id)::INTEGER AS cnt FROM (SELECT computed_at::DATE, student_id, AVG(cds) AS avg_cds FROM cds_scores WHERE ${directWhere} AND computed_at > NOW() - INTERVAL '1 day' * $2 GROUP BY computed_at::DATE, student_id HAVING AVG(cds) > 0.60) at_risk GROUP BY date) daily ON d.date = daily.date ORDER BY d.date`,
+        sectionId === 'all' ? [String(instructorId), days] : [sectionId, days]
       ),
       // 8. Daily flags
       db.query(
-        `SELECT d.date, COALESCE(f.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - ($2 || ' days')::INTERVAL)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT created_at::DATE AS date, COUNT(*)::INTEGER AS cnt FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - ($2 || ' days')::INTERVAL GROUP BY created_at::DATE) f ON d.date = f.date ORDER BY d.date`,
-        sectionId === 'all' ? [String(instructorId), String(days)] : [sectionId, String(days)]
+        `SELECT d.date, COALESCE(f.cnt, 0)::INTEGER AS cnt FROM (SELECT generate_series((NOW() - INTERVAL '1 day' * $2)::DATE, NOW()::DATE, '1 day'::INTERVAL)::DATE AS date) d LEFT JOIN (SELECT created_at::DATE AS date, COUNT(*)::INTEGER AS cnt FROM integrity_flags WHERE ${directWhere} AND created_at > NOW() - INTERVAL '1 day' * $2 GROUP BY created_at::DATE) f ON d.date = f.date ORDER BY d.date`,
+        sectionId === 'all' ? [String(instructorId), days] : [sectionId, days]
       ),
       // 9. Prior mastery
       db.query(
-        `SELECT ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS pct FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL`,
-        sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
+        `SELECT ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS pct FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - INTERVAL '1 day' * $2 AND cs.computed_at > NOW() - INTERVAL '1 day' * $3`,
+        sectionId === 'all' ? [String(instructorId), days, String(priorDays)] : [sectionId, days, String(priorDays)]
       ),
-      // 10. Prior completion (exclude practice)
+      // 10. Prior completion
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at < NOW() - ($2 || ' days')::INTERVAL AND sub.submitted_at > NOW() - ($3 || ' days')::INTERVAL AND sub.is_practice IS NOT TRUE`,
-        sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
+        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at < NOW() - INTERVAL '1 day' * $2 AND sub.submitted_at > NOW() - INTERVAL '1 day' * $3`,
+        sectionId === 'all' ? [String(instructorId), days, String(priorDays)] : [sectionId, days, String(priorDays)]
       ),
       // 11. Prior at-risk
       db.query(
-        `SELECT ROUND((at_risk.cnt::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM (SELECT COUNT(*)::INTEGER AS cnt FROM (SELECT cs.student_id FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - ($2 || ' days')::INTERVAL AND cs.computed_at > NOW() - ($3 || ' days')::INTERVAL GROUP BY cs.student_id HAVING AVG(cs.cds) > 0.60) sub) at_risk`,
-        sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
+        `SELECT ROUND((at_risk.cnt::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM (SELECT COUNT(*)::INTEGER AS cnt FROM (SELECT cs.student_id FROM cds_scores cs WHERE cs.${directWhere} AND cs.computed_at < NOW() - INTERVAL '1 day' * $2 AND cs.computed_at > NOW() - INTERVAL '1 day' * $3 GROUP BY cs.student_id HAVING AVG(cs.cds) > 0.60) sub) at_risk`,
+        sectionId === 'all' ? [String(instructorId), days, String(priorDays)] : [sectionId, days, String(priorDays)]
       ),
       // 12. Prior flags — count distinct flagged students
       db.query(
-        `SELECT ROUND(COUNT(DISTINCT student_id)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at < NOW() - ($2 || ' days')::INTERVAL AND created_at > NOW() - ($3 || ' days')::INTERVAL`,
-        sectionId === 'all' ? [String(instructorId), String(days), String(priorDays)] : [sectionId, String(days), String(priorDays)]
+        `SELECT ROUND(COUNT(DISTINCT student_id)::NUMERIC / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0), 2) AS rate FROM integrity_flags WHERE ${directWhere} AND created_at < NOW() - INTERVAL '1 day' * $2 AND created_at > NOW() - INTERVAL '1 day' * $3`,
+        sectionId === 'all' ? [String(instructorId), days, String(priorDays)] : [sectionId, days, String(priorDays)]
       ),
     ]);
 
@@ -1426,7 +1428,6 @@ exports.getCompletionReport = async (req, res, next) => {
          COUNT(DISTINCT CASE WHEN e.deadline IS NOT NULL AND sub.submitted_at > e.deadline THEN sub.student_id END) AS late
        FROM exercises e
        LEFT JOIN submissions sub ON sub.exercise_id = e.id
-         AND sub.is_practice IS NOT TRUE
        WHERE ${secCond}
        GROUP BY e.id ORDER BY e.created_at DESC`,
       sectionId === 'all' ? [String(instructorId)] : [sectionId]
@@ -1491,7 +1492,7 @@ exports.getIntegrityTrends = async (req, res, next) => {
     const totalFlags = breakdownRes.rows.reduce((s, r) => s + r.count, 0);
     const breakdown = breakdownRes.rows.map(r => ({
       type: r.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      level: r.level, count: r.count,
+      level: (r.level || '').toLowerCase(), count: r.count,
       share: totalFlags ? Math.round((r.count / totalFlags) * 100) : 0, delta: 0,
     }));
 
@@ -1825,7 +1826,7 @@ exports.getConceptHeatmap = async (req, res, next) => {
        JOIN exercises ex ON ex.id = cs.exercise_id
        JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
        JOIN concepts c ON c.id = ect.concept_id
-       WHERE cs.section_id = $1 AND cs.cds IS NOT NULL`,
+       WHERE cs.section_id = $1`,
       [sectionId]
     );
 
@@ -1834,11 +1835,11 @@ exports.getConceptHeatmap = async (req, res, next) => {
     for (const s of scoresRes.rows) {
       if (!scoreMap[s.student_id]) scoreMap[s.student_id] = {};
       scoreMap[s.student_id][s.concept_name] = {
-        cds: parseFloat(s.cds) || 0,
+        cds: s.cds != null ? parseFloat(s.cds) : null,
         classification: s.classification,
-        ner: parseFloat(s.ner) || 0,
-        nrs: parseFloat(s.nrs) || 0,
-        nts: parseFloat(s.nts) || 0,
+        ner: s.ner != null ? parseFloat(s.ner) : null,
+        nrs: s.nrs != null ? parseFloat(s.nrs) : null,
+        nts: s.nts != null ? parseFloat(s.nts) : null,
         knowledgeAreaCode: s.knowledge_area_code,
         slug: s.slug,
         bloomLevel: s.bloom_level,
@@ -1906,92 +1907,6 @@ exports.getConceptHeatmap = async (req, res, next) => {
 };
 
 /**
- * GET /api/analytics/custom-heatmap/:sectionId
- * Returns dynamic aggregated CDS data grouped by the instructor's custom tag columns.
- * Deals with zero-submissions and unmapped exercises gracefully.
- */
-exports.getCustomHeatmapData = async (req, res, next) => {
-  const { sectionId } = req.params;
-  const instructorId = req.user.id;
-
-  try {
-    // 1. Fetch all active custom tag columns for this instructor
-    const activeTagsResult = await db.query(
-      `SELECT id, tag_name, color_theme, knowledge_area
-       FROM instructor_custom_tags
-       WHERE instructor_id = $1 AND is_active_column = true
-       ORDER BY created_at ASC`,
-      [instructorId]
-    );
-
-    const activeTags = activeTagsResult.rows;
-
-    if (activeTags.length === 0) {
-      return res.json({ columns: [], rows: [] });
-    }
-
-    const tagIds = activeTags.map(t => t.id);
-
-    // 2. Dynamic Matrix Aggregation
-    // Cross joins enrolled students with active tags, then left joins
-    // through the tag→exercise mapping to pick up cds_scores.
-    // Students with no submissions for any mapped exercise get 0.
-    const matrixQuery = `
-      SELECT
-        e.student_id,
-        u.name AS student_name,
-        t.id AS tag_id,
-        COALESCE(AVG(cs.cds), 0) AS average_cds,
-        COUNT(cs.id) AS total_submissions
-      FROM enrollments e
-      JOIN users u ON u.id = e.student_id
-      CROSS JOIN instructor_custom_tags t
-      INNER JOIN custom_tag_exercise_mappings m ON m.custom_tag_id = t.id
-      LEFT JOIN cds_scores cs ON cs.student_id = e.student_id AND cs.exercise_id = m.exercise_id
-      WHERE e.section_id = $1
-        AND t.instructor_id = $2
-        AND t.is_active_column = true
-      GROUP BY e.student_id, u.name, t.id
-      ORDER BY u.name ASC
-    `;
-
-    const matrixResult = await db.query(matrixQuery, [sectionId, instructorId]);
-
-    // 3. Format into flat consumer-ready matrix
-    const studentMap = {};
-
-    for (const row of matrixResult.rows) {
-      if (!studentMap[row.student_id]) {
-        studentMap[row.student_id] = {
-          studentId: row.student_id,
-          studentName: row.student_name,
-          metrics: {},
-        };
-      }
-
-      const avgCds = parseFloat(row.average_cds) || 0;
-      studentMap[row.student_id].metrics[row.tag_id] = {
-        cds: Math.round(avgCds * 10000) / 100, // Convert 0.xx to percentage (e.g., 0.3142 → 31.42)
-        submissions: parseInt(row.total_submissions, 10) || 0,
-      };
-    }
-
-    res.json({
-      columns: activeTags.map(tag => ({
-        id: tag.id,
-        label: tag.tag_name,
-        theme: tag.color_theme,
-        knowledgeArea: tag.knowledge_area,
-      })),
-      rows: Object.values(studentMap),
-    });
-  } catch (error) {
-    console.error('Error computing custom heatmap matrix:', error);
-    next(error);
-  }
-};
-
-/**
  * GET /api/analytics/sections/:sectionId/submissions
  * Returns all submissions for a section, with code and compiler_log.
  */
@@ -2023,7 +1938,7 @@ exports.getSectionSubmissions = async (req, res, next) => {
               s.exercise_id, ex.title AS exercise_title, c.name AS concept_name,
               s.attempt_number, s.is_correct, s.code, s.compiler_log,
               s.submitted_at, s.time_spent_seconds,
-              (SELECT COUNT(*) FROM integrity_flags f WHERE f.submission_id = s.id)::int AS flag_count
+              (SELECT COUNT(*) FROM integrity_flags f WHERE f.student_id = s.student_id AND f.exercise_id = s.exercise_id AND f.status = 'flagged')::int AS flag_count
        FROM submissions s
        JOIN users u ON s.student_id = u.id
        JOIN exercises ex ON s.exercise_id = ex.id

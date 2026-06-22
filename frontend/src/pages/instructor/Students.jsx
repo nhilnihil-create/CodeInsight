@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
+import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Search } from 'lucide-react';
 import SectionFilter from '@/components/SectionFilter';
 import useLastSection from '@/hooks/useLastSection';
@@ -17,6 +16,7 @@ import api from '@/services/api';
  * "All Sections" falls back to the design MOCK_USERS rows.
  */
 export default function InstructorStudents() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [sectionId, setSectionId] = useLastSection();
   const [realStudents, setRealStudents] = useState(null);
@@ -92,59 +92,65 @@ export default function InstructorStudents() {
           <p className="text-xs text-muted-foreground mt-1">Try selecting a different section or refreshing.</p>
         </div>
       ) : (
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Student ID</TableHead>
-                <TableHead>Avg CDS</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
-                    {realStudents?.length === 0
-                      ? 'No students enrolled in this section.'
-                      : 'No students found matching your search.'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                students.map((s) => {
-                  const cdsPct = s.latestCds != null && !Number.isNaN(s.latestCds) ? Math.round(s.latestCds * 100) : null;
-                  const unstarted = cdsPct === null || s.submittedCount === 0;
-
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">
-                        <Link to={`/instructor/students/${s.id}`} className="hover:underline text-primary">
-                          {s.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{s.studentId}</TableCell>
-                      <TableCell className="font-mono tabular-nums">
-                        {cdsPct != null ? `${cdsPct}%` : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {unstarted ? (
-                          <Badge className="bg-cds-na/10 text-cds-na border border-cds-na/20">Unstarted</Badge>
-                        ) : cdsPct > 50 ? (
-                          <Badge className="bg-cds-high/10 text-cds-high border border-cds-high/15">At risk</Badge>
-                        ) : (
-                          <Badge className="bg-cds-low/10 text-cds-low border border-cds-low/15">OK</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ResponsiveTable
+        columns={[
+          {
+            key: 'name',
+            header: 'Student',
+            mobile: 'primary',
+            renderCell: (s) => (
+              <Link to={`/instructor/students/${s.id}`} className="hover:underline text-primary font-medium">
+                {s.name}
+              </Link>
+            ),
+          },
+          { key: 'studentId', header: 'Student ID', mobile: 'hidden' },
+          {
+            key: 'cdsPct',
+            header: 'Avg CDS',
+            mobile: 'label',
+            renderCell: (s) => {
+              if (s.latestCds == null || Number.isNaN(s.latestCds)) return '—';
+              return <span className="font-mono tabular-nums">{Math.round(s.latestCds * 100)}%</span>;
+            },
+            renderMobileCell: (s) => {
+              if (s.latestCds == null || Number.isNaN(s.latestCds)) return '—';
+              return <span className="font-mono font-medium">{Math.round(s.latestCds * 100)}%</span>;
+            },
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            mobile: 'label',
+            renderCell: (s) => {
+              const cdsPct = s.latestCds != null && !Number.isNaN(s.latestCds) ? Math.round(s.latestCds * 100) : null;
+              const unstarted = cdsPct === null || s.submittedCount === 0;
+              if (unstarted) {
+                return <Badge className="bg-cds-na/10 text-cds-na border border-cds-na/20">Unstarted</Badge>;
+              }
+              return cdsPct > 50
+                ? <Badge className="bg-cds-high/10 text-cds-high border border-cds-high/15">At risk</Badge>
+                : <Badge className="bg-cds-low/10 text-cds-low border border-cds-low/15">OK</Badge>;
+            },
+            renderMobileCell: (s) => {
+              const cdsPct = s.latestCds != null && !Number.isNaN(s.latestCds) ? Math.round(s.latestCds * 100) : null;
+              const unstarted = cdsPct === null || s.submittedCount === 0;
+              if (unstarted) return <span className="text-cds-na">Unstarted</span>;
+              return cdsPct > 50
+                ? <span className="text-cds-high">At risk</span>
+                : <span className="text-cds-low">OK</span>;
+            },
+          },
+        ]}
+        data={students}
+        keyExtractor={(s) => String(s.id)}
+        onRowClick={(s) => navigate(`/instructor/students/${s.id}`)}
+        emptyMessage={
+          realStudents?.length === 0
+            ? 'No students enrolled in this section.'
+            : 'No students found matching your search.'
+        }
+      />
       )}
     </div>
   );

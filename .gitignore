@@ -7,6 +7,7 @@ node_modules/
 /dist
 /build
 /coverage
+frontend/dist/
 
 # IDE
 .vscode/
@@ -56,3 +57,12 @@ data/_*.json
 # E2E test results
 e2e/test-results/
 simulation/SYSTEM_HEALTH_REPORT.md
+
+# Artifacts
+.superpowers/
+.playwright-mcp/
+__pycache__/
+simulation/test-results/
+frontend/test-results/
+*.png
+*.pdf

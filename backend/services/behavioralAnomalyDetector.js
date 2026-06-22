@@ -39,13 +39,14 @@ async function detectInstantSuccess({ studentId, exerciseId, is_correct, attempt
   if (!is_correct) return null;
 
   // Get all prior submissions for this student+exercise within the time window, excluding current
+  const cutoff = new Date(Date.now() - FAILURE_WINDOW_HOURS * 60 * 60 * 1000);
   const priorRes = await db.query(
     `SELECT attempt_number, is_correct, submitted_at
      FROM submissions
      WHERE student_id = $1 AND exercise_id = $2 AND id != $3
-       AND submitted_at > NOW() - INTERVAL '${FAILURE_WINDOW_HOURS} hours'
+       AND submitted_at > $4
      ORDER BY attempt_number ASC`,
-    [studentId, exerciseId, submissionId || -1]
+    [studentId, exerciseId, submissionId || -1, cutoff]
   );
 
   const priorSubmissions = priorRes.rows;
@@ -113,8 +114,7 @@ async function detectExtremeSpeed({ studentId, exerciseId, is_correct, time_spen
      WHERE s.exercise_id = $1
        AND s.is_correct = true
        AND s.time_spent_seconds > 0
-       AND s.is_practice IS NOT TRUE
-     GROUP BY s.student_id`,
+      GROUP BY s.student_id`,
     [exerciseId]
   );
 

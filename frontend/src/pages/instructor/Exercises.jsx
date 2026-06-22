@@ -20,7 +20,6 @@ import api from '@/services/api';
 export default function InstructorExercises() {
   const [sectionId, setSectionId] = useLastSection();
   const [exercises, setExercises] = useState([]);
-  const [customTagMap, setCustomTagMap] = useState({});
   const [expandedId, setExpandedId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
@@ -48,23 +47,10 @@ export default function InstructorExercises() {
     }));
   };
 
-  const fetchCustomTags = async (secId) => {
-    try {
-      const { data } = await api.get(`/api/custom-tags/exercise-mappings?sectionId=${secId}`);
-      return data;
-    } catch {
-      return {};
-    }
-  };
-
   const loadAll = async () => {
     try {
-      const [list, tagMap] = await Promise.all([
-        fetchExercises(sectionId),
-        fetchCustomTags(sectionId),
-      ]);
+      const list = await fetchExercises(sectionId);
       setExercises(list);
-      setCustomTagMap(tagMap);
     } catch {
       setExercises([]);
     }
@@ -75,6 +61,7 @@ export default function InstructorExercises() {
     setLoading(true);
     loadAll().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
+    setExpandedId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId]);
 
@@ -193,15 +180,7 @@ export default function InstructorExercises() {
                                 {t}
                               </span>
                             ))}
-                            {customTagMap[e.id]?.map((tag) => (
-                              <span
-                                key={tag.tagId}
-                                className="bg-muted/40 text-muted-foreground border-border/30 px-2 py-0.5 rounded text-[10px] border"
-                              >
-                                {tag.tagName}
-                              </span>
-                            ))}
-                            {(!e.conceptTags || e.conceptTags.length === 0) && (!customTagMap[e.id] || customTagMap[e.id].length === 0) && (
+                            {(!e.conceptTags || e.conceptTags.length === 0) && (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </div>

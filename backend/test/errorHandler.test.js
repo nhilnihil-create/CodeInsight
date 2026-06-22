@@ -83,7 +83,6 @@ describe('errorHandler', function() {
     expect(res.json).toHaveBeenCalledWith({
       code: 'CONFLICT',
       message: 'Resource already exists',
-      details: err.detail,
     });
   });
 
@@ -95,7 +94,6 @@ describe('errorHandler', function() {
     expect(res.json).toHaveBeenCalledWith({
       code: 'FK_VIOLATION',
       message: 'Referenced resource does not exist',
-      details: err.detail,
     });
   });
 
@@ -107,7 +105,6 @@ describe('errorHandler', function() {
     expect(res.json).toHaveBeenCalledWith({
       code: 'CHECK_VIOLATION',
       message: 'Value violates a check constraint',
-      details: err.detail,
     });
   });
 

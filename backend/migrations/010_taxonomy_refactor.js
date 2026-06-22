@@ -4,7 +4,6 @@
  * Implements the curriculum-agnostic analytics architecture:
  *   ADR-002: Enrich concepts table + concept_dependencies
  *   ADR-003: exercise_concept_tags junction (multi-tag exercises)
- *   ADR-004: learning_outcomes + outcome_concept_map + section_active_outcomes
  *   ADR-001: analytics_alerts unified alert table
  *   ADR-005: difficulty_index on exercises, test_feedback_hints on submissions
  *   ADR-006: student_concept_metrics + section_concept_metrics aggregate tables
@@ -266,126 +265,6 @@ async function run() {
       if (ecResult.rows.length > 0) {
         console.log(`  ✓ Migrated ${ecResult.rows.length} rows from exercise_concepts`);
       }
-    }
-
-    // ──────────────────────────────────────────────────────────────────────
-    // ADR-004: learning_outcomes + outcome_concept_map + section_active_outcomes
-    // ──────────────────────────────────────────────────────────────────────
-    if (!(await tableExists('learning_outcomes'))) {
-      await client.query(`
-        CREATE TABLE learning_outcomes (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(200) NOT NULL,
-          description TEXT,
-          bloom_level VARCHAR(20) DEFAULT 'apply',
-          created_by INT REFERENCES users(id),
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
-      console.log('[ADR-004] ✓ Created learning_outcomes');
-    }
-
-    if (!(await tableExists('outcome_concept_map'))) {
-      await client.query(`
-        CREATE TABLE outcome_concept_map (
-          outcome_id INT NOT NULL REFERENCES learning_outcomes(id) ON DELETE CASCADE,
-          concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
-          weight DECIMAL(3,2) DEFAULT 1.0,
-          PRIMARY KEY (outcome_id, concept_id)
-        )
-      `);
-      console.log('[ADR-004] ✓ Created outcome_concept_map');
-    }
-
-    if (!(await tableExists('section_active_outcomes'))) {
-      await client.query(`
-        CREATE TABLE section_active_outcomes (
-          section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-          outcome_id INT NOT NULL REFERENCES learning_outcomes(id) ON DELETE CASCADE,
-          PRIMARY KEY (section_id, outcome_id)
-        )
-      `);
-      console.log('[ADR-004] ✓ Created section_active_outcomes');
-    }
-
-    // Seed 8 default learning outcomes mapped to existing concepts
-    const outcomesCount = await client.query(`SELECT COUNT(*) as cnt FROM learning_outcomes`);
-    if (parseInt(outcomesCount.rows[0].cnt) === 0) {
-      const defaultOutcomes = [
-        {
-          name: 'Understand Data Types and Representations',
-          description: 'Student can identify and use primitive and composite data types correctly.',
-          bloom_level: 'remember',
-          concepts: ['Datatypes', 'Strings'],
-        },
-        {
-          name: 'Use Variables and Expressions',
-          description: 'Student can declare variables, assign values, and construct valid expressions.',
-          bloom_level: 'understand',
-          concepts: ['Variables', 'Datatypes'],
-        },
-        {
-          name: 'Apply Conditional Logic',
-          description: 'Student can write correct if-else and switch statements with proper boolean expressions.',
-          bloom_level: 'apply',
-          concepts: ['Conditionals'],
-        },
-        {
-          name: 'Implement Iterative Solutions',
-          description: 'Student can write for, while, and do-while loops with correct initialization, condition, and update.',
-          bloom_level: 'apply',
-          concepts: ['Loops'],
-        },
-        {
-          name: 'Design and Use Functions',
-          description: 'Student can define functions with proper parameters, return types, and scope management.',
-          bloom_level: 'analyze',
-          concepts: ['Functions', 'Variables'],
-        },
-        {
-          name: 'Manipulate Arrays and Collections',
-          description: 'Student can declare, traverse, and manipulate arrays without out-of-bounds errors.',
-          bloom_level: 'apply',
-          concepts: ['Arrays', 'Loops'],
-        },
-        {
-          name: 'Apply Object-Oriented Principles',
-          description: 'Student can design classes with proper encapsulation, inheritance, and polymorphism.',
-          bloom_level: 'evaluate',
-          concepts: ['OOP', 'Functions'],
-        },
-        {
-          name: 'Perform Input/Output Operations',
-          description: 'Student can read input and produce formatted output using standard I/O operations.',
-          bloom_level: 'apply',
-          concepts: ['Input/Output', 'Datatypes'],
-        },
-      ];
-
-      for (const outcome of defaultOutcomes) {
-        const insertResult = await client.query(
-          `INSERT INTO learning_outcomes (name, description, bloom_level, created_by)
-           VALUES ($1, $2, $3, (SELECT id FROM users WHERE role = 'admin' LIMIT 1))
-           RETURNING id`,
-          [outcome.name, outcome.description, outcome.bloom_level]
-        );
-        const outcomeId = insertResult.rows[0].id;
-
-        for (const conceptName of outcome.concepts) {
-          const conceptResult = await client.query(
-            `SELECT id FROM concepts WHERE name = $1`,
-            [conceptName]
-          );
-          if (conceptResult.rows.length > 0) {
-            await client.query(
-              `INSERT INTO outcome_concept_map (outcome_id, concept_id, weight)
-               VALUES ($1, $2, 1.0) ON CONFLICT DO NOTHING`,
-              [outcomeId, conceptResult.rows[0].id]
-            );
-          }
-        }
-      }
-      console.log('  ✓ Seeded 8 default learning outcomes with concept mappings');
     }
 
     // ──────────────────────────────────────────────────────────────────────

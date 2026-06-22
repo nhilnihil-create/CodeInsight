@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Upload, Edit3, Trash2 } from 'lucide-react';
 import api from '../../services/api';
-import { Card } from '@/components/ui/card';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -156,52 +156,63 @@ export default function AdminSections() {
 
       {error && <p className="text-xs text-destructive">Failed to load: {error}</p>}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Section</th>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Course</th>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Instructor</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Students</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Exercises</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Policy</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="7" className="px-3 py-6 text-center text-muted-foreground">Loading sections…</td></tr>
-              ) : sections.length === 0 ? (
-                <tr><td colSpan="7" className="px-3 py-6 text-center text-muted-foreground">No sections yet.</td></tr>
-              ) : sections.map(sec => (
-                <tr key={sec.id} className="border-b border-border/60 last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2.5">
-                    <Link to={`/instructor/sections/${sec.id}`} className="font-semibold text-foreground hover:text-primary">{sec.name}</Link>
-                    <div className="text-[9px] text-muted-foreground">{[sec.school_year, sec.term].filter(Boolean).join(' · ') || '—'}</div>
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-muted-foreground">{sec.course_code}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{sec.instructor_name || '—'}</td>
-                  <td className="px-3 py-2.5 text-center font-mono font-bold text-foreground">{sec.student_count || 0}</td>
-                  <td className="px-3 py-2.5 text-center font-mono text-muted-foreground">{sec.exercise_count || 0}</td>
-                  <td className="px-3 py-2.5 text-center">
-                    <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0', POLICY_COLORS[sec.join_policy] || '')}>
-                      {sec.join_policy || 'code'}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <div className="inline-flex gap-1">
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditTarget(sec)}><Edit3 className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => handleDeleteSection(sec)}><Trash2 className="h-3 w-3" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="py-16 text-center text-muted-foreground text-sm">
+          <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+          Loading sections…
         </div>
-      </Card>
+      ) : (
+        <ResponsiveTable
+          columns={[
+            { key: 'name', header: 'Section', mobile: 'primary',
+              renderCell: (sec) => (
+                <div>
+                  <Link to={`/instructor/sections/${sec.id}`} className="font-semibold text-foreground hover:text-primary">{sec.name}</Link>
+                  <div className="text-[9px] text-muted-foreground">{[sec.school_year, sec.term].filter(Boolean).join(' · ') || '—'}</div>
+                </div>
+              ),
+            },
+            { key: 'course_code', header: 'Course', mobile: 'hidden',
+              renderCell: (sec) => <span className="font-mono text-muted-foreground">{sec.course_code}</span>,
+            },
+            { key: 'instructor', header: 'Instructor', mobile: 'label',
+              renderCell: (sec) => <span className="text-muted-foreground">{sec.instructor_name || '—'}</span>,
+            },
+            { key: 'student_count', header: 'Students', mobile: 'label',
+              renderCell: (sec) => <span className="font-mono font-bold text-foreground text-center block">{sec.student_count || 0}</span>,
+            },
+            { key: 'exercises', header: 'Exercises', mobile: 'hidden',
+              renderCell: (sec) => <span className="font-mono text-muted-foreground text-center block">{sec.exercise_count || 0}</span>,
+            },
+            { key: 'policy', header: 'Policy', mobile: 'hidden',
+              renderCell: (sec) => (
+                <div className="text-center">
+                  <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0', POLICY_COLORS[sec.join_policy] || '')}>
+                    {sec.join_policy || 'code'}
+                  </Badge>
+                </div>
+              ),
+            },
+            { key: 'actions', header: 'Actions', mobile: 'actions',
+              renderCell: (sec) => (
+                <div className="inline-flex gap-1 justify-center w-full">
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); setEditTarget(sec); }}><Edit3 className="h-3 w-3" /></Button>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteSection(sec); }}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ),
+              renderMobileCell: (sec) => (
+                <div className="flex gap-2 w-full">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={(e) => { e.stopPropagation(); setEditTarget(sec); }}>Edit</Button>
+                  <Button variant="ghost" size="sm" className="flex-1 text-xs text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteSection(sec); }}>Delete</Button>
+                </div>
+              ),
+            },
+          ]}
+          data={sections}
+          keyExtractor={(sec) => String(sec.id)}
+          emptyMessage="No sections yet."
+        />
+      )}
 
       <Dialog open={!!editTarget} onOpenChange={open => !open && setEditTarget(null)}>
         <DialogContent>

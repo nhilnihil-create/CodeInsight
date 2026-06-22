@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import PageBreadcrumb from '@/components/ui/page-breadcrumb';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 const ACTION_COLORS = {
   section_created: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
@@ -44,55 +43,50 @@ export default function AdminAudit() {
   return (
     <div className="space-y-6">
       <PageBreadcrumb items={[{ label: 'Admin', href: '/admin' }, { label: 'Audit Log' }]} />
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Department Audit Log</CardTitle>
-          <Input
-            placeholder="Search audit log..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="max-w-xs"
-          />
-        </CardHeader>
-        <CardContent>
-          {error && <p className="text-destructive text-sm">Failed to load: {error}</p>}
-          {!error && filtered.length === 0 && (
-            <p className="text-muted-foreground text-sm text-center py-8">No audit entries found.</p>
-          )}
-          <ScrollArea className="h-[65vh]">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">Date</th>
-                  <th className="pb-2 pr-4 font-medium">Actor</th>
-                  <th className="pb-2 pr-4 font-medium">Action</th>
-                  <th className="pb-2 font-medium">Section</th>
-                  <th className="pb-2 pl-4 font-medium hidden md:table-cell">Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(l => (
-                  <tr key={l.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
-                      {format(new Date(l.created_at), 'MMM d, HH:mm')}
-                    </td>
-                    <td className="py-2 pr-4 font-medium">{l.actor_name || '—'}</td>
-                    <td className="py-2 pr-4">
-                      <Badge className={ACTION_COLORS[l.action] || 'bg-muted text-muted-foreground border-border'}>
-                        {l.action?.replace(/_/g, ' ')}
-                      </Badge>
-                    </td>
-                    <td className="py-2 pr-4">{l.section_name || '—'}</td>
-                    <td className="py-2 pl-4 text-muted-foreground hidden md:table-cell max-w-xs truncate">
-                      {metaStr(l.meta)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollArea>
-        </CardContent>
-      </Card>
+      {error && <p className="text-destructive text-sm">Failed to load: {error}</p>}
+
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Department Audit Log</h2>
+        <Input
+          placeholder="Search audit log..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="max-w-[200px] h-8 text-xs"
+        />
+      </div>
+
+      <ResponsiveTable
+        columns={[
+          { key: 'date', header: 'Date', mobile: 'label',
+            renderCell: (l) => (
+              <span className="text-muted-foreground whitespace-nowrap">
+                {format(new Date(l.created_at), 'MMM d, HH:mm')}
+              </span>
+            ),
+          },
+          { key: 'actor', header: 'Actor', mobile: 'primary',
+            renderCell: (l) => <span className="font-medium">{l.actor_name || '—'}</span>,
+          },
+          { key: 'action', header: 'Action', mobile: 'label',
+            renderCell: (l) => (
+              <Badge className={ACTION_COLORS[l.action] || 'bg-muted text-muted-foreground border-border'}>
+                {l.action?.replace(/_/g, ' ')}
+              </Badge>
+            ),
+          },
+          { key: 'section', header: 'Section', mobile: 'hidden',
+            renderCell: (l) => <span>{l.section_name || '—'}</span>,
+          },
+          { key: 'details', header: 'Details', mobile: 'hidden',
+            renderCell: (l) => (
+              <span className="text-muted-foreground max-w-xs truncate block">{metaStr(l.meta)}</span>
+            ),
+          },
+        ]}
+        data={filtered}
+        keyExtractor={(l) => String(l.id)}
+        emptyMessage="No audit entries found."
+      />
     </div>
   );
 }

@@ -1,13 +1,13 @@
 const db       = require('../config/db');
 const executor = require('../services/executor');
 const astVerifier = require('../services/astVerifier');
-const academicIntegrityEngine = require('../services/academicIntegrityEngine');
-const integrityFlagEngine = require('../services/integrityFlagEngine');
 const { gradeSubmission } = require('../services/streamMatcher');
 const errorReporter = require('../services/errorReporter');
 const analyticsEngine = require('../services/analyticsEngine');
 const conceptAnalytics = require('../services/conceptAnalytics');
 const submissionQueue = require('../queues/submissionQueue');
+const logger = require('../lib/logger');
+const { graduatedFlag, runAcademicIntegrityChecks, runBehavioralChecks, runPassiveBehaviorCheck } = require('../lib/submissionPipeline');
 
 /**
  * Token counter for growth velocity monitoring.
@@ -143,7 +143,8 @@ exports.run = async (req, res) => {
       userAgent: req.get('User-Agent') || ''
     });
 
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Run failed');
+    res.status(500).json({ message: 'Execution failed' });
   }
 };
 
@@ -227,36 +228,28 @@ exports.submit = async (req, res) => {
     // Flag code growth anomaly if triggered (graduated: first is warning only)
     if (codeGrowthAnomaly?.flagged) {
       try {
-        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, 'CODE_GROWTH_ANOMALY');
-        if (priorFlags === 0) {
-          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, 'CODE_GROWTH_ANOMALY', {
+        await graduatedFlag({
+          sectionId: exercise.section_id,
+          exerciseId,
+          studentId,
+          flagType: 'CODE_GROWTH_ANOMALY',
+          severity: 'low',
+          evidence: {
             summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
+            baseline_lines: codeGrowthAnomaly.baselineLines,
+            student_lines: codeGrowthAnomaly.studentLines,
+            growth_percent: codeGrowthAnomaly.growthPercent,
+            threshold_pct: codeGrowthAnomaly.thresholdPct,
+            threshold_abs: codeGrowthAnomaly.thresholdAbs,
             attempt_number: attemptNumber,
-          });
-        } else {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id,
-            exerciseId,
-            studentId,
-            flagType: 'CODE_GROWTH_ANOMALY',
-            severity: 'low',
-            evidence: {
-              summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
-              baseline_lines: codeGrowthAnomaly.baselineLines,
-              student_lines: codeGrowthAnomaly.studentLines,
-              growth_percent: codeGrowthAnomaly.growthPercent,
-              threshold_pct: codeGrowthAnomaly.thresholdPct,
-              threshold_abs: codeGrowthAnomaly.thresholdAbs,
-              attempt_number: attemptNumber,
-              confidence: 0.3,
-              innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
-            },
-            contextBehaviors: [
-              `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
-            ],
-            status: 'flagged',
-          });
-        }
+            confidence: 0.3,
+            innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
+          },
+          contextBehaviors: [
+            `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
+          ],
+          submissionId,
+        });
       } catch (flagErr) {
         // Non-fatal: don't break submission flow
         console.warn('Code growth anomaly flag creation failed:', flagErr.message);
@@ -460,93 +453,32 @@ exports.submit = async (req, res) => {
     }
 
     // ── Academic Integrity Checks (paper flags 1 & 2) ───────────────────
+    // Uses shared pipeline — same graduated logic as async worker path.
     try {
-      const academicIntegrityFlags = await academicIntegrityEngine.evaluateIntegrity({
-        code,
-        starterCode: exercise.starter_code || '',
-        studentId,
-        exerciseId,
+      await runAcademicIntegrityChecks({
+        code, starterCode: exercise.starter_code || '', studentId, exerciseId,
         submission: {
           ...(allPassed !== undefined && { is_correct: allPassed }),
-          test_results: tcResults,
-          time_spent_seconds: timeSpentSeconds || 0,
+          test_results: tcResults, time_spent_seconds: timeSpentSeconds || 0,
           submission_id: submissionId
         },
-        exercise,
+        exercise, submissionId,
       });
-
-      for (const flag of academicIntegrityFlags) {
-        const severity = (flag.severity || 'low').toUpperCase();
-        // HIGH severity (BLANK_TEMPLATE, direct HARDCODING) always flags immediately
-        if (severity === 'HIGH') {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id, exerciseId, studentId,
-            flagType: flag.type, severity: flag.severity,
-            evidence: flag.evidence || {},
-            contextBehaviors: flag.context_behaviors || [],
-            status: 'flagged',
-            instructorNote: flag.instructor_note || '',
-            submissionId,
-          });
-          continue;
-        }
-        // MEDIUM/LOW: graduated logic
-        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, flag.type);
-        if (priorFlags === 0) {
-          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, flag.type, {
-            summary: flag.evidence?.summary,
-            attempt_number: attemptNumber,
-          });
-          continue;
-        }
-        const effectiveSeverity = priorFlags === 1 ? 'low' : (flag.severity || 'low');
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id, exerciseId, studentId,
-          flagType: flag.type, severity: effectiveSeverity,
-          evidence: flag.evidence || {},
-          contextBehaviors: flag.context_behaviors || [],
-          status: 'flagged',
-          instructorNote: flag.instructor_note || '',
-          submissionId,
-        });
-      }
     } catch (integrityError) {
       console.warn('Academic integrity check failed:', integrityError.message);
     }
 
     // ── Behavioral Anomaly Detection (paper flag 3) ──────────────────────
+    // Uses shared pipeline — same graduated logic as async worker path.
     try {
-      const behavioralDetector = require('../services/behavioralAnomalyDetector');
-      const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
-        studentId,
-        exerciseId,
+      await runBehavioralChecks({
+        studentId, exerciseId,
         submissionId,
         is_correct: allPassed,
         time_spent_seconds: timeSpentSeconds || 0,
         attempt_number: attemptNumber,
         sectionId: exercise.section_id,
       });
-
-      for (const flag of behavioralFlags) {
-        // Behavioral anomalies are LOW — graduated logic always applies
-        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, flag.type);
-        if (priorFlags === 0) {
-          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, flag.type, {
-            summary: flag.evidence?.summary,
-            attempt_number: attemptNumber,
-          });
-          continue;
-        }
-        const effectiveSeverity = priorFlags === 1 ? 'low' : (flag.severity || 'low');
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id, exerciseId, studentId,
-          flagType: flag.type, severity: effectiveSeverity,
-          evidence: flag.evidence || {},
-          contextBehaviors: flag.context_behaviors || [],
-          status: 'flagged',
-          submissionId,
-        });
-      }
     } catch (behavioralError) {
       console.warn('Behavioral anomaly detection failed:', behavioralError.message);
     }
@@ -554,48 +486,17 @@ exports.submit = async (req, res) => {
     // ── Passive Behavior Logging Flag ──────────────────────────────────
     // Telemetry-only: tab switches, paste events, idle time. Always LOW severity
     // as these are contextual indicators, not evidence of misconduct.
-    const behavioralThresholds = { TAB_SWITCH_HIGH: 10, PASTE_HIGH: 5, IDLE_RATIO_HIGH: 0.7 };
-    const totalTime = timeSpentSeconds || 1;
-    const idleRatio = idleTimeSeconds / totalTime;
-    const behavioralSignals = [];
-    if (tabSwitchCount >= behavioralThresholds.TAB_SWITCH_HIGH) behavioralSignals.push(`${tabSwitchCount} tab switches`);
-    if (pasteCount >= behavioralThresholds.PASTE_HIGH) behavioralSignals.push(`${pasteCount} paste events`);
-    if (idleRatio >= behavioralThresholds.IDLE_RATIO_HIGH) behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
-    if (behavioralSignals.length > 0) {
-      try {
-        const priorFlags = await integrityFlagEngine.getWarningCount(studentId, exerciseId, 'PASSIVE_BEHAVIOR_LOG');
-        if (priorFlags === 0) {
-          await integrityFlagEngine.createWarningEvent(studentId, exerciseId, 'PASSIVE_BEHAVIOR_LOG', {
-            summary: behavioralSignals.join('; '),
-            attempt_number: attemptNumber,
-          });
-        } else {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id,
-            exerciseId,
-            studentId,
-            flagType: 'PASSIVE_BEHAVIOR_LOG',
-            severity: 'low',
-            evidence: {
-              summary: behavioralSignals.join('; '),
-              tab_switch_count: tabSwitchCount,
-              paste_count: pasteCount,
-              idle_time_seconds: idleTimeSeconds,
-              total_time_seconds: totalTime,
-              idle_ratio: Math.round(idleRatio * 100) / 100,
-              attempt_number: attemptNumber,
-              confidence: 0.15,
-              innocent_explanation: 'Behavioral telemetry (tab switches, pastes, idle time) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt. Pasting from your own previous work is normal. Idle time may reflect thinking or debugging.',
-            },
-            contextBehaviors: [
-              behavioralSignals.join('; '),
-              `Attempt #${attemptNumber}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
-            ],
-          });
-        }
-      } catch (flagErr) {
-        console.warn('Passive behavior flag creation failed:', flagErr.message);
-      }
+    try {
+      await runPassiveBehaviorCheck({
+        studentId, exerciseId,
+        sectionId: exercise.section_id,
+        submissionId,
+        tabSwitchCount, pasteCount, idleTimeSeconds,
+        timeSpentSeconds,
+        attemptNumber,
+      });
+    } catch (flagErr) {
+      console.warn('Passive behavior flag creation failed:', flagErr.message);
     }
 
     // Split visible vs hidden results for response
@@ -734,12 +635,6 @@ exports.submit = async (req, res) => {
       }
     }
 
-    // Compute rubric score
-    const rubricScorer = require('../services/rubricScorer');
-    responseData.rubricScore = await rubricScorer.scoreSubmission(
-      submissionId, exerciseId, exercise.rubric_config || {}
-    );
-
     // Calculate response latency for performance logging
     const endTime = Date.now();
     const responseLatencyMs = endTime - startTime;
@@ -770,8 +665,8 @@ exports.submit = async (req, res) => {
       userAgent: req.get('User-Agent') || ''
     });
 
-    console.error(err);
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Submit failed');
+    res.status(500).json({ message: 'Submission failed' });
   }
 };
 
@@ -787,7 +682,8 @@ exports.mySubmissions = async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'mySubmissions failed');
+    res.status(500).json({ message: 'Failed to load submissions' });
   }
 };
 
@@ -804,7 +700,8 @@ exports.studentSubmissions = async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'studentSubmissions failed');
+    res.status(500).json({ message: 'Failed to load submissions' });
   }
 };
 
@@ -850,7 +747,8 @@ exports.submitAsync = async (req, res) => {
     );
     submissionId = insRes.rows[0].id;
   } catch (err) {
-    return res.status(500).json({ message: `Failed to queue submission: ${err.message}` });
+    logger.error({ err }, 'Failed to queue submission');
+    return res.status(500).json({ message: 'Failed to queue submission' });
   }
 
   // Add job to queue

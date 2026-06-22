@@ -50,14 +50,16 @@ async function trackSubmission({ studentId, exerciseId, isCorrect, sectionId, at
  */
 async function detectRetryStorm(studentId, exerciseId, sectionId) {
   try {
+    const cutoff = new Date(Date.now() - RETRY_STORM_WINDOW_MIN * 60 * 1000);
+
     // Get recent submissions for this student+exercise, ordered by time
     const recentSubs = await db.query(
       `SELECT id, is_correct, submitted_at, attempt_number
        FROM submissions
        WHERE student_id = $1 AND exercise_id = $2
-         AND submitted_at > NOW() - INTERVAL '${RETRY_STORM_WINDOW_MIN} minutes'
+         AND submitted_at > $3
        ORDER BY submitted_at DESC`,
-      [studentId, exerciseId]
+      [studentId, exerciseId, cutoff]
     );
 
     // Count consecutive failures from most recent
@@ -76,8 +78,8 @@ async function detectRetryStorm(studentId, exerciseId, sectionId) {
         `SELECT id FROM integrity_flags
          WHERE student_id = $1 AND exercise_id = $2
            AND flag_type = 'RETRY_STORM'
-           AND created_at > NOW() - INTERVAL '${RETRY_STORM_WINDOW_MIN} minutes'`,
-        [studentId, exerciseId]
+           AND created_at > $3`,
+        [studentId, exerciseId, cutoff]
       );
 
       if (existingFlag.rows.length === 0) {
@@ -165,13 +167,14 @@ async function detectLearningPlateau(studentId, sectionId) {
     const dropThreshold = 0.2; // 20% drop
     if (recentAvg < previousAvg - dropThreshold && previousAvg > 0) {
       // Check if already flagged recently
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const existing = await db.query(
         `SELECT id FROM alerts
          WHERE student_id = $1 AND exercise_id = (
            SELECT id FROM exercises WHERE section_id = $2 ORDER BY created_at DESC LIMIT 1
          ) AND classification = 'LEARNING_PLATEAU'
-         AND created_at > NOW() - INTERVAL '1 hour'`,
-        [studentId, sectionId]
+         AND created_at > $3`,
+        [studentId, sectionId, oneHourAgo]
       );
 
       if (existing.rows.length === 0) {

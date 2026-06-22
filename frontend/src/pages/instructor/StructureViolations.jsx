@@ -2,15 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../services/api';
-import {
-  Card, CardContent, CardHeader, CardTitle, CardDescription,
-} from '@/components/ui/card';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
-} from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 export default function StructureViolationsReport() {
   const { sectionId } = useParams();
@@ -65,57 +61,54 @@ export default function StructureViolationsReport() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
             Structure Violations
-          </CardTitle>
-          <CardDescription>
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {violations.length} violation{violations.length !== 1 ? 's' : ''} found across all exercises.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {violations.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No structure violations detected. All submissions passed AST verification.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Exercise</TableHead>
-                  <TableHead>Concept</TableHead>
-                  <TableHead>Violation</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Attempt #</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {violations.map((v, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{v.student_name}</TableCell>
-                    <TableCell>{v.exercise_title}</TableCell>
-                    <TableCell>{v.concept_name}</TableCell>
-                    <TableCell className="max-w-xs truncate">{v.reason}</TableCell>
-                    <TableCell>
-                      <Badge variant={severityColor(v.severity || 'warning')}>
-                        {v.verification_type || 'ast_verifier'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{v.attempt_number || '—'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {v.submitted_at ? new Date(v.submitted_at).toLocaleDateString() : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+
+        <ResponsiveTable
+          columns={[
+            { key: 'student', header: 'Student', mobile: 'primary',
+              renderCell: (v) => <span className="font-medium">{v.student_name}</span>,
+            },
+            { key: 'exercise', header: 'Exercise', mobile: 'label',
+              renderCell: (v) => <span>{v.exercise_title}</span>,
+            },
+            { key: 'concept', header: 'Concept', mobile: 'hidden',
+              renderCell: (v) => <span>{v.concept_name}</span>,
+            },
+            { key: 'violation', header: 'Violation', mobile: 'label',
+              renderCell: (v) => <span className="max-w-xs truncate block">{v.reason}</span>,
+            },
+            { key: 'type', header: 'Type', mobile: 'hidden',
+              renderCell: (v) => (
+                <Badge variant={severityColor(v.severity || 'warning')}>
+                  {v.verification_type || 'ast_verifier'}
+                </Badge>
+              ),
+            },
+            { key: 'attempt', header: 'Attempt #', mobile: 'hidden',
+              renderCell: (v) => <span>{v.attempt_number || '—'}</span>,
+            },
+            { key: 'date', header: 'Date', mobile: 'hidden',
+              renderCell: (v) => (
+                <span className="text-xs text-muted-foreground">
+                  {v.submitted_at ? new Date(v.submitted_at).toLocaleDateString() : '—'}
+                </span>
+              ),
+            },
+          ]}
+          data={violations}
+          keyExtractor={(v) => v.id ? String(v.id) : `${v.student_name}-${v.exercise_title}-${v.submitted_at || ''}`}
+          emptyMessage="No structure violations detected. All submissions passed AST verification."
+        />
+      </div>
     </div>
   );
 }

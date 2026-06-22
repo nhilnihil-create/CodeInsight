@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, CheckCircle2, XCircle } from 'lucide-react';
 import api from '../../services/api';
-import { Card } from '@/components/ui/card';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -56,57 +56,72 @@ export default function AdminExercises() {
 
       {error && <p className="text-xs text-destructive">Failed to load: {error}</p>}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Title</th>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Concept</th>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Section</th>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Creator</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Submissions</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="7" className="px-3 py-6 text-center text-muted-foreground">Loading exercises…</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="7" className="px-3 py-6 text-center text-muted-foreground">No exercises found.</td></tr>
-              ) : filtered.map(e => (
-                <tr key={e.id} className="border-b border-border/60 last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2.5 font-semibold text-foreground">{e.title}</td>
-                  <td className="px-3 py-2.5">
-                    <Badge variant="outline" className="text-[9px] font-mono">{e.concept_name}</Badge>
-                  </td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{e.section_name || '—'}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{e.creator_name || '—'}</td>
-                  <td className="px-3 py-2.5 text-center font-mono text-foreground">{e.submission_count || 0}</td>
-                  <td className="px-3 py-2.5 text-center">
-                    {e.closed_at ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><XCircle className="h-3 w-3" /> Closed</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Open</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-center">
-                    <Button
-                      variant={e.closed_at ? 'outline' : 'secondary'}
-                      size="sm"
-                      className="h-7 text-[10px]"
-                      onClick={() => toggleExercise(e.id, !e.closed_at)}
-                    >
-                      {e.closed_at ? 'Reopen' : 'Close'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="py-16 text-center text-muted-foreground text-sm">
+          <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+          Loading exercises…
         </div>
-      </Card>
+      ) : (
+        <ResponsiveTable
+          columns={[
+            { key: 'title', header: 'Title', mobile: 'primary',
+              renderCell: (e) => <span className="font-semibold text-foreground">{e.title}</span>,
+            },
+            { key: 'concept', header: 'Concept', mobile: 'label',
+              renderCell: (e) => <Badge variant="outline" className="text-[9px] font-mono">{e.concept_name}</Badge>,
+            },
+            { key: 'section', header: 'Section', mobile: 'hidden',
+              renderCell: (e) => <span className="text-muted-foreground">{e.section_name || '—'}</span>,
+            },
+            { key: 'creator', header: 'Creator', mobile: 'hidden',
+              renderCell: (e) => <span className="text-muted-foreground">{e.creator_name || '—'}</span>,
+            },
+            { key: 'submissions', header: 'Submissions', mobile: 'hidden',
+              renderCell: (e) => <span className="font-mono text-foreground text-center block">{e.submission_count || 0}</span>,
+            },
+            { key: 'status', header: 'Status', mobile: 'label',
+              renderCell: (e) => (
+                <div className="text-center">
+                  {e.closed_at ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><XCircle className="h-3 w-3" /> Closed</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Open</span>
+                  )}
+                </div>
+              ),
+            },
+            { key: 'actions', header: 'Actions', mobile: 'actions',
+              renderCell: (e) => (
+                <div className="text-center">
+                  <Button
+                    variant={e.closed_at ? 'outline' : 'secondary'}
+                    size="sm"
+                    className="h-7 text-[10px]"
+                    onClick={() => toggleExercise(e.id, !e.closed_at)}
+                  >
+                    {e.closed_at ? 'Reopen' : 'Close'}
+                  </Button>
+                </div>
+              ),
+              renderMobileCell: (e) => (
+                <div className="w-full">
+                  <Button
+                    variant={e.closed_at ? 'outline' : 'secondary'}
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={(el) => { el.stopPropagation(); toggleExercise(e.id, !e.closed_at); }}
+                  >
+                    {e.closed_at ? 'Reopen' : 'Close'}
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+          data={filtered}
+          keyExtractor={(e) => String(e.id)}
+          emptyMessage="No exercises found."
+        />
+      )}
     </div>
   );
 }

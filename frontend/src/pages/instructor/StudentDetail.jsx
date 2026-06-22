@@ -14,14 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -380,45 +373,36 @@ export default function InstructorStudentDetail() {
 
         {/* ----- Submissions ----- */}
         <TabsContent value="submissions" className="mt-6">
-          {submissions.length > 0 ? (
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="h-9 text-xs font-medium">Exercise</TableHead>
-                    <TableHead className="h-9 text-xs font-medium">Attempt</TableHead>
-                    <TableHead className="h-9 text-xs font-medium">When</TableHead>
-                    <TableHead className="h-9 text-xs font-medium">Passed</TableHead>
-                    <TableHead className="h-9 text-xs font-medium text-right">Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {submissions.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">{s.exercise_title}</TableCell>
-                      <TableCell className="text-muted-foreground">#{s.attempt_number}</TableCell>
-                      <TableCell className="text-muted-foreground">{timeAgo(s.submitted_at)}</TableCell>
-                      <TableCell>
-                        <Badge variant={s.is_correct ? "secondary" : "destructive"} className="font-medium">
-                          {s.is_correct ? "Pass" : "Fail"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums text-xs text-muted-foreground">
-                        {s.time_spent_seconds != null ? `${Math.round(s.time_spent_seconds)}s` : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center">
-              <p className="text-sm font-semibold text-foreground">No submissions yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Submissions will appear here once the student submits exercises.
-              </p>
-            </div>
-          )}
+          <ResponsiveTable
+            columns={[
+              { key: 'exercise', header: 'Exercise', mobile: 'primary',
+                renderCell: (s) => <span className="font-medium">{s.exercise_title}</span>,
+              },
+              { key: 'attempt', header: 'Attempt', mobile: 'label',
+                renderCell: (s) => <span className="text-muted-foreground">#{s.attempt_number}</span>,
+              },
+              { key: 'when', header: 'When', mobile: 'label',
+                renderCell: (s) => <span className="text-muted-foreground">{timeAgo(s.submitted_at)}</span>,
+              },
+              { key: 'passed', header: 'Passed', mobile: 'label',
+                renderCell: (s) => (
+                  <Badge variant={s.is_correct ? "secondary" : "destructive"} className="font-medium">
+                    {s.is_correct ? "Pass" : "Fail"}
+                  </Badge>
+                ),
+              },
+              { key: 'time', header: 'Time', mobile: 'hidden',
+                renderCell: (s) => (
+                  <span className="font-mono tabular-nums text-xs text-muted-foreground block text-right">
+                    {s.time_spent_seconds != null ? `${Math.round(s.time_spent_seconds)}s` : '—'}
+                  </span>
+                ),
+              },
+            ]}
+            data={submissions}
+            keyExtractor={(s) => String(s.id)}
+            emptyMessage="No submissions yet"
+          />
         </TabsContent>
 
         {/* ----- Integrity ----- */}

@@ -94,9 +94,9 @@ export default function InstructorDashboard() {
 
   const handleExportCSV = () => {
     if (!data?.trend?.length) return;
-    const headers = ["Date", "CDS", "Mastery"];
+    const headers = ["Date", "CDS"];
     const rows = data.trend.map((r) =>
-      [r.date, r.cds, r.mastery].join(",")
+      [r.date, r.cds].join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -133,7 +133,6 @@ export default function InstructorDashboard() {
 
   /* Derive micro-metrics from KPIs (fall back to raw data) */
   const avgCDS = kpis.find((k) => k.label?.toLowerCase().includes("cds"))?.value ?? "--";
-  const avgMastery = kpis.find((k) => k.label?.toLowerCase().includes("mastery"))?.value ?? "--";
   const studentCount = kpis.find((k) => k.label?.toLowerCase().includes("student"))?.value ?? "--";
   const atRiskCount = kpis.find((k) => k.label?.toLowerCase().includes("risk"))?.value ?? "--";
 
@@ -194,10 +193,9 @@ export default function InstructorDashboard() {
       </motion.section>
 
       {/* ── Micro-Metrics Strip (floating typography-first) ─── */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
+      <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
         {[
           { label: "Avg CDS", value: avgCDS, accent: "text-rose-400" },
-          { label: "Avg Mastery", value: avgMastery, accent: "text-emerald-400" },
           { label: "At Risk", value: atRiskCount, accent: "text-amber-400" },
           { label: "Students", value: studentCount, accent: "text-sky-400" },
         ].map((m) => (
@@ -244,7 +242,6 @@ export default function InstructorDashboard() {
                         <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
                         <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
                         <Line type="monotone" dataKey="cds" name="CDS" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
-                        <Line type="monotone" dataKey="mastery" name="Mastery" stroke="#34d399" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
@@ -274,7 +271,7 @@ export default function InstructorDashboard() {
                       const meta = TIER_META[tier];
                       return (
                         <li key={c.name}>
-                          <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[1fr_3.5rem] items-center gap-3 px-5 py-3.5">
+                          <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[1fr_4.5rem] items-center gap-3 px-5 py-3.5">
                             <div className="min-w-0 space-y-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-sm font-medium text-foreground truncate">{c.name}</span>
@@ -283,9 +280,17 @@ export default function InstructorDashboard() {
                                   <span className={cn("text-[10px] font-medium uppercase tracking-wider", meta.text)}>{meta.label}</span>
                                 </span>
                               </div>
-                              <MasteryBar percent={Math.round((1 - cds) * 100)} tier={tier} delay={i * 0.08} />
+                              <div className="space-y-0.5">
+                                <MasteryBar percent={Math.round((1 - cds) * 100)} tier={tier} delay={i * 0.08} />
+                                <p className="text-[10px] text-muted-foreground/50 font-mono tabular-nums">
+                                  Mastery: {Math.round((1 - cds) * 100)}%
+                                </p>
+                              </div>
                             </div>
-                            <span className="text-sm font-mono tabular-nums text-foreground font-semibold">{c.cds ?? c.value ?? 0}</span>
+                            <span className="flex flex-col items-end gap-0.5 shrink-0">
+                              <span className="text-[10px] text-muted-foreground/40 uppercase tracking-wider">CDS</span>
+                              <span className="text-sm font-mono tabular-nums text-foreground font-semibold">{c.cds ?? c.value ?? 0}</span>
+                            </span>
                           </motion.div>
                         </li>
                       );

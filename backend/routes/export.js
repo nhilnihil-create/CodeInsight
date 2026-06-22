@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const logger = require('../lib/logger');
 const { verifyToken, requireRole } = require('../middleware/auth');
 
 // Export section data as CSV/XLSX
-router.get('/section/:sectionId', verifyToken, requireRole('instructor'), async (req, res) => {
+router.get('/section/:sectionId', verifyToken, requireRole('instructor'), async (req, res, next) => {
   try {
     const { sectionId } = req.params;
     const format = req.query.format || 'csv';
@@ -69,7 +70,8 @@ router.get('/section/:sectionId', verifyToken, requireRole('instructor'), async 
     });
     res.end();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err }, 'Export failed');
+    next(err);
   }
 });
 

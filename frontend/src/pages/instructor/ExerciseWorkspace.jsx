@@ -85,7 +85,6 @@ function blankExercise() {
     description: "",
     concept_name: "",
     concept_tags: [], // NEW: multi-tag support [{concept_id, concept_name, weight, is_primary}]
-    custom_tags: [], // Instructor's own custom tags [{tag_name, knowledge_area}]
     starter_code: STARTER_CODE,
     test_cases: [{ input: "", expected: "", description: "", hidden: false }],
     time_limit_minutes: 45,
@@ -225,31 +224,7 @@ function TestCaseEditor({ tests, onChange }) {
 /* ── Exercise Form Step ────────────────────────────────────────────────── */
 
 function ExerciseForm({ exercise, onChange, concepts, step }) {
-  const [customTagInput, setCustomTagInput] = useState("");
-
   const set = (key, value) => onChange({ ...exercise, [key]: value });
-
-  /* Derive knowledge_area_code from the currently selected primary concept */
-  const primaryConceptKA = useMemo(() => {
-    if (!exercise.concept_name) return null;
-    const match = concepts.find(c => c.name === exercise.concept_name);
-    return match?.knowledge_area_code || null;
-  }, [exercise.concept_name, concepts]);
-
-  const addCustomTag = () => {
-    const name = customTagInput.trim();
-    if (!name) return;
-    if (exercise.custom_tags.some(t => t.tag_name === name)) { setCustomTagInput(""); return; }
-    set("custom_tags", [
-      ...exercise.custom_tags,
-      { tag_name: name, knowledge_area: primaryConceptKA },
-    ]);
-    setCustomTagInput("");
-  };
-
-  const removeCustomTag = (tagName) => {
-    set("custom_tags", exercise.custom_tags.filter(t => t.tag_name !== tagName));
-  };
 
   // Compute baseline complexity
   const baselineTokens = useMemo(() => countTokens(exercise.starter_code), [exercise.starter_code]);
@@ -344,42 +319,7 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
             </div>
           )}
 
-          <Separator />
 
-          {/* Custom Tags — free-form instructor-defined */}
-          <div>
-            <Label className="text-sm font-medium">Custom Tags (optional)</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Type your own pedagogical concept names for the custom heatmap.
-            </p>
-            <div className="flex gap-2 mb-2">
-              <Input
-                value={customTagInput}
-                onChange={(e) => setCustomTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); } }}
-                placeholder="e.g. Week 3: Nested Loops"
-                className="h-8 text-sm"
-              />
-              <Button type="button" size="sm" variant="outline" onClick={addCustomTag} className="shrink-0">
-                Add
-              </Button>
-            </div>
-            {exercise.custom_tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {exercise.custom_tags.map(tag => (
-                  <Badge key={tag.tag_name} variant="secondary" className="text-xs gap-1 pr-1">
-                    {tag.tag_name}
-                    {tag.knowledge_area && (
-                      <span className="text-[9px] text-muted-foreground/60 ml-0.5">({tag.knowledge_area})</span>
-                    )}
-                    <button type="button" onClick={() => removeCustomTag(tag.tag_name)} className="ml-0.5 hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       )}
 
@@ -703,23 +643,13 @@ export default function ExerciseWorkspace() {
     Promise.all([
       api.get("/api/exercises/concepts").then(r => setConcepts(r.data || [])).catch(() => setConcepts([])),
       api.get("/api/sections").then(r => setSections(r.data || [])).catch(() => setSections([])),
-      isEdit ? api.get(`/api/exercises/${id}`).then(async r => {
+      isEdit ? api.get(`/api/exercises/${id}`).then(r => {
         const ex = r.data;
-        // Fetch custom tags mapped to this exercise
-        let customTags = [];
-        try {
-          const { data: tagMap } = await api.get(`/api/custom-tags/exercise-mappings?sectionId=${ex.section_id}`);
-          if (tagMap[ex.id]) customTags = tagMap[ex.id].map(t => ({
-            tag_name: t.tagName,
-            knowledge_area: t.knowledgeArea || null,
-          }));
-        } catch {}
         setCurrentExercise({
           ...blankExercise(),
           title: ex.title || "",
           description: ex.description || "",
           concept_name: ex.concept_name || "",
-          custom_tags: customTags,
           starter_code: ex.starter_code || STARTER_CODE,
           test_cases: (ex.test_cases || []).map(tc => ({ input: tc.input || "", expected: tc.expected || "", description: tc.description || "", hidden: !!tc.hidden })),
           time_limit_minutes: ex.time_limit_minutes || 45,
@@ -823,15 +753,6 @@ export default function ExerciseWorkspace() {
             try {
               const { data: created } = await api.post("/api/exercises", { ...payload, section_id: Number(sectionId) });
               totalPublished++;
-
-              // Map custom tags after exercise is created
-              const tagEntries = item.custom_tags || [];
-              if (tagEntries.length > 0 && created?.id) {
-                await api.post("/api/custom-tags/map-to-exercise", {
-                  exercise_id: created.id,
-                  tags: tagEntries,
-                }).catch(() => {}); // non-critical
-              }
             } catch (err) {
               errors.push(`${item.title}: ${err.response?.data?.message || err.message}`);
             }
@@ -878,16 +799,6 @@ export default function ExerciseWorkspace() {
       };
       const { data: updated } = await api.put(`/api/exercises/${id}`, payload);
       toast.success("Exercise updated");
-
-      // Map custom tags after exercise is updated
-      const tagEntries = currentExercise.custom_tags || [];
-      if (tagEntries.length > 0 && (updated?.id || id)) {
-        await api.post("/api/custom-tags/map-to-exercise", {
-          exercise_id: updated?.id || id,
-          tags: tagEntries,
-        }).catch(() => {}); // non-critical
-      }
-
       setTimeout(() => navigate("/instructor/exercises"), 800);
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
@@ -905,7 +816,6 @@ export default function ExerciseWorkspace() {
       title: entry.title || "",
       description: entry.description || "",
       concept_name: entry.concept || "",
-      custom_tags: [],
       starter_code: entry.starter_code || STARTER_CODE,
       test_cases: (entry.test_cases || []).map(tc => ({
         input: tc.input || "", expected: tc.expected || "",

@@ -87,84 +87,117 @@ async function computeCMI(sectionId, dbClient) {
 
   let updated = 0;
 
+  if (conceptRes.rows.length === 0 || studentRes.rows.length === 0) {
+    return { updated: 0 };
+  }
+
+  // Pre-fetch all exercises tagged with concepts in this section
+  const allExercisesRes = await client.query(
+    `SELECT ect.concept_id, e.id AS exercise_id
+     FROM exercises e
+     JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
+     WHERE e.section_id = $1 AND ect.is_primary = true`,
+    [sectionId]
+  );
+
+  const conceptExercises = {};
+  for (const row of allExercisesRes.rows) {
+    if (!conceptExercises[row.concept_id]) conceptExercises[row.concept_id] = [];
+    conceptExercises[row.concept_id].push(row.exercise_id);
+  }
+
+  const allExerciseIds = [...new Set(allExercisesRes.rows.map(r => r.exercise_id))];
+  if (allExerciseIds.length === 0) return { updated: 0 };
+
+  const studentIds = studentRes.rows.map(r => r.id);
+
+  // Batch-fetch ALL submissions for all students and exercises in this section
+  const allSubsRes = await client.query(
+    `SELECT s.student_id, s.exercise_id,
+            s.attempt_number, s.is_correct, s.time_spent_seconds,
+            COUNT(*) OVER (PARTITION BY s.exercise_id) AS total_submissions_for_exercise,
+            SUM(CASE WHEN s.is_correct THEN 1 ELSE 0 END) OVER (PARTITION BY s.exercise_id) AS correct_count_for_exercise
+     FROM submissions s
+     WHERE s.student_id = ANY($1) AND s.exercise_id = ANY($2)
+     ORDER BY s.exercise_id, s.attempt_number ASC`,
+    [studentIds, allExerciseIds]
+  );
+
+  // Index submissions by (student_id, exercise_id)
+  const subMap = {};
+  for (const row of allSubsRes.rows) {
+    const key = `${row.student_id}:${row.exercise_id}`;
+    if (!subMap[key]) subMap[key] = [];
+    subMap[key].push(row);
+  }
+
+  // Batch-fetch class-wide stats once per exercise set per concept
+  const classStatsRes = await client.query(
+    `SELECT s.exercise_id,
+            COUNT(*) AS total_attempts,
+            SUM(CASE WHEN s.is_correct = false THEN 1 ELSE 0 END) AS failed_attempts,
+            MAX(s.time_spent_seconds) AS max_time
+     FROM submissions s
+     WHERE s.exercise_id = ANY($1)
+     GROUP BY s.exercise_id`,
+    [allExerciseIds]
+  );
+
+  const classStatsByEx = {};
+  for (const row of classStatsRes.rows) {
+    classStatsByEx[row.exercise_id] = {
+      total_attempts: parseInt(row.total_attempts),
+      failed_attempts: parseInt(row.failed_attempts),
+      max_time: parseInt(row.max_time) || 0,
+    };
+  }
+
+  const studentSet = new Set(studentIds);
+
   for (const concept of conceptRes.rows) {
-    // Get all exercises in this section tagged with this concept (primary)
-    const exerciseRes = await client.query(
-      `SELECT DISTINCT e.id, e.title
-       FROM exercises e
-       JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
-       WHERE e.section_id = $1 AND ect.concept_id = $2 AND ect.is_primary = true`,
-      [sectionId, concept.id]
-    );
+    const exerciseIds = conceptExercises[concept.id];
+    if (!exerciseIds || exerciseIds.length === 0) continue;
 
-    if (exerciseRes.rows.length === 0) continue;
-
-    const exerciseIds = exerciseRes.rows.map(r => r.id);
-
-    // For each student, compute per-concept metrics
-    for (const student of studentRes.rows) {
+    for (const studentId of studentSet) {
       try {
-        // Get this student's submissions for concept-tagged exercises
-        const subRes = await client.query(
-          `SELECT s.student_id, s.exercise_id,
-                  s.attempt_number, s.is_correct, s.time_spent_seconds,
-                  COUNT(*) OVER (PARTITION BY s.exercise_id) AS total_submissions_for_exercise,
-                  SUM(CASE WHEN s.is_correct THEN 1 ELSE 0 END) OVER (PARTITION BY s.exercise_id) AS correct_count_for_exercise
-           FROM submissions s
-           WHERE s.student_id = $1
-             AND s.exercise_id = ANY($2)
-             AND s.is_practice IS NOT TRUE
-           ORDER BY s.exercise_id, s.attempt_number ASC`,
-          [student.id, exerciseIds]
-        );
-
-        if (subRes.rows.length === 0) continue;
-
-        // Aggregate per-exercise metrics, then average across concept
+        // Aggregate per-exercise metrics from pre-fetched data
         const exerciseMetrics = {};
-        for (const row of subRes.rows) {
-          const eid = row.exercise_id;
-          if (!exerciseMetrics[eid]) {
-            exerciseMetrics[eid] = {
-              total_attempts: parseInt(row.total_submissions_for_exercise),
-              failed_attempts: parseInt(row.total_submissions_for_exercise) - parseInt(row.correct_count_for_exercise),
-              max_time: 0
-            };
+        for (const eid of exerciseIds) {
+          const key = `${studentId}:${eid}`;
+          const subs = subMap[key];
+          if (!subs || subs.length === 0) continue;
+
+          const totalForExercise = parseInt(subs[0].total_submissions_for_exercise);
+          const correctForExercise = parseInt(subs[0].correct_count_for_exercise);
+          let maxTime = 0;
+          for (const sub of subs) {
+            maxTime = Math.max(maxTime, sub.time_spent_seconds || 0);
           }
-          exerciseMetrics[eid].max_time = Math.max(
-            exerciseMetrics[eid].max_time,
-            row.time_spent_seconds || 0
-          );
+
+          exerciseMetrics[eid] = {
+            total_attempts: totalForExercise,
+            failed_attempts: totalForExercise - correctForExercise,
+            max_time: maxTime,
+          };
         }
 
         const metrics = Object.values(exerciseMetrics);
+        if (metrics.length === 0) continue;
+
         const totalAttempts = metrics.reduce((s, m) => s + m.total_attempts, 0);
         const totalFailed = metrics.reduce((s, m) => s + m.failed_attempts, 0);
         const maxTime = metrics.reduce((s, m) => Math.max(s, m.max_time), 0);
 
         const failRate = totalAttempts > 0 ? totalFailed / totalAttempts : 0;
 
-        // Get class-wide normalization factors (same exercise set)
-        const classStats = await client.query(
-          `SELECT s.student_id,
-                  COUNT(*) AS total_attempts,
-                  SUM(CASE WHEN s.is_correct = false THEN 1 ELSE 0 END) AS failed_attempts,
-                  MAX(s.time_spent_seconds) AS max_time
-           FROM submissions s
-           WHERE s.exercise_id = ANY($1)
-             AND s.is_practice IS NOT TRUE
-           GROUP BY s.student_id`,
-          [exerciseIds]
-        );
-
-        const allAttempts = classStats.rows.map(r => parseInt(r.total_attempts));
-        const allFailed = classStats.rows.map(r => parseInt(r.failed_attempts));
-        const allTimes = classStats.rows.map(r => parseInt(r.max_time) || 0);
+        // Normalize using class-wide stats from pre-fetched data
+        const allAttempts = exerciseIds.map(eid => classStatsByEx[eid]?.total_attempts || 0);
+        const allFailed = exerciseIds.map(eid => classStatsByEx[eid]?.failed_attempts || 0);
+        const allTimes = exerciseIds.map(eid => classStatsByEx[eid]?.max_time || 0);
 
         const normAttempts = _normalize(totalAttempts, allAttempts);
         const normTime = _normalize(maxTime, allTimes);
 
-        // CMI formula
         const cmi = Math.round(
           100 * (1 - (0.40 * failRate + 0.35 * normAttempts + 0.25 * normTime))
         );
@@ -175,12 +208,12 @@ async function computeCMI(sectionId, dbClient) {
            VALUES ($1, $2, $3, $4, 0, NOW())
            ON CONFLICT (student_id, concept_id, section_id)
            DO UPDATE SET cmi = $4, last_updated = NOW()`,
-          [student.id, concept.id, sectionId, boundedCmi]
+          [studentId, concept.id, sectionId, boundedCmi]
         );
 
         updated++;
       } catch (err) {
-        console.warn(`[CMI] Failed for student ${student.id}, concept ${concept.name}:`, err.message);
+        console.warn(`[CMI] Failed for student ${studentId}, concept ${concept.name}:`, err.message);
       }
     }
   }
@@ -227,70 +260,78 @@ async function computeVelocity(sectionId, dbClient) {
 
   let updated = 0;
 
+  if (conceptRes.rows.length === 0) {
+    return { updated: 0 };
+  }
+
+  // Pre-fetch all exercises grouped by concept
+  const allExercisesRes = await client.query(
+    `SELECT ect.concept_id, e.id AS exercise_id, e.created_at
+     FROM exercises e
+     JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
+     WHERE e.section_id = $1 AND ect.is_primary = true
+     ORDER BY e.created_at ASC`,
+    [sectionId]
+  );
+
+  const conceptExercises = {};
+  for (const row of allExercisesRes.rows) {
+    if (!conceptExercises[row.concept_id]) conceptExercises[row.concept_id] = [];
+    conceptExercises[row.concept_id].push({ id: row.exercise_id, created_at: row.created_at });
+  }
+
+  const allExerciseIds = [...new Set(allExercisesRes.rows.map(r => r.exercise_id))];
+  if (allExerciseIds.length === 0) return { updated: 0 };
+
+  // Pre-fetch ALL per-student per-exercise CMI proxies in one query
+  const allStudentCmiRes = await client.query(
+    `SELECT s.student_id, s.exercise_id,
+            COUNT(*) AS total,
+            SUM(CASE WHEN s.is_correct THEN 1 ELSE 0 END) AS correct,
+            MAX(s.submitted_at) AS last_submission
+     FROM submissions s
+     WHERE s.exercise_id = ANY($1)
+     GROUP BY s.student_id, s.exercise_id
+     ORDER BY s.student_id, MAX(s.submitted_at) ASC`,
+    [allExerciseIds]
+  );
+
+  // Index by student_id: { student_id: { exercise_id: { cmi, submittedAt } } }
+  const studentCmiMap = {};
+  for (const row of allStudentCmiRes.rows) {
+    if (!studentCmiMap[row.student_id]) studentCmiMap[row.student_id] = [];
+    const total = parseInt(row.total);
+    const correct = parseInt(row.correct);
+    studentCmiMap[row.student_id].push({
+      exerciseId: row.exercise_id,
+      cmi: total > 0 ? (correct / total) * 100 : 0,
+      submittedAt: row.last_submission,
+    });
+  }
+
   for (const concept of conceptRes.rows) {
-    // Get exercises tagged with this concept, ordered by time
-    const exerciseRes = await client.query(
-      `SELECT DISTINCT e.id, e.created_at
-       FROM exercises e
-       JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
-       WHERE e.section_id = $1 AND ect.concept_id = $2 AND ect.is_primary = true
-       ORDER BY e.created_at ASC`,
-      [sectionId, concept.id]
-    );
+    const exercises = conceptExercises[concept.id];
+    if (!exercises || exercises.length < 2) continue;
 
-    if (exerciseRes.rows.length < 2) continue;
+    const exerciseIdsForConcept = exercises.map(e => e.id);
 
-    const exerciseIds = exerciseRes.rows.map(r => r.id);
-
-    // For each student, compute velocity
-    const studentRes = await client.query(
-      `SELECT DISTINCT s.student_id FROM submissions s
-       WHERE s.exercise_id = ANY($1) AND s.is_practice IS NOT TRUE`,
-      [exerciseIds]
-    );
-
-    for (const student of studentRes.rows) {
+    for (const [studentId, exCmis] of Object.entries(studentCmiMap)) {
       try {
-        // Get per-exercise CMI proxy: 100 × (1 - failRate) for each exercise
-        const exCmiRes = await client.query(
-          `SELECT s.exercise_id,
-                  COUNT(*) AS total,
-                  SUM(CASE WHEN s.is_correct THEN 1 ELSE 0 END) AS correct,
-                  MAX(s.submitted_at) AS last_submission
-           FROM submissions s
-           WHERE s.student_id = $1
-             AND s.exercise_id = ANY($2)
-             AND s.is_practice IS NOT TRUE
-           GROUP BY s.exercise_id
-           ORDER BY MAX(s.submitted_at) ASC`,
-          [student.id, exerciseIds]
-        );
+        // Filter to only exercises for this concept
+        const conceptExCmis = exCmis.filter(e => exerciseIdsForConcept.includes(e.exerciseId));
+        if (conceptExCmis.length < 2) continue;
 
-        if (exCmiRes.rows.length < 2) continue;
-
-        const exCmis = exCmiRes.rows.map(r => {
-          const total = parseInt(r.total);
-          const correct = parseInt(r.correct);
-          return {
-            exerciseId: r.exercise_id,
-            cmi: total > 0 ? (correct / total) * 100 : 0,
-            submittedAt: r.last_submission
-          };
-        });
-
-        // Baseline: first 2 exercises, Recent: last 2
-        const baselineCount = Math.min(2, Math.floor(exCmis.length / 2));
-        const recentCount = Math.min(2, exCmis.length - baselineCount);
+        const baselineCount = Math.min(2, Math.floor(conceptExCmis.length / 2));
+        const recentCount = Math.min(2, conceptExCmis.length - baselineCount);
 
         if (baselineCount < 1 || recentCount < 1) continue;
 
-        const baseline = exCmis.slice(0, baselineCount);
-        const recent = exCmis.slice(-recentCount);
+        const baseline = conceptExCmis.slice(0, baselineCount);
+        const recent = conceptExCmis.slice(-recentCount);
 
         const baselineAvg = baseline.reduce((s, e) => s + e.cmi, 0) / baseline.length;
         const recentAvg = recent.reduce((s, e) => s + e.cmi, 0) / recent.length;
 
-        // Time span in weeks
         const firstDate = new Date(baseline[0].submittedAt);
         const lastDate = new Date(recent[recent.length - 1].submittedAt);
         const weeksBetween = Math.max(0.1, (lastDate - firstDate) / (7 * 24 * 60 * 60 * 1000));
@@ -302,12 +343,12 @@ async function computeVelocity(sectionId, dbClient) {
           `UPDATE student_concept_metrics
            SET velocity = $1, last_updated = NOW()
            WHERE student_id = $2 AND concept_id = $3 AND section_id = $4`,
-          [roundedVelocity, student.id, concept.id, sectionId]
+          [roundedVelocity, parseInt(studentId), concept.id, sectionId]
         );
 
         updated++;
       } catch (err) {
-        console.warn(`[Velocity] Failed for student ${student.id}, concept ${concept.name}:`, err.message);
+        console.warn(`[Velocity] Failed for student ${studentId}, concept ${concept.name}:`, err.message);
       }
     }
   }
@@ -501,8 +542,7 @@ async function updateMetricsForSubmission(studentId, exerciseId) {
                 MAX(s.time_spent_seconds) AS max_time
          FROM submissions s
          JOIN exercise_concept_tags ect ON ect.exercise_id = s.exercise_id
-         WHERE s.student_id = $1 AND ect.concept_id = $2
-           AND s.is_practice IS NOT TRUE`,
+         WHERE s.student_id = $1 AND ect.concept_id = $2`,
         [studentId, tag.concept_id]
       );
 

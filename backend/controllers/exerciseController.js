@@ -80,8 +80,7 @@ exports.create = async (req, res, next) => {
     const { title, description, concept_name, section_id,
             time_limit_minutes, test_cases, deadline, is_draft,
             track_ner, track_nrs, track_nts, auto_alert,
-            starter_code, reference_solution, concept_ids,
-            rubric_config } = req.body;
+            starter_code, reference_solution, concept_ids } = req.body;
 
     const cRes = await db.query('SELECT id FROM concepts WHERE name=$1', [concept_name]);
     if (!cRes.rows.length) throw new AppError('Concept not found', 400, codes.VALIDATION, { field: 'concept_name' });
@@ -91,13 +90,13 @@ exports.create = async (req, res, next) => {
       `INSERT INTO exercises
        (title, description, concept_id, section_id, created_by, time_limit_minutes,
         test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
-        starter_code, reference_solution, rubric_config, is_validated)
-       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+        starter_code, reference_solution, is_validated)
+       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
       [title, description, concept_id, section_id, req.user.id,
        time_limit_minutes || 45, JSON.stringify(test_cases), deadline || null,
        is_draft, track_ner, track_nrs, track_nts, auto_alert,
        starter_code || null, reference_solution || null,
-       JSON.stringify(rubric_config || {}), false]
+       false]
     );
 
     // Insert secondary concepts into exercise_concepts junction table
@@ -203,8 +202,7 @@ exports.getOne = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     const { title, description, concept_name, time_limit_minutes, test_cases, deadline,
-            is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code,
-            rubric_config } = req.body;
+            is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code } = req.body;
 
     // Build dynamic update
     const sets = [];
@@ -229,10 +227,6 @@ exports.update = async (req, res, next) => {
     addSet('track_nts', track_nts);
     addSet('auto_alert', auto_alert);
     addSet('starter_code', starter_code);
-    if (rubric_config !== undefined) {
-      params.push(JSON.stringify(rubric_config));
-      sets.push(`rubric_config = $${params.length}`);
-    }
     if (sets.length === 0) {
       throw new AppError('No fields to update', 400, codes.VALIDATION);
     }
@@ -379,7 +373,7 @@ exports.bulkPublish = async (req, res, next) => {
             (title, description, concept_id, section_id, created_by, time_limit_minutes,
              test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
              starter_code, reference_solution)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
            RETURNING id, title, concept_id, section_id`,
           [
             bank.title,
@@ -397,7 +391,6 @@ exports.bulkPublish = async (req, res, next) => {
             true,   // auto_alert
             bank.starter_code || null,
             bank.sample_solution || null,
-            JSON.stringify(bank.rubric_config || {}),
           ]
         );
         inserted.push(r.rows[0]);

@@ -20,14 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from '@/components/ui/table';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import {
   Dialog,
   DialogContent,
@@ -53,7 +46,7 @@ import { Label } from '@/components/ui/label';
  *     query: flag_type, student_id, exercise_id, page, limit
  *   - PUT /api/analytics/integrity-flags/:id/review
  *     body: { status, instructor_note }
- *   - Filters: flag_type (HARD_CODING | BLANK_TEMPLATE | BEHAVIORAL_ANOMALY |
+ *   - Filters: flag_type (HARDCODING | BLANK_TEMPLATE | BEHAVIORAL_ANOMALY |
  *             CODE_GROWTH_ANOMALY | PASSIVE_BEHAVIOR_LOG), student_id, exercise_id
  *   - Pagination: page, limit, total, totalPages
  *   - Status: FLAGGED, REVIEWED, DISMISSED
@@ -75,7 +68,7 @@ import { Label } from '@/components/ui/label';
  */
 
 const FLAG_TYPES = [
-  { value: 'HARD_CODING', label: 'Hardcoding Detection' },
+  { value: 'HARDCODING', label: 'Hardcoding Detection' },
   { value: 'BLANK_TEMPLATE', label: 'Blank/Template-only Submission' },
   { value: 'BEHAVIORAL_ANOMALY', label: 'Behavioral Anomaly' },
   { value: 'CODE_GROWTH_ANOMALY', label: 'Code Growth Anomaly' },
@@ -354,124 +347,156 @@ const AcademicIntegrityFlags = () => {
       </Card>
 
       {/* Flags table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Flags</CardTitle>
-          <CardDescription>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-lg font-semibold">Flags</h2>
+          <p className="text-sm text-muted-foreground">
             {flags.length} {flags.length === 1 ? 'flag' : 'flags'} on this page
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Exercise</TableHead>
-                  <TableHead>Flag Type</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead>Evidence</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {flags.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                      No integrity flags found matching the current filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  flags.map((flag) => {
-                    const severityVariant = SEVERITY_VARIANT[flag.severity] || 'outline';
-                    const statusVariant = STATUS_VARIANT[flag.status] || 'outline';
-                    const evidenceText = flag.evidence
-                      ? JSON.stringify(flag.evidence).substring(0, 50) + '...'
-                      : 'No evidence';
-                    return (
-                      <TableRow key={flag.id} className="hover:bg-muted/30">
-                        <TableCell className="font-medium text-foreground">
-                          {flag.student_name || 'Unknown Student'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {flag.exercise_title || 'Unknown Exercise'}
-                        </TableCell>
-                        <TableCell>
-                          <IntegrityFlagBadge flagType={flag.flag_type} />
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={severityVariant}>{flag.severity}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                          {evidenceText}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant}>
-                            {STATUS_LABEL[flag.status] || flag.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReviewFlag(flag)}
-                              disabled={flag.status === 'REVIEWED' || flag.status === 'DISMISSED'}
-                            >
-                              {flag.status === 'FLAGGED' ? 'Review' : 'View'}
-                            </Button>
-                            {flag.status === 'FLAGGED' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() =>
-                                  handleReviewFlag({ ...flag, status: 'DISMISSED' })
-                                }
-                              >
-                                Dismiss
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+          </p>
+        </div>
+      </div>
+
+      <ResponsiveTable
+        columns={[
+          {
+            key: 'student_name',
+            header: 'Student',
+            mobile: 'primary',
+            renderCell: (flag) => (
+              <span className="font-medium text-foreground">{flag.student_name || 'Unknown Student'}</span>
+            ),
+          },
+          { key: 'exercise_title', header: 'Exercise', mobile: 'hidden',
+            renderCell: (flag) => <span className="text-muted-foreground">{flag.exercise_title || 'Unknown Exercise'}</span>,
+          },
+          {
+            key: 'flag_type',
+            header: 'Flag Type',
+            mobile: 'label',
+            renderCell: (flag) => <IntegrityFlagBadge flagType={flag.flag_type} />,
+            renderMobileCell: (flag) => {
+              const labels = { HARDCODING: 'HC', BLANK_TEMPLATE: 'BT', BEHAVIORAL_ANOMALY: 'BA', CODE_GROWTH_ANOMALY: 'CG', PASSIVE_BEHAVIOR_LOG: 'PB' };
+              return <span className="text-xs font-medium">{labels[flag.flag_type] || flag.flag_type}</span>;
+            },
+          },
+          {
+            key: 'severity',
+            header: 'Severity',
+            mobile: 'label',
+            renderCell: (flag) => {
+              const severityVariant = SEVERITY_VARIANT[flag.severity] || 'outline';
+              return <Badge variant={severityVariant}>{flag.severity}</Badge>;
+            },
+            renderMobileCell: (flag) => {
+              const colors = { HIGH: 'text-destructive', MEDIUM: 'text-warning', LOW: 'text-success' };
+              return <span className={`font-semibold ${colors[flag.severity] || ''}`}>{flag.severity}</span>;
+            },
+          },
+          {
+            key: 'evidence',
+            header: 'Evidence',
+            mobile: 'hidden',
+            renderCell: (flag) => {
+              const evidenceText = flag.evidence
+                ? JSON.stringify(flag.evidence).substring(0, 50) + '...'
+                : 'No evidence';
+              return <span className="max-w-xs truncate text-xs text-muted-foreground">{evidenceText}</span>;
+            },
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            mobile: 'label',
+            renderCell: (flag) => {
+              const statusVariant = STATUS_VARIANT[flag.status] || 'outline';
+              return <Badge variant={statusVariant}>{STATUS_LABEL[flag.status] || flag.status}</Badge>;
+            },
+            renderMobileCell: (flag) => {
+              const colors = { FLAGGED: 'text-warning', REVIEWED: 'text-success', DISMISSED: 'text-muted-foreground' };
+              return <span className={`font-semibold ${colors[flag.status] || ''}`}>{STATUS_LABEL[flag.status] || flag.status}</span>;
+            },
+          },
+          {
+            key: 'actions',
+            header: 'Actions',
+            mobile: 'actions',
+            renderCell: (flag) => (
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => { e.stopPropagation(); handleReviewFlag(flag); }}
+                  disabled={flag.status === 'REVIEWED' || flag.status === 'DISMISSED'}
+                >
+                  {flag.status === 'FLAGGED' ? 'Review' : 'View'}
+                </Button>
+                {flag.status === 'FLAGGED' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); handleReviewFlag({ ...flag, status: 'DISMISSED' }); }}
+                  >
+                    Dismiss
+                  </Button>
                 )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          {pagination.total > pagination.limit && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-              <span>Showing {totalShown} flags</span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
-                  disabled={pagination.page === 1}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    handlePageChange(Math.min(pagination.totalPages, pagination.page + 1))
-                  }
-                  disabled={pagination.page === pagination.totalPages}
-                >
-                  Next
-                </Button>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            ),
+            renderMobileCell: (flag) => (
+              <div className="flex gap-2 w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={(e) => { e.stopPropagation(); handleReviewFlag(flag); }}
+                  disabled={flag.status === 'REVIEWED' || flag.status === 'DISMISSED'}
+                >
+                  {flag.status === 'FLAGGED' ? 'Review' : 'View'}
+                </Button>
+                {flag.status === 'FLAGGED' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1 text-xs text-destructive"
+                    onClick={(e) => { e.stopPropagation(); handleReviewFlag({ ...flag, status: 'DISMISSED' }); }}
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        data={flags}
+        keyExtractor={(flag) => String(flag.id)}
+        emptyMessage="No integrity flags found matching the current filters."
+      />
 
+      {pagination.total > pagination.limit && (
+        <div className="flex items-center justify-between gap-2 mt-4 text-xs text-muted-foreground">
+          <span>Showing {totalShown} flags</span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}
+              disabled={pagination.page === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handlePageChange(Math.min(pagination.totalPages, pagination.page + 1))
+              }
+              disabled={pagination.page === pagination.totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
       {showNoteModal && selectedFlag && (
         <IntegrityNoteModal
           flag={selectedFlag}

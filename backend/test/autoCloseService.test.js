@@ -25,7 +25,7 @@ describe('autoCloseService — processExercisesForAutoClose', function() {
     await processExercisesForAutoClose();
 
     expect(cdsEngine.computeBatchCDS).toHaveBeenCalledTimes(2);
-    expect(alertEngine.generateAlerts).toHaveBeenCalledTimes(2);
+    expect(alertEngine.generateAlerts).toHaveBeenCalledTimes(0);
   });
 
   it('does nothing when no exercises need closing', async function() {
@@ -55,7 +55,7 @@ describe('autoCloseService — processExercisesForAutoClose', function() {
     await processExercisesForAutoClose();
 
     expect(cdsEngine.computeBatchCDS).toHaveBeenCalledTimes(2);
-    expect(alertEngine.generateAlerts).toHaveBeenCalledTimes(1);
+    expect(alertEngine.generateAlerts).toHaveBeenCalledTimes(0);
   });
 
   it('logs a message when auto_close succeeds', async function() {

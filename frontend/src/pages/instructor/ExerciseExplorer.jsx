@@ -1,11 +1,11 @@
-import { Fragment, useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Layers, Plus, Eye, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { Search, Layers, Plus, Eye, AlertTriangle, RefreshCw } from "lucide-react";
 import useLastSection from "@/hooks/useLastSection";
 import api from "@/services/api";
 
@@ -134,76 +134,64 @@ export default function ExerciseExplorer() {
       )}
 
       {/* Results */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-12">
-              <RefreshCw className={`h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3 ${searching ? "animate-spin" : ""}`} />
-              <p className="text-sm text-muted-foreground">Searching…</p>
-            </div>
-          ) : exercises.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              {query || concept ? "No exercises match your search." : "Create your first exercise to get started."}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8" />
-                  <TableHead>Title</TableHead>
-                  <TableHead>Concept</TableHead>
-                  <TableHead>Section</TableHead>
-                  <TableHead>Completions</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {exercises.map((e) => {
-                  const isClosed = !!e.closed_at;
-                  const isDraft = e.is_draft;
-                  return (
-                    <Fragment key={e.id}>
-                      <TableRow className="cursor-pointer transition-colors hover:bg-muted/40">
-                        <TableCell className="w-8 text-muted-foreground">
-                          <ChevronRight className="w-4 h-4" />
-                        </TableCell>
-                        <TableCell className="font-medium">{e.title}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 flex-wrap">
-                            <Badge variant="outline">{e.concept_name}</Badge>
-                            {e.secondary_concepts?.map(c => (
-                              <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {e.section_id ? `#${e.section_id}` : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm font-mono tabular-nums">
-                          {e.completion_count || 0}
-                        </TableCell>
-                        <TableCell>
-                          {isDraft ? <Badge variant="outline">Draft</Badge>
-                            : isClosed ? <Badge className="bg-muted text-muted-foreground border-border">Closed</Badge>
-                            : <Badge className="bg-cds-low/10 text-cds-low border-cds-low/15">Open</Badge>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={`/instructor/exercises/${e.id}/edit`}>
-                              <Eye className="w-3.5 h-3.5 mr-1" /> Edit
-                            </Link>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    </Fragment>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {loading ? (
+        <div className="text-center py-12">
+          <RefreshCw className={`h-5 w-5 mx-auto mb-3 ${searching ? "animate-spin" : ""}`} />
+          <p className="text-sm text-muted-foreground">Searching…</p>
+        </div>
+      ) : (
+        <ResponsiveTable
+          columns={[
+            { key: 'title', header: 'Title', mobile: 'primary',
+              renderCell: (e) => <span className="font-medium">{e.title}</span>,
+            },
+            { key: 'concept', header: 'Concept', mobile: 'label',
+              renderCell: (e) => (
+                <div className="flex gap-1 flex-wrap">
+                  <Badge variant="outline">{e.concept_name}</Badge>
+                  {e.secondary_concepts?.map(c => (
+                    <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                  ))}
+                </div>
+              ),
+            },
+            { key: 'section', header: 'Section', mobile: 'hidden',
+              renderCell: (e) => <span className="text-muted-foreground text-sm">{e.section_id ? `#${e.section_id}` : "—"}</span>,
+            },
+            { key: 'completions', header: 'Completions', mobile: 'hidden',
+              renderCell: (e) => <span className="font-mono tabular-nums text-sm block text-center">{e.completion_count || 0}</span>,
+            },
+            { key: 'status', header: 'Status', mobile: 'label',
+              renderCell: (e) => {
+                const isClosed = !!e.closed_at;
+                const isDraft = e.is_draft;
+                return isDraft ? <Badge variant="outline">Draft</Badge>
+                  : isClosed ? <Badge className="bg-muted text-muted-foreground border-border">Closed</Badge>
+                  : <Badge className="bg-cds-low/10 text-cds-low border-cds-low/15">Open</Badge>;
+              },
+            },
+            { key: 'actions', header: '', mobile: 'actions',
+              renderCell: (e) => (
+                <div className="text-right">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to={`/instructor/exercises/${e.id}/edit`}>
+                      <Eye className="w-3.5 h-3.5 mr-1" /> Edit
+                    </Link>
+                  </Button>
+                </div>
+              ),
+              renderMobileCell: (e) => (
+                <Button asChild variant="outline" size="sm" className="w-full text-xs">
+                  <Link to={`/instructor/exercises/${e.id}/edit`}>Edit</Link>
+                </Button>
+              ),
+            },
+          ]}
+          data={exercises}
+          keyExtractor={(e) => String(e.id)}
+          emptyMessage={query || concept ? "No exercises match your search." : "Create your first exercise to get started."}
+        />
+      )}
     </div>
   );
 }

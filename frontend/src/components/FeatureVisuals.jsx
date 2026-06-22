@@ -376,7 +376,7 @@ export function MicroConceptVisual() {
     <div className="space-y-2">
       <div className="rounded-lg border border-border/60 bg-background/60 p-2.5">
         <div className="text-[10px] text-primary font-semibold mb-1.5">Class-Wide Report</div>
-        <div className="text-[9px] text-muted-foreground">33 rules across 7 C++ concepts — instructor view</div>
+        <div className="text-[9px] text-muted-foreground">71 rules across 25 C++ concepts — instructor view</div>
       </div>
 
       {concepts.map((group, gi) => (

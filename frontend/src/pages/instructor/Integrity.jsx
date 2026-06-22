@@ -32,8 +32,10 @@ import EvidenceRow from "@/components/ui/evidence-row";
 import RiskBadge from "@/components/ui/risk-badge";
 import DecisionList from "@/components/ui/decision-list";
 import DetailDrawer from "@/components/ui/detail-drawer";
+import SectionFilter from "@/components/SectionFilter";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
+import useLastSection from "@/hooks/useLastSection";
 
 function timeAgo(dateStr) {
   if (!dateStr) return "—";
@@ -85,6 +87,7 @@ const SEVERITY_RISK_LEVEL = {
 };
 
 export default function InstructorIntegrity() {
+  const [sectionId, setSectionId] = useLastSection();
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,14 +102,17 @@ export default function InstructorIntegrity() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/api/analytics/integrity");
+      const url = sectionId
+        ? `/api/analytics/sections/${sectionId}/integrity-flags`
+        : "/api/analytics/integrity";
+      const res = await api.get(url);
       setFlags((res.data.flags || []).map(f => ({ ...f, severity: (f.severity || "").toLowerCase() })));
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load integrity flags");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sectionId]);
 
   useEffect(() => {
     fetchFlags();
@@ -283,6 +289,7 @@ export default function InstructorIntegrity() {
             <h1 className="text-2xl font-semibold tracking-tight">Integrity</h1>
             <p className="text-sm text-muted-foreground">Loading integrity flags…</p>
           </div>
+          <SectionFilter value={sectionId} onChange={setSectionId} />
         </div>
         <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm py-12 px-6 text-center">
           <RefreshCw className="h-6 w-6 text-muted-foreground mx-auto mb-2 animate-spin" />
@@ -303,6 +310,7 @@ export default function InstructorIntegrity() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <SectionFilter value={sectionId} onChange={setSectionId} />
           {error ? (
             <span className="text-xs text-destructive font-medium">{error}</span>
           ) : null}

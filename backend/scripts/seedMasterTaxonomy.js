@@ -610,23 +610,6 @@ async function run() {
     // are not tagged here. When bank items are promoted to exercises, they
     // inherit concept tags from their concept_name field.
 
-    // ──────────────────────────────────────────────────────────────────────
-    // Step 4: Verify learning outcome mappings
-    // ──────────────────────────────────────────────────────────────────────
-    console.log('[Step 4] Verifying learning outcomes...');
-
-    const outcomes = await client.query(`
-      SELECT lo.id, lo.name, COUNT(ocm.concept_id) AS concept_count
-      FROM learning_outcomes lo
-      LEFT JOIN outcome_concept_map ocm ON ocm.outcome_id = lo.id
-      GROUP BY lo.id, lo.name
-      ORDER BY lo.id
-    `);
-
-    for (const o of outcomes.rows) {
-      console.log(`  ✓ "${o.name}" → ${o.concept_count} concept(s)`);
-    }
-
     await client.query('COMMIT');
 
     // ──────────────────────────────────────────────────────────────────────
@@ -635,14 +618,12 @@ async function run() {
     const totalConcepts = await client.query(`SELECT COUNT(*) FROM concepts`);
     const totalDeps = await client.query(`SELECT COUNT(*) FROM concept_dependencies`);
     const totalTags = await client.query(`SELECT COUNT(*) FROM exercise_concept_tags`);
-    const totalOutcomes = await client.query(`SELECT COUNT(*) FROM learning_outcomes`);
     const totalExercises = await client.query(`SELECT COUNT(*) FROM exercises`);
 
     console.log('\n=== Seed Complete ===');
     console.log(`  Concepts: ${totalConcepts.rows[0].count} total`);
     console.log(`  Dependencies: ${totalDeps.rows[0].count} total`);
     console.log(`  Exercise-Concept Tags: ${totalTags.rows[0].count} total`);
-    console.log(`  Learning Outcomes: ${totalOutcomes.rows[0].count} total`);
     console.log(`  Exercises: ${totalExercises.rows[0].count} total`);
 
   } catch (err) {

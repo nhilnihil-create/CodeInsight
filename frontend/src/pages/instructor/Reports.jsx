@@ -39,7 +39,7 @@ import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import SectionFilter from "@/components/SectionFilter";
 import useLastSection from "@/hooks/useLastSection";
-import RiskBadge from "@/components/ui/risk-badge";
+
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/services/api";
@@ -978,7 +978,6 @@ function IntegrityTab({ timeline, breakdown, weeks }) {
           <SortableTable
             columns={[
               { key: "type", label: "Type", align: "left" },
-              { key: "level", label: "Level", align: "left" },
               { key: "count", label: "Count", align: "right" },
               { key: "share", label: "Share", align: "right" },
               { key: "delta", label: "Δ", align: "right" },
@@ -988,7 +987,6 @@ function IntegrityTab({ timeline, breakdown, weeks }) {
             rows={rows}
             renderCell={(col, row) => {
               if (col.key === "type") return <span className="text-sm font-medium">{row.type}</span>;
-              if (col.key === "level") return <RiskBadge level={row.level} />;
               if (col.key === "count") return <span className="text-sm font-mono tabular-nums">{row.count}</span>;
               if (col.key === "share") return <span className="text-sm text-muted-foreground font-mono tabular-nums">{row.share}%</span>;
               if (col.key === "delta") {

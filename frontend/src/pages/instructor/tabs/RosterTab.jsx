@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import api from "@/services/api";
 
 function computeLevel(cds) {
-  if (cds == null || cds === 0) return "na";
+  if (cds == null) return "na";
   if (cds <= 0.20) return "low";
   if (cds <= 0.40) return "moderate";
   if (cds <= 0.60) return "high";

@@ -40,7 +40,6 @@ function errorHandler(err, req, res, next) {
     return res.status(409).json({
       code: 'CONFLICT',
       message: 'Resource already exists',
-      details: err.detail,
     });
   }
 
@@ -49,7 +48,6 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({
       code: 'FK_VIOLATION',
       message: 'Referenced resource does not exist',
-      details: err.detail,
     });
   }
 
@@ -58,7 +56,6 @@ function errorHandler(err, req, res, next) {
     return res.status(400).json({
       code: 'CHECK_VIOLATION',
       message: 'Value violates a check constraint',
-      details: err.detail,
     });
   }
 

@@ -1,0 +1,19 @@
+[Unit]
+Description=CodeInsight Backend
+Documentation=https://github.com/psu/codeinsight
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=forking
+User=node
+WorkingDirectory=/opt/codeinsight/backend
+ExecStart=/usr/bin/pm2 start /opt/codeinsight/backend/ecosystem.config.js
+ExecReload=/usr/bin/pm2 reload /opt/codeinsight/backend/ecosystem.config.js
+ExecStop=/usr/bin/pm2 stop /opt/codeinsight/backend/ecosystem.config.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

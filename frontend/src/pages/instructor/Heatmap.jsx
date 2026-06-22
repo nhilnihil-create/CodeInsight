@@ -28,7 +28,6 @@ function lerpColor(c1, c2, t) {
 function cdsColor(cds) {
   if (cds == null) return { bg: 'rgba(15,23,42,0.6)', text: 'text-slate-500', label: 'No Data' };
   const v = Math.max(0, Math.min(1, Number(cds)));
-  if (v === 0) return { bg: 'rgba(15,23,42,0.6)', text: 'text-slate-500', label: 'No Data' };
 
   const stops = [
     { pos: 0.00, rgb: [26, 95, 80] },
@@ -70,8 +69,7 @@ function cdsColor(cds) {
 
 const CDS_TIERS = [
   { min: -1,   max: -1,   label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
-  { min: 0.00, max: 0.00, label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
-  { min: 0.01, max: 0.20, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500',        text: 'text-slate-500' },
+  { min: 0.00, max: 0.20, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500',        text: 'text-slate-500' },
   { min: 0.21, max: 0.40, label: 'Low',       cell: 'bg-emerald-500/20 text-emerald-400',    text: 'text-emerald-400' },
   { min: 0.41, max: 0.60, label: 'Moderate',  cell: 'bg-amber-500/20 text-amber-400',        text: 'text-amber-400' },
   { min: 0.61, max: 0.80, label: 'High',      cell: 'bg-orange-500/25 text-orange-400',      text: 'text-orange-400' },
@@ -82,8 +80,7 @@ function cdsTier(cds) {
   if (cds == null) return CDS_TIERS[0];
   const v = Number(cds);
   if (Number.isNaN(v)) return CDS_TIERS[0];
-  if (v === 0) return CDS_TIERS[1];
-  for (let i = 2; i < CDS_TIERS.length; i++) {
+  for (let i = 1; i < CDS_TIERS.length; i++) {
     if (v >= CDS_TIERS[i].min && v <= CDS_TIERS[i].max) return CDS_TIERS[i];
   }
   return CDS_TIERS[CDS_TIERS.length - 1];

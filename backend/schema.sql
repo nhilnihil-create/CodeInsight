@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS concepts (
 );
 
 -- ── Exercises ───────────────────────────────────────────────────────────────
--- V2 additions: rubric_config, is_validated, search_vector
+-- V2 additions: is_validated, search_vector
 
 CREATE TABLE IF NOT EXISTS exercises (
   id                SERIAL PRIMARY KEY,
@@ -95,13 +95,14 @@ CREATE TABLE IF NOT EXISTS exercises (
   track_nts         BOOLEAN DEFAULT true,
   auto_alert        BOOLEAN DEFAULT true,
   closed_at         TIMESTAMP,
-  rubric_config     JSONB DEFAULT '{}',
   is_validated      BOOLEAN DEFAULT false,
   search_vector     tsvector,
   created_at        TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_exercises_search ON exercises USING gin(search_vector);
+CREATE INDEX IF NOT EXISTS idx_exercises_section ON exercises(section_id);
+CREATE INDEX IF NOT EXISTS idx_exercises_concept ON exercises(concept_id);
 
 -- ── Exercise Concepts (V2) ──────────────────────────────────────────────────
 -- Many-to-many: exercises can have secondary concept tags
@@ -138,31 +139,6 @@ CREATE TABLE IF NOT EXISTS concept_dependencies (
   weight DECIMAL(3,2) DEFAULT 1.0,
   PRIMARY KEY (parent_concept_id, child_concept_id),
   CONSTRAINT no_self_dependency CHECK (parent_concept_id != child_concept_id)
-);
-
--- ── Learning Outcomes (V2 - Migration 010) ──────────────────────────────────
--- Instructor-defined curriculum outcomes mapped to universal concepts
-
-CREATE TABLE IF NOT EXISTS learning_outcomes (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(200) NOT NULL,
-  description TEXT,
-  bloom_level VARCHAR(20) DEFAULT 'apply',
-  created_by INT REFERENCES users(id),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS outcome_concept_map (
-  outcome_id INT NOT NULL REFERENCES learning_outcomes(id) ON DELETE CASCADE,
-  concept_id INT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
-  weight DECIMAL(3,2) DEFAULT 1.0,
-  PRIMARY KEY (outcome_id, concept_id)
-);
-
-CREATE TABLE IF NOT EXISTS section_active_outcomes (
-  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-  outcome_id INT NOT NULL REFERENCES learning_outcomes(id) ON DELETE CASCADE,
-  PRIMARY KEY (section_id, outcome_id)
 );
 
 -- ── Analytics Alerts (V2 - Migration 010) ───────────────────────────────────
@@ -229,7 +205,6 @@ CREATE TABLE IF NOT EXISTS exercise_bank (
   test_cases  JSONB NOT NULL DEFAULT '[]',
   starter_code TEXT,
   sample_solution TEXT,
-  rubric_config JSONB DEFAULT '{}',
   is_validated BOOLEAN DEFAULT false,
   created_at  TIMESTAMP DEFAULT NOW()
 );
@@ -237,7 +212,7 @@ CREATE TABLE IF NOT EXISTS exercise_bank (
 CREATE INDEX IF NOT EXISTS idx_exercise_bank_concept ON exercise_bank(concept);
 
 -- ── Submissions ─────────────────────────────────────────────────────────────
--- V2 additions: is_practice, cppcheck_warnings, submitted_at, behavioral tracking
+-- V2 additions: cppcheck_warnings, submitted_at, behavioral tracking
 
 CREATE TABLE IF NOT EXISTS submissions (
   id                SERIAL PRIMARY KEY,
@@ -255,7 +230,6 @@ CREATE TABLE IF NOT EXISTS submissions (
   is_verified       BOOLEAN DEFAULT true,
   verification_note TEXT,
   code_growth_delta INT DEFAULT 0,
-  is_practice       BOOLEAN DEFAULT false,
   cppcheck_warnings JSONB DEFAULT '[]',
   tab_switch_count  INT DEFAULT 0,
   paste_count       INT DEFAULT 0,
@@ -264,6 +238,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   created_at        TIMESTAMP DEFAULT NOW(),
   test_feedback_hints JSONB DEFAULT '[]'
 );
+
+CREATE INDEX IF NOT EXISTS idx_submissions_student_exercise ON submissions(student_id, exercise_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_exercise ON submissions(exercise_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON submissions(submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_submissions_exercise_correct ON submissions(exercise_id, is_correct);
 
 -- ── CDS Scores ──────────────────────────────────────────────────────────────
 
@@ -284,6 +264,9 @@ CREATE TABLE IF NOT EXISTS cds_scores (
   computed_at    TIMESTAMP DEFAULT NOW(),
   UNIQUE(student_id, exercise_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_cds_scores_section ON cds_scores(section_id);
+CREATE INDEX IF NOT EXISTS idx_cds_scores_exercise_section ON cds_scores(exercise_id, section_id);
 
 -- ── CDS Snapshots (V2) ──────────────────────────────────────────────────────
 -- Append-only audit trail for CDS reproducibility
@@ -324,6 +307,9 @@ CREATE TABLE IF NOT EXISTS alerts (
   UNIQUE(student_id, exercise_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_alerts_section ON alerts(section_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_reviewed ON alerts(is_reviewed);
+
 -- ── Integrity Flags ─────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS integrity_flags (
@@ -342,6 +328,8 @@ CREATE TABLE IF NOT EXISTS integrity_flags (
   created_at          TIMESTAMP DEFAULT NOW(),
   UNIQUE(exercise_id, student_id, flag_type)
 );
+
+CREATE INDEX IF NOT EXISTS idx_integrity_flags_section_status ON integrity_flags(section_id, status);
 
 -- ── Verification Logs ───────────────────────────────────────────────────────
 
@@ -429,6 +417,7 @@ CREATE TABLE IF NOT EXISTS behavioral_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_behavioral_events_student_exercise ON behavioral_events(student_id, exercise_id);
+CREATE INDEX IF NOT EXISTS idx_behavioral_events_lookup ON behavioral_events(student_id, exercise_id, event_type);
 
 -- ── Section Audit Log (V2) ──────────────────────────────────────────────────
 

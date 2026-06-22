@@ -7,6 +7,15 @@ const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { AppError, codes } = require('../lib/AppError');
+const { rateLimit } = require('express-rate-limit');
+
+const behavioralLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests. Please slow down.' },
+});
 
 // Get all exercises for enrolled sections
 router.get('/exercises', verifyToken, requireRole('student'), async (req, res, next) => {
@@ -106,9 +115,17 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
       }];
     }
 
+    const visibleResults = results.filter(r => !r.hidden);
+    const hiddenResults = results.filter(r => r.hidden);
+    const hiddenSummary = {
+      count: hiddenResults.length,
+      passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true,
+    };
+
     res.json({
       passed: results.every(r => r.passed),
-      testResults: results,
+      testResults: visibleResults,
+      hidden: hiddenSummary,
       compilerError,
       microConceptFeedback: null,
     });
@@ -416,80 +433,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 });
 
 // ▶ PRACTICE — save attempt without impacting CDS analytics (post-completion)
-router.post('/exercises/:id/practice', verifyToken, requireRole('student'), async (req, res, next) => {
-  try {
-    const { code, timeSpentSeconds } = req.body;
-    if (!code) throw new AppError('Code required', 400, codes.VALIDATION);
 
-    const exRes = await db.query('SELECT * FROM exercises WHERE id = $1', [req.params.id]);
-    if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
-    const exercise = exRes.rows[0];
-    if (exercise.closed_at) throw new AppError('Exercise is closed', 400, codes.VALIDATION);
-
-    // Verify the student has already completed this exercise (practice = post-completion)
-    const completedRes = await db.query(
-      `SELECT id FROM submissions
-       WHERE student_id = $1 AND exercise_id = $2 AND is_correct = true
-       LIMIT 1`,
-      [req.user.id, req.params.id]
-    );
-    if (!completedRes.rows.length) {
-      throw new AppError('Exercise must be completed before practice submission', 403, codes.VALIDATION);
-    }
-
-    const allTestCases = typeof exercise.test_cases === 'string'
-      ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
-
-    let allResults = [];
-    let visibleResults = [];
-    let passed = false;
-    let compilerError = null;
-
-    try {
-      allResults = await runAgainstTestCases(code, allTestCases, exercise.time_limit_minutes * 60, false);
-      const compileErrorResult = allResults.find(r => r.status === 'Compile Error');
-      if (compileErrorResult) compilerError = compileErrorResult.error;
-      passed = allResults.every(r => r.passed);
-      visibleResults = allResults.filter(r => !r.hidden);
-    } catch (execErr) {
-      compilerError = execErr.message;
-    }
-
-    const attemptRes = await db.query(
-      'SELECT COUNT(*)::int AS count FROM submissions WHERE exercise_id = $1 AND student_id = $2',
-      [req.params.id, req.user.id]
-    );
-    const attempt_number = (attemptRes.rows[0].count || 0) + 1;
-
-    // Save with is_practice = true (no CDS impact)
-    const subRes = await db.query(`
-      INSERT INTO submissions
-        (exercise_id, student_id, code, is_correct, attempt_number, time_spent_seconds, is_practice, submitted_at)
-      VALUES ($1, $2, $3, $4, $5, $6, true, NOW())
-      RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
-    `, [exercise.id, req.user.id, code, passed, attempt_number, timeSpentSeconds || 0]);
-
-    // Log practice attempt in audit trail
-    await db.query(
-      `INSERT INTO audit_log (student_id, exercise_id, event_type, metadata, occurred_at)
-       VALUES ($1, $2, 'submission_attempted', $3, NOW())`,
-      [req.user.id, req.params.id, JSON.stringify({
-        attempt_number, is_practice: true,
-        code_length: code.length, time_spent_seconds: timeSpentSeconds || 0
-      })]
-    );
-
-    res.status(201).json({
-      ...subRes.rows[0],
-      passed: subRes.rows[0].is_correct,
-      testResults: visibleResults,
-      compilerError,
-      hiddenTestCount: allTestCases.filter(tc => tc.hidden).length,
-      isPractice: true,
-      message: 'Practice attempt saved (does not affect CDS)',
-    });
-  } catch (err) { next(err); }
-});
 
 router.get('/exercises/:id/attempts', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
@@ -553,9 +497,8 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
          FROM submissions s
          JOIN exercises ex2 ON s.exercise_id = ex2.id
          JOIN enrollments en2 ON en2.section_id = ex2.section_id
-         WHERE s.student_id = $1 AND s.is_correct = true
-           AND s.is_practice IS NOT TRUE
-           AND en2.student_id = $1
+          WHERE s.student_id = $1 AND s.is_correct = true
+            AND en2.student_id = $1
         ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
@@ -765,7 +708,7 @@ router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, 
 // Receives browser-side telemetry: tab switches, paste events, idle time.
 // Stores in behavioral_events table for instructor context.
 
-router.post('/behavioral-events', verifyToken, requireRole('student'), async (req, res, next) => {
+router.post('/behavioral-events', behavioralLimiter, verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const studentId = req.user.id;
     const { exerciseId, events } = req.body;
@@ -973,7 +916,6 @@ router.get('/stats', verifyToken, requireRole('student'), async (req, res, next)
       JOIN exercises ex ON s.exercise_id = ex.id
       JOIN enrollments en ON en.section_id = ex.section_id
       WHERE s.student_id = $1 AND s.is_correct = true
-        AND s.is_practice IS NOT TRUE
         AND en.student_id = $1
     `, [req.user.id]);
     const total = totalRes.rows[0].total || 0;
@@ -1036,7 +978,89 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       };
     });
 
-    // 2. Exercise completion percentage (activity, not mastery)
+    // 2a. Trajectory analysis — smart, deterministic, handles edge cases
+    const trajectory = (() => {
+      // ── Empty state (no concepts at all) ────────────────────────
+      if (masteryConcepts.length === 0) {
+        return {
+          message: 'Complete an exercise to get your first concept assessment.',
+          tone: 'neutral',
+          actionLabel: 'Start exercising',
+          actionTo: '/student/exercises',
+          detail: null,
+        };
+      }
+
+      // ── Group: all concepts at 100% mastery ─────────────────────
+      const allAtMax = masteryConcepts.every(c => c.mastery >= 100);
+      if (allAtMax) {
+        return {
+          message: 'You have mastered every concept! Outstanding work.',
+          tone: 'celebratory',
+          actionLabel: 'Review exercises',
+          actionTo: '/student/exercises',
+          detail: `Difficulty scores: ${masteryConcepts.map(c => `${c.concept_name} ${c.cds.toFixed(2)}`).join(' · ')}`,
+        };
+      }
+
+      // ── Sort: weakest first, stable sort ────────────────────────
+      const sorted = [...masteryConcepts].sort((a, b) => a.mastery - b.mastery);
+      const weakest = sorted[0];
+      const secondWeakest = sorted[1] || null;
+      const gap = secondWeakest ? secondWeakest.mastery - weakest.mastery : 0;
+
+      // ── Single concept only ─────────────────────────────────────
+      if (masteryConcepts.length === 1) {
+        const msg = weakest.mastery >= 85
+          ? `Your progress on ${weakest.concept_name} is strong at ${weakest.mastery}%.`
+          : `Keep practicing ${weakest.concept_name} — you're at ${weakest.mastery}% mastery.`;
+        return {
+          message: msg,
+          tone: weakest.mastery >= 85 ? 'positive' : 'constructive',
+          actionLabel: `Practice ${weakest.concept_name}`,
+          actionTo: '/student/exercises',
+          detail: `Difficulty score: ${weakest.cds.toFixed(2)} · ${weakest.exerciseCount} exercise${weakest.exerciseCount !== 1 ? 's' : ''}`,
+        };
+      }
+
+      // ── Multiple concepts: tier the message by gap + mastery ────
+      const isTightRace = gap < 5;
+      const isNearlyMastered = weakest.mastery >= 85;
+
+      let message;
+      let tone;
+      let actionLabel;
+      let detailBase;
+
+      if (isNearlyMastered) {
+        message = `Strong overall progress. ${weakest.concept_name} is your lowest at ${weakest.mastery}% — slight room to grow.`;
+        tone = 'positive';
+        actionLabel = `Practice ${weakest.concept_name}`;
+        detailBase = `Difficulty score: ${weakest.cds.toFixed(2)}`;
+      } else if (isTightRace) {
+        const focusAreas = sorted.filter(c => c.mastery <= sorted[0].mastery + 4).map(c => c.concept_name);
+        message = `Focus areas: ${focusAreas.join(', ')}. Strongest concept: ${sorted[sorted.length - 1].concept_name} at ${sorted[sorted.length - 1].mastery}%.`;
+        tone = 'constructive';
+        actionLabel = 'Practice focus area';
+        actionTo = '/student/exercises';
+        detailBase = `${weakest.concept_name} difficulty: ${weakest.cds.toFixed(2)} · gap to next: ${gap.toFixed(0)}pp`;
+      } else {
+        message = `${weakest.concept_name} needs attention at ${weakest.mastery}% mastery. Your overall mastery is ${overallMastery}%.`;
+        tone = 'constructive';
+        actionLabel = `Practice ${weakest.concept_name}`;
+        detailBase = `Difficulty score: ${weakest.cds.toFixed(2)} · gap to next: ${gap.toFixed(0)}pp`;
+      }
+
+      return {
+        message,
+        tone,
+        actionLabel: actionLabel || `Practice ${weakest.concept_name}`,
+        actionTo: actionTo || '/student/exercises',
+        detail: `${detailBase} · Trends: ${sorted.filter(c => (c.delta ?? 0) > 0).length} improving, ${sorted.filter(c => (c.delta ?? 0) < 0).length} declining`,
+      };
+    })();
+
+    // 2b. Exercise completion percentage (activity, not mastery)
     const completionRes = await db.query(`
       SELECT COUNT(DISTINCT ex.id)::int AS total,
              (SELECT COUNT(DISTINCT s.exercise_id)::int
@@ -1044,8 +1068,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
               JOIN exercises ex2 ON s.exercise_id = ex2.id
               JOIN enrollments en2 ON en2.section_id = ex2.section_id
               WHERE s.student_id = $1 AND s.is_correct = true
-                AND s.is_practice IS NOT TRUE
-                AND en2.student_id = $1
+                 AND en2.student_id = $1
              ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
@@ -1078,6 +1101,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       },
       avgAttempts: Math.round(avgAttempts * 10) / 10,
       concepts: masteryConcepts,
+      trajectory,
     });
   } catch (err) { next(err); }
 });

@@ -33,7 +33,6 @@ const exerciseCreate = Joi.object({
   starter_code: Joi.string().allow('', null).max(20000).optional(),
   reference_solution: Joi.string().allow('', null).max(20000).optional(),
   concept_ids: Joi.array().items(Joi.string().trim().min(1).max(100)).optional(), // secondary concepts
-  rubric_config: Joi.object().pattern(Joi.string(), Joi.number().min(0).max(100)).default({}),
 });
 
 const exerciseUpdate = Joi.object({
@@ -48,7 +47,6 @@ const exerciseUpdate = Joi.object({
   track_nts: Joi.boolean().optional(),
   auto_alert: Joi.boolean().optional(),
   starter_code: Joi.string().allow('', null).max(20000).optional(),
-  rubric_config: Joi.object().optional(),
 });
 
 const sectionCreate = Joi.object({
@@ -176,10 +174,10 @@ const bulkImportCSV = Joi.object({
 
 const bulkPublish = Joi.object({
   section_id: id.required(),
-  bank_ids: Joi.array().items(Joi.string().uuid()).min(1).max(50).required(),
+  bank_ids: Joi.array().items(Joi.number().integer().positive()).min(1).max(50).required(),
   deadline: Joi.alternatives(Joi.date().iso(), Joi.string().allow(null, '')).optional(),
   time_limit_overrides: Joi.object().pattern(
-    Joi.string().uuid(),
+    Joi.number().integer().positive(),
     Joi.number().integer().min(1).max(600)
   ).optional(),
 });

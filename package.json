@@ -1,5 +1,8 @@
 {
   "scripts": {
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
     "test:simulation": "npm run test --prefix simulation",
     "test:e2e": "npx playwright test --config=playwright.config.js",
     "test:full": "npm run test:simulation && npm run test:e2e",

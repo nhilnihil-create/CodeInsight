@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, UserPlus, Shield, User, Pencil, Trash2, KeyRound } from 'lucide-react';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 import api from '../../services/api';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -193,47 +193,54 @@ export default function AdminUsers() {
 
       {error && <p className="text-xs text-destructive">Failed to load: {error}</p>}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
-                <th className="border-b border-border px-3 py-2.5 text-left text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Email</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Role</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Joined</th>
-                <th className="border-b border-border px-3 py-2.5 text-center text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="5" className="px-3 py-6 text-center text-muted-foreground">Loading users…</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="5" className="px-3 py-6 text-center text-muted-foreground">No users found.</td></tr>
-              ) : filtered.map(u => (
-                <tr key={u.id} className="border-b border-border/60 last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2.5 font-semibold text-foreground">{u.name}</td>
-                  <td className="px-3 py-2.5 text-muted-foreground">{u.email}</td>
-                  <td className="px-3 py-2.5 text-center">
-                    <Badge variant="outline" className={cn('text-[9px]', u.role === 'admin' ? 'border-purple-500/30 text-purple-500' : u.role === 'instructor' ? 'border-blue-500/30 text-blue-500' : 'border-emerald-500/30 text-emerald-500')}>
-                      {u.role === 'admin' ? <Shield className="mr-1 h-2.5 w-2.5" /> : <User className="mr-1 h-2.5 w-2.5" />}
-                      {u.role}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2.5 text-center text-muted-foreground">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
-                  <td className="px-3 py-2.5 text-center">
-                    <div className="inline-flex gap-1">
-                      <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={() => openEdit(u)}><Pencil className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={() => setResetTarget(u)}><KeyRound className="h-3 w-3" /></Button>
-                      <Button variant="ghost" size="sm" className="h-6 text-[9px] text-destructive" onClick={() => handleDelete(u)}><Trash2 className="h-3 w-3" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="py-16 text-center text-muted-foreground text-sm">
+          <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+          Loading users…
         </div>
-      </Card>
+      ) : (
+        <ResponsiveTable
+          columns={[
+            { key: 'name', header: 'Name', mobile: 'primary',
+              renderCell: (u) => <span className="font-semibold text-foreground">{u.name}</span>,
+            },
+            { key: 'email', header: 'Email', mobile: 'label',
+              renderCell: (u) => <span className="text-muted-foreground">{u.email}</span>,
+            },
+            { key: 'role', header: 'Role', mobile: 'label',
+              renderCell: (u) => (
+                <Badge variant="outline" className={cn('text-[9px]', u.role === 'admin' ? 'border-purple-500/30 text-purple-500' : u.role === 'instructor' ? 'border-blue-500/30 text-blue-500' : 'border-emerald-500/30 text-emerald-500')}>
+                  {u.role === 'admin' ? <Shield className="mr-1 h-2.5 w-2.5" /> : <User className="mr-1 h-2.5 w-2.5" />}
+                  {u.role}
+                </Badge>
+              ),
+              renderMobileCell: (u) => <span className="capitalize">{u.role}</span>,
+            },
+            { key: 'joined', header: 'Joined', mobile: 'hidden',
+              renderCell: (u) => <span className="text-muted-foreground">{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</span>,
+            },
+            { key: 'actions', header: 'Actions', mobile: 'actions',
+              renderCell: (u) => (
+                <div className="inline-flex gap-1 justify-center w-full">
+                  <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={(e) => { e.stopPropagation(); openEdit(u); }}><Pencil className="h-3 w-3" /></Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[9px]" onClick={(e) => { e.stopPropagation(); setResetTarget(u); }}><KeyRound className="h-3 w-3" /></Button>
+                  <Button variant="ghost" size="sm" className="h-6 text-[9px] text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(u); }}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ),
+              renderMobileCell: (u) => (
+                <div className="flex gap-2 w-full">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={(e) => { e.stopPropagation(); openEdit(u); }}>Edit</Button>
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={(e) => { e.stopPropagation(); setResetTarget(u); }}>Reset</Button>
+                  <Button variant="ghost" size="sm" className="flex-1 text-xs text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(u); }}>Delete</Button>
+                </div>
+              ),
+            },
+          ]}
+          data={filtered}
+          keyExtractor={(u) => String(u.id)}
+          emptyMessage="No users found."
+        />
+      )}
     </div>
   );
 }

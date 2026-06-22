@@ -219,31 +219,7 @@ test.describe('Instructor Workflow - 25 Steps', () => {
     ]);
   });
 
-  test('Step 14: Custom Tags', async ({ page }) => {
-    await loginInstructor(page);
-    if (!SECTION_ID) return;
-    await page.goto(BASE_URL + '/instructor/sections/' + SECTION_ID + '/custom-tags');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
-    await screenshot(page, 'instructor_14_custom_tags');
-    await check(page, 'Custom Tags', [
-      { name: 'Tags page loaded', verify: async (p) => {
-        const body = await p.evaluate(() => document.body.textContent);
-        return body.includes('Tag') || body.includes('tag') || body.includes('custom') || body.includes('No custom tags');
-      }},
-    ]);
-  });
-
-  test('Step 15: Custom Heatmap', async ({ page }) => {
-    await loginInstructor(page);
-    if (!SECTION_ID) return;
-    await page.goto(BASE_URL + '/instructor/sections/' + SECTION_ID + '/custom-heatmap');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
-    await screenshot(page, 'instructor_15_custom_heatmap');
-  });
-
-  test('Step 16: Structure Violations', async ({ page }) => {
+  test('Step 14: Structure Violations', async ({ page }) => {
     await loginInstructor(page);
     if (!SECTION_ID) return;
     await page.goto(BASE_URL + '/instructor/sections/' + SECTION_ID + '/structure-violations');

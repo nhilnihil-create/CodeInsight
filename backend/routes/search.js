@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const logger = require('../lib/logger');
 const { verifyToken, requireRole } = require('../middleware/auth');
 
 // Global search across exercises, students, sections
-router.get('/', verifyToken, async (req, res) => {
+router.get('/', verifyToken, async (req, res, next) => {
   try {
     const { q, type, concept, section_id } = req.query;
 
@@ -59,7 +60,8 @@ router.get('/', verifyToken, async (req, res) => {
 
     res.json(results);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err }, 'Search failed');
+    next(err);
   }
 });
 

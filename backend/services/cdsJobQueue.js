@@ -1,21 +1,46 @@
 const db = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
 const nodemailer = require('nodemailer');
+const logger = require('../lib/logger');
 
 let isWorkerRunning = false;
 let pollingInterval = null;
+let cleanupInterval = null;
 const POLL_INTERVAL_MS = 1000;
+
+// In-memory dedup: tracks exercise_id -> last notification timestamp.
+// Prevents spamming students when N submissions trigger N CDS recomputations
+// for the same exercise in quick succession.
+const lastNotifiedAt = new Map();
+const NOTIFICATION_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const MAP_CLEANUP_INTERVAL_MS = 30 * 60 * 1000; // Clean stale entries every 30min
 
 // Start background polling for pending jobs
 function startPolling() {
   if (pollingInterval) return;
   pollingInterval = setInterval(processQueue, POLL_INTERVAL_MS);
+  // Periodic cleanup of stale notification entries
+  cleanupInterval = setInterval(() => {
+    const cutoff = Date.now() - NOTIFICATION_COOLDOWN_MS * 2;
+    let removed = 0;
+    for (const [key, ts] of lastNotifiedAt) {
+      if (ts < cutoff) {
+        lastNotifiedAt.delete(key);
+        removed++;
+      }
+    }
+    if (removed > 0) logger.trace({ removed }, 'Cleaned stale notification entries');
+  }, MAP_CLEANUP_INTERVAL_MS);
 }
 
 function stopPolling() {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+  }
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
   }
 }
 
@@ -50,7 +75,7 @@ const processQueue = async () => {
           [job.id]
         );
       } catch (error) {
-        console.error('Background job failed:', error);
+        logger.error({ err: error, exerciseId: job.exercise_id }, 'CDS background job failed');
         await db.query(
           `UPDATE cds_job_queue SET status = 'failed', finished_at = NOW(), error = $1 WHERE id = $2`,
           [error.message, job.id]
@@ -58,7 +83,7 @@ const processQueue = async () => {
       }
     }
   } catch (error) {
-    console.error('Queue processing error:', error);
+    logger.error({ err: error }, 'Queue processing error');
   } finally {
     isWorkerRunning = false;
   }
@@ -74,9 +99,16 @@ exports.enqueueCdsComputation = (exerciseId) => {
 };
 
 /**
- * Notify students about CDS computation via email
+ * Notify students about CDS computation via email.
+ * Deduplicates: skips notification if one was already sent within NOTIFICATION_COOLDOWN_MS
+ * for the same exercise. Set force=true to bypass dedup.
  */
-const notifyStudent = async (exerciseId, message) => {
+const notifyStudent = async (exerciseId, message, force = false) => {
+  if (!force) {
+    const lastTime = lastNotifiedAt.get(exerciseId);
+    if (lastTime && Date.now() - lastTime < NOTIFICATION_COOLDOWN_MS) return;
+  }
+
   try {
     const exerciseRes = await db.query(
       `SELECT section_id FROM exercises WHERE id = $1`,
@@ -98,8 +130,8 @@ const notifyStudent = async (exerciseId, message) => {
       [sectionId]
     );
 
-    console.log(`[Notification] Exercise ${exerciseId}: ${message}`);
-    console.log(`  Recipients: ${studentsRes.rows.length} students in section ${sectionId}`);
+    lastNotifiedAt.set(exerciseId, Date.now());
+    logger.info({ exerciseId, sectionId, recipientCount: studentsRes.rows.length }, `Notification: ${message}`);
 
     // Send emails if enabled and configured
     const emailEnabled = process.env.EMAIL_ENABLED &&
@@ -107,17 +139,17 @@ const notifyStudent = async (exerciseId, message) => {
 
     if (emailEnabled) {
       if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('[Notification] Email credentials incomplete - skipping email notifications');
+        logger.warn('Email credentials incomplete - skipping email notifications');
       } else {
-        console.log('[Notification] Attempting to send email notifications...');
+        logger.info('Attempting to send email notifications...');
         await sendEmailNotifications(studentsRes.rows, message, exerciseId);
-        console.log('[Notification] Email notifications processed');
+        logger.info('Email notifications processed');
       }
     } else {
-      console.log('[Notification] Email notifications disabled (EMAIL_ENABLED not set to true value)');
+      logger.info('Email notifications disabled (EMAIL_ENABLED not set to true value)');
     }
   } catch (err) {
-    console.error('Error in notifyStudent:', err);
+    logger.error({ err }, 'Error in notifyStudent');
   }
 };
 
@@ -171,17 +203,20 @@ CodeInsight Team
 
     for (const [i, result] of results.entries()) {
       if (result.status === 'fulfilled') {
-        console.log(`Email sent to ${students[i].email} (${students[i].name})`);
+        logger.info({ email: students[i].email }, 'Email sent');
       } else {
-        console.error(`Failed to send email to ${students[i].email}:`, result.reason);
+        logger.error({ err: result.reason, email: students[i].email }, 'Failed to send email');
       }
     }
   } catch (err) {
-    console.error('Error sending email notifications:', err);
+    logger.error({ err }, 'Error sending email notifications');
   }
 }
 
 exports.processQueue = processQueue;
 exports.stopPolling = stopPolling;
+exports.notifyStudent = notifyStudent;
+exports.lastNotifiedAt = lastNotifiedAt;
+exports.NOTIFICATION_COOLDOWN_MS = NOTIFICATION_COOLDOWN_MS;
 
 // Polling is started lazily when the first job is enqueued

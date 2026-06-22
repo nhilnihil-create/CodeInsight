@@ -14,12 +14,11 @@ const { Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const executor = require('../services/executor');
 const astVerifier = require('../services/astVerifier');
-const academicIntegrityEngine = require('../services/academicIntegrityEngine');
-const integrityFlagEngine = require('../services/integrityFlagEngine');
 const conceptAnalytics = require('../services/conceptAnalytics');
 const { gradeSubmission } = require('../services/streamMatcher');
 
 const db = require('../config/db');
+const { runAcademicIntegrityChecks, runBehavioralChecks } = require('../lib/submissionPipeline');
 
 function countTokens(code) {
   if (!code) return 0;
@@ -117,21 +116,13 @@ async function createWorker() {
       await job.updateProgress(80);
 
       // Academic integrity checks (paper flags 1 & 2: hardcoding, blank template)
+      // Uses shared pipeline with graduated flagging — matches sync controller behavior.
       try {
-        const flags = await academicIntegrityEngine.evaluateIntegrity({
+        await runAcademicIntegrityChecks({
           code, starterCode: exercise.starter_code || '', studentId, exerciseId,
           submission: { is_correct: allPassed, test_results: tcResults, time_spent_seconds: timeSpentSeconds || 0, submission_id: savedSubmissionId },
-          exercise,
+          exercise, submissionId: savedSubmissionId,
         });
-
-        for (const flag of flags) {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id, exerciseId, studentId,
-            flagType: flag.type, severity: flag.severity,
-            evidence: flag.evidence || {}, contextBehaviors: flag.context_behaviors || [],
-            status: 'flagged', submissionId: savedSubmissionId,
-          });
-        }
       } catch (err) {
         console.warn('[Worker] Academic integrity check failed:', err.message);
       }
@@ -139,27 +130,16 @@ async function createWorker() {
       await job.updateProgress(90);
 
       // Behavioral anomaly detection (paper flag 3: instant success, extreme speed)
+      // Uses shared pipeline with graduated flagging — matches sync controller behavior.
       try {
-        const behavioralDetector = require('../services/behavioralAnomalyDetector');
-        const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
-          studentId,
-          exerciseId,
+        await runBehavioralChecks({
+          studentId, exerciseId,
           submissionId: savedSubmissionId,
           is_correct: allPassed,
           time_spent_seconds: timeSpentSeconds || 0,
-          attempt_number: 0, // worker doesn't have attempt_number readily; detector will query
+          attempt_number: 0,
           sectionId: exercise.section_id,
         });
-
-        for (const flag of behavioralFlags) {
-          await integrityFlagEngine.createFlag({
-            sectionId: exercise.section_id, exerciseId, studentId,
-            flagType: flag.type, severity: flag.severity,
-            evidence: flag.evidence || {},
-            contextBehaviors: flag.context_behaviors || [],
-            status: 'flagged', submissionId: savedSubmissionId,
-          });
-        }
       } catch (err) {
         console.warn('[Worker] Behavioral anomaly detection failed:', err.message);
       }

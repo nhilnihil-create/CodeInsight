@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Code2, TerminalSquare, FileText } from "lucide-react";
+import { Code2, TerminalSquare, FileText, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import InstructionsPanel from "./InstructionsPanel";
 import CodeEditorSurface from "./CodeEditorSurface";
@@ -9,7 +9,7 @@ import OutputPanel from "./OutputPanel";
 
 /**
  * MobileEditorTabs
- * Mobile-only 3-tab switcher: Code | Output | Problem.
+ * Mobile-only 4-tab switcher: Code | Output | Problem | History.
  * Renders the correct panel based on `activeTab`. Full height minus
  * the header and the mobile action bar.
  *
@@ -18,9 +18,10 @@ import OutputPanel from "./OutputPanel";
  * Tokens only.
  */
 const TABS = [
-  { id: "code",    label: "Code",    icon: Code2 },
-  { id: "output",  label: "Output",  icon: TerminalSquare },
-  { id: "problem", label: "Problem", icon: FileText },
+  { id: "code",     label: "Code",     icon: Code2 },
+  { id: "output",   label: "Output",   icon: TerminalSquare },
+  { id: "problem",  label: "Problem",  icon: FileText },
+  { id: "history",  label: "History",  icon: Clock },
 ];
 
 export default function MobileEditorTabs({
@@ -82,6 +83,12 @@ export default function MobileEditorTabs({
               programOutput={programOutput}
             />
           </div>
+        ) : activeTab === "history" ? (
+          <SubmissionsPanel
+            exercise={exercise}
+            submissions={submissions}
+            history={history}
+          />
         ) : (
           <ProblemContent exercise={exercise} testResults={testResults} />
         )}

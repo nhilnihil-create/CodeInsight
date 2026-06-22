@@ -131,8 +131,6 @@ async function personaStudentStruggling() {
   assert(true, 'CDS score visible after exercise closes',
     'GET /api/cds-scores returns score + classification for closed exercises', 'high');
 
-  assert(true, 'Practice submissions do not affect CDS',
-    'is_practice flag prevents CDS computation for practice mode', 'medium');
 }
 
 // ── Persona: Admin Lee ──────────────────────────────────────────────────

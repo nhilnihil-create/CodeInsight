@@ -7,7 +7,6 @@ import EditorHeader from "./editor/EditorHeader";
 import ResizableWorkbench from "./editor/ResizableWorkbench";
 import MobileEditorTabs from "./editor/MobileEditorTabs";
 import EditorActionBar from "./editor/EditorActionBar";
-import RubricScorecard from "./components/RubricScorecard";
 
 const TAB_DEFAULT = "code";
 
@@ -102,7 +101,6 @@ export default function StudentCodeEditor() {
   const [exercise, setExercise] = useState(null);
   const [code, setCode] = useState("");
   const [testResults, setTestResults] = useState(null);
-  const [rubricScore, setRubricScore] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [history, setHistory] = useState([]);
   const [activeElapsedSeconds, setActiveElapsedSeconds] = useState(0);
@@ -306,9 +304,6 @@ export default function StudentCodeEditor() {
         setTestResults(transformTestResults(data.testResults, data.compilerError));
       }
       if (data.allPassed) setIsSolved(true);
-      if (data.rubricScore) {
-        setRubricScore(data.rubricScore);
-      }
       if (data.preCheckHints) {
         setPreCheckHints(data.preCheckHints);
       }
@@ -408,14 +403,6 @@ export default function StudentCodeEditor() {
         onSubmit={isCompleted ? undefined : handleSubmit}
         onBack={handleBack}
       />
-
-      {rubricScore && (
-        <div className="px-4 py-2 border-b border-white/[0.05] bg-[#131B2E]/40 backdrop-blur-md shrink-0">
-          <div className="max-w-3xl mx-auto">
-            <RubricScorecard rubricScore={rubricScore} />
-          </div>
-        </div>
-      )}
 
       <div className="hidden lg:flex flex-1 w-full overflow-hidden h-[calc(100vh-56px)]">
         <ResizableWorkbench

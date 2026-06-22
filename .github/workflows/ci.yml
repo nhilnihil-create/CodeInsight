@@ -232,6 +232,18 @@ jobs:
             echo "WARNING: No ESLint config found"
           fi
 
+      - name: npm audit (production dependencies)
+        run: |
+          backend_audit=$(cd backend && npm audit --audit-level=high 2>&1 || true)
+          echo "Backend audit:"
+          echo "$backend_audit"
+          frontend_audit=$(cd frontend && npm audit --audit-level=high 2>&1 || true)
+          echo "Frontend audit:"
+          echo "$frontend_audit"
+          root_audit=$(npm audit --audit-level=high 2>&1 || true)
+          echo "Root audit:"
+          echo "$root_audit"
+
   performance-benchmark:
     name: Performance Benchmark
     runs-on: ubuntu-22.04

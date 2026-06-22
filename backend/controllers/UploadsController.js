@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
+const logger = require('../lib/logger');
 
 /**
  * UploadsController — file-based roster import and export.
@@ -86,7 +87,8 @@ exports.importRoster = async (req, res) => {
       errors,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err }, 'Import roster failed');
+    res.status(500).json({ error: 'Import failed' });
   }
 };
 
@@ -127,6 +129,7 @@ exports.exportRoster = async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="section-${sectionId}-roster.xlsx"`);
     res.send(buffer);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    logger.error({ err }, 'Export roster failed');
+    res.status(500).json({ error: 'Export failed' });
   }
 };

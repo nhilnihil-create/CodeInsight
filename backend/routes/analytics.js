@@ -64,7 +64,6 @@ router.get('/students/:studentId/concept-profile', verifyToken, requireRole('ins
 router.get('/concepts/:conceptId/diagnostic', verifyToken, requireRole('instructor'), ctrl.getConceptDiagnostic);
 
 // Custom Tag Heatmap (Pedagogical Abstraction Layer)
-router.get('/custom-heatmap/:sectionId', verifyToken, requireRole('instructor'), ctrl.getCustomHeatmapData);
 
 // Class concept radar (aggregated NER/NRS/NTS per concept for section)
 router.get('/sections/:sectionId/class-concept-radar', verifyToken, requireRole('instructor'), ctrl.getClassConceptRadar);

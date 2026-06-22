@@ -1,6 +1,21 @@
-# 🚀 DEPLOYMENT CHECKLIST
+# DEPLOYMENT CHECKLIST
 
-## Pre-Launch (Do These First)
+## Quick Start (Docker — Recommended)
+
+```bash
+# 1. Build and start all services
+docker compose build
+docker compose up -d
+
+# 2. Verify health
+curl http://localhost:5000/api/health
+curl http://localhost:5000/api/ready
+
+# 3. Check logs
+docker compose logs -f backend
+```
+
+## Quick Start (Bare Metal)
 
 ### Database Setup
 - [ ] PostgreSQL installed and running
@@ -13,266 +28,141 @@
   - Should show: 4 users (1 instructor + 3 students)
 
 ### System Requirements
-- [ ] Node.js v18+ installed: `node --version`
+- [ ] Node.js v22+ installed: `node --version`
 - [ ] g++ compiler installed: `g++ --version`
 - [ ] Linux/Mac: ✓
 - [ ] Windows: MinGW installed
+- [ ] Redis v7+ (required for async submission processing)
 
 ### Environment Files
-- [ ] `/backend/.env` configured with:
-  ```
-  DB_HOST=localhost
-  DB_PORT=5432
-  DB_NAME=codeinsight
-  DB_USER=codeuser
-  DB_PASSWORD=codepassword123
-  JWT_SECRET=your_super_secret_key_change_this_in_production
-  PORT=5000
-  NODE_ENV=development
-  ```
+- [ ] `backend/.env` configured (copy from `backend/.env.example`)
+- [ ] For production: `NODE_ENV=production`, `DB_SSL=true`, `CORS_ORIGINS` set to your frontend URL
 
-## Launch (Start Servers)
+## Production Deployment (Bare Metal with PM2)
 
-### Terminal 1: Backend
 ```bash
 cd backend
-npm install  # Already done, just ensure
-npm run dev
-# Should log: CodeInsight running on port 5000
+npm ci --omit=dev
+node migrations.js
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup  # Configure PM2 to start on boot
 ```
 
-### Terminal 2: Frontend  
+### Process Management
+- Run via PM2: `pm2 start ecosystem.config.js`
+- Monitor: `pm2 monit` or `pm2 status`
+- Logs: `pm2 logs codeinsight`
+- Restart: `pm2 restart codeinsight`
+
+### Health Endpoints
+- Liveness: `GET /api/health` — returns `{ status: 'ok' }` if process is up
+- Readiness: `GET /api/ready` — checks DB + queue connectivity, returns 503 if DB is down
+
+### Monitoring
+- Structured JSON logging via pino (set `LOG_LEVEL=info` for production, `LOG_LEVEL=debug` for dev)
+- Request logging via pino-http (set `LOG_REQUESTS=1` to enable)
+- Logs are stdout by default; pipe to a log collector (e.g., systemd-journald, Datadog, Loki)
+
+## Backup & Restore
+
+### Automated Backup
+The backup script in `scripts/backup.sh` creates daily pg_dump snapshots:
+
 ```bash
-cd frontend
-npm install  # Already done, just ensure
-npm run dev
-# Should log: Local: http://localhost:5173/
+# One-time backup
+./scripts/backup.sh
+
+# Add to cron (daily at 3 AM)
+0 3 * * * /path/to/codeinsight/scripts/backup.sh
 ```
 
-### Terminal 3: Test Database Connection
+### Manual Restore
 ```bash
-psql -U codeuser -d codeinsight
-SELECT name, email, role FROM users;
-SELECT title, description FROM exercises;
-\q
+gunzip -c backups/codeinsight_2026-06-22_030001.sql.gz | psql -U codeuser -d codeinsight
 ```
 
-## Testing Phase 1: Authentication
+## Testing Phases
 
-### [ ] Login as Instructor
-- URL: http://localhost:5173/login
-- Email: `instructor@psu.edu`
-- Password: `password123`
-- Expected: Redirects to `/instructor` dashboard
+### Phase 1: Authentication
+- [ ] Login as Instructor: `instructor@psu.edu` / `password123` → redirects to `/instructor`
+- [ ] Login as Student: `maria@student.psu.edu` / `password123` → redirects to `/student`
+- [ ] Logout clears session
 
-### [ ] Login as Student
-- Email: `maria@student.psu.edu`
-- Password: `password123`
-- Expected: Redirects to `/student` exercises page
+### Phase 2: Instructor Workflow
+- [ ] Create Section with name, course code, school year
+- [ ] Enroll Students from list
+- [ ] Create Exercise with test cases (visible + hidden)
+- [ ] Close Exercise triggers CDS computation for all enrolled students
 
-### [ ] Logout
-- Click Logout button
-- Expected: Redirects to login page, localStorage cleared
+### Phase 3: Student Workflow
+- [ ] View Exercises — enrolled exercises appear with status
+- [ ] Run Code — test against first visible test case only
+- [ ] Submit Code — runs all test cases, saves to database
+- [ ] View Progress — CDS, NER, NRS, NTS values visible
 
-## Testing Phase 2: Instructor Workflow
+### Phase 4: Analytics
+- [ ] View Heatmap — class × concept matrix
+- [ ] View Alerts — high-CDS students flagged
+- [ ] Mark alerts as reviewed
 
-### [ ] Create Section
-1. Go to `/instructor/sections`
-2. Click "+ New Section"
-3. Fill:
-   - Name: "CS101 - Intro to Programming"
-   - Course Code: "CS101"
-   - School Year: "AY 2025-2026"
-4. Expected: Section appears in list
+## CI/CD Pipeline
 
-### [ ] Enroll Students
-1. Click on the created section
-2. Click "Enroll Students"
-3. Select: Maria Reyes, Jose Santos, Ana Lim
-4. Expected: Section shows "3 students"
+The `.github/workflows/ci.yml` pipeline runs:
+1. **Backend Tests** — Jest on real PostgreSQL
+2. **Frontend Tests** — Vitest + build check
+3. **E2E Tests** — Playwright (Chromium) with seeded data
+4. **Code Quality** — console.log audit, TODO check, secrets scan, ESLint validation
+5. **Performance Benchmark** — on main branch only, concurrency=5, requests=50
+6. **npm audit** — production dependency vulnerability scan
 
-### [ ] Create Exercise
-1. Go to `/instructor/create-exercise`
-2. Fill:
-   - Title: "Sum Two Numbers"
-   - Description: "Write a program that reads two integers and outputs their sum."
-   - Section: "CS101 - Intro to Programming"
-   - Concept: "Functions"
-   - Time Limit: 45 minutes
-3. Test Cases:
-   - TC1: Input `2 3` → Expected `5` (visible)
-   - TC2: Input `10 -5` → Expected `5` (hidden)
-4. Click "Create Exercise"
-5. Expected: Success message
+Testing commands:
+```bash
+npm run test:backend      # Backend unit/integration tests
+npm run test:frontend     # Frontend component tests
+npm run test:e2e          # Playwright E2E tests
+npm run test:all          # All of the above
+npm run test:ci-backend   # CI-optimized backend tests
+```
 
-## Testing Phase 3: Student Workflow
+## Security Checklist
 
-### [ ] View Exercises (as Maria)
-1. Logout (if logged in as instructor)
-2. Login as `maria@student.psu.edu` / `password123`
-3. Go to `/student`
-4. Expected: "Sum Two Numbers" appears in exercise list
+- [ ] `NODE_ENV=production` set in production
+- [ ] `CORS_ORIGINS` restricted to frontend URL only
+- [ ] `JWT_SECRET` is a strong, unique random string
+- [ ] `DB_PASSWORD` is a strong, unique password
+- [ ] HTTPS/SSL configured at reverse proxy (Nginx/Caddy)
+- [ ] Rate limiting enabled on login, submission, and run endpoints
+- [ ] HTTP security headers (helmet) enabled
+- [ ] Regular `npm audit` runs (automated in CI)
 
-### [ ] Run Code (Test Only)
-1. Click the exercise
-2. Paste code:
-   ```cpp
-   #include <iostream>
-   using namespace std;
-   int main() {
-       int a, b;
-       cin >> a >> b;
-       cout << a + b << endl;
-       return 0;
-   }
-   ```
-3. Click "▶ Run"
-4. Expected: Green success showing `5` (from first test case `2 3`)
-
-### [ ] Submit Code (Save Result)
-1. Click "✓ Submit"
-2. Expected: 
-   - Both test cases show
-   - Results show `5` and `5` (both pass)
-   - Submission appears in history
-
-### [ ] Check Submission History
-1. Left panel shows "Submissions" with "Attempt 1: ✓ Correct"
-2. Expected: Can see all previous attempts
-
-### [ ] View Progress
-1. Go to `/student/progress`
-2. Expected:
-   - Shows 1 total exercise
-   - Shows CDS score (should be Low or Moderate)
-   - Shows NER, NRS, NTS values
-
-## Testing Phase 4: Analytics (Back as Instructor)
-
-### [ ] Close Exercise (Triggers CDS)
-1. Logout, login as instructor
-2. Go to `/instructor` dashboard
-3. Find "Sum Two Numbers"
-4. Click "Close Exercise"
-5. Expected: "Exercise closed. CDS computed for all students."
-
-### [ ] View Heatmap
-1. Go to `/instructor/analytics`
-2. Select "CS101 - Intro to Programming"
-3. Expected:
-   - Class averages shown for each concept
-   - Student heatmap visible (Maria, Jose, Ana × each concept)
-   - CDS scores populated (functions concept should show scores)
-
-### [ ] View Alerts
-1. Go to `/instructor/alerts`
-2. Select section
-3. Expected:
-   - Any "High" difficulty students appear (CDS > 0.67)
-   - Can mark as reviewed (removes from list)
-
-## Troubleshooting Checklist
+## Troubleshooting
 
 ### Backend Won't Start
-- [ ] Check: `ps aux | grep node` (kill old processes)
+- [ ] Check: `pm2 status` (process running?)
+- [ ] Check: `pm2 logs codeinsight` (error message?)
+- [ ] Check: PostgreSQL accepting connections: `pg_isready`
+- [ ] Check: Redis available: `redis-cli ping`
+- [ ] Check: `.env` has all required variables
 - [ ] Check: `lsof -i :5000` (port in use?)
-- [ ] Check: `.env` exists and has all variables
-- [ ] Check: `npm run dev` from `/backend` directory
-- [ ] Logs should show: "PostgreSQL connected" + "CodeInsight running on port 5000"
-
-### Frontend Won't Load
-- [ ] Check: Ran `npm install` in `/frontend`
-- [ ] Check: Vite config proxy points to `localhost:5000`
-- [ ] Check: `npm run dev` from `/frontend` directory
-- [ ] Check: http://localhost:5173/ (NOT localhost:5000)
-- [ ] Browser console for errors
 
 ### Database Connection Failed
 - [ ] Check: PostgreSQL service running: `sudo systemctl start postgresql`
-- [ ] Check: Correct credentials in .env
+- [ ] Check: Correct credentials in `.env`
 - [ ] Test: `psql -U codeuser -d codeinsight -c "SELECT 1"`
 - [ ] Check: Firewall not blocking 5432
 
 ### Code Execution Fails
 - [ ] Check: `g++ --version` returns version
 - [ ] Check: `/tmp/` directory is writable
-- [ ] Backend logs should show compile/runtime errors
-- [ ] Test with simple code:
-   ```cpp
-   #include <iostream>
-   int main() { std::cout << "hello" << std::endl; }
-   ```
+- [ ] Check: Docker daemon running (sandbox mode)
+- [ ] Backend logs show compile/runtime errors
 
-### Test Cases Not Showing
-- [ ] Ensure at least 2 test cases created (backend requires minimum)
-- [ ] Check test case input/output not empty
-- [ ] Submit button should run ALL test cases
-- [ ] Run button only tests first visible one
+## Post-Launch
 
-## Post-Launch Quality Checks
-
-### [ ] Performance
-- Login: < 1 second
-- Code execution: < 10 seconds
-- Page loads: < 2 seconds
-
-### [ ] Data Persistence
-- Create exercise, refresh page, exercise still there
-- Logout, login as different user, data unchanged
-- Submit code, logout, login back, submission history persists
-
-### [ ] Error Handling
-- Try invalid login: Shows error message
-- Try submitting blank code: Shows error, doesn't crash
-- Try submitting code with forbidden system calls: Rejected
-- Network error on API: Shows user-friendly message (not 500 page)
-
-### [ ] Styling/UX
-- Dark theme applied throughout
-- All text readable (good contrast)
-- Buttons responsive to hover
-- Mobile-like or desktop fine?
-- No console errors in DevTools
-
-## Production Readiness
-
-### [ ] Code Quality
-- No console.error() other than caught errors
-- No `eval()`, `new Function()`, or dynamic code
-- All API responses have proper error codes
-- Backend validates all input
-
-### [ ] Security
-- Passwords hashed with bcrypt min cost 10
-- JWT tokens have expiration (7d)
-- SQL injection prevented (using parameterized queries)
-- XSS prevention (React auto-escapes by default)
-- CORS properly configured for frontend URL
-
-### [ ] Documentation
-- README.md comprehensive ✓
-- API endpoints documented ✓
-- Setup instructions clear ✓
-- Test accounts listed ✓
-- Troubleshooting included ✓
-
-## Launch Approved ✅
-
-If all checkboxes above are marked, the system is ready for:
-- [ ] Local testing with other users
-- [ ] Classroom deployment
-- [ ] VPS/Cloud hosting
-- [ ] Production use
-
----
-
-**Final Note:** The system is production-ready for a classroom environment. For public deployment, add:
-- HTTPS/SSL
-- Rate limiting
-- Input validation
-- Backup strategy
-- Monitoring/logging
-- Email notifications
-- User quotas
-
-But for PSU CCS internal use? **Ready to go! 🎉**
+- [ ] Monitor `/api/ready` for liveness checks
+- [ ] Set up log aggregation (Datadog, Loki, or similar)
+- [ ] Configure backup cron job
+- [ ] Set up uptime monitoring (Pingdom, UptimeRobot, etc.)
+- [ ] Review npm audit results periodically
+- [ ] Schedule monthly dependency updates

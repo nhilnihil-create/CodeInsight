@@ -148,13 +148,13 @@ async function applySchemaPatches() {
           fs_3 INTEGER NOT NULL CHECK (fs_3 BETWEEN 1 AND 4),
           fs_4 INTEGER NOT NULL CHECK (fs_4 BETWEEN 1 AND 4),
           us_1 INTEGER NOT NULL CHECK (us_1 BETWEEN 1 AND 4),
-          us_2 INTEGER NOT NULL CHECK (us_1 BETWEEN 1 AND 4),
-          us_3 INTEGER NOT NULL CHECK (us_1 BETWEEN 1 AND 4),
-          us_4 INTEGER NOT NULL CHECK (us_1 BETWEEN 1 AND 4),
-          us_5 INTEGER NOT NULL CHECK (us_1 BETWEEN 1 AND 4),
+          us_2 INTEGER NOT NULL CHECK (us_2 BETWEEN 1 AND 4),
+          us_3 INTEGER NOT NULL CHECK (us_3 BETWEEN 1 AND 4),
+          us_4 INTEGER NOT NULL CHECK (us_4 BETWEEN 1 AND 4),
+          us_5 INTEGER NOT NULL CHECK (us_5 BETWEEN 1 AND 4),
           pe_1 INTEGER NOT NULL CHECK (pe_1 BETWEEN 1 AND 4),
-          pe_2 INTEGER NOT NULL CHECK (pe_1 BETWEEN 1 AND 4),
-          pe_3 INTEGER NOT NULL CHECK (pe_1 BETWEEN 1 AND 4),
+          pe_2 INTEGER NOT NULL CHECK (pe_2 BETWEEN 1 AND 4),
+          pe_3 INTEGER NOT NULL CHECK (pe_3 BETWEEN 1 AND 4),
           feedback_text TEXT,
           created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -250,8 +250,7 @@ async function applyV2Migrations() {
     '20260610_v2_concepts.sql',
     '20260610_v2_audit.sql',
     '20260610_validation_mode.sql',
-    '20260614_custom_tags.sql',
-    '20260615_custom_tags_ka.sql',
+
   ];
 
   for (const file of v2Files) {
@@ -267,8 +266,7 @@ async function applyV2Migrations() {
       '20260610_v2_concepts':        { table: 'exercise_concepts', label: 'exercise_concepts + FTS' },
       '20260610_v2_audit':           { table: 'audit_log',      label: 'audit_log + cds_snapshots' },
       '20260610_validation_mode':    { table: 'exercises',    col: 'is_validated', label: 'validation mode columns' },
-      '20260614_custom_tags':        { table: 'instructor_custom_tags', label: 'instructor_custom_tags + custom_tag_exercise_mappings' },
-      '20260615_custom_tags_ka':     { table: 'instructor_custom_tags', col: 'knowledge_area', label: 'custom_tags knowledge_area column' },
+
     };
     const marker = markers[baseName];
     if (marker) {
@@ -347,6 +345,17 @@ async function ensureTablesExist() {
         console.log('✓ verification_rules table seeded');
       } catch (vrErr) {
         console.warn('⚠ verification_rules migration failed:', vrErr.message);
+      }
+    }
+
+    // Remove unused learning outcome tables (sink nodes, never referenced)
+    if (await tableExists('learning_outcomes')) {
+      try {
+        const { up } = require('./migrations/20260621_remove_outcome_tables');
+        await up(db);
+        console.log('✓ Removed unused learning_outcomes, outcome_concept_map, section_active_outcomes');
+      } catch (roErr) {
+        console.warn('⚠ outcome table removal failed:', roErr.message);
       }
     }
 

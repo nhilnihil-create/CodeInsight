@@ -49,7 +49,7 @@ const FEATURES = [
     description:
       'Every student against every concept, color-coded so patterns surface in seconds. Spot which concepts are hardest and which students need help — all in one view.',
     details: [
-      'Five color tiers from green (low difficulty) to red (high difficulty)',
+      'Five color tiers — cool gray for very low, scaling through emerald and amber to rose for high difficulty',
       'Drag columns to compare any two concepts side-by-side',
       'Hardest concepts automatically sort to the right',
       'Hover any cell for a quick breakdown of what\'s behind the score',
@@ -94,7 +94,7 @@ const FEATURES = [
     description:
       'Pinpoints exactly where students are confused — not just "wrong answer" but "integer division truncating decimals." Instructors see which misconceptions affect the most students.',
     details: [
-      '33 deterministic detection rules across 7 core C++ concepts',
+      '71+ deterministic detection rules across 25 C++ concepts',
       'Analyzes compiler errors, test output patterns, and code structure',
       'Each issue comes with a targeted suggestion for the student',
       'Class-wide misconception reports generated on exercise close',
@@ -221,7 +221,7 @@ export default function Landing() {
             {[
               { value: '50', suffix: '+', label: 'API Endpoints', icon: BarChart3 },
               { value: '5', label: 'Integrity Layers', icon: ShieldCheck },
-              { value: '33', label: 'Detection Rules', icon: BrainCircuit },
+              { value: '71', label: 'Detection Rules', icon: BrainCircuit },
               { value: '25', label: 'C++ Concepts', icon: Activity },
             ].map(({ value, suffix = '', label, icon: Icon }) => (
               <div key={label} className="text-center group cursor-default">

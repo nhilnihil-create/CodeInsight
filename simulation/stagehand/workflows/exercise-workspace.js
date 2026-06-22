@@ -142,10 +142,6 @@ async function testExerciseWizardStep2() {
         const hasSecondary = await secondaryConcept.isVisible({ timeout: 2000 }).catch(() => false);
         steps.push({ action: 'Step 2: Secondary concept option', success: hasSecondary });
 
-        // Check for custom tags
-        const customTags = page.locator('text=Custom, text=Tags, text=Add Tag').first();
-        const hasCustomTags = await customTags.isVisible({ timeout: 2000 }).catch(() => false);
-        steps.push({ action: 'Step 2: Custom tags input', success: hasCustomTags });
       }
     }
 

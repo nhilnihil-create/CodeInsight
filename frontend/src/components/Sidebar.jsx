@@ -16,6 +16,7 @@ import {
   Users,
   User,
   Code,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -29,6 +30,7 @@ import {
   TooltipArrow,
   TooltipPortal,
 } from '@/components/ui/tooltip';
+import useSections from '@/hooks/useSections';
 
 const spring = { type: 'spring', stiffness: 350, damping: 30 };
 
@@ -65,6 +67,8 @@ export default function Sidebar() {
   const { isOpen, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const isStudent = user?.role === 'student';
+  const { sections } = useSections();
 
   const links = user?.role === 'admin' ? adminLinks
     : user?.role === 'instructor' ? instructorLinks
@@ -204,6 +208,66 @@ export default function Sidebar() {
           })}
         </div>
       </nav>
+
+      {/* ── My Sections (Student only) ───────────────────── */}
+      {isStudent && sections.length > 0 && (
+        <div className={cn('px-4 py-3 border-t border-white/[0.04]', !isOpen && 'px-2')}>
+          <AnimatePresence mode="wait">
+            {isOpen ? (
+              <motion.div
+                key="sections-expanded"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BookOpen className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    My Sections
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {sections.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 bg-white/[0.03]"
+                    >
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400/60 shrink-0" />
+                      <span className="text-[11px] font-medium text-foreground/80 truncate">
+                        {s.name || s.course_code || `Section ${s.id}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="sections-collapsed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex justify-center"
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-center h-10 w-10 rounded-xl text-muted-foreground">
+                      <BookOpen className="h-[18px] w-[18px]" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipPortal>
+                    <TooltipContent side="right" sideOffset={12}>
+                      {sections.map((s) => s.name || s.course_code || `Section ${s.id}`).join(', ')}
+                      <TooltipArrow />
+                    </TooltipContent>
+                  </TooltipPortal>
+                </Tooltip>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* ── Footer Profile ───────────────────────────────── */}
       <div className="relative mt-auto">

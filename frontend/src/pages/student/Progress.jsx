@@ -116,10 +116,7 @@ export default function StudentProgress() {
   const totalEx = completion?.total ?? 0;
   const avgAttempts = data?.avgAttempts ?? 0;
   const concepts = data?.concepts ?? [];
-
-  const weakest = concepts.length > 0
-    ? [...concepts].sort((a, b) => a.mastery - b.mastery)[0]
-    : null;
+  const trajectory = data?.trajectory;
 
   return (
     <StudentDashboardShell
@@ -154,37 +151,33 @@ export default function StudentProgress() {
             {/* Ambient glow line at top */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-teal-400/60 to-transparent" />
 
-            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between px-6 py-5">
-              <div className="min-w-0 space-y-1.5">
-                <p className="metric-label flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-teal-400" />
-                  Trajectory
-                </p>
-                <h2 className="text-lg font-semibold text-foreground leading-snug">
-                  {weakest
-                    ? `${weakest.concept_name} needs attention at ${weakest.mastery ?? 0}% mastery. Your overall mastery is ${overallMastery}%.`
-                    : `Your mastery is ${overallMastery}% across ${concepts.length} concept${concepts.length !== 1 ? "s" : ""}.`}
-                </h2>
-                <p className="text-sm text-muted-foreground/60">
-                  {weakest
-                    ? `Difficulty score: ${(weakest.cds ?? 0).toFixed(2)} · Targets: ${weakest.concept_name}`
-                    : `Avg attempts: ${avgAttempts.toFixed(1)} per exercise`}
-                </p>
-              </div>
+              <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between px-6 py-5">
+                <div className="min-w-0 space-y-1.5">
+                  <p className="metric-label flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-teal-400" />
+                    Trajectory
+                  </p>
+                  <h2 className="text-lg font-semibold text-foreground leading-snug">
+                    {trajectory?.message ?? `Your mastery is ${overallMastery}% across ${concepts.length} concept${concepts.length !== 1 ? "s" : ""}.`}
+                  </h2>
+                  <p className="text-sm text-muted-foreground/60">
+                    {trajectory?.detail ?? `Avg attempts: ${avgAttempts.toFixed(1)} per exercise`}
+                  </p>
+                </div>
 
-              {/* Floating action button with ambient glow */}
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="shrink-0">
-                <Button
-                  asChild
-                  className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300"
-                >
-                  <Link to="/student/exercises">
-                    Practice weakest concept
-                    <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
-                  </Link>
-                </Button>
-              </motion.div>
-            </div>
+                {/* Floating action button with ambient glow */}
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="shrink-0">
+                  <Button
+                    asChild
+                    className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300"
+                  >
+                    <Link to={trajectory?.actionTo ?? "/student/exercises"}>
+                      {trajectory?.actionLabel ?? "Practice"}
+                      <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2} />
+                    </Link>
+                  </Button>
+                </motion.div>
+              </div>
           </motion.section>
 
           {/* ═══════════════════════════════════════════════════════════

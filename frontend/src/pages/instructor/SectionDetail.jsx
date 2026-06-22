@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import useLastSection from "@/hooks/useLastSection";
 import {
   MoreHorizontal,
   ArrowRight,
@@ -51,6 +52,12 @@ function emptySeries() {
 export default function SectionDetail() {
   const { sectionId: id } = useParams();
   const navigate = useNavigate();
+  const [, setLastSectionId] = useLastSection();
+
+  useEffect(() => {
+    if (id) setLastSectionId(Number(id));
+  }, [id, setLastSectionId]);
+
   const [tab, setTab] = useState("roster");
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
@@ -290,28 +297,28 @@ export default function SectionDetail() {
 
       {/* ---------- Tabs ---------- */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="inline-flex h-10 items-center gap-0 bg-transparent p-0 border-b border-border rounded-none w-full justify-start">
+        <TabsList className="inline-flex h-10 items-center gap-0 bg-transparent p-0 border-b border-border rounded-none w-full justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <TabsTrigger
             value="roster"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3 whitespace-nowrap"
           >
             Roster
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3 whitespace-nowrap"
           >
             Analytics
           </TabsTrigger>
           <TabsTrigger
             value="submissions"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3 whitespace-nowrap"
           >
             Submissions
           </TabsTrigger>
           <TabsTrigger
             value="settings"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none -mb-px px-3 whitespace-nowrap"
           >
             <Users className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
             Settings

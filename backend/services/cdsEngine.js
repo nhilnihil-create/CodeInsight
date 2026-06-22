@@ -99,7 +99,6 @@ const excludedStudents = new Set(excludedRes.rows.map(r => r.student_id));
         FROM submissions s
         JOIN exercises e ON e.id = s.exercise_id
         WHERE s.exercise_id=$1
-          AND s.is_practice IS NOT TRUE
           AND s.is_verified = true
         ORDER BY s.student_id, s.attempt_number ASC`,
       [exerciseId]
@@ -206,47 +205,68 @@ for (const student of students.rows) {
   snapshotRows.push([sid, exerciseId, ner, nrs, nts, cds, classification, minFailed, p95Failed, minTotal, p95Total, minTime, p95Time]);
 }
 
-// Bulk upsert cds_scores
-if (scoreRows.length > 0) {
-  const scoreParams = [];
-  const scoreValues = scoreRows.map((row, i) => {
-    const offset = i * 10;
-    row.forEach((v, j) => { scoreParams.push(v); });
-    return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},'batch',true,NOW())`;
-  }).join(',');
+// ⚠️ Transaction: all writes (scores + snapshots + alerts) are atomic.
+// Prevents partial state on crash — without this, cds_scores could be
+// half-updated if cds_snapshots INSERT fails.
+//
+// Handles Pool, PoolClient, and mockDb:
+//   Pool       → connect=func, release=undefined → get client, manage tx
+//   PoolClient → connect=func, release=func       → use as-is, caller owns tx
+//   Mock       → connect=undefined                → use as-is, no tx
+const isPool = typeof db.connect === 'function' && typeof db.release !== 'function';
+const client = isPool ? await db.connect() : db;
+try {
+  if (isPool) await client.query('BEGIN');
 
-  await db.query(
-    `INSERT INTO cds_scores
-      (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,has_flagged_attempts,integrity_flag_count,source,visible,computed_at)
-      VALUES ${scoreValues}
-      ON CONFLICT (student_id,exercise_id)
-      DO UPDATE SET ner=EXCLUDED.ner,nrs=EXCLUDED.nrs,nts=EXCLUDED.nts,cds=EXCLUDED.cds,
-        classification=EXCLUDED.classification,has_flagged_attempts=EXCLUDED.has_flagged_attempts,
-        integrity_flag_count=EXCLUDED.integrity_flag_count,source='batch',visible=true,computed_at=NOW()`,
-    scoreParams
-  );
+  // Bulk upsert cds_scores
+  if (scoreRows.length > 0) {
+    const scoreParams = [];
+    const scoreValues = scoreRows.map((row, i) => {
+      const offset = i * 10;
+      row.forEach((v, j) => { scoreParams.push(v); });
+      return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},'batch',true,NOW())`;
+    }).join(',');
+
+    await client.query(
+      `INSERT INTO cds_scores
+        (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,has_flagged_attempts,integrity_flag_count,source,visible,computed_at)
+        VALUES ${scoreValues}
+        ON CONFLICT (student_id,exercise_id)
+        DO UPDATE SET ner=EXCLUDED.ner,nrs=EXCLUDED.nrs,nts=EXCLUDED.nts,cds=EXCLUDED.cds,
+          classification=EXCLUDED.classification,has_flagged_attempts=EXCLUDED.has_flagged_attempts,
+          integrity_flag_count=EXCLUDED.integrity_flag_count,source='batch',visible=true,computed_at=NOW()`,
+      scoreParams
+    );
+  }
+
+  // Bulk insert snapshots
+  if (snapshotRows.length > 0) {
+    const snapParams = [];
+    const snapValues = snapshotRows.map((row, i) => {
+      const offset = i * 13;
+      row.forEach((v, j) => { snapParams.push(v); });
+      return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},NOW())`;
+    }).join(',');
+
+    await client.query(
+      `INSERT INTO cds_snapshots
+        (student_id,exercise_id,ner,nrs,nts,cds,classification,
+         class_min_errors,class_p95_errors,class_min_attempts,class_p95_attempts,class_min_time,class_p95_time,
+         calculated_at)
+        VALUES ${snapValues}`,
+      snapParams
+    );
+  }
+
+  await alertEngine.generateAlerts(exerciseId, client);
+  if (isPool) await client.query('COMMIT');
+} catch (txErr) {
+  if (isPool) await client.query('ROLLBACK');
+  throw txErr;
+} finally {
+  if (isPool) client.release();
 }
 
-// Bulk insert snapshots
-if (snapshotRows.length > 0) {
-  const snapParams = [];
-  const snapValues = snapshotRows.map((row, i) => {
-    const offset = i * 13;
-    row.forEach((v, j) => { snapParams.push(v); });
-    return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},$${offset + 5},$${offset + 6},$${offset + 7},$${offset + 8},$${offset + 9},$${offset + 10},$${offset + 11},$${offset + 12},$${offset + 13},NOW())`;
-  }).join(',');
-
-  await db.query(
-    `INSERT INTO cds_snapshots
-      (student_id,exercise_id,ner,nrs,nts,cds,classification,
-       class_min_errors,class_p95_errors,class_min_attempts,class_p95_attempts,class_min_time,class_p95_time,
-       calculated_at)
-      VALUES ${snapValues}`,
-    snapParams
-  );
-}
-
-await alertEngine.generateAlerts(exerciseId, db);
 return { message: 'CDS computed', studentsProcessed: students.rows.length };
 }
 
@@ -292,7 +312,6 @@ try {
       FROM submissions s
       JOIN exercises e ON e.id = s.exercise_id
       WHERE s.exercise_id=$1
-        AND s.is_practice IS NOT TRUE
         AND s.is_verified = true
       ORDER BY s.student_id, s.attempt_number ASC`,
     [exerciseId]
@@ -370,12 +389,15 @@ try {
 
   const cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * nts));
 
+  const MIN_CLASS_SIZE = 3;
+  const isPreliminaryClass = cleanMetrics.length < MIN_CLASS_SIZE;
+
   return {
     ner: Number(parseFloat(ner).toFixed(2)),
     nrs: Number(parseFloat(nrs).toFixed(2)),
     nts: Number(parseFloat(nts).toFixed(2)),
     cds: Number(parseFloat(cds).toFixed(2)),
-    classification: classify(cds),
+    classification: classify(cds, isPreliminaryClass),
     hasFlaggedAttempt: studentData.hasFlaggedAttempt,
     integrityFlagCount: studentData.integrityFlagCount
   };

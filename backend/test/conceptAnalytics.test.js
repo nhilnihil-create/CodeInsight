@@ -72,7 +72,7 @@ describe('conceptAnalytics', function() {
   // ── Integration tests with real data ─────────────────────────────
 
   describe('integration (real DB)', function() {
-    const TEST_SECTION = 48; // Has 50 students, 150 exercises, real CDS data
+    const TEST_SECTION = 55; // Live Demo section: 50 students, 2 exercises, 100 CDS scores
 
     it('computeCMI updates student metrics', async function() {
       const result = await conceptAnalytics.computeCMI(TEST_SECTION);

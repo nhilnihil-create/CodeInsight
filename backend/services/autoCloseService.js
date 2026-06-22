@@ -7,7 +7,6 @@
 const schedule = require('node-schedule');
 const db = require('../config/db');
 const cdsEngine = require('./cdsEngine.js');
-const alertEngine = require('./alertEngine.js');
 
 /**
  * Start the auto-close service
@@ -66,11 +65,8 @@ async function processExercisesForAutoClose(client) {
           [exercise.id]
         );
 
-        // Trigger batch CDS computation
+        // Trigger batch CDS computation (already generates alerts internally)
         await cdsEngine.computeBatchCDS(exercise.id, client || db);
-
-        // Generate alerts for any High CDS students
-        await alertEngine.generateAlerts(exercise.id, client || db);
 
         console.log(`[AutoClose] Successfully closed exercise ${exercise.id}`);
 

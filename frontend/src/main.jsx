@@ -8,7 +8,6 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { EditorPrefsProvider } from './context/EditorPrefsContext.jsx'
 import { ToastProvider } from '@/hooks/use-toast'
 import './index.css'
-import './styles/mobile.css'   // <-- new
 
 // React Query — single client, sensible defaults for a CRUD app.
 const queryClient = new QueryClient({
