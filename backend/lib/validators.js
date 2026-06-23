@@ -1,10 +1,16 @@
 const Joi = require('joi');
 
 const email = Joi.string().trim().lowercase().email({ tlds: { allow: false } });
-const password = Joi.string().min(8).max(128);
+const password = Joi.string()
+  .min(8).max(128)
+  .pattern(/[A-Z]/, 'uppercase')
+  .pattern(/[a-z]/, 'lowercase')
+  .pattern(/[0-9]/, 'digit')
+  .pattern(/[^a-zA-Z0-9]/, 'special')
+  .message('Password must be at least 8 characters with uppercase, lowercase, digit, and special character');
 const name = Joi.string().trim().min(1).max(100);
 const id = Joi.number().integer().positive();
-const role = Joi.string().valid('instructor', 'student', 'admin');
+const role = Joi.string().valid('instructor', 'student');
 
 const testCase = Joi.object({
   input: Joi.string().allow('').default(''),

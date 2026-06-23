@@ -1,18 +1,22 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt    = require('jsonwebtoken');
 const db     = require('../config/db');
+const logger = require('../lib/logger');
 const { AppError, codes } = require('../lib/AppError');
+const { sendVerificationEmail } = require('../lib/email');
 
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: '/',
 };
 
 const generateToken = (user) =>
   jwt.sign(
-    { id: user.id, name: user.name, email: user.email, role: user.role },
+    { id: user.id, name: user.name, email: user.email, role: user.role, jti: crypto.randomUUID() },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -24,15 +28,41 @@ exports.register = async (req, res, next) => {
     const exists = await db.query('SELECT id FROM users WHERE email=$1', [email]);
     if (exists.rows.length) throw new AppError('Email already registered', 409, codes.CONFLICT);
 
+    if (role === 'instructor') {
+      const allowedDomains = (process.env.INSTRUCTOR_DOMAINS || '')
+        .split(',')
+        .map(d => d.trim().toLowerCase())
+        .filter(Boolean);
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (!emailDomain || !allowedDomains.includes(emailDomain)) {
+        throw new AppError(
+          `Instructor accounts require an institutional email from: ${allowedDomains.join(', ') || 'no domains configured'}`,
+          400,
+          codes.VALIDATION_ERROR
+        );
+      }
+    }
+
     const hash = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+
     const result = await db.query(
-      'INSERT INTO users (name,email,password_hash,role) VALUES($1,$2,$3,$4) RETURNING id,name,email,role',
-      [name, email, hash, role]
+      `INSERT INTO users (name,email,password_hash,role,email_verified,verification_token,verification_token_expires)
+       VALUES($1,$2,$3,$4,false,$5,NOW() + INTERVAL '24 hours')
+       RETURNING id,name,email,role`,
+      [name, email, hash, role, tokenHash]
     );
+
     const user = result.rows[0];
-    const token = generateToken(user);
-    res.cookie('ci_token', token, COOKIE_OPTS);
-    res.status(201).json({ user });
+
+    sendVerificationEmail({ to: email, name, token: verificationToken })
+      .catch(err => logger.error({ err }, 'Failed to send verification email'));
+
+    res.status(201).json({
+      message: 'Registration successful. Please check your email to verify your account.',
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
   } catch (err) { next(err); }
 };
 
@@ -41,7 +71,7 @@ exports.login = async (req, res, next) => {
     const { email, password } = req.body;
 
     const result = await db.query(
-      'SELECT id,name,email,role,password_hash FROM users WHERE email=$1', [email]
+      'SELECT id,name,email,role,password_hash,email_verified FROM users WHERE email=$1', [email]
     );
     if (!result.rows.length) throw new AppError('Invalid credentials', 401, codes.UNAUTHORIZED);
 
@@ -49,7 +79,12 @@ exports.login = async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) throw new AppError('Invalid credentials', 401, codes.UNAUTHORIZED);
 
-    const { password_hash, ...safeUser } = user;
+    if (!user.email_verified) {
+      throw new AppError('Please verify your email before logging in.', 403, codes.FORBIDDEN);
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    const { password_hash, email_verified, ...safeUser } = user;
     const token = generateToken(safeUser);
     res.cookie('ci_token', token, COOKIE_OPTS);
     res.json({ user: safeUser });
@@ -76,8 +111,53 @@ exports.me = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-exports.logout = async (req, res) => {
-  // Clear the httpOnly auth cookie so the server actively invalidates the session.
-  res.clearCookie('ci_token', { path: '/' });
-  res.json({ loggedOut: true });
+exports.verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    if (!token) throw new AppError('Verification token is required', 400, codes.VALIDATION_ERROR);
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const result = await db.query(
+      `SELECT id, email_verified, verification_token_expires FROM users
+       WHERE verification_token = $1 AND email_verified = false`,
+      [tokenHash]
+    );
+
+    if (!result.rows.length) {
+      throw new AppError('Invalid or expired verification token', 400, codes.VALIDATION_ERROR);
+    }
+
+    const user = result.rows[0];
+    if (new Date() > new Date(user.verification_token_expires)) {
+      throw new AppError('Verification token has expired. Please register again.', 400, codes.VALIDATION_ERROR);
+    }
+
+    await db.query(
+      `UPDATE users SET email_verified = true, verification_token = NULL, verification_token_expires = NULL WHERE id = $1`,
+      [user.id]
+    );
+
+    const frontendUrl = (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',')[0].trim();
+    res.redirect(`${frontendUrl}/login?verified=true`);
+  } catch (err) { next(err); }
+};
+
+exports.logout = async (req, res, next) => {
+  try {
+    const token = req.cookies?.ci_token;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.jti && decoded.exp) {
+          await db.query(
+            'INSERT INTO token_blacklist (jti, expires_at) VALUES ($1, to_timestamp($2)) ON CONFLICT (jti) DO NOTHING',
+            [decoded.jti, decoded.exp]
+          );
+        }
+      } catch { /* token may already be expired — still clear cookie */ }
+    }
+    res.clearCookie('ci_token', { path: '/' });
+    res.json({ loggedOut: true });
+  } catch (err) { next(err); }
 };

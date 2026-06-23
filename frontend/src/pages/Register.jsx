@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Loader2, UserPlus, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Loader2, UserPlus, AlertCircle, ArrowLeft, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,25 +22,31 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
+
+  const passwordReqs = [
+    { label: 'At least 8 characters', test: (p) => p.length >= 8 },
+    { label: 'One uppercase letter', test: (p) => /[A-Z]/.test(p) },
+    { label: 'One lowercase letter', test: (p) => /[a-z]/.test(p) },
+    { label: 'One digit', test: (p) => /[0-9]/.test(p) },
+    { label: 'One special character', test: (p) => /[^a-zA-Z0-9]/.test(p) },
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+    const failed = passwordReqs.filter(r => !r.test(password));
+    if (failed.length) {
+      setError('Password must include: ' + failed.map(r => r.label.toLowerCase()).join(', '));
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await api.post('/api/auth/register', { name, email, password, role });
-      login(res.data.user);
-      const dest = role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
-      navigate(dest, { replace: true });
+      await api.post('/api/auth/register', { name, email, password, role });
+      navigate('/login?registered=true', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -164,6 +169,15 @@ export default function Register() {
                     Instructor
                   </button>
                 </div>
+              </div>
+
+              <div className="space-y-1 text-[11px] text-muted-foreground">
+                {passwordReqs.map((r) => (
+                  <p key={r.label} className={r.test(password) ? 'text-green-600' : ''}>
+                    {r.test(password) ? <CheckCircle2 className="inline h-3 w-3 mr-1" /> : <span className="inline-block w-3 h-3 mr-1" />}
+                    {r.label}
+                  </p>
+                ))}
               </div>
 
               <Button

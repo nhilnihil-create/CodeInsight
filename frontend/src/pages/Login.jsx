@@ -36,6 +36,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+  const [info] = useState(
+    params.get('verified') === 'true' ? 'Email verified! You can now log in.' :
+    params.get('registered') === 'true' ? 'Registration successful! Check your email to verify your account.' :
+    ''
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,6 +87,12 @@ export default function Login() {
           </CardHeader>
 
           <CardContent className="space-y-4">
+            {info && (
+              <div className="flex items-start gap-2 rounded-md border border-green-300 bg-green-50 px-3 py-2.5 text-[12.5px] text-green-700">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{info}</span>
+              </div>
+            )}
             {error && (
               <div
                 role="alert"

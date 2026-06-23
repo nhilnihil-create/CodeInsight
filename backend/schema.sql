@@ -12,9 +12,23 @@ CREATE TABLE IF NOT EXISTS users (
   name         VARCHAR(100) NOT NULL,
   email        VARCHAR(100) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role         VARCHAR(20) NOT NULL CHECK (role IN ('student','instructor','admin')),
-  created_at   TIMESTAMP DEFAULT NOW()
+  role                   VARCHAR(20) NOT NULL CHECK (role IN ('student','instructor','admin')),
+  email_verified          BOOLEAN DEFAULT false,
+  verification_token      VARCHAR(255),
+  verification_token_expires TIMESTAMP,
+  created_at              TIMESTAMP DEFAULT NOW()
 );
+
+-- ── Token Blacklist (JWT revocation) ─────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS token_blacklist (
+  id         SERIAL PRIMARY KEY,
+  jti        VARCHAR(255) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_token_blacklist_jti ON token_blacklist(jti);
+CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at);
 
 -- ── Sections ────────────────────────────────────────────────────────────────
 -- V2 additions: code, term, semester, join_policy, max_size

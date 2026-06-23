@@ -359,6 +359,30 @@ async function ensureTablesExist() {
       }
     }
 
+    // Auth security hardening (June 2026): email verification + JWT revocation
+    if (await tableExists('users')) {
+      try {
+        await addColumnIfMissing('users', 'email_verified', 'BOOLEAN DEFAULT false');
+        await addColumnIfMissing('users', 'verification_token', 'VARCHAR(255)');
+        await addColumnIfMissing('users', 'verification_token_expires', 'TIMESTAMP');
+      } catch (colErr) {
+        console.warn('⚠ Could not add auth columns to users table:', colErr.message);
+      }
+    }
+
+    if (!(await tableExists('token_blacklist'))) {
+      await db.query(`
+        CREATE TABLE token_blacklist (
+          id         SERIAL PRIMARY KEY,
+          jti        VARCHAR(255) NOT NULL UNIQUE,
+          expires_at TIMESTAMP NOT NULL
+        )
+      `);
+      await db.query(`CREATE INDEX idx_token_blacklist_jti ON token_blacklist(jti)`);
+      await db.query(`CREATE INDEX idx_token_blacklist_expires ON token_blacklist(expires_at)`);
+      console.log('✓ Created token_blacklist table');
+    }
+
     const criticalTables = ['users', 'sections', 'enrollments', 'concepts', 'exercises', 'submissions'];
     const allCriticalExist = criticalTables.every(table =>
       results.find(r => r.table === table)?.exists === true

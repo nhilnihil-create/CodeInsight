@@ -1,7 +1,7 @@
 const db = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
-const nodemailer = require('nodemailer');
 const logger = require('../lib/logger');
+const { sendEmail } = require('../lib/email');
 
 let isWorkerRunning = false;
 let pollingInterval = null;
@@ -161,44 +161,21 @@ const notifyStudent = async (exerciseId, message, force = false) => {
  */
 async function sendEmailNotifications(students, message, exerciseId) {
   try {
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT),
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // Get exercise details for context
     const exerciseRes = await db.query(
       `SELECT title FROM exercises WHERE id = $1`,
       [exerciseId]
     );
     const exerciseTitle = exerciseRes.rows.length ? exerciseRes.rows[0].title : 'Exercise';
 
-    // Send email to each student with error isolation
     const results = await Promise.allSettled(students.map(student => {
-      const mailOptions = {
-        from: process.env.EMAIL_FROM || 'noreply@codeinsight.psu.edu',
-        to: student.email,
-        subject: `CodeInsight: CDS Computation Complete for ${exerciseTitle}`,
-        text: `
-Hello ${student.name},
-
-${message}
-
-Exercise: ${exerciseTitle}
-You can now view your Concept Difficulty Score (CDS) in the CodeInsight platform.
-
-Best regards,
-CodeInsight Team
-        `.trim(),
-      };
-
-      return transporter.sendMail(mailOptions);
+      const subject = `CodeInsight: CDS Computation Complete for ${exerciseTitle}`;
+      const html = `
+        <h2>Hello ${student.name},</h2>
+        <p>${message}</p>
+        <p><strong>Exercise:</strong> ${exerciseTitle}</p>
+        <p>You can now view your Concept Difficulty Score (CDS) in the CodeInsight platform.</p>
+      `.trim();
+      return sendEmail({ to: student.email, subject, html });
     }));
 
     for (const [i, result] of results.entries()) {
