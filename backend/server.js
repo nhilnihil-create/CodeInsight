@@ -10,6 +10,8 @@ const db = require('./config/db');
 const logger = require('./lib/logger');
 const { startAutoCloseService, stopAutoCloseService } = require('./services/autoCloseService');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const swaggerSpec = require('./swagger');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 
@@ -87,6 +89,12 @@ app.get('/api/ready', async (_req, res) => {
     });
   }
 });
+
+// API Documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'CodeInsight API Docs',
+  customCss: '.swagger-ui .topbar { display: none }',
+}));
 
 // 404 (after all routes)
 app.use(notFoundHandler);

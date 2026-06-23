@@ -11,7 +11,7 @@ const { AppError } = require('../lib/AppError');
  *   - Postgres FK violation (23503)
  *   - anything else (500)
  */
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
   // Unknown route — should be hit by the 404 handler instead, but kept safe.
   if (err && err.type === 'entity.parse.failed') {
     return res.status(400).json({

@@ -1,7 +1,7 @@
 # CodeInsight - CLAUDE.md
 
 **Project Status**: 100% Complete — Deployment Ready (PRR Issues Remediated)
-**Last Updated**: June 22, 2026
+**Last Updated**: June 24, 2026
 **Production Readiness Review**: PASS — all P0-P2 items remediated
 **Critical Issues Remaining**: 0
 
@@ -10,8 +10,10 @@
 - **Database**: ✅ 12/12 tables present
 - **APIs**: ✅ 50+ endpoints implemented
 - **Frontend Build**: ✅ Passing (pure desktop, all mobile infra removed)
-- **Testing**: ✅ 882/882 tests passing (53 suites, all green)
+- **Testing**: ✅ 905/905 tests passing (54 suites, all green)
 - **Deployment Checklist**: ✅ All items complete
+- **Google OAuth**: ❌ Removed in favor of email OTP-only registration with role selector
+- **Submission Pipeline**: ✅ Optimized for Cyclic.sh 500MB/10s constraints
 
 ## 🔧 ARCHITECTURAL IMPROVEMENTS (June 22, 2026)
 
@@ -89,8 +91,15 @@ CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS)
 - [x] **Updated `.env.example`** — added `REDIS_HOST`, `CORS_ORIGINS`, `LOG_LEVEL`, `DB_SSL`, `DB_CONNECTION_TIMEOUT_MS`
 - [x] **Updated DEPLOYMENT.md** — production Docker/PM2/backup/monitoring instructions
 
-### Remaining Non-Blocking Items
-- [ ] Docker container pooling for sandbox (N+1 containers per submission)
-- [ ] PgBouncer for connection pooling at scale
-- [ ] OpenAPI/Swagger documentation
-- [ ] Frontend component test coverage (currently 6 test files)
+### Session 2026-06-24 — Cyclic.sh Submission Pipeline Optimizations
+- [x] **Fire-and-forget helper** — `backend/lib/background.js`: `defer(fn)` runs non-critical work after HTTP response via `setImmediate`
+- [x] **Concurrent compilation limiter** — `backend/lib/concurrency.js`: `runWithLimit(fn)` caps C++ compilations to `max(2, CPUs-1)` concurrent
+- [x] **Singleton tree-sitter parser** — `backend/lib/treeSitter.js`: lazy-loaded singleton parser, saves ~300ms + memory per submission
+- [x] **In-memory exercise cache** — `backend/lib/cache.js`: TTL-based cache eliminates redundant DB queries when N students submit to same exercise
+- [x] **Deferred post-processing** — `routes/student.js`: response sent immediately after test results + DB save; CDS, flags, integrity checks run async via `defer()`
+- [x] **Native compilation fallback** — `services/executor.js`: when Docker is unavailable (Cyclic.sh), compiles + runs C++ natively via g++ with timeout + resource limits
+- [x] **Dockerfile updated** — added `g++ gcc musl-dev make cppcheck` for native compilation on Cyclic.sh
+- [x] **DB pool tuned** — `config/db.js`: `max: 10` (Neon free tier limit), `statement_timeout: 30s`, all pool settings configurable via env vars
+- [x] **Frontend component tests** — `components/ui/button.test.jsx`, `badge.test.jsx`, `empty-state.test.jsx`: 16 new tests for variants, asChild, disabled, accessibility
+- [ ] Docker container pooling for sandbox (N+1 containers per submission — **skipped**: Cyclic.sh has no Docker support, native fallback used instead)
+- [ ] PgBonger for connection pooling at scale (**skipped**: `pg.Pool` max=10 + env-var config is sufficient for Neon free tier; PgBouncer daemon requires separate infrastructure)

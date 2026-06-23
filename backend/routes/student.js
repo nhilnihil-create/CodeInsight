@@ -8,6 +8,11 @@ const integrityFlagEngine = require('../services/integrityFlagEngine');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { AppError, codes } = require('../lib/AppError');
 const { rateLimit } = require('express-rate-limit');
+const { defer } = require('../lib/background');
+const { runWithLimit } = require('../lib/concurrency');
+const { parseAST } = require('../lib/treeSitter');
+const cache = require('../lib/cache');
+const logger = require('../lib/logger');
 
 const behavioralLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -138,15 +143,20 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     const { code, timeSpentSeconds, tabSwitchCount = 0, pasteCount = 0, idleTimeSeconds = 0 } = req.body;
     if (!code) throw new AppError('Code required', 400, codes.VALIDATION);
 
-    const exRes = await db.query(`
-      SELECT ex.*, c.name AS concept_name
-      FROM exercises ex
-      JOIN concepts c ON c.id = ex.concept_id
-      WHERE ex.id = $1
-    `, [req.params.id]);
-    if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
+    const cacheKey = `exercise:${req.params.id}`;
+    let exercise = cache.get(cacheKey);
+    if (!exercise) {
+      const exRes = await db.query(`
+        SELECT ex.*, c.name AS concept_name
+        FROM exercises ex
+        JOIN concepts c ON c.id = ex.concept_id
+        WHERE ex.id = $1
+      `, [req.params.id]);
+      if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
+      exercise = exRes.rows[0];
+      cache.set(cacheKey, exercise);
+    }
 
-    const exercise = exRes.rows[0];
     const allTestCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
     // Support both new isVisible and legacy hidden fields
@@ -162,7 +172,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     let compilerError = null;
 
     try {
-      allResults = await runAgainstTestCases(code, allTestCases, exercise.time_limit_minutes * 60, false);
+      allResults = await runWithLimit(() => runAgainstTestCases(code, allTestCases, exercise.time_limit_minutes * 60, false), 'compile');
       const compileErrorResult = allResults.find(r => r.status === 'Compile Error');
       if (compileErrorResult) compilerError = compileErrorResult.error;
       passed = allResults.every(r => r.passed);
@@ -197,28 +207,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       }
     };
 
-    try {
-      const parser = require('tree-sitter');
-      const CPP = require('tree-sitter-cpp');
-      const astParser = new parser();
-      astParser.setLanguage(CPP);
-      const tree = astParser.parse(code);
-      const nodeTypes = new Set();
-      (function traverse(node) {
-        nodeTypes.add(node.type);
-        for (let i = 0; i < node.childCount; i++) traverse(node.child(i));
-      })(tree.rootNode);
-      const types = Array.from(nodeTypes);
-      microContext.ast.node_types = types;
-      microContext.ast.if_count = types.filter(t => t === 'if_statement').length;
-      microContext.ast.else_count = types.filter(t => t === 'else_clause').length;
-      microContext.ast.has_private = types.some(t => t === 'private_section' || t === 'protected_section');
-    } catch (astError) {
-      microContext.ast.node_types = [];
-      microContext.ast.if_count = 0;
-      microContext.ast.else_count = 0;
-      microContext.ast.has_private = false;
-    }
+    microContext.ast = parseAST(code);
 
     let microConceptFeedback = null;
     try {
@@ -242,192 +231,195 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     `, [exercise.id, req.user.id, code, passed, attempt_number, timeSpentSeconds || 0,
         tabSwitchCount, pasteCount, idleTimeSeconds]);
 
-    // Live CDS for student-facing display
-    let liveCDS = null;
-    try {
-      liveCDS = await cdsEngine.calculateLiveCDS(req.user.id, exercise.id, db);
-      if (liveCDS && liveCDS.cds !== null) {
-        await db.query(`
-          INSERT INTO cds_scores (student_id, exercise_id, section_id, ner, nrs, nts, cds, classification, has_flagged_attempts, integrity_flag_count, source, visible, computed_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'live', false, NOW())
-          ON CONFLICT (student_id, exercise_id)
-          DO UPDATE SET ner=$4, nrs=$5, nts=$6, cds=$7, classification=$8, has_flagged_attempts=$9, integrity_flag_count=$10, source='live', visible=false, computed_at=NOW()
-        `, [
-          req.user.id, exercise.id, exercise.section_id,
-          liveCDS.ner || 0, liveCDS.nrs || 0, liveCDS.nts || 0,
-          liveCDS.cds || 0, liveCDS.classification || 'Unscored',
-          liveCDS.hasFlaggedAttempt || false, liveCDS.integrityFlagCount || 0,
-        ]);
-      }
-    } catch (liveErr) {
-      // eslint-disable-next-line no-console
-      console.warn('Live CDS calculation failed:', liveErr.message);
-    }
-
-    // ── Passive Behavior Logging Flag ──────────────────────────────────
-    // Flag suspicious patterns: excessive tab switches, pastes, or idle time
-    const BEHAVIORAL_THRESHOLDS = {
-      TAB_SWITCH_HIGH: 5,
-      PASTE_HIGH: 3,
-      IDLE_RATIO_HIGH: 0.5,
-    };
-    const totalTime = timeSpentSeconds || 1;
-    const idleRatio = idleTimeSeconds / totalTime;
-    const behavioralSignals = [];
-    if (tabSwitchCount >= BEHAVIORAL_THRESHOLDS.TAB_SWITCH_HIGH) {
-      behavioralSignals.push(`${tabSwitchCount} tab switches`);
-    }
-    if (pasteCount >= BEHAVIORAL_THRESHOLDS.PASTE_HIGH) {
-      behavioralSignals.push(`${pasteCount} paste events`);
-    }
-    if (idleRatio >= BEHAVIORAL_THRESHOLDS.IDLE_RATIO_HIGH) {
-      behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
-    }
-
-    if (behavioralSignals.length > 0) {
-      const behavioralSeverity = behavioralSignals.length >= 2 ? 'high' : 'medium';
-      try {
-        await db.query(`
-          INSERT INTO integrity_flags
-            (section_id, exercise_id, student_id, submission_id, flag_type, severity,
-             evidence, context_behaviors, status, created_at)
-          VALUES ($1, $2, $3, $4, 'PASSIVE_BEHAVIOR_LOG', $5, $6, $7, 'flagged', NOW())
-          ON CONFLICT (exercise_id, student_id, flag_type)
-          DO UPDATE SET
-            severity = EXCLUDED.severity,
-            evidence = EXCLUDED.evidence,
-            context_behaviors = EXCLUDED.context_behaviors,
-            submission_id = EXCLUDED.submission_id
-        `, [
-          exercise.section_id, exercise.id, req.user.id, subRes.rows[0].id,
-          behavioralSeverity,
-          JSON.stringify({
-            tab_switch_count: tabSwitchCount,
-            paste_count: pasteCount,
-            idle_time_seconds: idleTimeSeconds,
-            total_time_seconds: totalTime,
-            idle_ratio: Math.round(idleRatio * 100) / 100,
-          }),
-          [
-            behavioralSignals.join('; '),
-            `Attempt #${attempt_number}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
-          ],
-        ]);
-      } catch (flagErr) {
-        console.warn('Behavioral flag creation failed:', flagErr.message);
-      }
-    }
-
-    // ── Code Growth Anomaly (paper flag #4) ───────────────────────────
-    try {
-      const currentLineCount = (code || '').split('\n').length;
-      if (attempt_number > 1) {
-        const prevRes = await db.query(
-          'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
-          [req.user.id, exercise.id, attempt_number - 1]
-        );
-        if (prevRes.rows.length > 0) {
-          const prevLineCount = (prevRes.rows[0].code || '').split('\n').length;
-          if (prevLineCount > 0) {
-            const growthPercent = ((currentLineCount - prevLineCount) / prevLineCount) * 100;
-            if (growthPercent > 30) {
-              await integrityFlagEngine.createFlag({
-                sectionId: exercise.section_id,
-                exerciseId: exercise.id,
-                studentId: req.user.id,
-                flagType: 'CODE_GROWTH_ANOMALY',
-                severity: 'high',
-                evidence: {
-                  baseline_lines: prevLineCount,
-                  student_lines: currentLineCount,
-                  growth_percent: Math.round(growthPercent),
-                  threshold: 30,
-                  attempt_number,
-                },
-                contextBehaviors: [
-                  `Code grew ${Math.round(growthPercent)}% in attempt #${attempt_number} (${prevLineCount} → ${currentLineCount} lines)`,
-                ],
-                status: 'flagged',
-              });
-            }
-          }
-        }
-      }
-    } catch (growthErr) {
-      console.warn('Code growth anomaly check failed:', growthErr.message);
-    }
-
-    // ── Academic Integrity Checks (HARDCODING, BLANK_TEMPLATE) ──────────
-    try {
-      const academicFlags = await academicIntegrityEngine.evaluateIntegrity({
-        code,
-        starterCode: exercise.starter_code || '',
-        studentId: req.user.id,
-        exerciseId: exercise.id,
-        submission: {
-          is_correct: passed,
-          test_results: allResults,
-          time_spent_seconds: timeSpentSeconds || 0,
-          submission_id: subRes.rows[0].id,
-        },
-        exercise,
-      });
-      for (const flag of academicFlags) {
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId: exercise.id,
-          studentId: req.user.id,
-          flagType: flag.type,
-          severity: flag.severity,
-          evidence: flag.evidence || {},
-          contextBehaviors: flag.context_behaviors || [],
-          status: 'flagged',
-          submissionId: subRes.rows[0].id,
-        });
-      }
-    } catch (integrityError) {
-      console.warn('Academic integrity check failed:', integrityError.message);
-    }
-
-    // ── Behavioral Anomaly Detection ──────────────────────────────────
-    try {
-      const behavioralDetector = require('../services/behavioralAnomalyDetector');
-      const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
-        studentId: req.user.id,
-        exerciseId: exercise.id,
-        submissionId: subRes.rows[0].id,
-        is_correct: passed,
-        time_spent_seconds: timeSpentSeconds || 0,
-        attempt_number: attempt_number,
-        sectionId: exercise.section_id,
-      });
-      for (const flag of behavioralFlags) {
-        await integrityFlagEngine.createFlag({
-          sectionId: exercise.section_id,
-          exerciseId: exercise.id,
-          studentId: req.user.id,
-          flagType: flag.type,
-          severity: flag.severity,
-          evidence: flag.evidence || {},
-          contextBehaviors: flag.context_behaviors || [],
-          status: 'flagged',
-          submissionId: subRes.rows[0].id,
-        });
-      }
-    } catch (behavioralError) {
-      console.warn('Behavioral anomaly detection failed:', behavioralError.message);
-    }
-
+    // Send response immediately — student sees test results right away
     res.status(201).json({
       ...subRes.rows[0],
       passed: subRes.rows[0].is_correct,
       testResults: visibleResults,
       compilerError,
       hiddenTestCount: allTestCases.filter(tc => tc.hidden).length,
-      liveCDS,
+      liveCDS: null,
       isCompleted: subRes.rows[0].is_correct,
       microConceptFeedback,
       message: 'Submission saved successfully',
+    });
+
+    // ── Deferred post-processing (CDS, flags, checks run in background) ─
+    defer(async () => {
+
+      let liveCDS = null;
+      try {
+        liveCDS = await cdsEngine.calculateLiveCDS(req.user.id, exercise.id, db);
+        if (liveCDS && liveCDS.cds !== null) {
+          await db.query(`
+            INSERT INTO cds_scores (student_id, exercise_id, section_id, ner, nrs, nts, cds, classification, has_flagged_attempts, integrity_flag_count, source, visible, computed_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'live', false, NOW())
+            ON CONFLICT (student_id, exercise_id)
+            DO UPDATE SET ner=$4, nrs=$5, nts=$6, cds=$7, classification=$8, has_flagged_attempts=$9, integrity_flag_count=$10, source='live', visible=false, computed_at=NOW()
+          `, [
+            req.user.id, exercise.id, exercise.section_id,
+            liveCDS.ner || 0, liveCDS.nrs || 0, liveCDS.nts || 0,
+            liveCDS.cds || 0, liveCDS.classification || 'Unscored',
+            liveCDS.hasFlaggedAttempt || false, liveCDS.integrityFlagCount || 0,
+          ]);
+        }
+      } catch (liveErr) {
+        logger.warn({ err: liveErr }, 'Live CDS calculation failed');
+      }
+
+      // ── Passive Behavior Logging Flag ──────────────────────────────────
+      const BEHAVIORAL_THRESHOLDS = {
+        TAB_SWITCH_HIGH: 5,
+        PASTE_HIGH: 3,
+        IDLE_RATIO_HIGH: 0.5,
+      };
+      const totalTime = timeSpentSeconds || 1;
+      const idleRatio = idleTimeSeconds / totalTime;
+      const behavioralSignals = [];
+      if (tabSwitchCount >= BEHAVIORAL_THRESHOLDS.TAB_SWITCH_HIGH) {
+        behavioralSignals.push(`${tabSwitchCount} tab switches`);
+      }
+      if (pasteCount >= BEHAVIORAL_THRESHOLDS.PASTE_HIGH) {
+        behavioralSignals.push(`${pasteCount} paste events`);
+      }
+      if (idleRatio >= BEHAVIORAL_THRESHOLDS.IDLE_RATIO_HIGH) {
+        behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
+      }
+
+      if (behavioralSignals.length > 0) {
+        const behavioralSeverity = behavioralSignals.length >= 2 ? 'high' : 'medium';
+        try {
+          await db.query(`
+            INSERT INTO integrity_flags
+              (section_id, exercise_id, student_id, submission_id, flag_type, severity,
+               evidence, context_behaviors, status, created_at)
+            VALUES ($1, $2, $3, $4, 'PASSIVE_BEHAVIOR_LOG', $5, $6, $7, 'flagged', NOW())
+            ON CONFLICT (exercise_id, student_id, flag_type)
+            DO UPDATE SET
+              severity = EXCLUDED.severity,
+              evidence = EXCLUDED.evidence,
+              context_behaviors = EXCLUDED.context_behaviors,
+              submission_id = EXCLUDED.submission_id
+          `, [
+            exercise.section_id, exercise.id, req.user.id, subRes.rows[0].id,
+            behavioralSeverity,
+            JSON.stringify({
+              tab_switch_count: tabSwitchCount,
+              paste_count: pasteCount,
+              idle_time_seconds: idleTimeSeconds,
+              total_time_seconds: totalTime,
+              idle_ratio: Math.round(idleRatio * 100) / 100,
+            }),
+            [
+              behavioralSignals.join('; '),
+              `Attempt #${attempt_number}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+            ],
+          ]);
+        } catch (flagErr) {
+          logger.warn({ err: flagErr }, 'Behavioral flag creation failed');
+        }
+      }
+
+      // ── Code Growth Anomaly ───────────────────────────────────────────
+      try {
+        const currentLineCount = (code || '').split('\n').length;
+        if (attempt_number > 1) {
+          const prevRes = await db.query(
+            'SELECT code FROM submissions WHERE student_id=$1 AND exercise_id=$2 AND attempt_number=$3',
+            [req.user.id, exercise.id, attempt_number - 1]
+          );
+          if (prevRes.rows.length > 0) {
+            const prevLineCount = (prevRes.rows[0].code || '').split('\n').length;
+            if (prevLineCount > 0) {
+              const growthPercent = ((currentLineCount - prevLineCount) / prevLineCount) * 100;
+              if (growthPercent > 30) {
+                await integrityFlagEngine.createFlag({
+                  sectionId: exercise.section_id,
+                  exerciseId: exercise.id,
+                  studentId: req.user.id,
+                  flagType: 'CODE_GROWTH_ANOMALY',
+                  severity: 'high',
+                  evidence: {
+                    baseline_lines: prevLineCount,
+                    student_lines: currentLineCount,
+                    growth_percent: Math.round(growthPercent),
+                    threshold: 30,
+                    attempt_number,
+                  },
+                  contextBehaviors: [
+                    `Code grew ${Math.round(growthPercent)}% in attempt #${attempt_number} (${prevLineCount} → ${currentLineCount} lines)`,
+                  ],
+                  status: 'flagged',
+                });
+              }
+            }
+          }
+        }
+      } catch (growthErr) {
+        logger.warn({ err: growthErr }, 'Code growth anomaly check failed');
+      }
+
+      // ── Academic Integrity Checks ──────────────────────────────────────
+      try {
+        const academicFlags = await academicIntegrityEngine.evaluateIntegrity({
+          code,
+          starterCode: exercise.starter_code || '',
+          studentId: req.user.id,
+          exerciseId: exercise.id,
+          submission: {
+            is_correct: passed,
+            test_results: allResults,
+            time_spent_seconds: timeSpentSeconds || 0,
+            submission_id: subRes.rows[0].id,
+          },
+          exercise,
+        });
+        for (const flag of academicFlags) {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id,
+            exerciseId: exercise.id,
+            studentId: req.user.id,
+            flagType: flag.type,
+            severity: flag.severity,
+            evidence: flag.evidence || {},
+            contextBehaviors: flag.context_behaviors || [],
+            status: 'flagged',
+            submissionId: subRes.rows[0].id,
+          });
+        }
+      } catch (integrityError) {
+        logger.warn({ err: integrityError }, 'Academic integrity check failed');
+      }
+
+      // ── Behavioral Anomaly Detection ──────────────────────────────────
+      try {
+        const behavioralDetector = require('../services/behavioralAnomalyDetector');
+        const behavioralFlags = await behavioralDetector.detectBehavioralAnomalies({
+          studentId: req.user.id,
+          exerciseId: exercise.id,
+          submissionId: subRes.rows[0].id,
+          is_correct: passed,
+          time_spent_seconds: timeSpentSeconds || 0,
+          attempt_number: attempt_number,
+          sectionId: exercise.section_id,
+        });
+        for (const flag of behavioralFlags) {
+          await integrityFlagEngine.createFlag({
+            sectionId: exercise.section_id,
+            exerciseId: exercise.id,
+            studentId: req.user.id,
+            flagType: flag.type,
+            severity: flag.severity,
+            evidence: flag.evidence || {},
+            contextBehaviors: flag.context_behaviors || [],
+            status: 'flagged',
+            submissionId: subRes.rows[0].id,
+          });
+        }
+      } catch (behavioralError) {
+        logger.warn({ err: behavioralError }, 'Behavioral anomaly detection failed');
+      }
+
     });
   } catch (err) { next(err); }
 });

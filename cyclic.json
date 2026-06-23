@@ -1,0 +1,7 @@
+{
+  "healthcheck": "/api/ready",
+  "installCommand": "npm ci",
+  "buildCommand": "node migrations.js",
+  "startCommand": "node server.js",
+  "main": "backend/server.js"
+}

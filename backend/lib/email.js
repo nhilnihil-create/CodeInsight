@@ -43,4 +43,18 @@ async function sendVerificationEmail({ to, name, token }) {
   await sendEmail({ to, subject, html });
 }
 
-module.exports = { sendEmail, sendVerificationEmail };
+async function sendOtpEmail({ to, name, otp }) {
+  const subject = 'Your CodeInsight verification code';
+  const html = `
+    <h1>CodeInsight</h1>
+    <p>Hello ${name},</p>
+    <p>Your verification code is:</p>
+    <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 16px; background: #f0f0f0; border-radius: 8px;">${otp}</p>
+    <p>This code expires in 5 minutes.</p>
+    <p>If you did not request this code, please ignore this email.</p>
+    <p>— Pampanga State University · CCS · CodeInsight</p>
+  `;
+  await sendEmail({ to, subject, html });
+}
+
+module.exports = { sendEmail, sendVerificationEmail, sendOtpEmail };

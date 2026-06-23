@@ -1,15 +1,7 @@
-const db = require('../config/db');
+const { isEduDomain, isTempEmail, getEmailDomain } = require('../lib/domainValidator');
+const { generateOtp, storeOtp, verifyOtp } = require('../lib/otpStore');
 
 describe('Auth Security', () => {
-  beforeAll(async () => {
-    const { ensureTablesExist } = require('../migrations');
-    await ensureTablesExist();
-  });
-
-  afterAll(async () => {
-    await db.end();
-  });
-
   describe('Registration validation', () => {
     it('should reject admin role in registration', () => {
       const v = require('../lib/validators');
@@ -23,7 +15,7 @@ describe('Auth Security', () => {
       expect(error.message).toMatch(/must be one of/);
     });
 
-    it('should accept student role', () => {
+    it('should accept student role in registration', () => {
       const v = require('../lib/validators');
       const { error } = v.register.validate({
         name: 'Test',
@@ -34,13 +26,12 @@ describe('Auth Security', () => {
       expect(error).toBeUndefined();
     });
 
-    it('should accept instructor role', () => {
+    it('should accept registration without explicit role', () => {
       const v = require('../lib/validators');
       const { error } = v.register.validate({
         name: 'Test',
         email: 'test@test.com',
         password: 'Test1234!',
-        role: 'instructor',
       });
       expect(error).toBeUndefined();
     });
@@ -48,7 +39,7 @@ describe('Auth Security', () => {
     it('should reject weak passwords', () => {
       const v = require('../lib/validators');
       const cases = [
-        { pwd: 'short1A', expectError: true },  // no special char, too short
+        { pwd: 'short1A', expectError: true },
         { pwd: 'nouppercase1!', expectError: true },
         { pwd: 'NOLOWERCASE1!', expectError: true },
         { pwd: 'NoDigits!', expectError: true },
@@ -65,66 +56,63 @@ describe('Auth Security', () => {
     });
   });
 
-  describe('Instructor domain validation', () => {
-    it('should reject non-matching domain', () => {
-      process.env.INSTRUCTOR_DOMAINS = 'university.edu, college.edu';
-      const allowedDomains = (process.env.INSTRUCTOR_DOMAINS || '')
-        .split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
-      const domain = 'hacker@gmail.com'.split('@')[1]?.toLowerCase();
-      expect(allowedDomains.includes(domain)).toBe(false);
+  describe('Domain validation', () => {
+    it('should detect .edu domains', () => {
+      expect(isEduDomain('psu.edu')).toBe(true);
+      expect(isEduDomain('mit.edu')).toBe(true);
+      expect(isEduDomain('pampanga.edu.ph')).toBe(true);
+      expect(isEduDomain('ox.ac.uk')).toBe(true);
     });
 
-    it('should accept matching domain', () => {
-      process.env.INSTRUCTOR_DOMAINS = 'university.edu';
-      const allowedDomains = (process.env.INSTRUCTOR_DOMAINS || '')
-        .split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
-      const domain = 'prof@university.edu'.split('@')[1]?.toLowerCase();
-      expect(allowedDomains.includes(domain)).toBe(true);
-    });
-  });
-
-  describe('Token blacklist', () => {
-    beforeAll(async () => {
-      try {
-        await db.query(`CREATE TABLE IF NOT EXISTS token_blacklist (
-          id SERIAL PRIMARY KEY,
-          jti VARCHAR(255) NOT NULL UNIQUE,
-          expires_at TIMESTAMP NOT NULL
-        )`);
-        await db.query(`CREATE INDEX IF NOT EXISTS idx_token_blacklist_jti ON token_blacklist(jti)`);
-        await db.query(`CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at)`);
-      } catch (e) { /* table may already exist */ }
+    it('should reject non-edu domains', () => {
+      expect(isEduDomain('gmail.com')).toBe(false);
+      expect(isEduDomain('yahoo.com')).toBe(false);
+      expect(isEduDomain('company.co.uk')).toBe(false);
     });
 
-    it('should insert and query blacklisted JTI', async () => {
-      const jti = 'test-jti-' + Date.now();
-      const expiresAt = new Date(Date.now() + 3600000);
-      await db.query(
-        'INSERT INTO token_blacklist (jti, expires_at) VALUES ($1, $2) ON CONFLICT (jti) DO NOTHING',
-        [jti, expiresAt]
-      );
-      const result = await db.query(
-        'SELECT 1 FROM token_blacklist WHERE jti = $1 AND expires_at > NOW()',
-        [jti]
-      );
-      expect(result.rows.length).toBe(1);
-      await db.query('DELETE FROM token_blacklist WHERE jti = $1', [jti]);
+    it('should detect temp email domains', () => {
+      expect(isTempEmail('mailinator.com')).toBe(true);
+      expect(isTempEmail('guerrillamail.com')).toBe(true);
+      expect(isTempEmail('10minutemail.com')).toBe(true);
     });
 
-    it('should not find non-existent JTI', async () => {
-      const result = await db.query(
-        'SELECT 1 FROM token_blacklist WHERE jti = $1 AND expires_at > NOW()',
-        ['non-existent-jti']
-      );
-      expect(result.rows.length).toBe(0);
+    it('should not flag normal domains as temp', () => {
+      expect(isTempEmail('gmail.com')).toBe(false);
+      expect(isTempEmail('psu.edu')).toBe(false);
     });
   });
 
-  describe('Login rate limiter config', () => {
-    it('should have registration rate limiter in auth routes', () => {
-      const router = require('../routes/auth');
-      const stack = router.stack.filter(r => r.route?.path === '/register' && r.route.methods?.post);
-      expect(stack.length).toBe(1);
+  describe('OTP store', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should generate 6-digit OTP', () => {
+      const otp = generateOtp();
+      expect(otp).toMatch(/^\d{6}$/);
+    });
+
+    it('should store and verify OTP', () => {
+      const otp = generateOtp();
+      storeOtp('alice@test.com', otp);
+      const result = verifyOtp('alice@test.com', otp);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject wrong OTP', () => {
+      storeOtp('bob@test.com', '111111');
+      const result = verifyOtp('bob@test.com', '000000');
+      expect(result.valid).toBe(false);
+    });
+
+    it('should block after 5 failed attempts', () => {
+      storeOtp('spam@test.com', '123456');
+      for (let i = 0; i < 5; i++) {
+        verifyOtp('spam@test.com', '000000');
+      }
+      const result = verifyOtp('spam@test.com', '000000');
+      expect(result.valid).toBe(false);
+      expect(result.reason).toMatch(/too many|request a new/i);
     });
   });
 });

@@ -15,20 +15,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
-/**
- * Login page.
- *
- * PRESERVED from the previous implementation:
- *   - Calls api.post('/api/auth/login', { email, password })
- *   - Calls login(token, user) from AuthContext
- *   - Navigates to /instructor or /student based on role, with replace:true
- *   - Error message: err.response?.data?.message || 'Login failed'
- *   - Same demo accounts (instructor@psu.edu / maria@student.psu.edu)
- *
- * REPLACED:
- *   - Hand-built card → shadcn Card primitives (matches Frontend-Design)
- *   - Adds a "Back to landing" link and centers content using bg-muted/30
- */
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

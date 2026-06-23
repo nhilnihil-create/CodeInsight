@@ -1251,7 +1251,7 @@ exports.getReportSummary = async (req, res, next) => {
       ),
       // 2. Completion
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at > NOW() - INTERVAL '1 day' * $2`,
+        `SELECT ROUND(AVG(sub_pct))::INTEGER AS pct FROM (SELECT (COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF(enr.total, 0)) * 100 AS sub_pct FROM exercises e CROSS JOIN (SELECT COUNT(*) AS total FROM enrollments WHERE ${directWhere}) enr LEFT JOIN submissions sub ON sub.exercise_id = e.id AND sub.submitted_at > NOW() - INTERVAL '1 day' * $2 WHERE ${directWhere} GROUP BY e.id, enr.total) per_exercise`,
         exParams
       ),
       // 3. At Risk
@@ -1291,7 +1291,7 @@ exports.getReportSummary = async (req, res, next) => {
       ),
       // 10. Prior completion
       db.query(
-        `SELECT ROUND((COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF((SELECT COUNT(*) FROM enrollments WHERE ${directWhere}), 0)) * 100)::INTEGER AS pct FROM submissions sub JOIN exercises ex ON sub.exercise_id = ex.id WHERE ${exWhere} AND sub.submitted_at < NOW() - INTERVAL '1 day' * $2 AND sub.submitted_at > NOW() - INTERVAL '1 day' * $3`,
+        `SELECT ROUND(AVG(sub_pct))::INTEGER AS pct FROM (SELECT (COUNT(DISTINCT sub.student_id)::FLOAT / NULLIF(enr.total, 0)) * 100 AS sub_pct FROM exercises e CROSS JOIN (SELECT COUNT(*) AS total FROM enrollments WHERE ${directWhere}) enr LEFT JOIN submissions sub ON sub.exercise_id = e.id AND sub.submitted_at < NOW() - INTERVAL '1 day' * $2 AND sub.submitted_at > NOW() - INTERVAL '1 day' * $3 WHERE ${directWhere} GROUP BY e.id, enr.total) per_exercise`,
         sectionId === 'all' ? [String(instructorId), days, String(priorDays)] : [sectionId, days, String(priorDays)]
       ),
       // 11. Prior at-risk

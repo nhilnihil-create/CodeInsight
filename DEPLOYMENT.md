@@ -1,6 +1,116 @@
 # DEPLOYMENT CHECKLIST
 
-## Quick Start (Docker — Recommended)
+## Zero-Cost Deployment (Cyclic.sh + Neon + Vercel)
+
+This is the recommended deployment for **zero-cost production** — no credit card required.
+
+### Architecture
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Vercel     │────▶│  Cyclic.sh   │────▶│    Neon      │
+│  (Frontend)  │     │  (Backend)   │     │ (Postgres)   │
+│  vite+react  │     │  Express.js  │     │  Managed DB  │
+└──────────────┘     └──────────────┘     └──────────────┘
+     HTTPS                HTTPS                TLS
+  codeinsight.vercel.app  codeinsight.cyclic.app  neon.tech
+```
+
+### Step 1: Create Neon Database (Postgres)
+
+1. Sign up at [neon.tech](https://neon.tech) (no credit card)
+2. Create a project → your database is ready immediately
+3. From the Neon dashboard, copy the **connection string**:
+   ```
+   postgresql://user:password@ep-xxxx.region.aws.neon.tech/codeinsight?sslmode=require
+   ```
+4. Run schema migration locally:
+   ```bash
+   psql "<neon-connection-string>" < backend/schema.sql
+   ```
+   This creates all 12 tables and seeds demo accounts.
+
+### Step 2: Deploy Backend to Cyclic.sh
+
+1. Push your repo to GitHub
+2. Sign up at [cyclic.sh](https://cyclic.sh) (GitHub login, no credit card)
+3. Click **"Deploy"** → select your repo
+4. Cyclic.sh auto-detects the `Dockerfile` and builds the container
+5. Set environment variables in Cyclic.sh dashboard → **Variables**:
+
+| Variable | Value | Notes |
+|----------|-------|-------|
+| `DB_HOST` | `ep-xxxx.region.aws.neon.tech` | From Neon connection string |
+| `DB_PORT` | `5432` | |
+| `DB_NAME` | `codeinsight` | |
+| `DB_USER` | (from Neon) | |
+| `DB_PASSWORD` | (from Neon) | |
+| `DB_SSL` | `true` | Required for Neon |
+| `DB_CONNECTION_TIMEOUT_MS` | `5000` | |
+| `DB_STATEMENT_TIMEOUT_MS` | `30000` | |
+| `DB_POOL_MAX` | `10` | Neon free tier limit |
+| `JWT_SECRET` | `<generate-a-random-string>` | Use: `openssl rand -hex 32` |
+| `NODE_ENV` | `production` | |
+| `CORS_ORIGINS` | `https://codeinsight.vercel.app` | Your Vercel frontend URL |
+| `EMAIL_HOST` | `smtp.gmail.com` | For OTP emails |
+| `EMAIL_PORT` | `587` | |
+| `EMAIL_USER` | `codeinsight.noreply@gmail.com` | |
+| `EMAIL_PASS` | (Gmail App Password) | |
+| `EMAIL_FROM` | `CodeInsight <codeinsight.noreply@gmail.com>` | |
+| `EMAIL_ENABLED` | `true` | |
+| `APP_URL` | `https://codeinsight.cyclic.app` | Your Cyclic.sh URL |
+| `LOG_LEVEL` | `info` | |
+
+6. After deploy, wait for build (1-2 min) then verify:
+   ```bash
+   curl https://codeinsight.cyclic.app/api/health
+   curl https://codeinsight.cyclic.app/api/ready
+   ```
+
+### Step 3: Deploy Frontend to Vercel
+
+1. Sign up at [vercel.com](https://vercel.com) (GitHub login, no credit card)
+2. Click **"Add New" → "Project"** → select your repo
+3. Configure:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build` (auto-detected from vercel.json)
+   - **Output Directory**: `dist`
+   - **Node Version**: 22.x
+4. Add environment variable:
+   - `VITE_API_BASE_URL` = `https://codeinsight.cyclic.app` (your Cyclic.sh backend URL)
+5. Click **Deploy**
+6. Add the Vercel production URL to Cyclic.sh's `CORS_ORIGINS` environment variable
+
+### Step 4: Verify End-to-End
+
+1. Open your Vercel URL (e.g., `https://codeinsight.vercel.app`)
+2. Login as instructor: `instructor@psu.edu` / `password123`
+3. Navigate to a section → click "Set Up Exercise" to create a new exercise
+4. Logout and login as student: `maria@student.psu.edu` / `password123`
+5. The student dashboard loads with exercise data from the database
+
+### Env Vars Quick Reference
+
+| Env Var | Where to Set | Purpose |
+|---------|-------------|---------|
+| `VITE_API_BASE_URL` | Vercel dashboard | Points frontend at Cyclic.sh backend |
+| `CORS_ORIGINS` | Cyclic.sh dashboard | Allows frontend origin in CORS |
+| `JWT_SECRET` | Cyclic.sh dashboard | Signs auth tokens |
+| `DB_*` | Cyclic.sh dashboard | Neon Postgres connection |
+| `EMAIL_*` | Cyclic.sh dashboard | Gmail SMTP for OTP |
+
+### Troubleshooting (Cyclic.sh)
+
+**"Docker is required but unavailable"**: Remove this error — the backend now compiles C++ natively on Cyclic.sh (g++ is included in the Dockerfile). No Docker-in-Docker needed.
+
+**Blank page on Vercel**: Check `VITE_API_BASE_URL` is set correctly in Vercel dashboard. The frontend needs to know where the backend lives.
+
+**Login fails / cookie not sent**: Ensure `CORS_ORIGINS` on Cyclic.sh exactly matches `https://codeinsight.vercel.app` (no trailing slash). The backend uses `SameSite=None` in production — cookies require HTTPS (both Vercel and Cyclic.sh support this natively).
+
+**Backend crashes on Neon**: Verify `DB_POOL_MAX` is ≤ 10 (Neon free tier). Our config defaults to 10. If connections are exhausted, reduce via `DB_POOL_MAX=5`.
+
+---
+
+## Quick Start (Docker — Recommended for Local Dev)
 
 ```bash
 # 1. Build and start all services

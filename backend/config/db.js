@@ -5,10 +5,11 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   user:     process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30000,
+  max: parseInt(process.env.DB_POOL_MAX || '10'),
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '30000'),
   connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '5000'),
   ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}),
+  statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '30000'),
 });
 
 pool.query('SELECT 1')

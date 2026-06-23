@@ -893,10 +893,9 @@ function CompletionTab({ data }) {
                 <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="exercise" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} interval={0} angle={-20} textAnchor="end" height={56} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={32} tickFormatter={(v) => `${v}%`} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} formatter={(value) => [`${value}%`]} />
                 <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
                 <Bar dataKey="on_time" name="On time" stackId="status" fill="hsl(var(--success))" isAnimationActive={false} />
-                <Bar dataKey="late" name="Late" stackId="status" fill="hsl(var(--warning))" isAnimationActive={false} />
                 <Bar dataKey="missing" name="Missing" stackId="status" fill="hsl(var(--destructive))" isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
@@ -913,7 +912,6 @@ function CompletionTab({ data }) {
             columns={[
               { key: "exercise", label: "Exercise", align: "left" },
               { key: "on_time", label: "On time", align: "right" },
-              { key: "late", label: "Late", align: "right" },
               { key: "missing", label: "Missing", align: "right" },
             ]}
             sort={sort}

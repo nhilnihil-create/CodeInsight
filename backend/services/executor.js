@@ -110,8 +110,8 @@ function parseCppcheckOutput(output) {
 // ── Execute code in Docker sandbox ─────────────────────────────────────────
 
 /**
- * STAGE 1: Compile C++ code inside Docker sandbox.
- * Returns { success: boolean, error: string } where error contains raw compiler stderr on failure.
+ * STAGE 1: Compile C++ code, preferring Docker sandbox but falling back to native.
+ * Returns { success: boolean, error: string, tmpDir?: string, binaryPath?: string }
  */
 async function compileCode(sourceCode, timeLimitSeconds = 30) {
   if (!isSafe(sourceCode)) {
@@ -119,10 +119,13 @@ async function compileCode(sourceCode, timeLimitSeconds = 30) {
   }
 
   const dockerOk = await dockerAvailable();
-  if (!dockerOk) {
-    return { success: false, error: 'Docker is required but unavailable. Please ensure Docker is installed and running.' };
+  if (dockerOk) {
+    return compileCodeDocker(sourceCode, timeLimitSeconds);
   }
+  return compileCodeNative(sourceCode, timeLimitSeconds);
+}
 
+async function compileCodeDocker(sourceCode, timeLimitSeconds) {
   const tmpDir = path.join('/tmp', `ci_compile_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   const srcFile = path.join(tmpDir, 'solution.cpp');
@@ -135,69 +138,140 @@ async function compileCode(sourceCode, timeLimitSeconds = 30) {
 
     const result = await runInDocker(dockerCmd, effectiveSec + 5);
 
-    // Explicit compilation guard: check exit code
     if (result.err || result.stderr.includes('error:')) {
       const compileError = parseCompilerError((result.stderr || '') + (result.stdout || ''), sourceCode);
       return { success: false, error: compileError };
     }
 
-    // Compilation succeeded - binary exists at /workspace/solution in container
-    // We need to keep the tmpDir for execution stage
-    return { success: true, tmpDir };
+    return { success: true, tmpDir, binaryPath: '/workspace/solution' };
   } catch (err) {
     cleanup(tmpDir);
     return { success: false, error: `Compilation sandbox error: ${err.message}` };
   }
 }
 
+async function compileCodeNative(sourceCode, timeLimitSeconds) {
+  const tmpDir = path.join('/tmp', `ci_native_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const srcFile = path.join(tmpDir, 'solution.cpp');
+  fs.writeFileSync(srcFile, sourceCode);
+  const binaryPath = path.join(tmpDir, 'solution');
+
+  const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
+  return new Promise((resolve) => {
+    exec(
+      `g++ ${COMPILE_FLAGS} "${srcFile}" -o "${binaryPath}"`,
+      { timeout: (effectiveSec + 5) * 1000, maxBuffer: 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if ((err && err.code !== null) || stderr.includes('error:')) {
+          const compileError = parseCompilerError(stderr || stdout || '', sourceCode);
+          cleanup(tmpDir);
+          resolve({ success: false, error: compileError });
+        } else {
+          resolve({ success: true, tmpDir, binaryPath });
+        }
+      }
+    );
+  });
+}
+
 /**
  * STAGE 2: Execute pre-compiled binary against stdin.
- * Assumes compilation succeeded and binary exists in container at /workspace/solution.
+ * Accepts the result from compileCode (Docker or native).
  */
-async function runCompiledBinary(tmpDir, stdin, timeLimitSeconds = 5) {
+async function runCompiledBinary(compileResult, stdin, timeLimitSeconds = 5) {
+  const { tmpDir, binaryPath } = compileResult;
+  const isNative = compileResult.binaryPath && !compileResult.binaryPath.startsWith('/workspace');
+
+  if (isNative) {
+    return runBinaryNative(tmpDir, binaryPath, stdin, timeLimitSeconds);
+  }
+  return runBinaryDocker(tmpDir, binaryPath, stdin, timeLimitSeconds);
+}
+
+async function runBinaryDocker(tmpDir, binaryPath, stdin, timeLimitSeconds) {
   try {
     const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
     const stdinFile = path.join(tmpDir, 'stdin.txt');
     fs.writeFileSync(stdinFile, stdin || '');
 
-    const runCmd = `timeout ${effectiveSec}s /workspace/solution < /workspace/stdin.txt`;
+    const runCmd = `timeout ${effectiveSec}s ${binaryPath} < /workspace/stdin.txt`;
     const dockerCmd = `docker run --rm --pids-limit=32 --memory="256m" --cpus="0.5" --cap-drop=ALL --cap-add=DAC_OVERRIDE --network none -v ${tmpDir}:/workspace ${DOCKER_IMAGE} bash -c "cd /workspace && ${runCmd}"`;
 
     const result = await runInDocker(dockerCmd, effectiveSec + 10);
-
-    const combinedStderr = result.stderr || '';
-    const combinedStdout = result.stdout || '';
-
-    // Check for runtime errors (sanitizer, TLE, etc.)
-    if (result.err && (result.err.code === 124 || result.err.killed)) {
-      return { status: 'Time Limit Exceeded', output: '', error: 'Program exceeded time limit' };
-    }
-
-    const sanitizerOutput = parseSanitizerOutput(combinedStderr, combinedStdout);
-    if (sanitizerOutput) {
-      return {
-        status: sanitizerOutput.status,
-        output: sanitizerOutput.output || '',
-        error: sanitizerOutput.message,
-      };
-    }
-
-    if (combinedStderr && !combinedStdout) {
-      return {
-        status: 'Runtime Error',
-        output: '',
-        error: combinedStderr,
-      };
-    }
-
-    return {
-      status: 'Success',
-      output: combinedStdout.trim(),
-      error: '',
-    };
+    return processRunResult(result);
   } finally {
     cleanup(tmpDir);
   }
+}
+
+async function runBinaryNative(tmpDir, binaryPath, stdin, timeLimitSeconds) {
+  const stdinFile = path.join(tmpDir, 'stdin.txt');
+  fs.writeFileSync(stdinFile, stdin || '');
+
+  const effectiveSec = getEffectiveTimeoutSec(timeLimitSeconds);
+  return new Promise((resolve) => {
+    exec(
+      `timeout ${effectiveSec}s "${binaryPath}" < "${stdinFile}"`,
+      { timeout: (effectiveSec + 10) * 1000, maxBuffer: 1024 * 1024, env: { PATH: process.env.PATH } },
+      (err, stdout, stderr) => {
+        cleanup(tmpDir);
+        resolve(processNativeResult(err, stdout, stderr, effectiveSec));
+      }
+    );
+  });
+}
+
+function processRunResult(result) {
+  const combinedStderr = result.stderr || '';
+  const combinedStdout = result.stdout || '';
+
+  if (result.err && (result.err.code === 124 || result.err.killed)) {
+    return { status: 'Time Limit Exceeded', output: '', error: 'Program exceeded time limit' };
+  }
+
+  const sanitizerOutput = parseSanitizerOutput(combinedStderr, combinedStdout);
+  if (sanitizerOutput) {
+    return {
+      status: sanitizerOutput.status,
+      output: sanitizerOutput.output || '',
+      error: sanitizerOutput.message,
+    };
+  }
+
+  if (combinedStderr && !combinedStdout) {
+    return { status: 'Runtime Error', output: '', error: combinedStderr };
+  }
+
+  return { status: 'Success', output: combinedStdout.trim(), error: '' };
+}
+
+function processNativeResult(err, stdout, stderr, effectiveSec) {
+  const combinedStderr = stderr || '';
+  const combinedStdout = stdout || '';
+
+  if (err && (err.code === 124 || err.killed || (err.signal === 'SIGTERM'))) {
+    return { status: 'Time Limit Exceeded', output: '', error: `Program exceeded ${effectiveSec}s limit` };
+  }
+
+  const sanitizerOutput = parseSanitizerOutput(combinedStderr, combinedStdout);
+  if (sanitizerOutput) {
+    return {
+      status: sanitizerOutput.status,
+      output: sanitizerOutput.output || '',
+      error: sanitizerOutput.message,
+    };
+  }
+
+  if (err) {
+    return { status: 'Runtime Error', output: '', error: combinedStderr || err.message };
+  }
+
+  if (combinedStderr && !combinedStdout) {
+    return { status: 'Runtime Error', output: '', error: combinedStderr };
+  }
+
+  return { status: 'Success', output: combinedStdout.trim(), error: '' };
 }
 
 /**
@@ -217,7 +291,7 @@ async function executeCode(sourceCode, stdin, timeLimitSeconds = 5) {
   }
 
   // STAGE 2 — TEST RUNNER EXECUTION
-  const runResult = await runCompiledBinary(compileResult.tmpDir, stdin, timeLimitSeconds);
+  const runResult = await runCompiledBinary(compileResult, stdin, timeLimitSeconds);
 
   return {
     status: runResult.status,

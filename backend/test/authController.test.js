@@ -1,7 +1,18 @@
 jest.mock('../config/db', () => ({ query: jest.fn() }));
 jest.mock('bcryptjs');
 jest.mock('jsonwebtoken');
-jest.mock('../lib/email', () => ({ sendVerificationEmail: jest.fn().mockResolvedValue() }));
+jest.mock('../lib/email', () => ({
+  sendVerificationEmail: jest.fn().mockResolvedValue(),
+  sendOtpEmail: jest.fn().mockResolvedValue(),
+}));
+jest.mock('../lib/domainValidator', () => ({
+  validateEmailDomain: jest.fn(),
+}));
+jest.mock('../lib/otpStore', () => ({
+  generateOtp: jest.fn().mockReturnValue('123456'),
+  storeOtp: jest.fn(),
+  verifyOtp: jest.fn(),
+}));
 jest.mock('../lib/AppError', () => {
   const actual = jest.requireActual('../lib/AppError');
   return actual;
@@ -10,6 +21,9 @@ jest.mock('../lib/AppError', () => {
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const sendVerificationEmail = require('../lib/email').sendVerificationEmail;
+const { validateEmailDomain } = require('../lib/domainValidator');
+const { storeOtp, verifyOtp } = require('../lib/otpStore');
 const controller = require('../controllers/authController');
 
 function mockRes() {
@@ -26,6 +40,7 @@ describe('authController.register', function() {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.JWT_SECRET = 'test-secret';
+    validateEmailDomain.mockResolvedValue({ valid: true, isUniversity: false });
   });
 
   it('registers a new student and returns 201 without cookie', async function() {
@@ -57,11 +72,10 @@ describe('authController.register', function() {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('rejects instructor with non-matching domain', async function() {
-    process.env.INSTRUCTOR_DOMAINS = 'university.edu';
+  it('rejects registration with disposable email', async function() {
     db.query.mockResolvedValueOnce({ rows: [] });
-
-    const req = { body: { name: 'Prof', email: 'prof@gmail.com', password: 'Secret123!', role: 'instructor' } };
+    validateEmailDomain.mockResolvedValue({ valid: false, isUniversity: false, reason: 'Temporary email addresses are not allowed' });
+    const req = { body: { name: 'Spam', email: 'spam@mailinator.com', password: 'Secret123!', role: 'student' } };
     const res = mockRes();
     const next = jest.fn();
 
@@ -70,24 +84,29 @@ describe('authController.register', function() {
     expect(next).toHaveBeenCalled();
     const err = next.mock.calls[0][0];
     expect(err.status).toBe(400);
-    expect(err.message).toMatch(/institutional email/i);
+    expect(err.message).toMatch(/temporary/i);
   });
 
-  it('accepts instructor with matching domain', async function() {
-    process.env.INSTRUCTOR_DOMAINS = 'university.edu';
+  it('auto-assigns instructor role for edu domain', async function() {
+    validateEmailDomain.mockResolvedValue({ valid: true, isUniversity: true });
     db.query.mockResolvedValueOnce({ rows: [] });
-    bcrypt.hash.mockResolvedValue('hashed-pw-value');
+    bcrypt.hash.mockResolvedValue('hash');
     db.query.mockResolvedValueOnce({
-      rows: [{ id: 2, name: 'Prof', email: 'prof@university.edu', role: 'instructor' }],
+      rows: [{ id: 3, name: 'Prof', email: 'prof@psu.edu', role: 'instructor' }],
     });
 
-    const req = { body: { name: 'Prof', email: 'prof@university.edu', password: 'Secret123!', role: 'instructor' } };
+    const req = { body: { name: 'Prof', email: 'prof@psu.edu', password: 'Secret123!' } };
     const res = mockRes();
     const next = jest.fn();
 
     await controller.register(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: expect.objectContaining({ role: 'instructor' }),
+      })
+    );
   });
 
   it('returns 409 when email already exists', async function() {
@@ -130,6 +149,109 @@ describe('authController.register', function() {
     await controller.register(req, res, next);
 
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'hash error' }));
+  });
+
+  it('returns 201 even when verification email fails', async function() {
+    sendVerificationEmail.mockRejectedValueOnce(new Error('SMTP unavailable'));
+    db.query.mockResolvedValueOnce({ rows: [] });
+    bcrypt.hash.mockResolvedValue('hashed-pw-value');
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, name: 'Alice', email: 'alice@test.com', role: 'student' }],
+    });
+
+    const req = { body: { name: 'Alice', email: 'alice@test.com', password: 'Secret123!', role: 'student' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.register(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('authController.requestOtp', function() {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    validateEmailDomain.mockResolvedValue({ valid: true, isUniversity: false });
+  });
+
+  it('sends OTP for valid email', async function() {
+    db.query.mockResolvedValueOnce({ rows: [] });
+    const req = { body: { email: 'alice@gmail.com' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.requestOtp(req, res, next);
+
+    expect(storeOtp).toHaveBeenCalledWith('alice@gmail.com', '123456');
+    expect(res.json).toHaveBeenCalledWith({ message: expect.stringMatching(/code sent/i) });
+  });
+
+  it('rejects OTP request for existing email', async function() {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+    const req = { body: { email: 'existing@test.com' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.requestOtp(req, res, next);
+
+    const err = next.mock.calls[0][0];
+    expect(err.status).toBe(409);
+  });
+});
+
+describe('authController.verifyOtpAndRegister', function() {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.JWT_SECRET = 'test-secret';
+    validateEmailDomain.mockResolvedValue({ valid: true, isUniversity: false });
+  });
+
+  it('registers user with valid OTP', async function() {
+    verifyOtp.mockReturnValue({ valid: true });
+    db.query.mockResolvedValueOnce({ rows: [] });
+    bcrypt.hash.mockResolvedValue('hash');
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, name: 'Alice', email: 'alice@gmail.com', role: 'student' }],
+    });
+    jwt.sign.mockReturnValue('otp-jwt');
+
+    const req = { body: { email: 'alice@gmail.com', otp: '123456', name: 'Alice', password: 'Secret123!' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.verifyOtpAndRegister(req, res, next);
+
+    expect(verifyOtp).toHaveBeenCalledWith('alice@gmail.com', '123456');
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.cookie).toHaveBeenCalledWith('ci_token', 'otp-jwt', expect.any(Object));
+  });
+
+  it('rejects invalid OTP', async function() {
+    verifyOtp.mockReturnValue({ valid: false, reason: 'Invalid OTP code' });
+    const req = { body: { email: 'alice@gmail.com', otp: '000000', name: 'Alice', password: 'Secret123!' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.verifyOtpAndRegister(req, res, next);
+
+    const err = next.mock.calls[0][0];
+    expect(err.status).toBe(400);
+  });
+
+  it('rejects duplicate email after OTP verification', async function() {
+    verifyOtp.mockReturnValue({ valid: true });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+
+    const req = { body: { email: 'existing@test.com', otp: '123456', name: 'Existing', password: 'Secret123!' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.verifyOtpAndRegister(req, res, next);
+
+    const err = next.mock.calls[0][0];
+    expect(err.status).toBe(409);
   });
 });
 
@@ -242,32 +364,24 @@ describe('authController.login', function() {
 });
 
 describe('authController.me', function() {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+  beforeEach(() => { jest.clearAllMocks(); });
 
   it('returns current user from token', async function() {
     db.query.mockResolvedValueOnce({
       rows: [{ id: 1, name: 'Alice', email: 'alice@test.com', role: 'student' }],
     });
-
     const req = { user: { id: 1 } };
     const res = mockRes();
     const next = jest.fn();
 
     await controller.me(req, res, next);
 
-    expect(db.query).toHaveBeenCalledWith(
-      'SELECT id,name,email,role FROM users WHERE id=$1', [1]
-    );
-    expect(res.json).toHaveBeenCalledWith(
-      { id: 1, name: 'Alice', email: 'alice@test.com', role: 'student' }
-    );
+    expect(db.query).toHaveBeenCalledWith('SELECT id,name,email,role FROM users WHERE id=$1', [1]);
+    expect(res.json).toHaveBeenCalledWith({ id: 1, name: 'Alice', email: 'alice@test.com', role: 'student' });
   });
 
   it('returns null when user not found', async function() {
     db.query.mockResolvedValueOnce({ rows: [] });
-
     const req = { user: { id: 999 } };
     const res = mockRes();
     const next = jest.fn();
@@ -290,9 +404,7 @@ describe('authController.me', function() {
 });
 
 describe('authController.logout', function() {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+  beforeEach(() => { jest.clearAllMocks(); });
 
   it('clears the cookie and blacklists token', async function() {
     jwt.verify.mockReturnValue({ jti: 'test-jti', exp: Math.floor(Date.now() / 1000) + 3600 });
@@ -342,14 +454,11 @@ describe('authController.verifyEmail', function() {
 
     await controller.verifyEmail(req, res, next);
 
-    expect(res.redirect).toHaveBeenCalledWith(
-      'http://localhost:3000/login?verified=true'
-    );
+    expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/login?verified=true');
   });
 
   it('returns error with invalid token', async function() {
     db.query.mockResolvedValueOnce({ rows: [] });
-
     const req = { params: { token: 'invalid-token' } };
     const res = mockRes();
     const next = jest.fn();
@@ -366,7 +475,6 @@ describe('authController.verifyEmail', function() {
     db.query.mockResolvedValueOnce({
       rows: [{ id: 1, email_verified: false, verification_token_expires: past }],
     });
-
     const req = { params: { token: 'expired-token' } };
     const res = mockRes();
     const next = jest.fn();

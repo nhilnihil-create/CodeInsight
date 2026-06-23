@@ -113,12 +113,24 @@ const register = Joi.object({
   name: name.required(),
   email: email.required(),
   password: password.required(),
-  role: role.required(),
+  role: role.optional(),
+});
+
+const requestOtp = Joi.object({
+  email: email.required(),
+});
+
+const verifyOtp = Joi.object({
+  email: email.required(),
+  otp: Joi.string().pattern(/^\d{6}$/).required(),
+  name: name.required(),
+  password: password.required(),
+  role: role.optional(),
 });
 
 const login = Joi.object({
   email: email.required(),
-  password: password.required(),
+  password: Joi.string().min(1).required(),
 });
 
 const idParam = Joi.object({ id: id.required() });
@@ -202,7 +214,7 @@ module.exports = {
   email, password, name, id, role, testCase,
   exerciseCreate, exerciseUpdate,
   sectionCreate, enrollPayload, membershipUpdate, policyUpdate, joinByCode,
-  submitCode, evaluationSubmit, register, login, idParam, enrollParams,
+  submitCode, evaluationSubmit, register, requestOtp, verifyOtp, login, idParam, enrollParams,
   adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate, adminConceptUpdate,
   bulkImportCSV, rosterImportRows,
   bulkPublish, exerciseValidate, adminPasswordReset,

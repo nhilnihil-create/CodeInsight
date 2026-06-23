@@ -708,6 +708,125 @@ Expected: all tests PASS
 
 ---
 
+### Task 8: Error Handling & Registration UX
+
+**Files:**
+- Modify: `backend/middleware/errorHandler.js`
+- Modify: `backend/controllers/authController.js`
+- Modify: `backend/migrations.js`
+- Modify: `backend/server.js`
+- Modify: `backend/test/authController.test.js`
+- Modify: `backend/test/authSecurity.test.js`
+
+**Problem:** When auth schema columns are missing (migration ran as non-owner), Postgres throws `42703` (undefined column) or `42P01` (undefined table) → falls through error handler → generic 500 "Internal server error". No startup warning about missing schema.
+
+**Solution:**
+
+- [ ] **Step 1: Add Postgres schema error handling to errorHandler.js**
+
+Add before the fallback (after Joi handler):
+
+```javascript
+  // Postgres undefined column (column does not exist, e.g. missing migration)
+  if (err && (err.code === '42703' || err.code === '42P01')) {
+    return res.status(503).json({
+      code: 'SYSTEM_MISCONFIGURED',
+      message: 'Registration system not fully configured. Please contact the administrator.',
+    });
+  }
+```
+
+- [ ] **Step 2: Make email sending synchronous in authController.js register**
+
+Change fire-and-forget `.catch()` to explicit `try/catch` with `await`:
+
+```javascript
+    try {
+      await sendVerificationEmail({ to: email, name, token: verificationToken });
+    } catch (err) {
+      logger.error({ err }, 'Failed to send verification email after registration');
+    }
+```
+
+Registration still returns 201 regardless — email failure is logged but doesn't block user creation.
+
+- [ ] **Step 3: Add `checkAuthColumns()` to migrations.js**
+
+```javascript
+async function checkAuthColumns() {
+  if (!(await tableExists('users'))) {
+    console.error('users table does not exist — skipping auth column check');
+    return false;
+  }
+  const required = ['email_verified', 'verification_token', 'verification_token_expires'];
+  const missing = [];
+  for (const col of required) {
+    if (!(await columnExists('users', col))) missing.push(col);
+  }
+  if (missing.length) {
+    console.error('Auth columns missing from users table:', missing.join(', '));
+    console.error('Run schema migration as superuser: psql -d codeinsight -f backend/schema.sql');
+    return false;
+  }
+  return true;
+}
+```
+
+- [ ] **Step 4: Call `checkAuthColumns()` in server.js**
+
+Add to imports:
+```javascript
+const { ensureTablesExist, checkAuthColumns } = require('./migrations');
+```
+
+Add after `ensureTablesExist()` resolves:
+```javascript
+  await checkAuthColumns();
+```
+
+- [ ] **Step 5: Add test for email sending failure**
+
+In `authController.test.js`, import the mock and add test:
+
+```javascript
+const sendVerificationEmail = require('../lib/email').sendVerificationEmail;
+
+// In register describe block:
+  it('returns 201 even when verification email fails', async function() {
+    sendVerificationEmail.mockRejectedValueOnce(new Error('SMTP unavailable'));
+    // ... standard registration mock setup ...
+    await controller.register(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(next).not.toHaveBeenCalled();
+  });
+```
+
+- [ ] **Step 6: Add error handler tests for Postgres schema errors**
+
+In `authSecurity.test.js`:
+
+```javascript
+describe('Error handler — Postgres schema errors', () => {
+  it('returns 503 SYSTEM_MISCONFIGURED for 42703 (undefined column)', () => {
+    const { errorHandler } = require('../middleware/errorHandler');
+    const err = { code: '42703', message: 'column users.email_verified does not exist' };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    errorHandler(err, {}, res, jest.fn());
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'SYSTEM_MISCONFIGURED' }));
+  });
+
+  it('returns 503 SYSTEM_MISCONFIGURED for 42P01 (undefined table)', () => {
+    // same pattern with 42P01 error code
+  });
+});
+```
+
+**Edge Cases:**
+- Email sending fails → registration still succeeds, error logged, user can verify later
+- Schema columns missing → 503 with clear message, startup logs fatal error
+- DB down during registration → still caught by generic error handler (not affected by this change)
+
 ## Implementation Order
 
 1. Task 1: Database schema + migration
@@ -717,3 +836,4 @@ Expected: all tests PASS
 5. Task 5: JWT blacklist
 6. Task 6: Frontend updates
 7. Task 7: Tests
+8. Task 8: Error handling & registration UX

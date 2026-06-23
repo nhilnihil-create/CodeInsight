@@ -7,7 +7,7 @@ RUN npm run lint
 
 FROM node:22-alpine AS production
 WORKDIR /app
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini g++ gcc musl-dev make cppcheck
 COPY --from=build /app/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/ .

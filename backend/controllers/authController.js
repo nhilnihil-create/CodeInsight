@@ -4,13 +4,15 @@ const jwt    = require('jsonwebtoken');
 const db     = require('../config/db');
 const logger = require('../lib/logger');
 const { AppError, codes } = require('../lib/AppError');
-const { sendVerificationEmail } = require('../lib/email');
+const { sendVerificationEmail, sendOtpEmail } = require('../lib/email');
+const { validateEmailDomain } = require('../lib/domainValidator');
+const { generateOtp, storeOtp, verifyOtp } = require('../lib/otpStore');
 
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'Strict' : 'Lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
   path: '/',
 };
 
@@ -21,6 +23,82 @@ const generateToken = (user) =>
     { expiresIn: '7d' }
   );
 
+async function determineRole(email) {
+  const { isUniversity } = await validateEmailDomain(email);
+  return isUniversity ? 'instructor' : 'student';
+}
+
+function setAuthCookie(res, user) {
+  const safe = { id: user.id, name: user.name, email: user.email, role: user.role };
+  const token = generateToken(safe);
+  res.cookie('ci_token', token, COOKIE_OPTS);
+  return { user: safe };
+}
+
+exports.requestOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) throw new AppError('Email is required', 400, codes.VALIDATION_ERROR);
+
+    const domainCheck = await validateEmailDomain(email);
+    if (!domainCheck.valid) {
+      throw new AppError(domainCheck.reason, 400, codes.VALIDATION_ERROR);
+    }
+
+    const existing = await db.query('SELECT id FROM users WHERE email=$1', [email]);
+    if (existing.rows.length) {
+      throw new AppError('Email already registered', 409, codes.CONFLICT);
+    }
+
+    const otp = generateOtp();
+    storeOtp(email, otp);
+
+    const name = email.split('@')[0];
+    sendOtpEmail({ to: email, name, otp }).catch(err =>
+      logger.error({ err }, 'Failed to send OTP email')
+    );
+
+    res.json({ message: 'Verification code sent to your email' });
+  } catch (err) { next(err); }
+};
+
+exports.verifyOtpAndRegister = async (req, res, next) => {
+  try {
+    const { email, otp, name, password, role: requestedRole } = req.body;
+    if (!email || !otp || !name || !password) {
+      throw new AppError('Email, OTP, name, and password are required', 400, codes.VALIDATION_ERROR);
+    }
+
+    const result = verifyOtp(email, otp);
+    if (!result.valid) {
+      throw new AppError(result.reason, 400, codes.VALIDATION_ERROR);
+    }
+
+    const existing = await db.query('SELECT id FROM users WHERE email=$1', [email]);
+    if (existing.rows.length) {
+      throw new AppError('Email already registered', 409, codes.CONFLICT);
+    }
+
+    const domainCheck = await validateEmailDomain(email);
+    const role = requestedRole || await determineRole(email);
+    if (role === 'instructor' && !domainCheck.isUniversity) {
+      throw new AppError('Instructor accounts require a university email', 400, codes.VALIDATION_ERROR);
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const insert = await db.query(
+      `INSERT INTO users (name,email,password_hash,role,email_verified)
+       VALUES($1,$2,$3,$4,true)
+       RETURNING id,name,email,role`,
+      [name, email, hash, role]
+    );
+    const user = insert.rows[0];
+    const response = setAuthCookie(res, user);
+    res.status(201).json(response);
+  } catch (err) { next(err); }
+};
+
 exports.register = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
@@ -28,19 +106,14 @@ exports.register = async (req, res, next) => {
     const exists = await db.query('SELECT id FROM users WHERE email=$1', [email]);
     if (exists.rows.length) throw new AppError('Email already registered', 409, codes.CONFLICT);
 
-    if (role === 'instructor') {
-      const allowedDomains = (process.env.INSTRUCTOR_DOMAINS || '')
-        .split(',')
-        .map(d => d.trim().toLowerCase())
-        .filter(Boolean);
-      const emailDomain = email.split('@')[1]?.toLowerCase();
-      if (!emailDomain || !allowedDomains.includes(emailDomain)) {
-        throw new AppError(
-          `Instructor accounts require an institutional email from: ${allowedDomains.join(', ') || 'no domains configured'}`,
-          400,
-          codes.VALIDATION_ERROR
-        );
-      }
+    const domainCheck = await validateEmailDomain(email);
+    if (!domainCheck.valid) {
+      throw new AppError(domainCheck.reason, 400, codes.VALIDATION_ERROR);
+    }
+
+    const assignedRole = role || await determineRole(email);
+    if (assignedRole === 'instructor' && !domainCheck.isUniversity) {
+      throw new AppError('Instructor accounts require a university email', 400, codes.VALIDATION_ERROR);
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -51,13 +124,16 @@ exports.register = async (req, res, next) => {
       `INSERT INTO users (name,email,password_hash,role,email_verified,verification_token,verification_token_expires)
        VALUES($1,$2,$3,$4,false,$5,NOW() + INTERVAL '24 hours')
        RETURNING id,name,email,role`,
-      [name, email, hash, role, tokenHash]
+      [name, email, hash, assignedRole, tokenHash]
     );
 
     const user = result.rows[0];
 
-    sendVerificationEmail({ to: email, name, token: verificationToken })
-      .catch(err => logger.error({ err }, 'Failed to send verification email'));
+    try {
+      await sendVerificationEmail({ to: email, name, token: verificationToken });
+    } catch (err) {
+      logger.error({ err }, 'Failed to send verification email after registration');
+    }
 
     res.status(201).json({
       message: 'Registration successful. Please check your email to verify your account.',
@@ -83,17 +159,14 @@ exports.login = async (req, res, next) => {
       throw new AppError('Please verify your email before logging in.', 403, codes.FORBIDDEN);
     }
 
-    // eslint-disable-next-line no-unused-vars
-    const { password_hash, email_verified, ...safeUser } = user;
-    const token = generateToken(safeUser);
-    res.cookie('ci_token', token, COOKIE_OPTS);
+    const safeUser = { id: user.id, name: user.name, email: user.email, role: user.role };
+    setAuthCookie(res, safeUser);
     res.json({ user: safeUser });
   } catch (err) { next(err); }
 };
 
 exports.me = async (req, res, next) => {
   try {
-    // Backward compat: if middleware already decoded the token, use req.user
     let userId = req.user?.id;
     if (!userId) {
       const authHeader = req.headers?.authorization;
