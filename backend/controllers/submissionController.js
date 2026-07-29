@@ -329,7 +329,7 @@ exports.submit = async (req, res) => {
     try {
       cppcheckWarnings = await executor.runCppcheck(code);
     } catch (_) {
-      // Non-fatal: cppcheck is advisory
+      logger.warn({ err: _.message }, 'cppcheck failed (advisory)');
     }
 
     // Get required nodes from the exercise's concept
@@ -416,13 +416,7 @@ exports.submit = async (req, res) => {
     const compilerLog = compilerErrors.join('\n');
     const timeLimitHit = tcResults.some(r => r.status === 'Time Limit Exceeded');
 
-    console.log('=== DEBUG compiler_log ===');
-    console.log('compilerErrors.length:', compilerErrors.length);
-    console.log('compilerLog length:', compilerLog ? compilerLog.length : 0);
-    console.log('compilerLog (first 200):', compilerLog ? compilerLog.substring(0, 200) : '(empty)');
-    console.log('tcResults[0]?.status:', tcResults[0]?.status);
-    console.log('tcResults[0]?.error:', tcResults[0]?.error ? tcResults[0].error.substring(0, 100) : '(none)');
-    console.log('allPassed:', allPassed);
+
 
     // Save submission (include verification fields, code growth delta, cppcheck warnings, compiler_log, behavioral tracking)
     const insRes = await db.query(

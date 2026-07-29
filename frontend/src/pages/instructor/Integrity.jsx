@@ -1,10 +1,8 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
-  ChevronDown,
   Search,
   Check,
-  X,
   AlertTriangle,
   ShieldAlert,
   RefreshCw,
@@ -19,14 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import RiskBadge from "@/components/ui/risk-badge";
@@ -158,7 +148,12 @@ export default function InstructorIntegrity() {
         if (sev !== 0) return sev;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-  }, [flags, severity, type, query]);
+      }, [flags, severity, type, query]);
+
+  const filteredIds = useMemo(() => filtered.map((f) => f.id), [filtered]);
+
+  const allSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
+  const someSelected = filteredIds.some((id) => selected.has(id));
 
   const toggleSelected = (id) => {
     setSelected((prev) => {
@@ -171,30 +166,52 @@ export default function InstructorIntegrity() {
 
   const clearSelection = () => setSelected(new Set());
 
+  useEffect(() => {
+    clearSelection();
+  }, [severity, type]);
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filteredIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
   const onBulk = async (action) => {
     const ids = [...selected];
     if (!ids.length) return;
-    if (action === "dismiss") {
-      setSaving("bulk");
-      try {
-        await Promise.all(
-          ids.map((id) =>
-            api.put(`/api/analytics/integrity-flags/${id}/review`, {
-              status: "dismissed",
-              instructor_note: "Bulk dismissed from Integrity page",
-            }),
-          ),
-        );
+    setSaving("bulk");
+    try {
+      await Promise.all(
+        ids.map((id) =>
+          api.put(`/api/analytics/integrity-flags/${id}/review`, {
+            status: action === "dismiss" ? "dismissed" : "reviewed",
+            instructor_note: `Bulk ${action === "dismiss" ? "dismissed" : "reviewed"} from Integrity page`,
+          }),
+        ),
+      );
+      if (action === "reviewed") {
+        setFlags((prev) => prev.filter((f) => !ids.includes(f.id)));
+      } else {
         setFlags((prev) =>
           prev.map((f) => (ids.includes(f.id) ? { ...f, status: "dismissed" } : f)),
         );
-      } catch (err) {
-        console.error("Bulk dismiss failed:", err);
-      } finally {
-        setSaving(null);
       }
+    } catch (err) {
+      console.error(`Bulk ${action} failed:`, err);
+    } finally {
+      setSaving(null);
+      clearSelection();
     }
-    clearSelection();
   };
 
   const handleAction = async (item, status) => {
@@ -317,32 +334,6 @@ export default function InstructorIntegrity() {
           <Button variant="ghost" size="icon" onClick={fetchFlags} title="Refresh">
             <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
           </Button>
-          {selected.size > 0 ? (
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">
-              {selected.size} selected
-            </span>
-          ) : null}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="font-medium"
-                disabled={selected.size === 0 || saving === "bulk"}
-              >
-                {saving === "bulk" ? "Saving…" : "Bulk action"}
-                <ChevronDown className="ml-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>{selected.size} flag{selected.size === 1 ? "" : "s"} selected</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onBulk("dismiss")}>
-                <X className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Dismiss
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -438,6 +429,44 @@ export default function InstructorIntegrity() {
           </Select>
         </div>
       </div>
+
+      {/* ---------- Bulk Action Bar ---------- */}
+      {selected.size > 0 ? (
+        <div className="sticky top-0 z-10 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 backdrop-blur-sm px-4 py-3">
+          <Checkbox
+            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+            onCheckedChange={toggleSelectAll}
+            aria-label="Select all visible flags"
+          />
+          <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
+            {selected.size} of {filtered.length} selected
+          </span>
+          <div className="flex-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearSelection}
+            className="font-medium text-muted-foreground"
+          >
+            Clear
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onBulk("dismiss")}
+            disabled={saving === "bulk"}
+          >
+            {saving === "bulk" ? "Saving…" : "Dismiss"}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => onBulk("reviewed")}
+            disabled={saving === "bulk"}
+          >
+            {saving === "bulk" ? "Saving…" : "Mark Reviewed"}
+          </Button>
+        </div>
+      ) : null}
 
       {/* ---------- DecisionList ---------- */}
       {filtered.length > 0 ? (

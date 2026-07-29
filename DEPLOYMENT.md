@@ -1,114 +1,143 @@
 # DEPLOYMENT CHECKLIST
 
-## Zero-Cost Deployment (Cyclic.sh + Neon + Vercel)
+## Zero-Cost Deployment (Your Machine + Vercel + Neon)
 
-This is the recommended deployment for **zero-cost production** — no credit card required.
+No credit card required. The backend runs on your own machine, exposed to the internet via a free SSH tunnel.
 
 ### Architecture
+
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Vercel     │────▶│  Cyclic.sh   │────▶│    Neon      │
-│  (Frontend)  │     │  (Backend)   │     │ (Postgres)   │
-│  vite+react  │     │  Express.js  │     │  Managed DB  │
-└──────────────┘     └──────────────┘     └──────────────┘
-     HTTPS                HTTPS                TLS
-  codeinsight.vercel.app  codeinsight.cyclic.app  neon.tech
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────┐
+│     Vercel       │────▶│   Your Machine   │────▶│    Neon      │
+│  (Frontend)      │     │   (Backend)      │     │ (Postgres)   │
+│  Vite + React    │     │  Express + g++   │     │  Managed DB  │
+│  Static files    │     │  Node.js 22      │     │              │
+└──────────────────┘     └──────────────────┘     └──────────────┘
+     HTTPS                    SSH tunnel                TLS
+  codeinsight.vercel.app   localhost.run:80      neon.tech
 ```
 
-### Step 1: Create Neon Database (Postgres)
+### How It Works
 
-1. Sign up at [neon.tech](https://neon.tech) (no credit card)
-2. Create a project → your database is ready immediately
-3. From the Neon dashboard, copy the **connection string**:
-   ```
-   postgresql://user:password@ep-xxxx.region.aws.neon.tech/codeinsight?sslmode=require
-   ```
-4. Run schema migration locally:
-   ```bash
-   psql "<neon-connection-string>" < backend/schema.sql
-   ```
-   This creates all 12 tables and seeds demo accounts.
+- **Vercel** serves the React frontend (static files, CDN)
+- **Your machine** runs the Express backend (handles API, C++ compilation, DB queries)
+- **Neon** is the Postgres database (already set up ✅)
+- **SSH tunnel** (localhost.run) gives your local backend a public HTTPS URL — no router config, no static IP, no credit card
 
-### Step 2: Deploy Backend to Cyclic.sh
+### Prerequisites
 
-1. Push your repo to GitHub
-2. Sign up at [cyclic.sh](https://cyclic.sh) (GitHub login, no credit card)
-3. Click **"Deploy"** → select your repo
-4. Cyclic.sh auto-detects the `Dockerfile` and builds the container
-5. Set environment variables in Cyclic.sh dashboard → **Variables**:
+- [ ] Node.js 22+ installed
+- [ ] g++ installed (`g++ --version`)
+- [ ] Neon database created and seeded (already done ✅)
+- [ ] Code cloned locally (`/home/nihil/projects/codeinsight`)
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `DB_HOST` | `ep-xxxx.region.aws.neon.tech` | From Neon connection string |
-| `DB_PORT` | `5432` | |
-| `DB_NAME` | `codeinsight` | |
-| `DB_USER` | (from Neon) | |
-| `DB_PASSWORD` | (from Neon) | |
-| `DB_SSL` | `true` | Required for Neon |
-| `DB_CONNECTION_TIMEOUT_MS` | `5000` | |
-| `DB_STATEMENT_TIMEOUT_MS` | `30000` | |
-| `DB_POOL_MAX` | `10` | Neon free tier limit |
-| `JWT_SECRET` | `<generate-a-random-string>` | Use: `openssl rand -hex 32` |
-| `NODE_ENV` | `production` | |
-| `CORS_ORIGINS` | `https://codeinsight.vercel.app` | Your Vercel frontend URL |
-| `EMAIL_HOST` | `smtp.gmail.com` | For OTP emails |
-| `EMAIL_PORT` | `587` | |
-| `EMAIL_USER` | `codeinsight.noreply@gmail.com` | |
-| `EMAIL_PASS` | (Gmail App Password) | |
-| `EMAIL_FROM` | `CodeInsight <codeinsight.noreply@gmail.com>` | |
-| `EMAIL_ENABLED` | `true` | |
-| `APP_URL` | `https://codeinsight.cyclic.app` | Your Cyclic.sh URL |
-| `LOG_LEVEL` | `info` | |
+### Step 1: Start Backend Locally
 
-6. After deploy, wait for build (1-2 min) then verify:
-   ```bash
-   curl https://codeinsight.cyclic.app/api/health
-   curl https://codeinsight.cyclic.app/api/ready
-   ```
+```bash
+cd /home/nihil/projects/codeinsight/backend
+cp .env.example .env
+# Edit .env: set DB_HOST, DB_USER, DB_PASSWORD to your Neon values
+node migrations.js
+npm start
+```
+
+Backend starts on `http://localhost:5000`. Test:
+
+```bash
+curl http://localhost:5000/api/health
+# → { "status": "ok" }
+```
+
+### Step 2: Expose Backend with SSH Tunnel
+
+In a separate terminal, run:
+
+```bash
+ssh -R 80:localhost:5000 nokey@localhost.run
+```
+
+This prints a URL like `https://abc123.localhost.run`. Keep this terminal open.
+
+Test it:
+
+```bash
+curl https://abc123.localhost.run/api/ready
+```
+
+**Note:** The URL changes each time you restart the tunnel. For permanent URLs, use `serveo.net` with a fixed subdomain:
+
+```bash
+ssh -R codeinsight:80:localhost:5000 serveo.net
+```
+
+This gives `https://codeinsight.serveo.net` — stays the same across restarts (may prompt for SSH key setup on first use).
 
 ### Step 3: Deploy Frontend to Vercel
 
 1. Sign up at [vercel.com](https://vercel.com) (GitHub login, no credit card)
-2. Click **"Add New" → "Project"** → select your repo
+2. **Add New → Project** → select your repo
 3. Configure:
    - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build` (auto-detected from vercel.json)
+   - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
-   - **Node Version**: 22.x
 4. Add environment variable:
-   - `VITE_API_BASE_URL` = `https://codeinsight.cyclic.app` (your Cyclic.sh backend URL)
-5. Click **Deploy**
-6. Add the Vercel production URL to Cyclic.sh's `CORS_ORIGINS` environment variable
+   - `VITE_API_BASE_URL` = `https://abc123.localhost.run` (your tunnel URL)
+5. Click **Deploy** (~30s)
 
-### Step 4: Verify End-to-End
+### Step 4: Update CORS
 
-1. Open your Vercel URL (e.g., `https://codeinsight.vercel.app`)
+Backend needs to know which frontend origin to allow. In your `backend/.env`, set:
+
+```
+CORS_ORIGINS=https://codeinsight.vercel.app
+NODE_ENV=production
+```
+
+Restart the backend after changing `.env`.
+
+### Step 5: Verify End-to-End
+
+1. Open your Vercel URL
 2. Login as instructor: `instructor@psu.edu` / `password123`
-3. Navigate to a section → click "Set Up Exercise" to create a new exercise
-4. Logout and login as student: `maria@student.psu.edu` / `password123`
-5. The student dashboard loads with exercise data from the database
+3. Create a section → add an exercise with test cases
+4. Login as student: `maria@student.psu.edu` / `password123`
+5. Submit code — g++ compiles on your machine, results appear in browser
 
-### Env Vars Quick Reference
+### Keeping It Running
 
-| Env Var | Where to Set | Purpose |
-|---------|-------------|---------|
-| `VITE_API_BASE_URL` | Vercel dashboard | Points frontend at Cyclic.sh backend |
-| `CORS_ORIGINS` | Cyclic.sh dashboard | Allows frontend origin in CORS |
-| `JWT_SECRET` | Cyclic.sh dashboard | Signs auth tokens |
-| `DB_*` | Cyclic.sh dashboard | Neon Postgres connection |
-| `EMAIL_*` | Cyclic.sh dashboard | Gmail SMTP for OTP |
+| Situation | What to do |
+|-----------|-----------|
+| Backend crashes | `npm start` again |
+| Tunnel drops | Re-run the SSH command |
+| Computer sleeps | Keep it awake during demos |
+| Tunnel URL changes | Update `VITE_API_BASE_URL` on Vercel, update `.env` CORS |
 
-### Troubleshooting (Cyclic.sh)
+### Updating the Frontend
 
-**"Docker is required but unavailable"**: Remove this error — the backend now compiles C++ natively on Cyclic.sh (g++ is included in the Dockerfile). No Docker-in-Docker needed.
+Push to GitHub → Vercel auto-deploys. The backend stays on your machine — no push needed for backend changes.
 
-**Blank page on Vercel**: Check `VITE_API_BASE_URL` is set correctly in Vercel dashboard. The frontend needs to know where the backend lives.
+### Env Vars Reference
 
-**Login fails / cookie not sent**: Ensure `CORS_ORIGINS` on Cyclic.sh exactly matches `https://codeinsight.vercel.app` (no trailing slash). The backend uses `SameSite=None` in production — cookies require HTTPS (both Vercel and Cyclic.sh support this natively).
+| Env Var | Where | Value |
+|---------|-------|-------|
+| `VITE_API_BASE_URL` | Vercel dashboard | Your tunnel URL (e.g., `https://abc123.localhost.run`) |
+| `CORS_ORIGINS` | `backend/.env` | Your Vercel URL (e.g., `https://codeinsight.vercel.app`) |
+| `NODE_ENV` | `backend/.env` | `production` |
 
-**Backend crashes on Neon**: Verify `DB_POOL_MAX` is ≤ 10 (Neon free tier). Our config defaults to 10. If connections are exhausted, reduce via `DB_POOL_MAX=5`.
+### Tunnel Alternatives
+
+| Service | Free? | URL Changes? | Setup |
+|---------|-------|-------------|-------|
+| localhost.run | ✅ Free | Every restart | One-liner SSH |
+| serveo.net | ✅ Free | Stays same with custom subdomain | SSH with `-R name:80:localhost:5000` |
+| bore.pub | ✅ Free | Every restart | `npx bore local 5000 --to bore.pub` |
+
+### Why Not Cloud Hosting?
+
+Every free cloud container host either requires a credit card (Render, Fly.io, Railway) or has too little RAM for g++ (256MB). Running on your own machine gives you unlimited CPU, RAM, and disk — the only constraint is keeping it running during demos.
 
 ---
+## Quick Start (Docker — Recommended for Local Dev)
 
 ## Quick Start (Docker — Recommended for Local Dev)
 

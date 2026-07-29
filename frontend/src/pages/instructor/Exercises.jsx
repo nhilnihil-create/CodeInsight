@@ -59,9 +59,9 @@ export default function InstructorExercises() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setExpandedId(null);
     loadAll().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-    setExpandedId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId]);
 

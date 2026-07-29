@@ -58,6 +58,7 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fetchKey, setFetchKey] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (hasSections === null || !hasSections) return;
@@ -76,7 +77,7 @@ export default function StudentDashboard() {
     }
     load();
     return () => { cancelled = true; };
-  }, [hasSections, fetchKey]);
+  }, [hasSections, fetchKey, retryCount]);
 
   const handleJoined = () => {
     recheck();
@@ -154,7 +155,7 @@ export default function StudentDashboard() {
             <p className="text-base font-semibold text-foreground">Failed to load dashboard</p>
             <p className="text-sm text-muted-foreground max-w-sm">{error}</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+          <Button variant="outline" size="sm" onClick={() => setRetryCount(c => c + 1)}>
             Try again
           </Button>
         </div>

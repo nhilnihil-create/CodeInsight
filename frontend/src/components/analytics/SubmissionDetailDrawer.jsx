@@ -32,6 +32,12 @@ function timeAgo(dateStr) {
   return `${days}d ago`;
 }
 
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 const ANIM_DURATION = 200;
 
 const SEVERITY_RING = {
@@ -245,59 +251,64 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
                 Run History ({runs.length})
               </div>
               <div className="py-1">
-                {runs.map((run, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedIdx(idx)}
-                    className={cn(
-                      "w-full text-left px-4 py-3 text-xs transition-colors flex items-start gap-3 border-l-2",
-                      selectedIdx === idx
-                        ? "bg-muted/50 border-l-primary text-foreground"
-                        : "border-l-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                    )}
-                  >
-                    <div className="shrink-0 mt-0.5">
-                      {run.is_submission ? (
-                        <FileCode
-                          className="h-4 w-4 text-primary"
-                          strokeWidth={1.5}
-                        />
-                      ) : run.error_count > 0 ? (
-                        <AlertTriangle
-                          className="h-4 w-4 text-warning"
-                          strokeWidth={1.5}
-                        />
-                      ) : (
-                        <Play
-                          className="h-4 w-4 text-emerald-400"
-                          strokeWidth={1.5}
-                        />
+                {runs.map((run, idx) => {
+                  const runCount = runs.slice(0, idx + 1).filter((r) => !r.is_submission).length;
+                  const submissionCount = runs.slice(0, idx + 1).filter((r) => r.is_submission).length;
+                  const totalSubmissions = runs.filter((r) => r.is_submission).length;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedIdx(idx)}
+                      className={cn(
+                        "w-full text-left px-4 py-3 text-xs transition-colors flex items-start gap-3 border-l-2",
+                        selectedIdx === idx
+                          ? "bg-muted/50 border-l-primary text-foreground"
+                          : "border-l-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                       )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium truncate">
-                        {run.is_submission
-                          ? "Submission"
-                          : `Run #${idx + 1}`}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground">
-                          {timeAgo(run.run_at)}
-                        </span>
-                        {run.error_count > 0 && (
-                          <span className="text-[10px] text-destructive font-medium">
-                            {run.error_count}E
-                          </span>
-                        )}
-                        {run.is_submission && (
-                          <span className="text-[10px] text-primary font-medium">
-                            FINAL
-                          </span>
+                    >
+                      <div className="shrink-0 mt-0.5">
+                        {run.is_submission ? (
+                          <FileCode
+                            className="h-4 w-4 text-primary"
+                            strokeWidth={1.5}
+                          />
+                        ) : run.error_count > 0 ? (
+                          <AlertTriangle
+                            className="h-4 w-4 text-warning"
+                            strokeWidth={1.5}
+                          />
+                        ) : (
+                          <Play
+                            className="h-4 w-4 text-emerald-400"
+                            strokeWidth={1.5}
+                          />
                         )}
                       </div>
-                    </div>
-                  </button>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">
+                          {run.is_submission
+                            ? `${ordinal(submissionCount)} Submission`
+                            : `Run #${runCount}`}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-muted-foreground">
+                            {timeAgo(run.run_at)}
+                          </span>
+                          {run.error_count > 0 && (
+                            <span className="text-[10px] text-destructive font-medium">
+                              {run.error_count}E
+                            </span>
+                          )}
+                          {run.is_submission && (
+                            <span className="text-[10px] text-primary font-medium">
+                              {ordinal(submissionCount)}{submissionCount === totalSubmissions ? " • FINAL" : ""}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

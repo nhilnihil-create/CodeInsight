@@ -1027,10 +1027,6 @@ exports.getInstructorDashboard = async (req, res, next) => {
     const priorAtRisk = priorAtRiskRes.rows[0]?.prior_at_risk || 0;
     const priorAvgCds = parseFloat(priorAvgCdsRes.rows[0]?.prior_avg_cds) || 0;
     const priorFlags = priorFlagsRes.rows[0]?.prior_count || 0;
-    console.log('[DEBUG] avgCdsRes.rows:', JSON.stringify(avgCdsRes.rows));
-    console.log('[DEBUG] secParam:', JSON.stringify([...secParam, days]));
-    console.log('[DEBUG] sectionId:', sectionId, 'days:', days, 'avgCds:', avgCds, 'priorAvgCds:', priorAvgCds);
-
     // Extract series for KPI sparklines
     const trendRows = dailyTrendRes.rows;
     const atRiskSeries = trendRows.map(() => atRiskCount);
@@ -1046,9 +1042,6 @@ exports.getInstructorDashboard = async (req, res, next) => {
       }
     }
     const latestCds = latestRow ? parseFloat(latestRow.avg_cds) : avgCds;
-    console.log('[DEBUG] trendRows:', JSON.stringify(trendRows.map(r => ({date: r.date, avg_cds: r.avg_cds}))));
-    console.log('[DEBUG] latestRow:', JSON.stringify(latestRow), 'latestCds:', latestCds);
-
     // Weekly flag counts from actual integrity_flags data
     const flagSeries = trendRows.map(r => r.flag_count || 0);
 
@@ -2017,6 +2010,7 @@ exports.getSubmissionRuns = async (req, res, next) => {
         is_submission: true,
       })),
     ];
+    runs.sort((a, b) => new Date(a.run_at) - new Date(b.run_at));
 
     res.json({ runs });
   } catch (err) {

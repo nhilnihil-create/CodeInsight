@@ -656,7 +656,7 @@ export default function ExerciseWorkspace() {
           deadline: ex.deadline ? ex.deadline.slice(0, 10) : "",
           _editId: ex.id,
         });
-      }).catch(() => {}) : Promise.resolve(),
+      }).catch((err) => console.warn('Failed to load exercise:', err.message)) : Promise.resolve(),
     ]).finally(() => setLoading(false));
   }, [id, isEdit]);
 

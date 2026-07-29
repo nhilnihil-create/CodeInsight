@@ -46,12 +46,16 @@ export default function StudentProfile() {
         const res = await api.get('/api/analytics/my-scores');
         if (active) setScores(res.data || []);
       } catch (err) {
+        if (active) console.warn('Failed to fetch scores:', err.message);
       } finally {
         if (active) setLoading(false);
       }
     };
     load();
-    const t = setInterval(load, 5000);
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      load();
+    }, 5000);
     return () => {
       active = false;
       clearInterval(t);

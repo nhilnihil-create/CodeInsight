@@ -161,7 +161,7 @@ export default function StudentCodeEditor() {
         setSubmissions(subs);
         setHistory(hist);
       })
-      .catch(() => {});
+      .catch((err) => console.warn('Failed to load attempts:', err.message));
     return () => {
       cancelled = true;
     };
@@ -285,7 +285,7 @@ export default function StudentCodeEditor() {
         api.post('/api/student/behavioral-events', {
           exerciseId: parseInt(exerciseId),
           events: pending,
-        }).catch(() => {});
+        }).catch((err) => console.warn('Failed to flush behavioral events:', err.message));
       }
 
       const r = await api.post(`/api/student/exercises/${exerciseId}/submit`, {
