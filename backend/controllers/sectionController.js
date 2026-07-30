@@ -171,6 +171,9 @@ exports.getStudents = async (req, res, next) => {
 exports.getStudentsWithScores = async (req, res, next) => {
   try {
     const { section_id } = req.params;
+    if (!section_id || section_id === 'null' || section_id === 'undefined') {
+      return res.json([]);
+    }
     const r = await db.query(
       `SELECT
         u.id, u.name, u.email,
@@ -219,6 +222,9 @@ exports.getStudentsAcrossSections = async (req, res, next) => {
 exports.getSectionExercises = async (req, res, next) => {
   try {
     const { section_id } = req.params;
+    if (!section_id || section_id === 'null' || section_id === 'undefined') {
+      return res.json([]);
+    }
     const r = await db.query(
       `SELECT 
         ex.id, ex.title, ex.description, ex.concept_id, ex.section_id,

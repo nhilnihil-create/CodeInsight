@@ -58,6 +58,10 @@ exports.heatmap = async (req, res, next) => {
   const { sectionId } = req.params;
   const instructorId = req.user?.id;
 
+  if (!sectionId || sectionId === 'null' || sectionId === 'undefined') {
+    return res.json({ students: [], scores: [], concepts: [] });
+  }
+
   try {
     // Get students in section(s) who have at least one non-null CDS score
     const w = heatmapWhere(sectionId, instructorId, 'ex');
@@ -1797,6 +1801,10 @@ exports.getConceptDiagnostic = async (req, res, next) => {
 exports.getConceptHeatmap = async (req, res, next) => {
   try {
     const { sectionId } = req.params;
+
+    if (!sectionId || sectionId === 'null' || sectionId === 'undefined') {
+      return res.json({ concepts: [], students: [], scores: [] });
+    }
 
     // Get concepts actually used in this section's exercises (primary tags only)
     // Ordered by name to match taxonomy
