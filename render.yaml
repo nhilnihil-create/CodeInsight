@@ -20,7 +20,7 @@ services:
       - key: DB_CONNECTION_TIMEOUT_MS
         value: "5000"
       - key: REDIS_HOST
-        sync: false
+        value: tough-akita-173554.upstash.io
       - key: REDIS_PORT
         value: "6379"
       - key: REDIS_PASSWORD

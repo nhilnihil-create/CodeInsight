@@ -24,10 +24,14 @@ async function initQueue() {
   if (submissionQueue || redisConnection) return redisAvailable;
 
   try {
+    const host = process.env.REDIS_HOST || 'localhost';
+    const tlsOptions = host !== 'localhost' && host !== '127.0.0.1' ? {} : undefined;
+
     redisConnection = new IORedis({
-      host: process.env.REDIS_HOST || 'localhost',
+      host,
       port: parseInt(process.env.REDIS_PORT || '6379'),
       password: process.env.REDIS_PASSWORD || undefined,
+      tls: tlsOptions,
       maxRetriesPerRequest: 3,
       retryDelayOnFail: 200,
       connectTimeout: 3000,
