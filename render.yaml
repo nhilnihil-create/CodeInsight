@@ -6,11 +6,11 @@ services:
     plan: free
     envVars:
       - key: DB_HOST
-        sync: false
+        value: ep-plain-moon-azp8k1wn.c-3.ap-southeast-1.aws.neon.tech
       - key: DB_NAME
         value: codeinsight
       - key: DB_USER
-        value: codeuser
+        value: neondb_owner
       - key: DB_PASSWORD
         sync: false
       - key: DB_PORT
