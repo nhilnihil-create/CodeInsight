@@ -25,7 +25,8 @@ async function initQueue() {
 
   try {
     const host = process.env.REDIS_HOST || 'localhost';
-    const tlsOptions = host !== 'localhost' && host !== '127.0.0.1' ? {} : undefined;
+    const isRemote = host !== 'localhost' && host !== '127.0.0.1';
+    const tlsOptions = isRemote ? { rejectUnauthorized: false } : undefined;
 
     redisConnection = new IORedis({
       host,
@@ -48,10 +49,11 @@ async function initQueue() {
     });
 
     // Wait for connection (with timeout)
-    await Promise.race([
-      redisConnection.waitUntilReady(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connection timeout')), 3000)),
-    ]);
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Redis connection timeout')), 5000);
+      redisConnection.on('connect', () => { clearTimeout(timeout); resolve(); });
+      redisConnection.on('error', (err) => { clearTimeout(timeout); reject(err); });
+    });
 
     submissionQueue = new Queue('submissions', {
       connection: redisConnection,
