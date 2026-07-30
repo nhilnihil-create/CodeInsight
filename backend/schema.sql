@@ -505,16 +505,16 @@ INSERT INTO concepts (name, ast_nodes, knowledge_area_code, slug, bloom_level) V
   ('Input/Output', ARRAY['call_expression'], 'SDF-FPC', 'input-output', 'apply')
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO users (name, email, password_hash, role) VALUES
+INSERT INTO users (name, email, password_hash, role, email_verified) VALUES
   ('Juan Dela Cruz', 'instructor@psu.edu',
-   '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'instructor')
+   '$2a$10$ZAMOr5JPJbtcy.2hrPYOouVYFsfwCSdqaMFz1KhJABw/59/hj96oy', 'instructor', true)
 ON CONFLICT (email) DO NOTHING;
 
-INSERT INTO users (name, email, password_hash, role) VALUES
+INSERT INTO users (name, email, password_hash, role, email_verified) VALUES
   ('Maria Reyes', 'maria@student.psu.edu',
-   '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'student'),
+   '$2a$10$ZAMOr5JPJbtcy.2hrPYOouVYFsfwCSdqaMFz1KhJABw/59/hj96oy', 'student', true),
   ('Jose Santos', 'jose@student.psu.edu',
-   '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'student'),
+   '$2a$10$ZAMOr5JPJbtcy.2hrPYOouVYFsfwCSdqaMFz1KhJABw/59/hj96oy', 'student', true),
   ('Ana Lim',     'ana@student.psu.edu',
-   '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'student')
+   '$2a$10$ZAMOr5JPJbtcy.2hrPYOouVYFsfwCSdqaMFz1KhJABw/59/hj96oy', 'student', true)
 ON CONFLICT (email) DO NOTHING;
