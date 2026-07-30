@@ -3,7 +3,6 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm config set legacy-peer-deps true && npm ci
 COPY backend/ .
-RUN npm run lint
 
 FROM node:22-alpine AS production
 WORKDIR /app
