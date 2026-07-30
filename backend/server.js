@@ -29,6 +29,7 @@ app.use(cors({
     if (!origin) return cb(null, true);
     if (process.env.NODE_ENV === 'development') return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (origin.endsWith('.vercel.app')) return cb(null, true);
     return cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
