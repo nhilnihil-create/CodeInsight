@@ -228,7 +228,7 @@ exports.getSectionExercises = async (req, res, next) => {
     const r = await db.query(
       `SELECT 
         ex.id, ex.title, ex.description, ex.concept_id, ex.section_id,
-        ex.closed_at, ex.created_at, c.name AS concept_name,
+        ex.closed_at, ex.deadline, ex.created_at, c.name AS concept_name,
         (SELECT COUNT(*)::INTEGER FROM enrollments WHERE section_id=$1) AS total_students,
         (SELECT COUNT(DISTINCT student_id)::INTEGER FROM submissions 
          WHERE exercise_id=ex.id AND student_id IN 
