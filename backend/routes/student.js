@@ -467,13 +467,15 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
       .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))[0] || null;
 
     // 2. CDS scores — avg + per-concept breakdown (only from current enrollments)
+    // Only real scores count: batch 'Unscored' placeholders (cds IS NULL) are
+    // created for students with no submissions and must not appear as mastery.
     const cdsRes = await db.query(`
       SELECT cs.cds, cs.classification, cs.exercise_id, c.name AS concept_name, ex.title AS exercise_title
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
       JOIN concepts c ON c.id = ex.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE cs.student_id = $1 AND en.student_id = $1
+      WHERE cs.student_id = $1 AND en.student_id = $1 AND cs.cds IS NOT NULL
       ORDER BY cs.computed_at DESC
     `, [studentId]);
     const scores = cdsRes.rows || [];
@@ -785,7 +787,7 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-      WHERE cs.student_id = $1
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL
       GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds DESC
     `, [studentId]);
@@ -940,7 +942,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-      WHERE cs.student_id = $1
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL
       GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds ASC
     `, [studentId]);
@@ -1130,7 +1132,7 @@ router.get('/concepts/all', verifyToken, requireRole('student'), async (req, res
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-      WHERE cs.student_id = $1
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL
       GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds ASC
     `, [studentId]);
