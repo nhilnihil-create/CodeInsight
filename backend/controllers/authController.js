@@ -51,7 +51,7 @@ exports.requestOtp = async (req, res, next) => {
     }
 
     const otp = generateOtp();
-    storeOtp(email, otp);
+    await storeOtp(email, otp);
 
     const name = email.split('@')[0];
     let emailSent = false;
@@ -78,7 +78,7 @@ exports.verifyOtpAndRegister = async (req, res, next) => {
       throw new AppError('Email, OTP, name, and password are required', 400, codes.VALIDATION_ERROR);
     }
 
-    const result = verifyOtp(email, otp);
+    const result = await verifyOtp(email, otp);
     if (!result.valid) {
       logger.warn({ email, reason: result.reason }, 'OTP verification failed');
       throw new AppError(result.reason, 400, codes.VALIDATION_ERROR);

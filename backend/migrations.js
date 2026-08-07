@@ -383,6 +383,19 @@ async function ensureTablesExist() {
       console.log('✓ Created token_blacklist table');
     }
 
+    if (!(await tableExists('otp_codes'))) {
+      await db.query(`
+        CREATE TABLE otp_codes (
+          email     VARCHAR(255) PRIMARY KEY,
+          otp       VARCHAR(6) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          attempts  INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      console.log('✓ Created otp_codes table');
+    }
+
     const criticalTables = ['users', 'sections', 'enrollments', 'concepts', 'exercises', 'submissions'];
     const allCriticalExist = criticalTables.every(table =>
       results.find(r => r.table === table)?.exists === true
