@@ -54,9 +54,12 @@ exports.requestOtp = async (req, res, next) => {
     storeOtp(email, otp);
 
     const name = email.split('@')[0];
-    sendOtpEmail({ to: email, name, otp }).catch(err =>
-      logger.error({ err }, 'Failed to send OTP email')
-    );
+    try {
+      await sendOtpEmail({ to: email, name, otp });
+    } catch (err) {
+      logger.error({ err, email }, 'Failed to send OTP email');
+      throw new AppError('Failed to send verification email. Please try again.', 500, codes.INTERNAL_ERROR);
+    }
 
     res.json({ message: 'Verification code sent to your email' });
   } catch (err) { next(err); }

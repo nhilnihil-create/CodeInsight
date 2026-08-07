@@ -16,13 +16,13 @@ function createTransporter() {
 
 async function sendEmail({ to, subject, html }) {
   if (process.env.EMAIL_ENABLED !== 'true') {
-    logger.info({ to, subject }, 'Email disabled — skipping send');
-    return;
+    logger.warn({ to, subject }, 'Email disabled (EMAIL_ENABLED is not "true") — skipping send');
+    throw new Error('Email is not enabled. Set EMAIL_ENABLED=true in environment.');
   }
   const transporter = createTransporter();
   if (!transporter) {
-    logger.warn('Email transporter not configured');
-    return;
+    logger.warn({ to, subject }, 'Email transporter not configured');
+    throw new Error('Email transporter failed to initialize');
   }
   const from = process.env.EMAIL_FROM || 'noreply@codeinsight.psu.edu';
   await transporter.sendMail({ from, to, subject, html });
