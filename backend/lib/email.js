@@ -1,14 +1,14 @@
-const { BrevoClient } = require('@getbrevo/brevo');
+const { Resend } = require('resend');
 const logger = require('./logger');
 
-let client = null;
+let resend = null;
 
 function getClient() {
-  if (client) return client;
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) throw new Error('BREVO_API_KEY is not set');
-  client = new BrevoClient({ apiKey });
-  return client;
+  if (resend) return resend;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY is not set');
+  resend = new Resend(apiKey);
+  return resend;
 }
 
 async function sendEmail({ to, subject, html }) {
@@ -16,15 +16,10 @@ async function sendEmail({ to, subject, html }) {
     logger.warn({ to, subject }, 'Email disabled — skipping send');
     throw new Error('Email is not enabled. Set EMAIL_ENABLED=true.');
   }
-  const brevo = getClient();
+  const client = getClient();
   const from = process.env.EMAIL_FROM || 'CodeInsight <noreply@codeinsight.psu.edu>';
-  await brevo.sendTransacEmail({
-    sender: { email: 'noreply@codeinsight.psu.edu', name: 'CodeInsight' },
-    to: [{ email: to }],
-    subject,
-    htmlContent: html,
-  });
-  logger.info({ to, subject }, 'Email sent via Brevo');
+  await client.emails.send({ from, to, subject, html });
+  logger.info({ to, subject }, 'Email sent via Resend');
 }
 
 async function sendOtpEmail({ to, name, otp }) {

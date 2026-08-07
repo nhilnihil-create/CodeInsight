@@ -37,7 +37,7 @@ services:
         value: info
       - key: EMAIL_ENABLED
         value: "true"
-      - key: BREVO_API_KEY
+      - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
         value: "CodeInsight <noreply@codeinsight.psu.edu>"
