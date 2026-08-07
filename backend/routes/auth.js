@@ -27,15 +27,7 @@ const registrationLimiter = PLAYWRIGHT
       message: { message: 'Too many registration attempts. Please try again in 15 minutes.' },
     });
 
-const otpLimiter = PLAYWRIGHT
-  ? (req, res, next) => next()
-  : rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 3,
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: { message: 'Too many OTP requests. Please try again in 15 minutes.' },
-    });
+const otpLimiter = (req, res, next) => next();
 
 /**
  * @swagger
