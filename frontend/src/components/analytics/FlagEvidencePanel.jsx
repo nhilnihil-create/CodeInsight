@@ -40,13 +40,13 @@ const FLAG_META = {
     description: "Significant code size change",
   },
   PASSIVE_BEHAVIOR_LOG: {
-    label: "Passive Behavior",
+    label: "Contextual Activity",
     color: "text-violet-400",
     bg: "bg-violet-500/10",
     border: "border-violet-500/30",
     ring: "ring-violet-500/20",
     icon: AlertTriangle,
-    description: "Tab switches, pastes, or idle time detected",
+    description: "Tab switches or paste events recorded as context",
   },
 };
 

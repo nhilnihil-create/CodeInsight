@@ -34,7 +34,7 @@ const IntegrityFlagBadge = ({ flagType }) => {
       color: 'hsl(142 71% 28%)',
     },
     PASSIVE_BEHAVIOR_LOG: {
-      label: 'Behavior Log',
+      label: 'Context Log',
       bg: 'hsl(280 60% 60% / 0.12)',
       color: 'hsl(280 60% 35%)',
     },
