@@ -1,19 +1,14 @@
-const nodemailer = require('nodemailer');
 const logger = require('./logger');
 
-function createTransporter() {
-  if (process.env.EMAIL_ENABLED !== 'true') return null;
-  return nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    connectionTimeout: 5000,
-    socketTimeout: 5000,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.BREVO_SMTP_KEY,
-    },
-  });
+let brevoClient = null;
+
+async function getClient() {
+  if (brevoClient) return brevoClient;
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY is not set');
+  const { BrevoClient } = require('@getbrevo/brevo');
+  brevoClient = new BrevoClient({ apiKey });
+  return brevoClient;
 }
 
 async function sendEmail({ to, subject, html }) {
@@ -21,17 +16,20 @@ async function sendEmail({ to, subject, html }) {
     logger.warn({ to, subject }, 'Email disabled — skipping send');
     throw new Error('Email is not enabled. Set EMAIL_ENABLED=true.');
   }
-  const transporter = createTransporter();
-  if (!transporter) {
-    throw new Error('Email transporter failed to initialize');
-  }
-  const from = process.env.EMAIL_FROM || 'CodeInsight <noreply@codeinsight.psu.edu>';
-  logger.info({ to, from }, 'Attempting to send email via Brevo SMTP...');
+  const client = await getClient();
+  const fromEmail = process.env.EMAIL_FROM_ADDRESS || 'codeinsight.noreply@gmail.com';
+  const fromName = process.env.EMAIL_FROM_NAME || 'CodeInsight';
+  logger.info({ to, subject }, 'Sending email via Brevo API...');
   try {
-    await transporter.sendMail({ from, to, subject, html });
-    logger.info({ to, subject }, 'Email sent via Brevo SMTP');
+    await client.sendTransacEmail({
+      sender: { email: fromEmail, name: fromName },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    });
+    logger.info({ to, subject }, 'Email sent via Brevo API');
   } catch (err) {
-    logger.error({ err: err.message, to, subject }, 'Brevo SMTP send failed');
+    logger.error({ err: err.message, to, subject }, 'Brevo API send failed');
     throw err;
   }
 }

@@ -166,10 +166,10 @@ router.post('/verify-otp',  registrationLimiter, validate.body(v.verifyOtp), ctr
 
 router.get('/email-status', (req, res) => {
   const enabled = process.env.EMAIL_ENABLED === 'true';
-  const hasSmtpKey = !!process.env.BREVO_SMTP_KEY;
-  const user = process.env.EMAIL_USER || '(not set)';
-  const from = process.env.EMAIL_FROM || '(not set)';
-  res.json({ enabled, provider: 'brevo-smtp', hasSmtpKey, user, from });
+  const hasApiKey = !!process.env.BREVO_API_KEY;
+  const fromAddress = process.env.EMAIL_FROM_ADDRESS || '(not set)';
+  const fromName = process.env.EMAIL_FROM_NAME || '(not set)';
+  res.json({ enabled, provider: 'brevo-api', hasApiKey, fromAddress, fromName });
 });
 
 router.post('/test-email', async (req, res) => {

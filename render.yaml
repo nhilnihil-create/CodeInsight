@@ -37,10 +37,10 @@ services:
         value: info
       - key: EMAIL_ENABLED
         value: "true"
-      - key: EMAIL_USER
-        value: codeinsight.noreply@gmail.com
-      - key: BREVO_SMTP_KEY
+      - key: BREVO_API_KEY
         sync: false
-      - key: EMAIL_FROM
-        value: "CodeInsight <codeinsight.noreply@gmail.com>"
+      - key: EMAIL_FROM_ADDRESS
+        value: codeinsight.noreply@gmail.com
+      - key: EMAIL_FROM_NAME
+        value: CodeInsight
     healthCheckPath: /api/ready
