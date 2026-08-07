@@ -220,7 +220,7 @@ export default function StudentDashboard() {
             <InsightHeader
               eyebrow={dueCount > 0 ? "Due soon" : "All clear"}
               insight={nearest
-                ? `Exercise ${nearest.id} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
+                ? `${nearest.title} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
                 : "You're all caught up on your exercises."}
               description={nearest
                 ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
@@ -229,7 +229,7 @@ export default function StudentDashboard() {
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Button asChild size="sm" className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300">
                     <Link to={`/student/exercises/${nearest.id}`}>
-                      Start Exercise {nearest.id}
+                      Start {nearest.title}
                       <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
                     </Link>
                   </Button>
