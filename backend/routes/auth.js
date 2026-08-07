@@ -172,4 +172,16 @@ router.get('/email-status', (req, res) => {
   res.json({ enabled, provider: 'brevo-smtp', hasSmtpKey, user, from });
 });
 
+router.post('/test-email', async (req, res) => {
+  try {
+    const { sendEmail } = require('../lib/email');
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email required' });
+    await sendEmail({ to: email, subject: 'CodeInsight Test', html: '<h1>Test email</h1><p>If you see this, email is working.</p>' });
+    res.json({ success: true, message: 'Email sent' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

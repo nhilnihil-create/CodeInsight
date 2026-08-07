@@ -7,6 +7,8 @@ function createTransporter() {
     host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
+    connectionTimeout: 5000,
+    socketTimeout: 5000,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.BREVO_SMTP_KEY,
@@ -24,8 +26,14 @@ async function sendEmail({ to, subject, html }) {
     throw new Error('Email transporter failed to initialize');
   }
   const from = process.env.EMAIL_FROM || 'CodeInsight <noreply@codeinsight.psu.edu>';
-  await transporter.sendMail({ from, to, subject, html });
-  logger.info({ to, subject }, 'Email sent via Brevo SMTP');
+  logger.info({ to, from }, 'Attempting to send email via Brevo SMTP...');
+  try {
+    await transporter.sendMail({ from, to, subject, html });
+    logger.info({ to, subject }, 'Email sent via Brevo SMTP');
+  } catch (err) {
+    logger.error({ err: err.message, to, subject }, 'Brevo SMTP send failed');
+    throw err;
+  }
 }
 
 async function sendOtpEmail({ to, name, otp }) {
