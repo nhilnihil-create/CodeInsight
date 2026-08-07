@@ -123,15 +123,14 @@ function Cell({ cds, onHover, onLeave }) {
         'transition-colors duration-75',
       )}
       style={{
-        backgroundColor: cds != null && cds > 0 ? color.bg : 'rgba(15,23,42,0.6)',
-        color: cds != null && cds > 0 ? undefined : undefined,
+        backgroundColor: cds != null ? color.bg : 'rgba(15,23,42,0.6)',
       }}
       onMouseEnter={(e) => onHover?.(e)}
       onMouseMove={(e) => onHover?.(e)}
       onMouseLeave={onLeave}
     >
-      <span className={cds != null && cds > 0 ? color.text : 'text-slate-500'}>
-        {cds != null && cds > 0 ? Number(cds).toFixed(2) : ''}
+      <span className={cds != null ? color.text : 'text-slate-500'}>
+        {cds != null ? Number(cds).toFixed(2) : ''}
       </span>
     </div>
   );
@@ -323,7 +322,7 @@ export default function InstructorHeatmap() {
     for (const c of concepts) {
       const vals = rows
         .map(r => r.scores[c])
-        .filter(v => v != null && v > 0)
+        .filter(v => v != null)
         .map(v => Number(v));
       meanCDS[c] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     }
