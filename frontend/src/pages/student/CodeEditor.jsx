@@ -60,9 +60,10 @@ function transformTestResults(apiResults, compilerError, hiddenSummary) {
 function transformAttempts(attempts, totalTests, language) {
   const submissions = (attempts || []).map((a) => ({
     id: a.id,
+    attemptNumber: a.attempt_number,
     status: a.passed ? "accepted" : "wrong_answer",
-    passed: a.passed ? totalTests : 0,
-    total: totalTests || 0,
+    passed: a.passed_count ?? (a.passed ? totalTests : 0),
+    total: (a.total_count ?? totalTests) || 0,
     runtime: "--",
     memory: "--",
     language: language || "C++",

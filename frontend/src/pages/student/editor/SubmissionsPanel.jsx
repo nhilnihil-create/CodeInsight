@@ -120,7 +120,7 @@ function SubmissionsList({ submissions }) {
                   <div className="flex items-center gap-2 min-w-0">
                     <p className="text-sm font-medium truncate text-white/90">{meta.label}</p>
                     <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
-                      #{s.id}
+                      #{s.attemptNumber}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">

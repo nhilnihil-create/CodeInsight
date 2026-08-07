@@ -228,11 +228,11 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 
     const subRes = await db.query(`
       INSERT INTO submissions
-        (exercise_id, student_id, code, is_correct, attempt_number, time_spent_seconds,
+        (exercise_id, student_id, code, test_results, is_correct, attempt_number, time_spent_seconds,
          tab_switch_count, paste_count, idle_time_seconds, submitted_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
-    `, [exercise.id, req.user.id, code, passed, attempt_number, timeSpentSeconds || 0,
+    `, [exercise.id, req.user.id, code, JSON.stringify(allResults), passed, attempt_number, timeSpentSeconds || 0,
         tabSwitchCount, pasteCount, idleTimeSeconds]);
 
     // Send response immediately — student sees test results right away
@@ -435,11 +435,22 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 router.get('/exercises/:id/attempts', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const r = await db.query(`
-      SELECT id, exercise_id, is_correct AS passed, attempt_number, submitted_at
+      SELECT id, exercise_id, is_correct AS passed, attempt_number, submitted_at, test_results
       FROM submissions WHERE exercise_id = $1 AND student_id = $2
       ORDER BY submitted_at DESC LIMIT 10
     `, [req.params.id, req.user.id]);
-    res.json(r.rows || []);
+    const rows = (r.rows || []).map(row => {
+      let results = row.test_results;
+      try {
+        results = typeof results === 'string' ? JSON.parse(results) : results;
+      } catch (_) { results = null; }
+      return {
+        ...row,
+        passed_count: Array.isArray(results) ? results.filter(t => t && t.passed === true).length : null,
+        total_count: Array.isArray(results) ? results.length : null,
+      };
+    });
+    res.json(rows);
   } catch (err) { next(err); }
 });
 
