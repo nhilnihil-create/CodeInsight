@@ -25,7 +25,13 @@ async function sendEmail({ to, subject, html }) {
     throw new Error('Email transporter failed to initialize');
   }
   const from = process.env.EMAIL_FROM || 'noreply@codeinsight.psu.edu';
-  await transporter.sendMail({ from, to, subject, html });
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('SMTP connection timed out after 10s')), 10000)
+  );
+  await Promise.race([
+    transporter.sendMail({ from, to, subject, html }),
+    timeout,
+  ]);
   logger.info({ to, subject }, 'Email sent');
 }
 
