@@ -477,20 +477,20 @@ exports.submit = async (req, res) => {
       console.warn('Behavioral anomaly detection failed:', behavioralError.message);
     }
 
-    // ── Passive Behavior Logging Flag ──────────────────────────────────
-    // Telemetry-only: tab switches, paste events, idle time. Always LOW severity
+    // ── Contextual Activity Flag ────────────────────────────────────────
+    // Telemetry-only: tab switches, paste events. Always LOW severity
     // as these are contextual indicators, not evidence of misconduct.
     try {
       await runPassiveBehaviorCheck({
         studentId, exerciseId,
         sectionId: exercise.section_id,
         submissionId,
-        tabSwitchCount, pasteCount, idleTimeSeconds,
+        tabSwitchCount, pasteCount,
         timeSpentSeconds,
         attemptNumber,
       });
     } catch (flagErr) {
-      console.warn('Passive behavior flag creation failed:', flagErr.message);
+      console.warn('Contextual activity flag creation failed:', flagErr.message);
     }
 
     // Split visible vs hidden results for response

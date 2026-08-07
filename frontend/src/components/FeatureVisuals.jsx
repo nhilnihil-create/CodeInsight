@@ -251,9 +251,9 @@ export function IntegrityVisual() {
     },
     {
       type: 'PASSIVE_BEHAVIOR_LOG',
-      title: 'Passive Behavior Logged',
-      detail: 'Tab switching, pasting, or extended idle time detected',
-      evidence: 'Tab switches: 2 · Paste events: 0 · Idle: 14s',
+      title: 'Contextual Activity Logged',
+      detail: 'Tab switching and pasting recorded for context',
+      evidence: 'Tab switches: 2 · Paste events: 0',
       whatNext: 'This information is logged for context only.',
     },
   ];

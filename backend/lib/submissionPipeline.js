@@ -106,26 +106,23 @@ async function runBehavioralChecks(params) {
 }
 
 /**
- * Run passive behavior logging (tab switches, paste events, idle time).
+ * Run contextual activity logging (tab switches, paste events).
  * Always LOW severity; uses graduated flagging.
  */
 async function runPassiveBehaviorCheck(params) {
   const {
     studentId, exerciseId, sectionId, submissionId,
-    tabSwitchCount, pasteCount, idleTimeSeconds, timeSpentSeconds, attemptNumber
+    tabSwitchCount, pasteCount, timeSpentSeconds, attemptNumber
   } = params;
 
   const TAB_SWITCH_HIGH = 10;
   const PASTE_HIGH = 5;
-  const IDLE_RATIO_HIGH = 0.7;
 
   const totalTime = timeSpentSeconds || 1;
-  const idleRatio = idleTimeSeconds / totalTime;
   const signals = [];
 
   if (tabSwitchCount >= TAB_SWITCH_HIGH) signals.push(`${tabSwitchCount} tab switches`);
   if (pasteCount >= PASTE_HIGH) signals.push(`${pasteCount} paste events`);
-  if (idleRatio >= IDLE_RATIO_HIGH) signals.push(`${Math.round(idleRatio * 100)}% idle`);
 
   if (signals.length === 0) return [];
 
@@ -137,16 +134,14 @@ async function runPassiveBehaviorCheck(params) {
       summary: signals.join('; '),
       tab_switch_count: tabSwitchCount,
       paste_count: pasteCount,
-      idle_time_seconds: idleTimeSeconds,
       total_time_seconds: totalTime,
-      idle_ratio: Math.round(idleRatio * 100) / 100,
       attempt_number: attemptNumber,
       confidence: 0.15,
-      innocent_explanation: 'Behavioral telemetry (tab switches, pastes, idle time) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt.',
+      innocent_explanation: 'Contextual telemetry (tab switches, pastes) is logged as a contextual indicator only. Students naturally switch tabs to access references, documentation, or the exercise prompt.',
     },
     contextBehaviors: [
       signals.join('; '),
-      `Attempt #${attemptNumber}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+      `Attempt #${attemptNumber}, time: ${totalTime}s`,
     ],
     submissionId,
   });

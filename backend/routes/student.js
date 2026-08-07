@@ -141,7 +141,7 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
 // Submit code (all tests, save submission, persist behavioral events)
 router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
-    const { code, timeSpentSeconds, tabSwitchCount = 0, pasteCount = 0, idleTimeSeconds = 0 } = req.body;
+    const { code, timeSpentSeconds, tabSwitchCount = 0, pasteCount = 0 } = req.body;
     if (!code) throw new AppError('Code required', 400, codes.VALIDATION);
 
     const cacheKey = `exercise:${req.params.id}`;
@@ -229,11 +229,11 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     const subRes = await db.query(`
       INSERT INTO submissions
         (exercise_id, student_id, code, test_results, is_correct, attempt_number, time_spent_seconds,
-         tab_switch_count, paste_count, idle_time_seconds, submitted_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         tab_switch_count, paste_count, submitted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
     `, [exercise.id, req.user.id, code, JSON.stringify(allResults), passed, attempt_number, timeSpentSeconds || 0,
-        tabSwitchCount, pasteCount, idleTimeSeconds]);
+        tabSwitchCount, pasteCount]);
 
     // Send response immediately — student sees test results right away
     res.status(201).json({
@@ -272,23 +272,18 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
         logger.warn({ err: liveErr }, 'Live CDS calculation failed');
       }
 
-      // ── Passive Behavior Logging Flag ──────────────────────────────────
+      // ── Contextual Activity Flag ───────────────────────────────────────
       const BEHAVIORAL_THRESHOLDS = {
         TAB_SWITCH_HIGH: 5,
         PASTE_HIGH: 3,
-        IDLE_RATIO_HIGH: 0.5,
       };
       const totalTime = timeSpentSeconds || 1;
-      const idleRatio = idleTimeSeconds / totalTime;
       const behavioralSignals = [];
       if (tabSwitchCount >= BEHAVIORAL_THRESHOLDS.TAB_SWITCH_HIGH) {
         behavioralSignals.push(`${tabSwitchCount} tab switches`);
       }
       if (pasteCount >= BEHAVIORAL_THRESHOLDS.PASTE_HIGH) {
         behavioralSignals.push(`${pasteCount} paste events`);
-      }
-      if (idleRatio >= BEHAVIORAL_THRESHOLDS.IDLE_RATIO_HIGH) {
-        behavioralSignals.push(`${Math.round(idleRatio * 100)}% idle`);
       }
 
       if (behavioralSignals.length > 0) {
@@ -311,13 +306,11 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
             JSON.stringify({
               tab_switch_count: tabSwitchCount,
               paste_count: pasteCount,
-              idle_time_seconds: idleTimeSeconds,
               total_time_seconds: totalTime,
-              idle_ratio: Math.round(idleRatio * 100) / 100,
             }),
             [
               behavioralSignals.join('; '),
-              `Attempt #${attempt_number}, time: ${totalTime}s, idle: ${idleTimeSeconds}s`,
+              `Attempt #${attempt_number}, time: ${totalTime}s`,
             ],
           ]);
         } catch (flagErr) {
@@ -714,8 +707,8 @@ router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, 
   } catch (err) { next(err); }
 });
 
-// ── Passive Behavioral Logging (paper flag #5) ──────────────────────────────
-// Receives browser-side telemetry: tab switches, paste events, idle time.
+// ── Contextual Activity Logging (paper flag #5) ────────────────────────────
+// Receives browser-side telemetry: tab switches and paste events.
 // Stores in behavioral_events table for instructor context.
 
 router.post('/behavioral-events', behavioralLimiter, verifyToken, requireRole('student'), async (req, res, next) => {
@@ -731,7 +724,7 @@ router.post('/behavioral-events', behavioralLimiter, verifyToken, requireRole('s
     const toInsert = events.slice(0, 50);
     for (const event of toInsert) {
       const { type, timestamp, payload } = event;
-      if (!type || !['tab_switch', 'paste', 'idle_start', 'idle_end'].includes(type)) continue;
+      if (!type || !['tab_switch', 'paste'].includes(type)) continue;
 
       await db.query(
         `INSERT INTO behavioral_events (student_id, exercise_id, event_type, occurred_at, payload)

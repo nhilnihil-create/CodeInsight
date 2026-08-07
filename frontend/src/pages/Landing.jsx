@@ -68,7 +68,7 @@ const FEATURES = [
       'Blank/template detection — flags unmodified starter code submissions',
       'Behavioral anomaly — unusual timing patterns like sudden success after many failures',
       'Code growth spike — flags sudden large code additions between attempts',
-      'Passive tracking — tab switches, paste events, and idle time logged for context',
+      'Contextual activity — tab switches and paste events logged for context',
     ],
     visual: <IntegrityVisual />,
     reverse: false,

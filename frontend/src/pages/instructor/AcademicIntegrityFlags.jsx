@@ -72,7 +72,7 @@ const FLAG_TYPES = [
   { value: 'BLANK_TEMPLATE', label: 'Blank/Template-only Submission' },
   { value: 'BEHAVIORAL_ANOMALY', label: 'Behavioral Anomaly' },
   { value: 'CODE_GROWTH_ANOMALY', label: 'Code Growth Anomaly' },
-  { value: 'PASSIVE_BEHAVIOR_LOG', label: 'Passive Behavior Logging' },
+  { value: 'PASSIVE_BEHAVIOR_LOG', label: 'Contextual Activity' },
 ];
 
 const SEVERITY_VARIANT = {
@@ -375,7 +375,7 @@ const AcademicIntegrityFlags = () => {
             mobile: 'label',
             renderCell: (flag) => <IntegrityFlagBadge flagType={flag.flag_type} />,
             renderMobileCell: (flag) => {
-              const labels = { HARDCODING: 'HC', BLANK_TEMPLATE: 'BT', BEHAVIORAL_ANOMALY: 'BA', CODE_GROWTH_ANOMALY: 'CG', PASSIVE_BEHAVIOR_LOG: 'PB' };
+              const labels = { HARDCODING: 'HC', BLANK_TEMPLATE: 'BT', BEHAVIORAL_ANOMALY: 'BA', CODE_GROWTH_ANOMALY: 'CG', PASSIVE_BEHAVIOR_LOG: 'CA' };
               return <span className="text-xs font-medium">{labels[flag.flag_type] || flag.flag_type}</span>;
             },
           },

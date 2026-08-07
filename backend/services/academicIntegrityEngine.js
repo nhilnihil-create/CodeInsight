@@ -6,7 +6,7 @@
 //   2. Blank/Template-Only Submission Detection
 //   3. Behavioral Anomaly Detection (instant success, extreme speed)
 //   4. Code Growth Anomaly Detection (>30% spike between submissions)
-//   5. Passive Behavioral Logging (tab switching, paste events)
+//   5. Contextual Activity Logging (tab switching, paste events)
 //
 // Flags 3 and 5 are handled by behavioralAnomalyDetector.js.
 // This file handles flags 1 and 2. Flag 4 is in submissionController.js.

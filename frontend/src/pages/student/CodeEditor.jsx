@@ -113,10 +113,8 @@ export default function StudentCodeEditor() {
   const [error, setError] = useState(null);
   const editorRef = useRef(null);
   const isSubmittingRef = useRef(false);
-  const behavioralCounts = useRef({ tabSwitches: 0, pastes: 0, idleSeconds: 0 });
+  const behavioralCounts = useRef({ tabSwitches: 0, pastes: 0 });
   const pendingEventsRef = useRef([]);
-  const lastActivityRef = useRef(Date.now());
-  const idleTimerRef = useRef(null);
   const editorContainerRef = useRef(null);
 
   const isCompleted = !!exercise?.isCompleted;
@@ -178,44 +176,27 @@ export default function StudentCodeEditor() {
     };
   }, [isCompleted, isSolved]);
 
-  // ── Passive Behavioral Logging (paper flag #5) ────────────────────────
-  // Track tab switches, paste events, and idle time. Sends cumulative
-  // counts with each submission AND asynchronously flushes raw events
-  // for audit trail every 10 seconds.
+  // ── Contextual Activity Logging (paper flag #5) ───────────────────────
+  // Track tab switches and paste events. Sends cumulative counts with each
+  // submission AND asynchronously flushes raw events for audit trail every
+  // 10 seconds.
   useEffect(() => {
     if (!exerciseId || isCompleted || isSolved) return;
 
     // Reset counters when entering a new exercise session
-    behavioralCounts.current = { tabSwitches: 0, pastes: 0, idleSeconds: 0 };
+    behavioralCounts.current = { tabSwitches: 0, pastes: 0 };
     pendingEventsRef.current = [];
-    lastActivityRef.current = Date.now();
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
         behavioralCounts.current.tabSwitches += 1;
         pendingEventsRef.current.push({ type: 'tab_switch', timestamp: new Date().toISOString() });
-      } else {
-        // Tab refocused — reset idle timer
-        lastActivityRef.current = Date.now();
       }
     };
 
     const handlePaste = () => {
       behavioralCounts.current.pastes += 1;
       pendingEventsRef.current.push({ type: 'paste', timestamp: new Date().toISOString() });
-      lastActivityRef.current = Date.now();
-    };
-
-    const handleActivity = () => {
-      lastActivityRef.current = Date.now();
-    };
-
-    // Check idle every second — accumulate idle seconds when no activity
-    const handleIdleCheck = () => {
-      const elapsed = Date.now() - lastActivityRef.current;
-      if (elapsed >= 1000) {
-        behavioralCounts.current.idleSeconds += 1;
-      }
     };
 
     // Flush events to backend every 10 seconds (audit trail)
@@ -235,18 +216,12 @@ export default function StudentCodeEditor() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('paste', handlePaste);
-    document.addEventListener('keydown', handleActivity);
-    document.addEventListener('mousedown', handleActivity);
     flushTimer = setInterval(flushEvents, 10000);
-    idleTimerRef.current = setInterval(handleIdleCheck, 1000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('paste', handlePaste);
-      document.removeEventListener('keydown', handleActivity);
-      document.removeEventListener('mousedown', handleActivity);
       clearInterval(flushTimer);
-      clearInterval(idleTimerRef.current);
       flushEvents(); // Final flush on unmount
     };
   }, [exerciseId, isCompleted, isSolved]);
@@ -295,7 +270,6 @@ export default function StudentCodeEditor() {
         timeSpentSeconds: activeElapsedSeconds,
         tabSwitchCount: behavioralCounts.current.tabSwitches,
         pasteCount: behavioralCounts.current.pastes,
-        idleTimeSeconds: behavioralCounts.current.idleSeconds,
       });
       const data = r.data;
       const hidden = data.hiddenTestCount ?? 0;
