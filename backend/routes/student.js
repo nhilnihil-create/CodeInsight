@@ -985,6 +985,13 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       };
     });
 
+    // 3. Overall mastery — average of per-concept mastery (100 - CDS)
+    // Mastery is the inverse of difficulty: high CDS = low mastery.
+    // Computed before trajectory so its messaging can reference it.
+    const overallMastery = masteryConcepts.length > 0
+      ? Math.round(masteryConcepts.reduce((sum, c) => sum + c.mastery, 0) / masteryConcepts.length)
+      : 0;
+
     // 2a. Trajectory analysis — smart, deterministic, handles edge cases
     const trajectory = (() => {
       // ── Empty state (no concepts at all) ────────────────────────
@@ -1037,12 +1044,14 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       let message;
       let tone;
       let actionLabel;
+      let actionTo;
       let detailBase;
 
       if (isNearlyMastered) {
         message = `Strong overall progress. ${weakest.concept_name} is your lowest at ${weakest.mastery}% — slight room to grow.`;
         tone = 'positive';
         actionLabel = `Practice ${weakest.concept_name}`;
+        actionTo = '/student/exercises';
         detailBase = `Difficulty score: ${weakest.cds.toFixed(2)}`;
       } else if (isTightRace) {
         const focusAreas = sorted.filter(c => c.mastery <= sorted[0].mastery + 4).map(c => c.concept_name);
@@ -1055,6 +1064,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
         message = `${weakest.concept_name} needs attention at ${weakest.mastery}% mastery. Your overall mastery is ${overallMastery}%.`;
         tone = 'constructive';
         actionLabel = `Practice ${weakest.concept_name}`;
+        actionTo = '/student/exercises';
         detailBase = `Difficulty score: ${weakest.cds.toFixed(2)} · gap to next: ${gap.toFixed(0)}pp`;
       }
 
@@ -1084,12 +1094,6 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     const total = completionRes.rows[0]?.total || 0;
     const completed = completionRes.rows[0]?.completed || 0;
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    // 3. Overall mastery — average of per-concept mastery (100 - CDS)
-    // Mastery is the inverse of difficulty: high CDS = low mastery.
-    const overallMastery = masteryConcepts.length > 0
-      ? Math.round(masteryConcepts.reduce((sum, c) => sum + c.mastery, 0) / masteryConcepts.length)
-      : 0;
 
     // 4. Avg attempts per exercise
     const avgAttemptsRes = await db.query(`
