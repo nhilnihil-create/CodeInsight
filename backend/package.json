@@ -14,6 +14,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^6.0.2",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.78.0",
     "cookie-parser": "^1.4.7",
@@ -33,6 +34,7 @@
     "pg": "^8.11.0",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
+    "resend": "^6.4.2",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "tree-sitter": "^0.22.0",

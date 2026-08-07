@@ -37,14 +37,8 @@ services:
         value: info
       - key: EMAIL_ENABLED
         value: "true"
-      - key: EMAIL_HOST
-        value: smtp.gmail.com
-      - key: EMAIL_PORT
-        value: "587"
-      - key: EMAIL_USER
-        value: codeinsight.noreply@gmail.com
-      - key: EMAIL_PASS
+      - key: BREVO_API_KEY
         sync: false
       - key: EMAIL_FROM
-        value: "CodeInsight <codeinsight.noreply@gmail.com>"
+        value: "CodeInsight <noreply@codeinsight.psu.edu>"
     healthCheckPath: /api/ready

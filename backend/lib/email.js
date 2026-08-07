@@ -1,52 +1,30 @@
-const nodemailer = require('nodemailer');
+const { BrevoClient } = require('@getbrevo/brevo');
 const logger = require('./logger');
 
-function createTransporter() {
-  if (process.env.EMAIL_ENABLED !== 'true') return null;
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
-    port: parseInt(process.env.EMAIL_PORT, 10) || 587,
-    secure: parseInt(process.env.EMAIL_PORT, 10) === 465,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+let client = null;
+
+function getClient() {
+  if (client) return client;
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY is not set');
+  client = new BrevoClient({ apiKey });
+  return client;
 }
 
 async function sendEmail({ to, subject, html }) {
   if (process.env.EMAIL_ENABLED !== 'true') {
-    logger.warn({ to, subject }, 'Email disabled (EMAIL_ENABLED is not "true") — skipping send');
-    throw new Error('Email is not enabled. Set EMAIL_ENABLED=true in environment.');
+    logger.warn({ to, subject }, 'Email disabled — skipping send');
+    throw new Error('Email is not enabled. Set EMAIL_ENABLED=true.');
   }
-  const transporter = createTransporter();
-  if (!transporter) {
-    logger.warn({ to, subject }, 'Email transporter not configured');
-    throw new Error('Email transporter failed to initialize');
-  }
-  const from = process.env.EMAIL_FROM || 'noreply@codeinsight.psu.edu';
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('SMTP connection timed out after 10s')), 10000)
-  );
-  await Promise.race([
-    transporter.sendMail({ from, to, subject, html }),
-    timeout,
-  ]);
-  logger.info({ to, subject }, 'Email sent');
-}
-
-async function sendVerificationEmail({ to, name, token }) {
-  const appUrl = process.env.APP_URL || 'http://localhost:5000';
-  const link = `${appUrl}/api/auth/verify-email/${token}`;
-  const subject = 'Verify your CodeInsight account';
-  const html = `
-    <h1>Welcome to CodeInsight, ${name}!</h1>
-    <p>Please verify your email address by clicking the link below:</p>
-    <p><a href="${link}">Verify Email</a></p>
-    <p>This link expires in 24 hours.</p>
-    <p>If you did not create this account, please ignore this email.</p>
-  `;
-  await sendEmail({ to, subject, html });
+  const brevo = getClient();
+  const from = process.env.EMAIL_FROM || 'CodeInsight <noreply@codeinsight.psu.edu>';
+  await brevo.sendTransacEmail({
+    sender: { email: 'noreply@codeinsight.psu.edu', name: 'CodeInsight' },
+    to: [{ email: to }],
+    subject,
+    htmlContent: html,
+  });
+  logger.info({ to, subject }, 'Email sent via Brevo');
 }
 
 async function sendOtpEmail({ to, name, otp }) {
@@ -59,6 +37,20 @@ async function sendOtpEmail({ to, name, otp }) {
     <p>This code expires in 5 minutes.</p>
     <p>If you did not request this code, please ignore this email.</p>
     <p>— Pampanga State University · CCS · CodeInsight</p>
+  `;
+  await sendEmail({ to, subject, html });
+}
+
+async function sendVerificationEmail({ to, name, token }) {
+  const appUrl = process.env.APP_URL || 'http://localhost:5000';
+  const link = `${appUrl}/api/auth/verify-email/${token}`;
+  const subject = 'Verify your CodeInsight account';
+  const html = `
+    <h1>Welcome to CodeInsight, ${name}!</h1>
+    <p>Please verify your email address by clicking the link below:</p>
+    <p><a href="${link}">Verify Email</a></p>
+    <p>This link expires in 24 hours.</p>
+    <p>If you did not create this account, please ignore this email.</p>
   `;
   await sendEmail({ to, subject, html });
 }
