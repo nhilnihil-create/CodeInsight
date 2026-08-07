@@ -80,6 +80,7 @@ exports.verifyOtpAndRegister = async (req, res, next) => {
 
     const result = verifyOtp(email, otp);
     if (!result.valid) {
+      logger.warn({ email, reason: result.reason }, 'OTP verification failed');
       throw new AppError(result.reason, 400, codes.VALIDATION_ERROR);
     }
 
