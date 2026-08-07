@@ -24,6 +24,7 @@ import DecisionList from "@/components/ui/decision-list";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import SectionFilter from "@/components/SectionFilter";
 import { cn } from "@/lib/utils";
+import { flagTypeLabel } from "@/lib/flagTypes";
 import api from "@/services/api";
 import useLastSection from "@/hooks/useLastSection";
 
@@ -251,14 +252,14 @@ export default function InstructorIntegrity() {
           <Checkbox
             checked={isSelected}
             onCheckedChange={() => toggleSelected(item.id)}
-            aria-label={`Select ${item.flag_type} for ${item.student_name}`}
+            aria-label={`Select ${flagTypeLabel(item.flag_type)} for ${item.student_name}`}
           />
         </span>
 
         <RiskBadge level={SEVERITY_RISK_LEVEL[item.severity] || "low"} />
 
         <span className="text-sm font-medium text-foreground truncate min-w-[10rem]">
-          {item.flag_type}
+          {flagTypeLabel(item.flag_type)}
         </span>
 
         <span className="text-sm text-muted-foreground truncate min-w-[6rem]">

@@ -28,6 +28,7 @@ import EvidenceRow from "@/components/ui/evidence-row";
 import RiskBadge from "@/components/ui/risk-badge";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import DecisionList from "@/components/ui/decision-list";
+import { flagTypeLabel } from "@/lib/flagTypes";
 import api from "@/services/api";
 
 function initials(name) {
@@ -163,7 +164,7 @@ export default function InstructorStudentDetail() {
   const flagItems = useMemo(() =>
     integrityFlags.map((f) => ({
       id: f.id,
-      title: `${f.flag_type} · ${f.exercise_title || ""}`,
+      title: `${flagTypeLabel(f.flag_type)} · ${f.exercise_title || ""}`,
       subtitle: f.evidence?.summary || f.flag_type,
       meta: timeAgo(f.created_at),
       level: f.severity,

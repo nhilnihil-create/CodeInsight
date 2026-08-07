@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import PageBreadcrumb from '@/components/ui/page-breadcrumb';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { flagTypeLabel } from '../../lib/flagTypes';
 
 const SEVERITY_COLORS = {
   critical: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
@@ -93,7 +94,7 @@ export default function AdminFlags() {
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className={SEVERITY_COLORS[f.severity] || ''}>{f.severity}</Badge>
-                        <Badge variant="outline" className="font-mono text-[10px]">{f.flag_type}</Badge>
+                        <Badge variant="outline" className="font-mono text-[10px]">{flagTypeLabel(f.flag_type)}</Badge>
                         <Badge variant="outline" className={STATUS_COLORS[f.status] || ''}>{f.status}</Badge>
                       </div>
                       <p className="text-sm font-medium">{f.student_name}</p>
