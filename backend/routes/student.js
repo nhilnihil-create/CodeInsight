@@ -855,7 +855,9 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
       }
     }
     if (focusEx) {
-      signals.push(`Focus on ${focusEx.concept_name} — it's the concept with the highest remaining CDS.`);
+      signals.push(conceptCds.length > 0
+        ? `Focus on ${focusEx.concept_name} — it's the concept with the highest remaining CDS.`
+        : `Start with ${focusEx.concept_name} to get your first concept assessment.`);
     }
 
     // 7. Next moves
@@ -878,7 +880,9 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
 
     // 8. Why explanation
     const why = focusEx
-      ? `${focusEx.concept_name} is the concept with the highest CDS for your pending exercises. Working on it now will have the biggest impact on your overall mastery.`
+      ? (conceptCds.length > 0
+          ? `${focusEx.concept_name} is the concept with the highest CDS for your pending exercises. Working on it now will have the biggest impact on your overall mastery.`
+          : `You haven't attempted any exercises yet. Start with ${focusEx.concept_name} to get your first concept assessment.`)
       : "You're all caught up! Explore more exercises or review previous concepts to strengthen your mastery.";
 
     res.json({
