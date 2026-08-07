@@ -100,7 +100,7 @@ const STEPS = [
   { key: "code",        label: "Starter Code" },            // 2
   { key: "tests",       label: "Test Cases" },              // 3
   { key: "sections",    label: "Section Assignment" },      // 4
-  { key: "constraints", label: "Timer & Deadline" },        // 5
+  { key: "constraints", label: "Timer" },                   // 5
 ];
 
 function StepIndicator({ currentStep, canAdvance, onStepClick }) {
@@ -387,18 +387,13 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
         </div>
       )}
 
-      {/* Step 5: Timer & Deadline */}
+      {/* Step 5: Timer */}
       {step === 5 && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium">Time Limit <span className="text-muted-foreground font-normal">(minutes)</span></Label>
-              <Input type="number" value={exercise.time_limit_minutes} onChange={e => set("time_limit_minutes", Number(e.target.value))} min={1} max={600} />
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Deadline <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Input type="date" value={exercise.deadline} onChange={e => set("deadline", e.target.value)} />
-            </div>
+          <div>
+            <Label className="text-sm font-medium">Time Limit <span className="text-muted-foreground font-normal">(minutes)</span></Label>
+            <Input type="number" value={exercise.time_limit_minutes} onChange={e => set("time_limit_minutes", Number(e.target.value))} min={1} max={600} className="max-w-xs" />
+            <p className="text-xs text-muted-foreground mt-1">Due date is set in the basket panel on the right when you publish.</p>
           </div>
 
           {/* Growth Velocity Info */}
@@ -505,7 +500,7 @@ function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
             </div>
 
             <div>
-              <Label className="text-xs text-muted-foreground">Deadline (optional)</Label>
+              <Label className="text-xs text-muted-foreground">Due Date (optional)</Label>
               <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="text-sm" />
             </div>
 
