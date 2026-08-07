@@ -164,4 +164,14 @@ router.post('/request-otp', otpLimiter, validate.body(v.requestOtp), ctrl.reques
  */
 router.post('/verify-otp',  registrationLimiter, validate.body(v.verifyOtp), ctrl.verifyOtpAndRegister);
 
+router.get('/email-status', (req, res) => {
+  const enabled = process.env.EMAIL_ENABLED === 'true';
+  const host = process.env.EMAIL_HOST || '(not set)';
+  const port = process.env.EMAIL_PORT || '(not set)';
+  const user = process.env.EMAIL_USER || '(not set)';
+  const hasPass = !!process.env.EMAIL_PASS;
+  const from = process.env.EMAIL_FROM || '(not set)';
+  res.json({ enabled, host, port, user, hasPass, from });
+});
+
 module.exports = router;
