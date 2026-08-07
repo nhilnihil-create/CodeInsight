@@ -21,7 +21,7 @@ async function sendEmail({ to, subject, html }) {
   const fromName = process.env.EMAIL_FROM_NAME || 'CodeInsight';
   logger.info({ to, subject }, 'Sending email via Brevo API...');
   try {
-    await client.sendTransacEmail({
+    await client.transactionalEmails.sendTransacEmail({
       sender: { email: fromEmail, name: fromName },
       to: [{ email: to }],
       subject,
