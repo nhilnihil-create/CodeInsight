@@ -80,11 +80,12 @@ exports.heatmap = async (req, res, next) => {
     const sw = heatmapWhere(sectionId, instructorId, 'cs');
     const scoresQuery = `
       SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
-              c.name AS concept_name, ex.title AS exercise_title
+             COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
-      JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
-      JOIN concepts c ON c.id = ect.concept_id
+      JOIN concepts c ON c.id = ex.concept_id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
       WHERE ${sw.where}
         AND cs.cds IS NOT NULL
     `;
@@ -94,13 +95,13 @@ exports.heatmap = async (req, res, next) => {
     // Ordered by name to match taxonomy
     const cw = heatmapWhere(sectionId, instructorId, 'ex');
     const conceptsQuery = `
-      SELECT DISTINCT c.name
-      FROM concepts c
-      JOIN exercise_concept_tags ect ON ect.concept_id = c.id
-      JOIN exercises ex ON ex.id = ect.exercise_id
+      SELECT DISTINCT COALESCE(pt.name, c.name) AS name
+      FROM exercises ex
+      JOIN concepts c ON c.id = ex.concept_id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
       WHERE ${cw.where}
-        AND ect.is_primary = true
-      ORDER BY c.name
+      ORDER BY name
     `;
     const conceptsRes = await db.query(conceptsQuery, cw.params);
     const conceptsFromDb = conceptsRes.rows.map(r => r.name);

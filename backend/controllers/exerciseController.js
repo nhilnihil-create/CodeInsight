@@ -394,6 +394,13 @@ exports.bulkPublish = async (req, res, next) => {
           ]
         );
         inserted.push(r.rows[0]);
+
+        await client.query(
+          `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+           VALUES ($1, $2, 1.0, true)
+           ON CONFLICT (exercise_id, concept_id) DO UPDATE SET is_primary = true`,
+          [r.rows[0].id, concept_id]
+        );
       }
       return inserted;
     });
