@@ -68,8 +68,8 @@ export default function Register() {
     try {
       const res = await api.post('/api/auth/verify-otp', { email, otp, name, password, role });
       login(res.data.user);
-      const role = res.data.user.role;
-      const dest = role === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
+      const userRole = res.data.user.role;
+      const dest = userRole === 'instructor' ? '/instructor/dashboard' : '/student/dashboard';
       navigate(dest, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Verification failed');
