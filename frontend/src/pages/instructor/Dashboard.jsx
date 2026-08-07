@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import PeriodSelector from "@/components/ui/period-selector";
 import RiskBadge from "@/components/ui/risk-badge";
+import { flagTypeLabel } from "@/lib/flagTypes";
 import GlassPanel, {
   GlassPanelHeader,
   GlassPanelTitle,
@@ -325,7 +326,7 @@ export default function InstructorDashboard() {
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-foreground truncate">{flag.studentName}</p>
                               <p className="text-[11px] text-muted-foreground/60 truncate">
-                                {flag.flagType}{flag.exerciseTitle ? ` · ${flag.exerciseTitle}` : ""}
+                                {flagTypeLabel(flag.flagType)}{flag.exerciseTitle ? ` · ${flag.exerciseTitle}` : ""}
                               </p>
                             </div>
                             <div className="flex items-center gap-2.5 shrink-0">
