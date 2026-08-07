@@ -236,6 +236,23 @@ async function applySchemaPatches() {
     console.log('✓ Migration 010 (taxonomy refactor) applied');
   }
 
+  // ── Backfill: ensure every exercise's primary concept has an
+  //    exercise_concept_tags row (is_primary = true). Exercises created via
+  //    bulkPublish (databank → section) historically skipped this junction,
+  //    making them invisible to tag-based analytics (heatmap, concept CMI, …).
+  if (await tableExists('exercise_concept_tags')) {
+    const backfill = await db.query(`
+      INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+      SELECT id, concept_id, 1.0, true FROM exercises WHERE concept_id IS NOT NULL
+      ON CONFLICT (exercise_id, concept_id)
+        DO UPDATE SET is_primary = true
+        WHERE exercise_concept_tags.is_primary IS DISTINCT FROM true
+    `);
+    if (backfill.rowCount > 0) {
+      console.log(`✓ Backfilled exercise_concept_tags (${backfill.rowCount} row(s) corrected)`);
+    }
+  }
+
   await Promise.all(patches);
 }
 
