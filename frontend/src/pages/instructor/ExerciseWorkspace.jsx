@@ -253,15 +253,18 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
             <Label className="text-sm font-medium">Primary Concept <span className="text-destructive">*</span></Label>
             <Select value={exercise.concept_name} onValueChange={v => {
               const selected = concepts.find(c => c.name === v);
-              set("concept_name", v);
-              // Ensure primary tag is set
-              if (selected && !exercise.concept_tags.find(t => t.concept_id === selected.id)) {
-                set("concept_tags", [...exercise.concept_tags, { concept_id: selected.id, concept_name: v, weight: 1.0, is_primary: true }]);
-              } else if (selected) {
-                set("concept_tags", exercise.concept_tags.map(t =>
-                  t.concept_id === selected.id ? { ...t, is_primary: true } : t
-                ));
+              let nextTags = exercise.concept_tags;
+              if (selected) {
+                const existing = nextTags.find(t => t.concept_id === selected.id);
+                if (!existing) {
+                  nextTags = [...nextTags, { concept_id: selected.id, concept_name: v, weight: 1.0, is_primary: true }];
+                } else {
+                  nextTags = nextTags.map(t =>
+                    t.concept_id === selected.id ? { ...t, is_primary: true } : t
+                  );
+                }
               }
+              onChange({ ...exercise, concept_name: v, concept_tags: nextTags });
             }}>
               <SelectTrigger data-testid="concept-trigger"><SelectValue placeholder="Select primary concept" /></SelectTrigger>
               <SelectContent>
