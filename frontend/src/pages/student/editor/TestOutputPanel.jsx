@@ -19,7 +19,7 @@ export default function TestOutputPanel({ testResults, testCases = [], bare = fa
 
   // Filter visible test cases from the exercise definition
   const visibleTestCases = (testCases || []).filter(
-    (tc) => tc.isVisible !== false && tc.hidden !== true
+    (tc) => tc.isVisible !== false && tc.hidden !== true && tc.is_hidden !== true
   );
 
   // Build merged rows: static test case data + execution results

@@ -22,7 +22,7 @@ function transformExercise(ex) {
   };
 }
 
-function transformTestResults(apiResults, compilerError) {
+function transformTestResults(apiResults, compilerError, hiddenSummary) {
   const visible = (apiResults || []).filter((r) => !r.hidden);
   const hidden = (apiResults || []).filter((r) => r.hidden);
   return {
@@ -31,7 +31,7 @@ function transformTestResults(apiResults, compilerError) {
     passed: visible.length > 0 && visible.every((r) => r.passed),
     error: null,
     compilationLog: compilerError || "",
-    programOutput: "",
+    programOutput: visible.map((r) => r.actual ?? "").join("\n"),
     testResults: visible.map((r, i) => ({
       id: i,
       name: r.name || `Test ${i + 1}`,
@@ -51,8 +51,8 @@ function transformTestResults(apiResults, compilerError) {
       actual: r.actual,
     })),
     hidden: {
-      total: hidden.length,
-      failed: hidden.filter((r) => !r.passed).length,
+      total: hiddenSummary?.count ?? hidden.length,
+      failed: hiddenSummary?.failed ?? hidden.filter((r) => !r.passed).length,
     },
   };
 }
@@ -256,8 +256,8 @@ export default function StudentCodeEditor() {
     setTestResults(null);
     try {
       const r = await api.post(`/api/student/exercises/${exerciseId}/run`, { code, language: 'cpp' });
-      const { testResults: rawResults, compilerError } = r.data;
-      setTestResults(transformTestResults(rawResults, compilerError));
+      const { testResults: rawResults, compilerError, hidden } = r.data;
+      setTestResults(transformTestResults(rawResults, compilerError, hidden));
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || "Run failed");
     } finally {
@@ -301,7 +301,7 @@ export default function StudentCodeEditor() {
       const cds = data.liveCDS?.cds ?? data.liveCDS;
 
       if (data.testResults) {
-        setTestResults(transformTestResults(data.testResults, data.compilerError));
+        setTestResults(transformTestResults(data.testResults, data.compilerError, data.hidden));
       }
       if (data.allPassed) setIsSolved(true);
       if (data.preCheckHints) {

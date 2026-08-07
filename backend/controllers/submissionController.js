@@ -87,7 +87,7 @@ exports.run = async (req, res) => {
     }
 
     // Run against first visible test case only
-    const visibleTC = exercise.test_cases.filter(tc => !tc.hidden);
+    const visibleTC = exercise.test_cases.filter(tc => !executor.isHiddenTestCase(tc));
     if (!visibleTC.length)
       return res.json({ status: 'No visible test cases', output: '' });
     const result = await executor.executeCode(

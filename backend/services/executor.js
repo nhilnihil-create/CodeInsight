@@ -20,6 +20,15 @@ function isSafe(code) {
   return !BLOCKED_REGEX.test(cleanCode);
 }
 
+// Normalize hidden-test indicators across legacy (hidden/is_hidden) and new (isVisible) schemas.
+function isHiddenTestCase(tc) {
+  if (!tc) return false;
+  if (tc.isVisible === false) return true;
+  if (tc.hidden === true) return true;
+  if (tc.is_hidden === true) return true;
+  return false;
+}
+
 // ── Docker helpers ─────────────────────────────────────────────────────────
 
 // Simulation/test mode: cap sandbox timeout to prevent infinite loops from
@@ -403,7 +412,7 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
     const expectedRaw = tc.expectedOutput || tc.expected_output || tc.expected || '';
     const expectedStr = expectedRaw === null || expectedRaw === undefined ? '' : expectedRaw.toString();
     const validationType = tc.validationType || tc.validation_type || 'exact';
-    const isVisible = tc.isVisible !== undefined ? tc.isVisible : (tc.hidden === undefined ? true : !tc.hidden);
+    const isVisible = !isHiddenTestCase(tc);
 
     const result = await executeCode(sourceCode, stdin, timeLimitSeconds);
     const actualStr = (result.output || '').toString();
@@ -456,7 +465,7 @@ async function runAgainstTestCases(sourceCode, testCases, timeLimitSeconds = 5, 
 }
 
 module.exports = {
-  executeCode, runAgainstTestCases, runCppcheck,
+  executeCode, runAgainstTestCases, runCppcheck, isHiddenTestCase,
   // Exported for unit testing
   isSafe, parseSanitizerOutput, parseCompilerError,
 };
