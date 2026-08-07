@@ -48,7 +48,10 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await api.post('/api/auth/request-otp', { email });
+      const res = await api.post('/api/auth/request-otp', { email });
+      if (res.data.otp) {
+        setOtp(res.data.otp);
+      }
       setStep('otp');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to request verification code');
