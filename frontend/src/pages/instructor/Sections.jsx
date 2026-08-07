@@ -112,7 +112,9 @@ export default function InstructorSections() {
 
   const highestAtRisk = useMemo(() => {
     if (!sections.length) return null;
-    return sections.reduce((max, s) => (s.atRisk > max.atRisk ? s : max), sections[0]);
+    const top = sections.reduce((max, s) => (s.atRisk > max.atRisk ? s : max), sections[0]);
+    if (!top.students || top.atRisk === 0) return null;
+    return top;
   }, [sections]);
 
   const filtered = useMemo(() => {
