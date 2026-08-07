@@ -205,9 +205,10 @@ export default function SettingsTab({ sectionId, sectionName, courseCode, onUpda
                       key={s.id}
                       className="flex items-center gap-3 px-3 h-10 hover:bg-muted/40 transition-colors"
                     >
-                      <span className="text-sm text-foreground flex-1 truncate">
-                        {s.name} <span className="text-muted-foreground">({s.email})</span>
+                      <span className="text-sm font-medium text-foreground flex-1 truncate">
+                        {s.name}
                       </span>
+                      <span className="text-xs text-muted-foreground shrink-0">({s.email})</span>
                       <button
                         type="button"
                         onClick={() => unenrollMutation.mutate(s.id)}
