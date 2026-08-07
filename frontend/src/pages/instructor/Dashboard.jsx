@@ -133,9 +133,26 @@ export default function InstructorDashboard() {
   const recentFlags = data?.recentFlags || [];
 
   /* Derive micro-metrics from KPIs (fall back to raw data) */
-  const avgCDS = kpis.find((k) => k.label?.toLowerCase().includes("cds"))?.value ?? "--";
+  const avgCDSRaw = kpis.find((k) => k.label?.toLowerCase().includes("cds"))?.value ?? "--";
   const studentCount = kpis.find((k) => k.label?.toLowerCase().includes("student"))?.value ?? "--";
   const atRiskCount = kpis.find((k) => k.label?.toLowerCase().includes("risk"))?.value ?? "--";
+
+  const avgCDSNum = parseFloat(avgCDSRaw);
+  const avgCDSValid = !isNaN(avgCDSNum);
+  const avgCDSColor = avgCDSValid
+    ? avgCDSNum <= 0.20 ? "text-slate-300"
+      : avgCDSNum <= 0.40 ? "text-emerald-400"
+      : avgCDSNum <= 0.60 ? "text-amber-400"
+      : avgCDSNum <= 0.80 ? "text-orange-400"
+      : "text-rose-400"
+    : "text-muted-foreground";
+  const avgCDSLabel = avgCDSValid
+    ? avgCDSNum <= 0.20 ? "Excellent"
+      : avgCDSNum <= 0.40 ? "Nominal"
+      : avgCDSNum <= 0.60 ? "Moderate"
+      : avgCDSNum <= 0.80 ? "Struggle"
+      : "Critical"
+    : "";
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 sm:space-y-6">
@@ -196,7 +213,7 @@ export default function InstructorDashboard() {
       {/* ── Micro-Metrics Strip (floating typography-first) ─── */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
         {[
-          { label: "Avg CDS", value: avgCDS, accent: "text-rose-400" },
+          { label: "Avg CDS", value: avgCDSRaw, accent: avgCDSColor, sub: avgCDSLabel },
           { label: "At Risk", value: atRiskCount, accent: "text-amber-400" },
           { label: "Students", value: studentCount, accent: "text-sky-400" },
         ].map((m) => (
@@ -205,6 +222,7 @@ export default function InstructorDashboard() {
             <span className={cn("text-3xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
               {m.value}
             </span>
+            {m.sub && <span className={cn("text-[11px] font-medium uppercase tracking-wide", m.accent, "opacity-70")}>{m.sub}</span>}
           </div>
         ))}
       </motion.div>
