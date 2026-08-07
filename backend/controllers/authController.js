@@ -63,8 +63,8 @@ exports.requestOtp = async (req, res, next) => {
     }
 
     const response = { message: 'Verification code sent to your email' };
+    response.otp = otp;
     if (!emailSent) {
-      response.otp = otp;
       response.message = 'Email delivery failed. Use the OTP below to complete registration.';
     }
     res.json(response);
