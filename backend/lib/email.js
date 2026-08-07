@@ -1,14 +1,17 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const logger = require('./logger');
 
-let resend = null;
-
-function getClient() {
-  if (resend) return resend;
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) throw new Error('RESEND_API_KEY is not set');
-  resend = new Resend(apiKey);
-  return resend;
+function createTransporter() {
+  if (process.env.EMAIL_ENABLED !== 'true') return null;
+  return nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.BREVO_SMTP_KEY,
+    },
+  });
 }
 
 async function sendEmail({ to, subject, html }) {
@@ -16,10 +19,13 @@ async function sendEmail({ to, subject, html }) {
     logger.warn({ to, subject }, 'Email disabled — skipping send');
     throw new Error('Email is not enabled. Set EMAIL_ENABLED=true.');
   }
-  const client = getClient();
+  const transporter = createTransporter();
+  if (!transporter) {
+    throw new Error('Email transporter failed to initialize');
+  }
   const from = process.env.EMAIL_FROM || 'CodeInsight <noreply@codeinsight.psu.edu>';
-  await client.emails.send({ from, to, subject, html });
-  logger.info({ to, subject }, 'Email sent via Resend');
+  await transporter.sendMail({ from, to, subject, html });
+  logger.info({ to, subject }, 'Email sent via Brevo SMTP');
 }
 
 async function sendOtpEmail({ to, name, otp }) {

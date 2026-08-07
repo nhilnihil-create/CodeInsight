@@ -37,8 +37,10 @@ services:
         value: info
       - key: EMAIL_ENABLED
         value: "true"
-      - key: RESEND_API_KEY
+      - key: EMAIL_USER
+        value: rosmerhizer03@gmail.com
+      - key: BREVO_SMTP_KEY
         sync: false
       - key: EMAIL_FROM
-        value: "CodeInsight <noreply@codeinsight.psu.edu>"
+        value: "CodeInsight <rosmerhizer03@gmail.com>"
     healthCheckPath: /api/ready

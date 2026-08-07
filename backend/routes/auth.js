@@ -166,9 +166,10 @@ router.post('/verify-otp',  registrationLimiter, validate.body(v.verifyOtp), ctr
 
 router.get('/email-status', (req, res) => {
   const enabled = process.env.EMAIL_ENABLED === 'true';
-  const hasResendKey = !!process.env.RESEND_API_KEY;
+  const hasSmtpKey = !!process.env.BREVO_SMTP_KEY;
+  const user = process.env.EMAIL_USER || '(not set)';
   const from = process.env.EMAIL_FROM || '(not set)';
-  res.json({ enabled, provider: 'resend', hasResendKey, from });
+  res.json({ enabled, provider: 'brevo-smtp', hasSmtpKey, user, from });
 });
 
 module.exports = router;
