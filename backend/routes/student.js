@@ -500,7 +500,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     const completed = statsRes.rows[0]?.completed || 0;
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
     // Mastery = 100 - avgCDS (inverse of difficulty)
-    const masteryPct = Math.round((1 - avgCds) * 100);
+    const masteryPct = scores.length > 0 ? Math.round((1 - avgCds) * 100) : 0;
 
     // Weakest concepts: group by concept, take 3 lowest avg CDS
     const conceptMap = {};
