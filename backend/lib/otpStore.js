@@ -28,17 +28,21 @@ async function verifyOtp(email, otp) {
   );
   const entry = result.rows[0];
   if (!entry) {
+    logger.warn({ email: key }, 'OTP verify: no entry found');
     return { valid: false, reason: 'No OTP requested for this email' };
   }
   if (Date.now() > new Date(entry.expires_at).getTime()) {
     await db.query('DELETE FROM otp_codes WHERE email = $1', [key]);
+    logger.warn({ email: key, expires_at: entry.expires_at }, 'OTP verify: expired');
     return { valid: false, reason: 'OTP has expired. Request a new one.' };
   }
   if (entry.attempts >= 5) {
     await db.query('DELETE FROM otp_codes WHERE email = $1', [key]);
+    logger.warn({ email: key, attempts: entry.attempts }, 'OTP verify: too many attempts');
     return { valid: false, reason: 'Too many failed attempts. Request a new OTP.' };
   }
   await db.query('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1', [key]);
+  logger.info({ email: key, storedOtp: entry.otp, receivedOtp: otp, storedType: typeof entry.otp, receivedType: typeof otp }, 'OTP verify: comparing');
   if (entry.otp !== otp) {
     return { valid: false, reason: 'Invalid OTP code' };
   }
