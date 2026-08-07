@@ -1,7 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db = require('../config/db');
-const { runAgainstTestCases } = require('../services/executor');
+const { runAgainstTestCases, isHiddenTestCase } = require('../services/executor');
 const cdsEngine = require('../services/cdsEngine');
 const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
@@ -58,7 +58,7 @@ router.get('/exercises/:id', verifyToken, requireRole('student'), async (req, re
     const ex = r.rows[0];
     if (ex.test_cases) {
       let testCases = typeof ex.test_cases === 'string' ? JSON.parse(ex.test_cases) : ex.test_cases;
-      ex.test_cases = testCases.filter(tc => !tc.hidden && !tc.is_hidden);
+      ex.test_cases = testCases.filter(tc => !isHiddenTestCase(tc));
     }
 
     const completedRes = await db.query(`
@@ -89,7 +89,7 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     const exercise = exRes.rows[0];
     const testCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
-    const visibleTC = testCases.filter(tc => !tc.hidden && !tc.is_hidden);
+    const visibleTC = testCases.filter(tc => !isHiddenTestCase(tc));
 
     if (!visibleTC.length) {
       return res.json({
@@ -125,6 +125,7 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     const hiddenSummary = {
       count: hiddenResults.length,
       passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true,
+      failed: hiddenResults.filter(r => !r.passed).length,
     };
 
     res.json({
@@ -159,12 +160,8 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 
     const allTestCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
-    // Support both new isVisible and legacy hidden fields
-    const visibleTestCases = allTestCases.filter(tc => {
-      if (tc.isVisible !== undefined) return tc.isVisible;
-      if (tc.hidden !== undefined) return !tc.hidden;
-      return true;
-    });
+    // Support both new isVisible and legacy hidden/is_hidden fields
+    const visibleTestCases = allTestCases.filter(tc => !isHiddenTestCase(tc));
 
     let allResults = [];
     let visibleResults = [];
@@ -184,6 +181,13 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
         status: 'Execution Error', error: execErr.message, hidden: false,
       }];
     }
+
+    const hiddenResults = allResults.filter(r => r.hidden);
+    const hiddenSummary = {
+      count: hiddenResults.length,
+      passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true,
+      failed: hiddenResults.filter(r => !r.passed).length,
+    };
 
     // ── Micro-Concept Analysis ─────────────────────────────────────────
     const microConceptEngine = require('../services/microConceptEngine');
@@ -237,7 +241,8 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       passed: subRes.rows[0].is_correct,
       testResults: visibleResults,
       compilerError,
-      hiddenTestCount: allTestCases.filter(tc => tc.hidden).length,
+      hidden: hiddenSummary,
+      hiddenTestCount: hiddenSummary.count,
       liveCDS: null,
       isCompleted: subRes.rows[0].is_correct,
       microConceptFeedback,

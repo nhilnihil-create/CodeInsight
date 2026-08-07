@@ -177,7 +177,7 @@ exports.list = async (req, res, next) => {
       // Filter hidden test cases for students
       r.rows = r.rows.map(ex => ({
         ...ex,
-        test_cases: (ex.test_cases || []).filter(tc => !tc.hidden && !tc.is_hidden),
+        test_cases: (ex.test_cases || []).filter(tc => !executor.isHiddenTestCase(tc)),
       }));
     }
     res.json(r.rows);
@@ -192,7 +192,7 @@ exports.getOne = async (req, res, next) => {
     }
     if (req.user.role === 'student') {
       exercise.test_cases = (exercise.test_cases || []).filter(tc =>
-        !tc.hidden && !tc.is_hidden
+        !executor.isHiddenTestCase(tc)
       );
     }
     res.json(exercise);
