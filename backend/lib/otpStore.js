@@ -40,7 +40,7 @@ async function verifyOtp(email, otp) {
   }
   await db.query('UPDATE otp_codes SET attempts = attempts + 1 WHERE email = $1', [key]);
   if (entry.otp !== otp) {
-    return { valid: false, reason: 'Invalid OTP code' };
+    return { valid: false, reason: 'Invalid code. Use the code from the most recent email, or tap Resend.' };
   }
   await db.query('DELETE FROM otp_codes WHERE email = $1', [key]);
   return { valid: true };
