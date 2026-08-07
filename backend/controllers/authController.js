@@ -63,8 +63,8 @@ exports.requestOtp = async (req, res, next) => {
     }
 
     const response = { message: 'Verification code sent to your email' };
-    response.otp = otp;
     if (!emailSent) {
+      response.otp = otp;
       response.message = 'Email delivery failed. Use the OTP below to complete registration.';
     }
     res.json(response);
@@ -74,7 +74,6 @@ exports.requestOtp = async (req, res, next) => {
 exports.verifyOtpAndRegister = async (req, res, next) => {
   try {
     const { email, otp, name, password, role: requestedRole } = req.body;
-    logger.info({ email, otp, otpType: typeof otp, name, hasPassword: !!password }, 'verify-otp request received');
     if (!email || !otp || !name || !password) {
       throw new AppError('Email, OTP, name, and password are required', 400, codes.VALIDATION_ERROR);
     }
