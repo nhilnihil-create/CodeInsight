@@ -10,6 +10,9 @@ const { getPatternsForConcept, getVariableUsageRule } = require('./verificationR
 // native addon GC when tree-sitter is loaded.
 let _parser = null;
 function getParser() {
+  // Test seam — lets the jest suite force the no-parser fallback path even
+  // when the tree-sitter native addon is installed and loadable.
+  if (globalThis.__ci_force_no_parser) return null;
   if (!globalThis.__ci_ts_module) {
     try {
       globalThis.__ci_ts_module = require('tree-sitter');
@@ -95,21 +98,53 @@ function collectNodesByType(rootNode, type) {
 
 // ── Check 1: Required AST nodes ─────────────────────────────────────────────
 
-function checkRequiredNodes(tree, requiredNodes) {
+// Human-readable labels for required AST node types. Used to build feedback
+// that students can act on ("must use a for loop") instead of raw node names.
+const REQUIRED_NODE_LABELS = {
+  for_statement: 'a for loop',
+  while_statement: 'a while loop',
+  do_statement: 'a do-while loop',
+  if_statement: 'an if statement',
+  function_definition: 'a function',
+  class_specifier: 'a class',
+  switch_statement: 'a switch statement',
+  array_declarator: 'an array',
+  subscript_expression: 'array indexing',
+  pointer_declarator: 'a pointer',
+  string_literal: 'a string literal',
+  call_expression: 'a function call',
+  struct_declaration: 'a struct',
+};
+
+function humanLabel(nodeType) {
+  return REQUIRED_NODE_LABELS[nodeType] || `a ${nodeType.replace(/_/g, ' ')}`;
+}
+
+/**
+ * Verify that all required AST node types are present in the code.
+ *
+ * Per-exercise requirements (exercise.ast_nodes) are strict: EVERY required
+ * construct must appear (anyOf = false). Concept-level requirements
+ * (concepts.ast_nodes) describe alternatives — the student only needs to
+ * demonstrate ONE of them (anyOf = true, e.g. Loops: for/while/do).
+ */
+function checkRequiredNodes(tree, requiredNodes, anyOf = false) {
   const nodeTypesFound = collectNodeTypes(tree.rootNode);
 
-  // Check if any of the required nodes are present.
-  // For concepts with alternative nodes (e.g. Loops: for/while/do),
-  // the student only needs to demonstrate ONE of the required constructs.
-  // If ALL nodes are missing, then the concept is not demonstrated.
-  const found = requiredNodes.some(node => nodeTypesFound.has(node));
-  if (!found) {
-    return [{
-      message: `Required AST nodes (${requiredNodes.join(', ')}) not found in code — concept not demonstrated`,
-      line: 1, column: 1
-    }];
-  }
-  return [];
+  const found = anyOf
+    ? requiredNodes.some(node => nodeTypesFound.has(node))
+    : requiredNodes.every(node => nodeTypesFound.has(node));
+  if (found) return [];
+
+  const missing = anyOf
+    ? requiredNodes
+    : requiredNodes.filter(node => !nodeTypesFound.has(node));
+  const labels = missing.map(humanLabel);
+
+  return [{
+    message: `Required construct not found: ${labels.join(', ')} — your solution must use ${labels.join(', ')}`,
+    line: 1, column: 1
+  }];
 }
 
 // ── Check 2: Empty body check ───────────────────────────────────────────────
@@ -612,6 +647,17 @@ async function verify(code, requirements = {}, options = {}) {
         reasons.push({ message: 'Submission too short to verify', line: 1, column: 1 });
         return { is_verified: false, reasons };
       }
+      // Fail closed when required constructs cannot be confirmed: a solution
+      // that passes tests but whose required structure is unverifiable must
+      // not count as verified. Without declared requirements, fall back to
+      // the permissive regex-based pass (legacy behavior).
+      if (requirements.required_nodes && requirements.required_nodes.length) {
+        reasons.push({
+          message: 'Structure verification unavailable (parser not loaded) — cannot confirm required constructs. Please try again.',
+          line: 1, column: 1
+        });
+        return { is_verified: false, reasons };
+      }
       return { is_verified: true, reasons };
     }
 
@@ -625,6 +671,15 @@ async function verify(code, requirements = {}, options = {}) {
         if (error) return error;
       }
       return null;
+    }
+    // A healthy tree-sitter parse always yields a root node; if it is missing
+    // (corrupted native/parser state), fail closed instead of crashing.
+    if (!tree || !tree.rootNode) {
+      reasons.push({
+        message: 'Verification failed due to internal error: parser returned an invalid parse tree',
+        line: 1, column: 1
+      });
+      return { is_verified: false, reasons };
     }
     const errorNode = findErrorNode(tree.rootNode);
     if (errorNode) {
@@ -657,8 +712,9 @@ async function verify(code, requirements = {}, options = {}) {
     }
 
     // Check 1: Required AST nodes (construct presence)
+    // anyOf = true → alternatives (concept-level lists); default → all required
     if (requirements.required_nodes && requirements.required_nodes.length) {
-      const missingNodes = checkRequiredNodes(tree, requirements.required_nodes);
+      const missingNodes = checkRequiredNodes(tree, requirements.required_nodes, requirements.any_of === true);
       reasons.push(...missingNodes);
     }
 

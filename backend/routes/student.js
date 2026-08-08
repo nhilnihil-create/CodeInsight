@@ -25,15 +25,22 @@ const behavioralLimiter = rateLimit({
 // Get all exercises for enrolled sections
 router.get('/exercises', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
+    // Completion status is derived from a correct submission, not from CDS
+    // (CDS rows exist even for students with no accepted solution).
     const r = await db.query(`
-      SELECT
-        ex.id, ex.title, ex.description, c.name AS concept_name,
-        ex.time_limit_minutes, ex.deadline, ex.test_cases,
-        CASE WHEN cs.cds IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
-        cs.cds
+      SELECT ex.id, ex.title, ex.description, c.name AS concept_name,
+             ex.time_limit_minutes, ex.deadline, ex.test_cases,
+             CASE WHEN s.id IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
+             (s.id IS NOT NULL) AS "isCompleted",
+             cs.cds
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id
+      LEFT JOIN LATERAL (
+        SELECT id FROM submissions
+        WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
+        LIMIT 1
+      ) s ON true
       LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1
       WHERE en.student_id = $1 AND ex.is_draft = false
       ORDER BY ex.created_at DESC
@@ -158,6 +165,20 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       cache.set(cacheKey, exercise);
     }
 
+    // Resolve required AST nodes for structure verification.
+    // Per-exercise requirements (exercise.ast_nodes) are strict — all must be
+    // present. When the exercise declares none, fall back to the concept's
+    // ast_nodes, which are alternatives ("any of").
+    const exerciseNodes = Array.isArray(exercise.ast_nodes) ? exercise.ast_nodes : [];
+    let requiredNodes = exerciseNodes;
+    let anyOf = false;
+    if (!requiredNodes.length) {
+      const conceptRes = await db.query('SELECT ast_nodes FROM concepts WHERE id = $1', [exercise.concept_id]);
+      const conceptNodes = conceptRes.rows[0]?.ast_nodes || [];
+      requiredNodes = conceptNodes;
+      anyOf = true; // concept lists are alternative ("any of") lists
+    }
+
     const allTestCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
     // Support both new isVisible and legacy hidden/is_hidden fields
@@ -166,13 +187,14 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     let allResults = [];
     let visibleResults = [];
     let passed = false;
+    let allTestsPassed = false;
     let compilerError = null;
 
     try {
       allResults = await runWithLimit(() => runAgainstTestCases(code, allTestCases, exercise.time_limit_minutes * 60, false), 'compile');
       const compileErrorResult = allResults.find(r => r.status === 'Compile Error');
       if (compileErrorResult) compilerError = compileErrorResult.error;
-      passed = allResults.every(r => r.passed);
+      allTestsPassed = allResults.every(r => r.passed);
       visibleResults = allResults.filter(r => !r.hidden);
     } catch (execErr) {
       compilerError = execErr.message;
@@ -188,6 +210,22 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       passed: hiddenResults.length ? hiddenResults.every(r => r.passed) : true,
       failed: hiddenResults.filter(r => !r.passed).length,
     };
+
+    // ── AST Structure Verification ──────────────────────────────────────
+    const astVerifier = require('../services/astVerifier');
+    const verifyRes = await astVerifier.verify(
+      code,
+      { required_nodes: requiredNodes, any_of: anyOf },
+      { starter_code: exercise.starter_code, concept_name: exercise.concept_name }
+    );
+    const is_verified = !!verifyRes.is_verified;
+    const verificationNote = (verifyRes.reasons || []).map(r => r.message).join('; ');
+
+    // A submission must both pass all tests AND satisfy the required
+    // structure. Verification failures still save the attempt (recorded as
+    // is_correct = false, is_verified = false) but do not complete the
+    // exercise and are excluded from CDS.
+    passed = allTestsPassed && is_verified;
 
     // ── Micro-Concept Analysis ─────────────────────────────────────────
     const microConceptEngine = require('../services/microConceptEngine');
@@ -206,7 +244,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       timeLimitHit: allResults.some(r => r.status === 'Time Limit Exceeded'),
       exercise: {
         concept_name: exercise.concept_name || '',
-        required_ast_nodes: [],
+        required_ast_nodes: exerciseNodes,
         time_limit_minutes: exercise.time_limit_minutes,
       }
     };
@@ -228,12 +266,21 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 
     const subRes = await db.query(`
       INSERT INTO submissions
-        (exercise_id, student_id, code, test_results, is_correct, attempt_number, time_spent_seconds,
-         tab_switch_count, paste_count, submitted_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        (exercise_id, student_id, code, test_results, is_correct, is_verified, verification_note,
+         attempt_number, time_spent_seconds, tab_switch_count, paste_count, submitted_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
-    `, [exercise.id, req.user.id, code, JSON.stringify(allResults), passed, attempt_number, timeSpentSeconds || 0,
-        tabSwitchCount, pasteCount]);
+    `, [exercise.id, req.user.id, code, JSON.stringify(allResults), passed, is_verified, verificationNote,
+        attempt_number, timeSpentSeconds || 0, tabSwitchCount, pasteCount]);
+
+    // Log verification failures into verification_logs for instructor review
+    if (!is_verified) {
+      await db.query(
+        `INSERT INTO verification_logs (submission_id, student_id, exercise_id, verification_type, reason)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [subRes.rows[0].id, req.user.id, exercise.id, 'ast_verifier', verificationNote || 'Verification failed']
+      );
+    }
 
     // Send response immediately — student sees test results right away
     res.status(201).json({
@@ -245,6 +292,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       hiddenTestCount: hiddenSummary.count,
       liveCDS: null,
       isCompleted: subRes.rows[0].is_correct,
+      verification: { passed: is_verified, reasons: verifyRes.reasons || [] },
       microConceptFeedback,
       message: 'Submission saved successfully',
     });
@@ -452,14 +500,21 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     const studentId = req.user.id;
 
     // 1. Exercises — find due-soon count, nearest deadline, and all for recommendations
+    // Completion status derives from a correct submission (not CDS rows).
     const exercisesRes = await db.query(`
       SELECT ex.id, ex.title, ex.description, c.name AS concept_name,
              ex.time_limit_minutes, ex.deadline,
-             CASE WHEN cs.cds IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
+             CASE WHEN s.id IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
+             (s.id IS NOT NULL) AS "isCompleted",
              cs.cds, cs.classification
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id
+      LEFT JOIN LATERAL (
+        SELECT id FROM submissions
+        WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
+        LIMIT 1
+      ) s ON true
       LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1
       WHERE en.student_id = $1 AND ex.is_draft = false
       ORDER BY ex.deadline ASC NULLS LAST
@@ -768,14 +823,21 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
     const studentId = req.user.id;
 
     // 1. Exercises with concept CDS
+    // Completion status derives from a correct submission (not CDS rows).
     const exercisesRes = await db.query(`
       SELECT ex.id, ex.title, ex.description, c.name AS concept_name,
              ex.time_limit_minutes, ex.deadline,
-             CASE WHEN cs.cds IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
+             CASE WHEN s.id IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
+             (s.id IS NOT NULL) AS "isCompleted",
              cs.cds
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id
+      LEFT JOIN LATERAL (
+        SELECT id FROM submissions
+        WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
+        LIMIT 1
+      ) s ON true
       LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1
       WHERE en.student_id = $1 AND ex.is_draft = false
       ORDER BY ex.deadline ASC NULLS LAST

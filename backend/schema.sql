@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   nts               DECIMAL(6,4) DEFAULT 0,
   attempt_number    INT NOT NULL DEFAULT 1,
   time_spent_seconds INT DEFAULT 0,
-  is_verified       BOOLEAN DEFAULT true,
+  is_verified       BOOLEAN DEFAULT false,
   verification_note TEXT,
   code_growth_delta INT DEFAULT 0,
   cppcheck_warnings JSONB DEFAULT '[]',

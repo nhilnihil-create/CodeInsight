@@ -51,6 +51,26 @@ async function applySchemaPatches() {
   if (await tableExists('exercises')) {
     patches.push(addColumnIfMissing('exercises', 'reference_solution', 'TEXT'));
     patches.push(addColumnIfMissing('exercises', 'starter_code', `TEXT DEFAULT E'#include <iostream>\\nusing namespace std;\\n\\nint main() {\\n  return 0;\\n}'`));
+    // Per-exercise required AST node types used by structure verification.
+    // Declared in schema.sql; patch keeps pre-existing databases in sync.
+    patches.push(addColumnIfMissing('exercises', 'ast_nodes', `TEXT[] DEFAULT '{}'`));
+  }
+
+  // Backfill: known catalog exercises that require a specific construct.
+  // Guarded by empty ast_nodes so instructor-customized values are never
+  // overwritten. Matches the declarations in scripts/seedMasterTaxonomy.js.
+  if (await tableExists('exercises') && await columnExists('exercises', 'ast_nodes')) {
+    try {
+      const backfill = await db.query(
+        `UPDATE exercises SET ast_nodes = ARRAY['for_statement']
+         WHERE title = 'Print Many Numbers' AND (ast_nodes IS NULL OR ast_nodes = '{}')`
+      );
+      if (backfill.rowCount > 0) {
+        console.log(`✓ Backfilled ast_nodes for 'Print Many Numbers' (${backfill.rowCount} row(s))`);
+      }
+    } catch (err) {
+      console.warn('⚠ Could not backfill exercise ast_nodes:', err.message);
+    }
   }
 
   if (await tableExists('sections')) {
@@ -84,11 +104,53 @@ async function applySchemaPatches() {
   }
 
   if (await tableExists('submissions')) {
+    // Keep databases created before the latest schema.sql in sync with it.
+    patches.push(addColumnIfMissing('submissions', 'test_results', `JSONB DEFAULT '[]'`));
+    patches.push(addColumnIfMissing('submissions', 'created_at', 'TIMESTAMP DEFAULT NOW()'));
     patches.push(addColumnIfMissing('submissions', 'code_growth_delta', 'INTEGER DEFAULT 0'));
-    patches.push(addColumnIfMissing('submissions', 'is_verified', 'BOOLEAN DEFAULT true'));
+    patches.push(addColumnIfMissing('submissions', 'is_verified', 'BOOLEAN DEFAULT false'));
     patches.push(addColumnIfMissing('submissions', 'verification_note', 'TEXT'));
     patches.push(addColumnIfMissing('submissions', 'compiler_log', 'TEXT'));
     patches.push(addColumnIfMissing('submissions', 'time_limit_hit', 'BOOLEAN DEFAULT false'));
+  }
+
+  // Fail-closed: is_verified must default to false so submissions that were
+  // never run through the AST verifier are never treated as verified.
+  // Idempotent — only alters when the current default differs.
+  if (await tableExists('submissions') && await columnExists('submissions', 'is_verified')) {
+    try {
+      const defaultRes = await db.query(
+        `SELECT column_default FROM information_schema.columns
+         WHERE table_name = 'submissions' AND column_name = 'is_verified'`
+      );
+      if (defaultRes.rows[0]?.column_default !== 'false') {
+        await db.query(`ALTER TABLE submissions ALTER COLUMN is_verified SET DEFAULT false`);
+        console.log('✓ Set submissions.is_verified DEFAULT false');
+      }
+    } catch (err) {
+      console.warn('⚠ Could not set submissions.is_verified DEFAULT false:', err.message);
+    }
+  }
+
+  // One-time fix for the over-broad off_by_one bad pattern: the original
+  // query matched ANY <= loop bound and rejected correct "1..n" loops
+  // (e.g. for (int i = 1; i <= n; i++)). Guarded by the old query text so an
+  // instructor's own customized version is never overwritten.
+  if (await tableExists('verification_rules')) {
+    try {
+      const oldOffByOneQuery = '(for_statement (binary_expression operator: "<=") @cond)';
+      const fixedOffByOneQuery = '(binary_expression operator: "<=" (number_literal) @bound)';
+      const fixRes = await db.query(
+        `UPDATE verification_rules SET tree_sitter_query = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE pattern_id = 'off_by_one' AND rule_type = 'bad_pattern' AND tree_sitter_query = $2`,
+        [fixedOffByOneQuery, oldOffByOneQuery]
+      );
+      if (fixRes.rowCount > 0) {
+        console.log('✓ Fixed over-broad off_by_one verification rule (literal-bound only)');
+      }
+    } catch (err) {
+      console.warn('⚠ Could not fix off_by_one verification rule:', err.message);
+    }
   }
 
   if (!(await tableExists('run_attempts'))) {

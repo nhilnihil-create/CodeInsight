@@ -73,7 +73,7 @@ describe('AST Verifier Test Suite', function() {
 
       assert.strictEqual(result.is_verified, false);
       assert.strictEqual(result.reasons.length > 0, true);
-      assert.strictEqual(result.reasons[0].message.includes('Required AST node'), true);
+      assert.strictEqual(result.reasons[0].message.includes('Required'), true);
     });
 
     it('should detect empty bodies in constructs', async function() {
@@ -298,6 +298,143 @@ describe('AST Verifier Test Suite', function() {
       assert.ok(result.reasons.some(r => r.message.includes('Required')));
       // CDS engine filters: WHERE is_verified = true
       // If is_verified=false, CDS computation excludes this submission
+    });
+  });
+
+  describe('Strict per-exercise requirements (Bug 1)', function() {
+    it('should reject a recursion-only solution when a for loop is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        void printNumbers(int n) {
+          if (n > 0) { printNumbers(n - 1); }
+        }
+        int main() {
+          printNumbers(5);
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['for_statement'] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('for loop')));
+    });
+
+    it('should reject a while-loop solution when a for loop is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n = 5;
+          int i = 1;
+          while (i <= n) {
+            cout << i << endl;
+            i++;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['for_statement'] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('for loop')));
+    });
+
+    it('should accept a for-loop solution when a for loop is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n = 5;
+          for (int i = 1; i <= n; i++) {
+            cout << i << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['for_statement'] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('should accept a variable-bound <= loop under the Loops concept (off-by-one false positive)', async function() {
+      // Regression: the off_by_one bad pattern used to match ANY <= loop
+      // bound and reject the correct "print 1..n" idiom. With the real
+      // Loops concept (bad-pattern checks enabled) a variable bound like
+      // i <= n must NOT fail verification.
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          for (int i = 1; i <= n; i++) {
+            cout << i << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(
+        code,
+        { required_nodes: ['for_statement'] },
+        { concept_name: 'Loops' }
+      );
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('should still flag a literal-bound <= loop as an off-by-one bad pattern', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int a[10];
+          for (int i = 0; i <= 10; i++) {
+            a[i] = i;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(
+        code,
+        { required_nodes: ['for_statement'] },
+        { concept_name: 'Loops' }
+      );
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('Bad pattern')));
+    });
+
+    it('should preserve concept-level any-of semantics (while satisfies for/while/do)', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int i = 1;
+          while (i <= 5) {
+            cout << i << endl;
+            i++;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(
+        code,
+        { required_nodes: ['for_statement', 'while_statement', 'do_statement'], any_of: true },
+        {}
+      );
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('should fail closed when the parser is unavailable and required nodes are declared', async function() {
+      const prev = globalThis.__ci_force_no_parser;
+      globalThis.__ci_force_no_parser = true;
+      try {
+        const result = await astVerifier.verify(
+          'int main() { for (int i = 0; i < 3; i++) {} return 0; }',
+          { required_nodes: ['for_statement'] },
+          {}
+        );
+        assert.strictEqual(result.is_verified, false);
+        assert.ok(result.reasons.some(r => r.message.includes('unavailable')));
+      } finally {
+        globalThis.__ci_force_no_parser = prev;
+      }
     });
   });
 });

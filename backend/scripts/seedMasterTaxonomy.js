@@ -146,6 +146,9 @@ const CODENET_EXERCISES = [
     description: 'Print integers from 1 to N, each on a separate line.',
     concept: 'Loops',
     secondary_concepts: ['Input/Output'],
+    // Strict per-exercise structure requirement: this exercise must be solved
+    // with a for loop (recursion or while-only solutions fail verification).
+    ast_nodes: ['for_statement'],
     test_cases: [
       { input: '5', expected: '1\n2\n3\n4\n5', passed: false },
       { input: '1', expected: '1', passed: false },
@@ -564,11 +567,12 @@ async function run() {
       if (existing.rows.length === 0) {
         const result = await client.query(
           `INSERT INTO exercises (title, description, concept_id, section_id, created_by,
-            test_cases, starter_code, reference_solution)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            test_cases, starter_code, reference_solution, ast_nodes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            RETURNING id`,
           [ex.title, ex.description, primaryConceptId, sectionId, instructorId,
-           JSON.stringify(ex.test_cases), ex.starter_code, ex.reference_solution]
+           JSON.stringify(ex.test_cases), ex.starter_code, ex.reference_solution,
+           ex.ast_nodes || null]
         );
         exerciseId = result.rows[0].id;
       } else {
@@ -577,6 +581,12 @@ async function run() {
         await client.query(
           `UPDATE exercises SET reference_solution = $1 WHERE id = $2 AND reference_solution IS NULL`,
           [ex.reference_solution, exerciseId]
+        );
+        // Backfill ast_nodes idempotently — COALESCE preserves any explicit
+        // value already set on the exercise (e.g. manual instructor edits).
+        await client.query(
+          `UPDATE exercises SET ast_nodes = COALESCE($2, ast_nodes) WHERE id = $1`,
+          [exerciseId, ex.ast_nodes || null]
         );
       }
 
