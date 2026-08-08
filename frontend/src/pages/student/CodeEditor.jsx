@@ -278,15 +278,33 @@ export default function StudentCodeEditor() {
       if (data.testResults) {
         setTestResults(transformTestResults(data.testResults, data.compilerError, data.hidden));
       }
-      if (data.allPassed) setIsSolved(true);
+      if (data.passed) setIsSolved(true);
       if (data.preCheckHints) {
         setPreCheckHints(data.preCheckHints);
       }
 
-      toast.success(
-        cds != null
-          ? `Submitted · ${hidden} hidden test${hidden === 1 ? "" : "s"} · live CDS ${(cds * 100).toFixed(0)}%`
-          : `Submitted · ${hidden} hidden test${hidden === 1 ? "" : "s"}`
+      const hiddenTestText = hidden > 0 ? ` · ${hidden} hidden test${hidden === 1 ? "" : "s"}` : "";
+      const hasLiveCds = cds !== null && cds !== undefined;
+      if (data.passed) {
+        toast.success(
+          hasLiveCds
+            ? `All tests passed! Exercise completed 🎉 · live CDS ${(cds * 100).toFixed(0)}%${hiddenTestText}`
+            : `All tests passed! Exercise completed 🎉${hiddenTestText}`
+        );
+      } else if (data.verification && data.verification.passed === false &&
+                 Array.isArray(data.verification.reasons) && data.verification.reasons.length > 0) {
+        const firstReason = data.verification.reasons[0];
+        const reasonMessage = firstReason?.message || "Structure verification failed";
+        toast.error(reasonMessage);
+        setPreCheckHints([{ level: 'hint', message: reasonMessage }]);
+      } else {
+        toast.success(`Submitted · ${hidden} hidden test${hidden === 1 ? "" : "s"}`);
+      }
+
+      // Reflect completion in-session so the "Exercise Completed" banner and
+      // review mode appear immediately after the first successful submit.
+      setExercise((prev) =>
+        prev ? { ...prev, isCompleted: data.isCompleted ?? data.passed } : prev
       );
 
       try {

@@ -88,7 +88,7 @@ export default function StudentExercises() {
       ) : (
         <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {exercises.map((ex) => {
-            const isCompleted = ex.status === 'completed';
+            const isCompleted = ex.isCompleted ?? ex.status === 'completed';
             return (
               <motion.div key={ex.id} variants={fadeUp}>
                 <motion.div

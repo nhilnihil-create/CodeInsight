@@ -58,8 +58,12 @@ const BAD_PATTERNS = {
     },
     {
       id: 'off_by_one',
-      description: 'Loop bound uses <= instead of < with array size pattern',
-      query: '(for_statement (binary_expression operator: "<=") @cond)',
+      // Only flag when the loop bound is a hardcoded count (e.g. i <= 10 for
+      // an array of 10) — that is the unambiguous array-size off-by-one case.
+      // A variable bound (i <= n, the standard "1..n" idiom) is correct code
+      // and must not be rejected.
+      description: 'Loop bound uses <= with a literal size (possible off-by-one)',
+      query: '(binary_expression operator: "<=" (number_literal) @bound)',
       message: 'Loop bound may cause off-by-one error (consider < instead of <=)',
     },
     {

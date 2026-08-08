@@ -71,6 +71,7 @@ export default function InstructorStudentDetail() {
   const [tab, setTab] = useState("mastery");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerFlag, setDrawerFlag] = useState(null);
+  const [dismissing, setDismissing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -179,6 +180,31 @@ export default function InstructorStudentDetail() {
     const full = integrityFlags.find((f) => f.id === item.id) || item;
     setDrawerFlag(full);
     setDrawerOpen(true);
+  };
+
+  const dismissFlag = async () => {
+    if (!drawerFlag?.id) return;
+    setDismissing(true);
+    try {
+      await api.put(`/api/analytics/integrity-flags/${drawerFlag.id}/review`, {
+        status: "dismissed",
+        instructor_note: "Dismissed from student detail",
+      });
+      setData((prev) => ({
+        ...prev,
+        submissions: {
+          ...prev?.submissions,
+          integrityFlags: (prev?.submissions?.integrityFlags || []).filter(
+            (f) => f.id !== drawerFlag.id,
+          ),
+        },
+      }));
+      setDrawerOpen(false);
+    } catch (err) {
+      console.error("Dismiss failed:", err);
+    } finally {
+      setDismissing(false);
+    }
   };
 
   const handleExportSubmissions = () => {
@@ -485,8 +511,13 @@ export default function InstructorStudentDetail() {
             )}
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-              <Button variant="outline" size="sm" onClick={() => setDrawerOpen(false)}>
-                Dismiss
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={dismissing}
+                onClick={dismissFlag}
+              >
+                {dismissing ? "Saving\u2026" : "Dismiss"}
               </Button>
             </div>
           </div>
