@@ -66,13 +66,21 @@ async function createWorker() {
       await job.updateProgress(50);
 
       // AST verification
-      const requiredNodesRes = await db.query('SELECT ast_nodes FROM concepts WHERE id = $1', [exercise.concept_id]);
-      const requiredNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
+      const exerciseNodes = Array.isArray(exercise.ast_nodes) ? exercise.ast_nodes : [];
+      let requiredNodes = exerciseNodes;
+      let anyOf = false;
+      if (!requiredNodes.length) {
+        const requiredNodesRes = await db.query('SELECT ast_nodes FROM concepts WHERE id = $1', [exercise.concept_id]);
+        const conceptNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
+        requiredNodes = conceptNodes;
+        anyOf = true; // concept lists are alternative ("any of") lists
+      }
+      const requiredPatterns = Array.isArray(exercise.required_patterns) ? exercise.required_patterns : [];
 
       const conceptRes = await db.query('SELECT c.name FROM concepts c JOIN exercises e ON c.id = e.concept_id WHERE e.id = $1', [exerciseId]);
       const conceptName = conceptRes.rows.length > 0 ? conceptRes.rows[0].name : 'Unknown';
 
-      const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { concept_name: conceptName });
+      const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes, any_of: anyOf, required_patterns: requiredPatterns }, { concept_name: conceptName });
 
       await job.updateProgress(65);
 

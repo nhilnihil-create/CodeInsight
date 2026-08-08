@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   starter_code      TEXT DEFAULT E'#include <iostream>\nusing namespace std;\n\nint main() {\n  // Write code here\n  return 0;\n}\n',
   reference_solution TEXT,
   ast_nodes         TEXT[],
+  required_patterns JSONB DEFAULT '[]',
   deadline          TIMESTAMP,
   is_draft          BOOLEAN DEFAULT false,
   track_ner         BOOLEAN DEFAULT true,
@@ -527,8 +528,8 @@ INSERT INTO concepts (name, ast_nodes, knowledge_area_code, slug, bloom_level) V
   ('Arrays',       ARRAY['array_declarator','subscript_expression'], 'SDF-FDS', 'arrays',     'apply'),
   ('OOP',          ARRAY['class_specifier'], 'SDF-OOP', 'oop',          'evaluate'),
   ('Pointers',     ARRAY['pointer_declarator','pointer_expression'], 'SDF-FDS', 'pointers',   'analyze'),
-  ('Strings',      ARRAY['string_literal'], 'SDF-FPC', 'strings',      'understand'),
-  ('Input/Output', ARRAY['call_expression'], 'SDF-FPC', 'input-output', 'apply')
+  ('Strings',      ARRAY[]::TEXT[], 'SDF-FPC', 'strings',      'understand'),
+  ('Input/Output', ARRAY[]::TEXT[], 'SDF-FPC', 'input-output', 'apply')
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO users (name, email, password_hash, role, email_verified) VALUES

@@ -178,6 +178,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       requiredNodes = conceptNodes;
       anyOf = true; // concept lists are alternative ("any of") lists
     }
+    const requiredPatterns = Array.isArray(exercise.required_patterns) ? exercise.required_patterns : [];
 
     const allTestCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
@@ -215,7 +216,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     const astVerifier = require('../services/astVerifier');
     const verifyRes = await astVerifier.verify(
       code,
-      { required_nodes: requiredNodes, any_of: anyOf },
+      { required_nodes: requiredNodes, any_of: anyOf, required_patterns: requiredPatterns },
       { starter_code: exercise.starter_code, concept_name: exercise.concept_name }
     );
     const is_verified = !!verifyRes.is_verified;

@@ -35,21 +35,35 @@ const db = new Pool({
   ssl: process.env.DB_SSL ? { rejectUnauthorized: false } : undefined,
 });
 
+// ── Shared required-pattern definitions (JSON-mirror of astVerifier) ──────
+// Exercises reference these in their `required_patterns` array; the insert
+// path stringifies them into the exercises.required_patterns JSONB column.
+
+const P_IO_OUTPUT = { query: '[(binary_expression operator: "<<") (call_expression)]', label: 'stream output (cout <<) or printf', hint: 'your solution must print using cout << or printf' };
+const P_LOOP = { query: '[(for_statement) (while_statement) (do_statement)]', label: 'a loop', hint: 'your solution must use a loop' };
+const P_CONDITIONAL = { query: '[(if_statement) (switch_statement)]', label: 'an if or switch statement', hint: 'your solution must branch with if or switch — ternary-only solutions are rejected' };
+const P_ARRAY_USAGE = { query: '[(array_declarator) (subscript_expression)]', label: 'an array', hint: 'your solution must store the values in an array' };
+const P_STRING_TYPE = { kind: 'string_type', label: 'a std::string variable', hint: 'declare your strings with the string type (e.g. string name;)' };
+const P_SELF_CALL = { kind: 'self_call', label: 'a recursive call', hint: 'your solution must call a function from within itself' };
+const P_NO_LOOPS = { kind: 'forbidden', node: ['for_statement', 'while_statement', 'do_statement'], label: 'loops', hint: 'recursion exercises must not use loops — call the function from within itself' };
+const P_USER_FUNCTION = { kind: 'user_function', label: 'a function other than main', hint: 'your solution must define and use a function other than main' };
+const P_MIN_LOOPS2 = { kind: 'min_count', node: ['for_statement', 'while_statement', 'do_statement'], min: 2, label: 'at least two loops', hint: 'your solution must use nested loops (a loop inside a loop)' };
+
 // ── 1. Expand concepts to 20 rows ──────────────────────────────────────────
 
 const NEW_CONCEPTS = [
   // [name, knowledge_area_code, slug, bloom_level, ast_nodes[]]
   ['File I/O',        'SDF-FPC', 'file-io',        'apply',    ['function_definition']],
-  ['Scope',           'SDF-PMD', 'scope',          'analyze',  ['block']],
+  ['Scope',           'SDF-PMD', 'scope',          'analyze',  []],
   ['Enums',           'SDF-FPC', 'enums',          'understand', []],
-  ['Structs',         'SDF-FDS', 'structs',        'understand', ['struct_declaration']],
+  ['Structs',         'SDF-FDS', 'structs',        'understand', ['struct_specifier']],
   ['Pointers',        'SDF-FDS', 'pointers',       'analyze',  ['pointer_declarator','pointer_expression']],
-  ['Strings',         'SDF-FPC', 'strings',        'understand', ['string_literal']],
-  ['Input/Output',    'SDF-FPC', 'input-output',   'apply',    ['call_expression']],
+  ['Strings',         'SDF-FPC', 'strings',        'understand', []],
+  ['Input/Output',    'SDF-FPC', 'input-output',   'apply',    []],
   ['Switch/Case',     'SDF-PMD', 'switch-case',    'apply',    ['switch_statement']],
   ['Nested Loops',    'SDF-PMD', 'nested-loops',   'analyze',  ['for_statement','while_statement']],
   ['Recursion',       'SDF-PMD', 'recursion',      'evaluate', ['function_definition']],
-  ['Dynamic Memory',  'SDF-FDS', 'dynamic-memory', 'analyze',  ['call_expression']],
+  ['Dynamic Memory',  'SDF-FDS', 'dynamic-memory', 'analyze',  ['new_expression','call_expression']],
   ['Linked Lists',    'SDF-FDS', 'linked-lists',   'analyze',  ['struct_declaration','pointer_declarator']],
   ['Error Handling',  'SDF-PMD', 'error-handling', 'apply',    ['if_statement']],
   ['Type Casting',    'SDF-FPC', 'type-casting',   'understand', ['cast_expression']],
@@ -98,6 +112,7 @@ const CODENET_EXERCISES = [
     description: 'Write a program that prints "Hello World" on a single line.',
     concept: 'Input/Output',
     secondary_concepts: [],
+    required_patterns: [P_IO_OUTPUT],
     test_cases: [
       { input: '', expected: 'Hello World', passed: false },
     ],
@@ -109,6 +124,7 @@ const CODENET_EXERCISES = [
     description: 'Given a number x, print its square. Repeat until x is 0.',
     concept: 'Input/Output',
     secondary_concepts: ['Loops'],
+    required_patterns: [P_IO_OUTPUT, P_LOOP],
     test_cases: [
       { input: '5', expected: '25', passed: false },
       { input: '3', expected: '9', passed: false },
@@ -121,6 +137,7 @@ const CODENET_EXERCISES = [
     description: 'Given three strings (first, middle, last name), output the formatted name: "Last, First M."',
     concept: 'Strings',
     secondary_concepts: ['Input/Output'],
+    required_patterns: [P_STRING_TYPE],
     test_cases: [
       { input: 'John\nFitzgerald\nKennedy', expected: 'Kennedy, John F.', passed: false },
     ],
@@ -132,6 +149,7 @@ const CODENET_EXERCISES = [
     description: 'Read two integers and an operator (+, -, *, /). Print the result. Division truncates toward zero.',
     concept: 'Conditionals',
     secondary_concepts: ['Input/Output'],
+    required_patterns: [P_CONDITIONAL],
     test_cases: [
       { input: '1 + 2', expected: '3', passed: false },
       { input: '5 - 3', expected: '2', passed: false },
@@ -185,6 +203,7 @@ const CODENET_EXERCISES = [
     description: 'Given H and W, print an H×W rectangle of # characters.',
     concept: 'Nested Loops',
     secondary_concepts: ['Loops'],
+    required_patterns: [P_MIN_LOOPS2],
     test_cases: [
       { input: '3 4', expected: '####\n####\n####', passed: false },
       { input: '1 1', expected: '#', passed: false },
@@ -197,6 +216,7 @@ const CODENET_EXERCISES = [
     description: 'Given n integers from 1 to n+1 with one missing, find the missing number.',
     concept: 'Arrays',
     secondary_concepts: ['Variables'],
+    required_patterns: [P_ARRAY_USAGE],
     test_cases: [
       { input: '5\n2 5 4 1', expected: '3', passed: false },
       { input: '3\n1 2 4', expected: '3', passed: false },
@@ -209,6 +229,7 @@ const CODENET_EXERCISES = [
     description: 'Given H and W, print a rectangular frame with # on the border and . inside.',
     concept: 'Nested Loops',
     secondary_concepts: ['Conditionals'],
+    required_patterns: [P_MIN_LOOPS2],
     test_cases: [
       { input: '3 4', expected: '####\n#..#\n####', passed: false },
     ],
@@ -220,6 +241,7 @@ const CODENET_EXERCISES = [
     description: 'Given N pairs of integers (a, b), for each pair print whether a*b is even or odd.',
     concept: 'Conditionals',
     secondary_concepts: ['Input/Output'],
+    required_patterns: [P_CONDITIONAL],
     test_cases: [
       { input: '2\n3 4\n5 5', expected: 'even\nodd', passed: false },
     ],
@@ -242,6 +264,7 @@ const CODENET_EXERCISES = [
     description: 'Given N integers, find and print the largest value.',
     concept: 'Arrays',
     secondary_concepts: ['Conditionals'],
+    required_patterns: [P_ARRAY_USAGE],
     test_cases: [
       { input: '5\n3 7 2 9 1', expected: '9', passed: false },
       { input: '1\n42', expected: '42', passed: false },
@@ -254,6 +277,7 @@ const CODENET_EXERCISES = [
     description: 'Print the 9×9 multiplication table in the standard Japanese format (N×N = result).',
     concept: 'Nested Loops',
     secondary_concepts: ['Loops', 'Input/Output'],
+    required_patterns: [P_MIN_LOOPS2],
     test_cases: [
       { input: '', expected: '1x1=1\n1x2=2', passed: false },
     ],
@@ -265,6 +289,7 @@ const CODENET_EXERCISES = [
     description: 'Two dice are rolled N times. Count how many times player 1 wins, player 2 wins, or it\'s a draw.',
     concept: 'Conditionals',
     secondary_concepts: ['Loops', 'Variables'],
+    required_patterns: [P_CONDITIONAL],
     test_cases: [
       { input: '2\n3 5\n6 2', expected: 'p2:1\np1:1', passed: false },
     ],
@@ -276,6 +301,7 @@ const CODENET_EXERCISES = [
     description: 'Compute the nth Fibonacci number. f(0)=0, f(1)=1, f(n)=f(n-1)+f(n-2).',
     concept: 'Recursion',
     secondary_concepts: ['Functions'],
+    required_patterns: [P_SELF_CALL, P_NO_LOOPS],
     test_cases: [
       { input: '0', expected: '0', passed: false },
       { input: '1', expected: '1', passed: false },
@@ -290,6 +316,7 @@ const CODENET_EXERCISES = [
     description: 'Write a function that computes n! (factorial of n).',
     concept: 'Functions',
     secondary_concepts: ['Loops'],
+    required_patterns: [P_USER_FUNCTION],
     test_cases: [
       { input: '0', expected: '1', passed: false },
       { input: '5', expected: '120', passed: false },
@@ -303,6 +330,7 @@ const CODENET_EXERCISES = [
     description: 'Determine whether a given integer N is a prime number.',
     concept: 'Conditionals',
     secondary_concepts: ['Loops', 'Functions'],
+    required_patterns: [P_CONDITIONAL],
     test_cases: [
       { input: '2', expected: 'prime', passed: false },
       { input: '4', expected: 'not prime', passed: false },
@@ -316,6 +344,9 @@ const CODENET_EXERCISES = [
     description: 'Given a score (0-100), print the grade: A (>=90), B (>=80), C (>=70), D (>=60), F (<60).',
     concept: 'Switch/Case',
     secondary_concepts: ['Conditionals'],
+    // Strict per-exercise structure requirement: this exercise must be solved
+    // with a switch statement (ternary-only solutions fail verification).
+    ast_nodes: ['switch_statement'],
     test_cases: [
       { input: '95', expected: 'A', passed: false },
       { input: '80', expected: 'B', passed: false },
@@ -329,6 +360,7 @@ const CODENET_EXERCISES = [
     description: 'Sort an array of N integers in ascending order using bubble sort.',
     concept: 'Arrays',
     secondary_concepts: ['Nested Loops', 'Functions'],
+    required_patterns: [P_ARRAY_USAGE],
     test_cases: [
       { input: '5\n5 4 3 2 1', expected: '1 2 3 4 5', passed: false },
       { input: '3\n1 2 3', expected: '1 2 3', passed: false },
@@ -341,6 +373,7 @@ const CODENET_EXERCISES = [
     description: 'Read a string and print it reversed.',
     concept: 'Strings',
     secondary_concepts: ['Loops'],
+    required_patterns: [P_STRING_TYPE],
     test_cases: [
       { input: 'hello', expected: 'olleh', passed: false },
       { input: 'a', expected: 'a', passed: false },
@@ -353,6 +386,7 @@ const CODENET_EXERCISES = [
     description: 'Count the number of uppercase letters, lowercase letters, and digits in a given string.',
     concept: 'Strings',
     secondary_concepts: ['Conditionals', 'Loops'],
+    required_patterns: [P_STRING_TYPE],
     test_cases: [
       { input: 'Hello World 123', expected: 'Upper: 2, Lower: 8, Digit: 3', passed: false },
     ],
@@ -364,6 +398,7 @@ const CODENET_EXERCISES = [
     description: 'Write a function power(a, b) that computes a^b for non-negative integer b.',
     concept: 'Functions',
     secondary_concepts: ['Loops'],
+    required_patterns: [P_USER_FUNCTION],
     test_cases: [
       { input: '2 0', expected: '1', passed: false },
       { input: '2 10', expected: '1024', passed: false },
@@ -377,6 +412,7 @@ const CODENET_EXERCISES = [
     description: 'Given a list of integers, find the maximum and minimum values.',
     concept: 'Arrays',
     secondary_concepts: ['Variables'],
+    required_patterns: [P_ARRAY_USAGE],
     test_cases: [
       { input: '5\n3 1 4 1 5', expected: 'max 5\nmin 1', passed: false },
     ],
@@ -388,6 +424,7 @@ const CODENET_EXERCISES = [
     description: 'Determine if a given string is a palindrome (reads the same forwards and backwards).',
     concept: 'Strings',
     secondary_concepts: ['Conditionals', 'Loops'],
+    required_patterns: [P_STRING_TYPE],
     test_cases: [
       { input: 'racecar', expected: 'palindrome', passed: false },
       { input: 'hello', expected: 'not palindrome', passed: false },
@@ -400,6 +437,7 @@ const CODENET_EXERCISES = [
     description: 'Compute the GCD and LCM of two positive integers a and b.',
     concept: 'Functions',
     secondary_concepts: ['Variables'],
+    required_patterns: [P_USER_FUNCTION],
     test_cases: [
       { input: '12 18', expected: '6 36', passed: false },
       { input: '7 13', expected: '1 91', passed: false },
@@ -412,6 +450,7 @@ const CODENET_EXERCISES = [
     description: 'Convert a decimal integer to binary representation.',
     concept: 'Loops',
     secondary_concepts: ['Datatypes'],
+    required_patterns: [P_LOOP],
     test_cases: [
       { input: '10', expected: '1010', passed: false },
       { input: '0', expected: '0', passed: false },
@@ -425,6 +464,7 @@ const CODENET_EXERCISES = [
     description: 'Add two N×M matrices element by element.',
     concept: 'Arrays',
     secondary_concepts: ['Nested Loops'],
+    required_patterns: [P_ARRAY_USAGE, P_MIN_LOOPS2],
     test_cases: [
       { input: '2 3\n1 2 3\n4 5 6\n7 8 9\n1 2 3', expected: '8 10 12\n5 7 9', passed: false },
     ],
@@ -436,6 +476,7 @@ const CODENET_EXERCISES = [
     description: 'Given N integers, count the frequency of each number and print sorted by value.',
     concept: 'Arrays',
     secondary_concepts: ['Conditionals'],
+    required_patterns: [P_ARRAY_USAGE],
     test_cases: [
       { input: '6\n3 1 2 3 2 1', expected: '1: 2\n2: 2\n3: 2', passed: false },
     ],
@@ -447,6 +488,9 @@ const CODENET_EXERCISES = [
     description: 'Define a struct Point with x and y coordinates. Given two points, compute the Euclidean distance.',
     concept: 'Structs',
     secondary_concepts: ['Datatypes', 'Functions'],
+    // Strict per-exercise structure requirement: tree-sitter-cpp parses
+    // structs as struct_specifier (struct_declaration does not exist).
+    ast_nodes: ['struct_specifier'],
     test_cases: [
       { input: '0 0 3 4', expected: '5.00000', passed: false },
       { input: '1 1 4 5', expected: '5.00000', passed: false },
@@ -567,12 +611,12 @@ async function run() {
       if (existing.rows.length === 0) {
         const result = await client.query(
           `INSERT INTO exercises (title, description, concept_id, section_id, created_by,
-            test_cases, starter_code, reference_solution, ast_nodes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            test_cases, starter_code, reference_solution, ast_nodes, required_patterns)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
            RETURNING id`,
           [ex.title, ex.description, primaryConceptId, sectionId, instructorId,
            JSON.stringify(ex.test_cases), ex.starter_code, ex.reference_solution,
-           ex.ast_nodes || null]
+           ex.ast_nodes || null, JSON.stringify(ex.required_patterns || [])]
         );
         exerciseId = result.rows[0].id;
       } else {
@@ -587,6 +631,12 @@ async function run() {
         await client.query(
           `UPDATE exercises SET ast_nodes = COALESCE($2, ast_nodes) WHERE id = $1`,
           [exerciseId, ex.ast_nodes || null]
+        );
+        // Backfill required_patterns idempotently — COALESCE preserves any
+        // explicit value already set on the exercise.
+        await client.query(
+          `UPDATE exercises SET required_patterns = COALESCE($2::jsonb, required_patterns) WHERE id = $1`,
+          [exerciseId, ex.required_patterns ? JSON.stringify(ex.required_patterns) : null]
         );
       }
 

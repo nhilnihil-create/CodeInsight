@@ -437,4 +437,581 @@ describe('AST Verifier Test Suite', function() {
       }
     });
   });
+
+  describe('Required patterns (per-exercise)', function() {
+    const IO_OUTPUT = { query: '[(binary_expression operator: "<<") (call_expression)]', label: 'stream output (cout <<) or printf', hint: 'your solution must print using cout << or printf' };
+    const LOOP = { query: '[(for_statement) (while_statement) (do_statement)]', label: 'a loop', hint: 'your solution must use a loop' };
+    const CONDITIONAL = { query: '[(if_statement) (switch_statement)]', label: 'an if or switch statement', hint: 'your solution must branch with if or switch — ternary-only solutions are rejected' };
+    const ARRAY_USAGE = { query: '[(array_declarator) (subscript_expression)]', label: 'an array', hint: 'your solution must store the values in an array' };
+    const STRING_TYPE = { kind: 'string_type', label: 'a std::string variable', hint: 'declare your strings with the string type (e.g. string name;)' };
+    const SELF_CALL = { kind: 'self_call', label: 'a recursive call', hint: 'your solution must call a function from within itself' };
+    const NO_LOOPS = { kind: 'forbidden', node: ['for_statement','while_statement','do_statement'], label: 'loops', hint: 'recursion exercises must not use loops — call the function from within itself' };
+    const USER_FUNCTION = { kind: 'user_function', label: 'a function other than main', hint: 'your solution must define and use a function other than main' };
+    const MIN_LOOPS2 = { kind: 'min_count', node: 'for_statement', min: 2, label: 'at least two loops', hint: 'your solution must use nested loops (a loop inside a loop)' };
+
+    it('I/O: accepts cout << output', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          cout << "Hello World" << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [IO_OUTPUT] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('I/O: accepts printf output', async function() {
+      const code = `
+        #include <cstdio>
+        int main() {
+          printf("Hello World\\n");
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [IO_OUTPUT] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('I/O: rejects code with no output', async function() {
+      const code = `
+        int main() {
+          int x = 5;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [IO_OUTPUT] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('Required')));
+    });
+
+    it('Recursion: rejects iterative while-loop factorial', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          int r = 1, i = 1;
+          while (i <= n) {
+            r *= i;
+            i++;
+          }
+          cout << r << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [SELF_CALL, NO_LOOPS] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('recursive call') || r.message.includes('Bad pattern')));
+    });
+
+    it('Recursion: accepts recursive fibonacci', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int fib(int n) {
+          if (n <= 1) return n;
+          return fib(n - 1) + fib(n - 2);
+        }
+        int main() {
+          int n;
+          cin >> n;
+          cout << fib(n) << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [SELF_CALL, NO_LOOPS] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Recursion: rejects recursive solution that also uses a loop', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int fib(int n) {
+          if (n <= 1) return n;
+          for (int i = 0; i < 2; i++) {
+            n = n + 0;
+          }
+          return fib(n - 1) + fib(n - 2);
+        }
+        int main() {
+          int n;
+          cin >> n;
+          cout << fib(n) << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [SELF_CALL, NO_LOOPS] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('Bad pattern')));
+    });
+
+    it('Functions: rejects main-only solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          int r = 1;
+          for (int i = 2; i <= n; i++) r *= i;
+          cout << r << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [USER_FUNCTION] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('function other than main')));
+    });
+
+    it('Functions: accepts solution with helper function', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int fact(int n) {
+          int r = 1;
+          for (int i = 2; i <= n; i++) r *= i;
+          return r;
+        }
+        int main() {
+          int n;
+          cin >> n;
+          cout << fact(n) << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [USER_FUNCTION] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Nested Loops: rejects single non-empty loop', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int h, w;
+          cin >> h >> w;
+          for (int i = 0; i < h; i++) {
+            cout << "####" << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [MIN_LOOPS2] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('at least two loops')));
+    });
+
+    it('Nested Loops: accepts two nested non-empty loops', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int h, w;
+          cin >> h >> w;
+          for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+              cout << "#";
+            }
+            cout << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [MIN_LOOPS2] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Loops: accepts a while loop when a loop is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          int i = 1;
+          while (i <= n) {
+            cout << i << endl;
+            i++;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [LOOP] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Loops: rejects loop-free solution when a loop is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          if (n > 0) {
+            cout << n << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [LOOP] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('a loop')));
+    });
+
+    it('Arrays: accepts array declaration + subscript access', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          int a[100];
+          for (int i = 0; i < n; i++) {
+            cin >> a[i];
+          }
+          cout << a[0] << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [ARRAY_USAGE] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Arrays: rejects solution with no array', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n;
+          cin >> n;
+          int s = 0;
+          for (int i = 0; i < n; i++) {
+            int x;
+            cin >> x;
+            s += x;
+          }
+          cout << s << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [ARRAY_USAGE] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('array')));
+    });
+
+    it('Strings: accepts std::string declaration', async function() {
+      const code = `
+        #include <iostream>
+        #include <string>
+        using namespace std;
+        int main() {
+          string s;
+          cin >> s;
+          cout << s << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [STRING_TYPE] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Strings: rejects char-array solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          char s[100];
+          cin >> s;
+          cout << s << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [STRING_TYPE] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('std::string')));
+    });
+
+    it('Structs: accepts struct definition with struct_specifier node', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        struct Point {
+          double x, y;
+        };
+        int main() {
+          Point p;
+          p.x = 1.0;
+          p.y = 2.0;
+          cout << p.x << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['struct_specifier'] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Structs: rejects solution with no struct', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          double x = 1.0, y = 2.0;
+          cout << x << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['struct_specifier'] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('Required')));
+    });
+
+    it('Switch/Case: rejects if/else solution when switch is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int s;
+          cin >> s;
+          char g;
+          if (s >= 90) g = 'A';
+          else if (s >= 80) g = 'B';
+          else g = 'F';
+          cout << g << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['switch_statement'] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('switch')));
+    });
+
+    it('Switch/Case: accepts switch solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int s;
+          cin >> s;
+          switch (s) {
+            case 10: cout << "A" << endl; break;
+            default: cout << "F" << endl; break;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['switch_statement'] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Conditionals: accepts if-statement solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int a, b;
+          cin >> a >> b;
+          int r;
+          if (a > b) r = a - b;
+          else r = a + b;
+          cout << r << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CONDITIONAL] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Conditionals: accepts switch solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int a, b;
+          cin >> a >> b;
+          int r;
+          switch (a) {
+            case 0: r = b; break;
+            default: r = a; break;
+          }
+          cout << r << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CONDITIONAL] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Conditionals: rejects ternary-only solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int a, b;
+          cin >> a >> b;
+          int r = (a > b) ? (a - b) : (a + b);
+          cout << r << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CONDITIONAL] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('if or switch')));
+    });
+
+    it('Dynamic Memory: accepts new expression', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int* p = new int(5);
+          cout << *p << endl;
+          delete p;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['new_expression', 'call_expression'], any_of: true }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('Dynamic Memory: accepts malloc call', async function() {
+      const code = `
+        #include <cstdlib>
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int* p = (int*)malloc(4);
+          cout << *p << endl;
+          free(p);
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['new_expression', 'call_expression'], any_of: true }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('fails closed when the parser is unavailable and required patterns are declared', async function() {
+      const prev = globalThis.__ci_force_no_parser;
+      globalThis.__ci_force_no_parser = true;
+      try {
+        const result = await astVerifier.verify(
+          '#include <iostream>\nint main() { cout << "Hi" << endl; return 0; }',
+          { required_patterns: [IO_OUTPUT] },
+          {}
+        );
+        assert.strictEqual(result.is_verified, false);
+        assert.ok(result.reasons.some(r => r.message.includes('unavailable')));
+      } finally {
+        globalThis.__ci_force_no_parser = prev;
+      }
+    });
+
+    it('fails closed when a required pattern query fails to compile', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          cout << "Hi" << endl;
+          return 0;
+        }
+      `;
+      const broken = { query: '(for_statement', label: 'a broken pattern', hint: 'should fail closed' };
+      const result = await astVerifier.verify(code, { required_patterns: [broken] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('Required')));
+    });
+  });
+
+  describe('Bad pattern: same_loop_variable handler', function() {
+    // Regression: same_loop_variable used to match EVERY classic for-loop
+    // (no handler) and hard-reject valid nested-loop solutions. The handler
+    // only fires when an inner loop's variable name collides with an
+    // ENCLOSING loop's variable. All bodies below are non-empty so the
+    // empty-body check does not interfere.
+    const nestedDifferent = `
+      #include <iostream>
+      using namespace std;
+      int main() {
+        int r, c;
+        cin >> r >> c;
+        for (int i = 0; i < r; i++) {
+          for (int j = 0; j < c; j++) {
+            cout << "#";
+          }
+          cout << endl;
+        }
+        return 0;
+      }
+    `;
+
+    const nestedSame = `
+      #include <iostream>
+      using namespace std;
+      int main() {
+        int r, c;
+        cin >> r >> c;
+        for (int i = 0; i < r; i++) {
+          for (int i = 0; i < c; i++) {
+            cout << "#";
+          }
+          cout << endl;
+        }
+        return 0;
+      }
+    `;
+
+    const sequentialSame = `
+      #include <iostream>
+      using namespace std;
+      int main() {
+        int n;
+        cin >> n;
+        for (int i = 0; i < n; i++) {
+          cout << "a";
+        }
+        for (int i = 0; i < n; i++) {
+          cout << "b";
+        }
+        return 0;
+      }
+    `;
+
+    const singleLoop = `
+      #include <iostream>
+      using namespace std;
+      int main() {
+        int n;
+        cin >> n;
+        for (int i = 0; i < n; i++) {
+          cout << i;
+        }
+        return 0;
+      }
+    `;
+
+    it('accepts nested loops with different variable names (inner j, outer i)', async function() {
+      const result = await astVerifier.verify(nestedDifferent, {}, { concept_name: 'Nested Loops' });
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('rejects nested loops that reuse the outer loop variable name', async function() {
+      const result = await astVerifier.verify(nestedSame, {}, { concept_name: 'Nested Loops' });
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r =>
+        r.message.includes('Bad pattern') && r.message.includes('loop variable')));
+    });
+
+    it('accepts two sequential (non-nested) loops both named i', async function() {
+      const result = await astVerifier.verify(sequentialSame, {}, { concept_name: 'Nested Loops' });
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('accepts a single for loop named i (no false fire)', async function() {
+      const result = await astVerifier.verify(singleLoop, {}, { concept_name: 'Nested Loops' });
+      assert.strictEqual(result.is_verified, true);
+    });
+  });
 });

@@ -67,3 +67,6 @@ frontend/test-results/
 *.png
 *.pdf
 frontend/.vercel/
+
+# Scratch logs from dev/diagnostic sessions
+backend/tmp_logs/
