@@ -17,8 +17,14 @@ import { cn } from "@/lib/utils";
  *                    are still managed by DecisionList. If `renderRow` is
  *                    supplied, items[].title/subtitle/meta/badge are ignored
  *                    (the caller controls row content).
+ *   - maxHeight      Tailwind max-height class string, optional — when set,
+ *                    the container becomes a scrollable region capped at that
+ *                    height (overflow-y-auto + custom-scroll). When absent,
+ *                    the container renders with plain overflow-hidden.
  *
  * Container  rounded-lg border border-border bg-card divide-y divide-border overflow-hidden
+ *            (scrollable variant when `maxHeight` is set: overflow-y-auto
+ *            overflow-x-hidden custom-scroll + the max-height token)
  * Row        flex items-center gap-3 px-4 h-16 hover:bg-muted/40 transition-colors cursor-pointer
  * Highlight  bg-primary/5 border-l-2 border-primary (when i === highlightIndex)
  * Title      text-sm font-medium
@@ -32,6 +38,7 @@ export default function DecisionList({
   highlightIndex,
   onAction,
   renderRow,
+  maxHeight,
 }) {
   if (!Array.isArray(items) || items.length === 0) {
     return null;
@@ -39,7 +46,12 @@ export default function DecisionList({
 
   return (
     <ul
-      className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm divide-y divide-border/40 overflow-hidden"
+      className={cn(
+        "rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm divide-y divide-border/40",
+        maxHeight
+          ? "overflow-y-auto overflow-x-hidden custom-scroll " + maxHeight
+          : "overflow-hidden",
+      )}
       role="list"
       aria-label="Decision list"
     >

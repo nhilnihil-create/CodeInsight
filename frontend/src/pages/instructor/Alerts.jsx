@@ -330,6 +330,7 @@ export default function InstructorAlerts() {
             highlightIndex={0}
             onAction={openDetail}
             renderRow={renderRow}
+            maxHeight="max-h-[20rem]"
           />
         </div>
       ) : (
