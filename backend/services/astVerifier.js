@@ -113,7 +113,9 @@ const REQUIRED_NODE_LABELS = {
   pointer_declarator: 'a pointer',
   string_literal: 'a string literal',
   call_expression: 'a function call',
+  struct_specifier: 'a struct',
   struct_declaration: 'a struct',
+  new_expression: 'a new expression',
 };
 
 function humanLabel(nodeType) {
@@ -145,6 +147,131 @@ function checkRequiredNodes(tree, requiredNodes, anyOf = false) {
     message: `Required construct not found: ${labels.join(', ')} — your solution must use ${labels.join(', ')}`,
     line: 1, column: 1
   }];
+}
+
+// ── Check 1b: Required patterns (per-exercise queries + JS handlers) ────────
+
+// Tree-sitter queries shared by the JS-handler pattern kinds. A self-call
+// cannot be expressed as a single tree-sitter query (a call_expression is an
+// expression, not a direct child of compound_statement), so the handler
+// combines two working queries and correlates each function with the calls
+// inside its own body.
+const FN_NAME_QUERY = '(function_definition declarator: (function_declarator declarator: (identifier) @name))';
+const CALL_NAME_QUERY = '(call_expression function: (identifier) @call)';
+const STRING_TYPE_QUERIES = [
+  '(declaration type: (type_identifier) @type)',
+  '(declaration type: (qualified_identifier) @type)',
+];
+
+function collectQueryCaptureTexts(rootNode, querySource, captureName) {
+  const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, querySource);
+  const texts = [];
+  for (const match of query.matches(rootNode)) {
+    for (const capture of match.captures) {
+      if (capture.name === captureName) texts.push(capture.node.text);
+    }
+  }
+  return texts;
+}
+
+function functionNameOf(node) {
+  const declarator = node.childForFieldName('declarator');
+  if (!declarator) return null;
+  const nameNode = declarator.childForFieldName('declarator');
+  return nameNode && nameNode.type === 'identifier' ? nameNode.text : null;
+}
+
+function countNodeTypes(rootNode, nodeTypes) {
+  // `node` in a min_count/forbidden pattern may be a single type string or an
+  // array of type strings; normalize so a string is not iterated char-by-char.
+  const types = Array.isArray(nodeTypes) ? nodeTypes : [nodeTypes];
+  let total = 0;
+  for (const type of types) {
+    total += collectNodesByType(rootNode, type).length;
+  }
+  return total;
+}
+
+/**
+ * Evaluate a single required pattern against a parsed tree.
+ *
+ * Pattern kinds:
+ *  - 'query' (default): a tree-sitter query; passes when it yields ≥1 match.
+ *  - 'self_call': passes when any function calls itself directly.
+ *  - 'user_function': passes when a function other than main is defined.
+ *  - 'string_type': passes when a `string` / `std::string` declaration exists.
+ *  - 'min_count': passes when the combined count across `node` types is ≥ min.
+ *  - 'forbidden': fails with a "Bad pattern" error when any `node` type appears.
+ *
+ * Query compile errors fail closed (passed = false) so a broken rule can
+ * never grant verification.
+ */
+function evaluateRequiredPattern(tree, pattern) {
+  const kind = pattern.kind || 'query';
+  try {
+    switch (kind) {
+      case 'self_call': {
+        const fnNodes = collectNodesByType(tree.rootNode, 'function_definition');
+        for (const fnNode of fnNodes) {
+          const name = functionNameOf(fnNode);
+          if (!name) continue;
+          const body = fnNode.childForFieldName('body');
+          if (!body) continue;
+          const calleeNames = collectQueryCaptureTexts(body, CALL_NAME_QUERY, 'call');
+          if (calleeNames.includes(name)) return { passed: true };
+        }
+        return { passed: false };
+      }
+      case 'user_function': {
+        const names = collectQueryCaptureTexts(tree.rootNode, FN_NAME_QUERY, 'name');
+        return { passed: names.some(name => name !== 'main') };
+      }
+      case 'string_type': {
+        const texts = [];
+        for (const querySource of STRING_TYPE_QUERIES) {
+          texts.push(...collectQueryCaptureTexts(tree.rootNode, querySource, 'type'));
+        }
+        return { passed: texts.some(t => t === 'string' || t === 'std::string') };
+      }
+      case 'min_count': {
+        const total = countNodeTypes(tree.rootNode, pattern.node || []);
+        return { passed: total >= (pattern.min || 1) };
+      }
+      case 'forbidden': {
+        const total = countNodeTypes(tree.rootNode, pattern.node || []);
+        if (total > 0) {
+          return { passed: false, errorMessage: `Bad pattern: ${pattern.label} — ${pattern.hint}` };
+        }
+        return { passed: true };
+      }
+      default: {
+        const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, pattern.query);
+        return { passed: query.matches(tree.rootNode).length > 0 };
+      }
+    }
+  } catch (queryError) {
+    console.warn(`Required pattern query failed (kind: ${kind}):`, queryError.message);
+    return { passed: false, errorMessage: `Required construct not found: ${pattern.label}` };
+  }
+}
+
+/**
+ * Verify that every required pattern is satisfied. Each failure produces a
+ * `Required construct not found` error (recognized by the hasErrors matcher);
+ * forbidden patterns emit their own "Bad pattern" error instead.
+ */
+function checkRequiredPatterns(tree, patterns) {
+  const errors = [];
+  for (const pattern of patterns) {
+    const result = evaluateRequiredPattern(tree, pattern);
+    if (!result.passed) {
+      errors.push({
+        message: result.errorMessage || `Required construct not found: ${pattern.label} — ${pattern.hint}`,
+        line: 1, column: 1,
+      });
+    }
+  }
+  return errors;
 }
 
 // ── Check 2: Empty body check ───────────────────────────────────────────────
@@ -510,6 +637,39 @@ const HANDLERS = {
     }
     return null;
   },
+
+  checkSameLoopVariable(tree, code, queryMatch, pattern) {
+    const innerNode = queryMatch.captures.find(c => c.name === 'outer')?.node;
+    if (!innerNode) return null;
+    const innerVarName = code.substring(innerNode.startIndex, innerNode.endIndex);
+
+    // The for_statement that OWNS the declaration containing this identifier.
+    // Skipping it is critical: without that, every loop would "match itself"
+    // and reject valid single/nested loops.
+    let owner = innerNode.parent;
+    while (owner && owner.type !== 'for_statement') {
+      owner = owner.parent;
+    }
+    if (!owner) return null;
+
+    // Only enclosing for_statement ancestors (excluding the owner) count: a
+    // nested loop that reuses an ancestor loop's variable name is the pattern.
+    let ancestor = owner.parent;
+    while (ancestor) {
+      if (ancestor.type === 'for_statement') {
+        const outerVarName = getForLoopVariableName(ancestor, code);
+        if (outerVarName && outerVarName === innerVarName) {
+          return {
+            message: `Bad pattern: ${pattern.message}`,
+            line: innerNode.startPosition.row + 1,
+            column: innerNode.startPosition.column + 1
+          };
+        }
+      }
+      ancestor = ancestor.parent;
+    }
+    return null;
+  },
 };
 
 function findEnclosingBody(node) {
@@ -517,6 +677,30 @@ function findEnclosingBody(node) {
   while (cur) {
     if (cur.type === 'compound_statement' || cur.type === 'function_definition') return cur;
     cur = cur.parent;
+  }
+  return null;
+}
+
+/**
+ * Return the name of the loop variable declared in a classic for-statement's
+ * init clause, or null when the loop has no in-clause declaration (e.g.
+ * `for (i = 0; ...)` with a pre-declared variable, or a range-for loop).
+ */
+function getForLoopVariableName(forNode, code) {
+  if (!forNode) return null;
+  for (let i = 0; i < forNode.childCount; i++) {
+    const child = forNode.child(i);
+    if (child.type !== 'declaration') continue;
+    for (let j = 0; j < child.childCount; j++) {
+      const declarator = child.child(j);
+      if (declarator.type !== 'init_declarator') continue;
+      for (let k = 0; k < declarator.childCount; k++) {
+        const sub = declarator.child(k);
+        if (sub.type === 'identifier') {
+          return code.substring(sub.startIndex, sub.endIndex);
+        }
+      }
+    }
   }
   return null;
 }
@@ -651,7 +835,8 @@ async function verify(code, requirements = {}, options = {}) {
       // that passes tests but whose required structure is unverifiable must
       // not count as verified. Without declared requirements, fall back to
       // the permissive regex-based pass (legacy behavior).
-      if (requirements.required_nodes && requirements.required_nodes.length) {
+      if ((requirements.required_nodes && requirements.required_nodes.length) ||
+          (requirements.required_patterns && requirements.required_patterns.length)) {
         reasons.push({
           message: 'Structure verification unavailable (parser not loaded) — cannot confirm required constructs. Please try again.',
           line: 1, column: 1
@@ -716,6 +901,12 @@ async function verify(code, requirements = {}, options = {}) {
     if (requirements.required_nodes && requirements.required_nodes.length) {
       const missingNodes = checkRequiredNodes(tree, requirements.required_nodes, requirements.any_of === true);
       reasons.push(...missingNodes);
+    }
+
+    // Check 1b: Required patterns (per-exercise tree-sitter queries + handlers)
+    if (requirements.required_patterns && requirements.required_patterns.length) {
+      const patternErrors = checkRequiredPatterns(tree, requirements.required_patterns);
+      reasons.push(...patternErrors);
     }
 
     // Check 2: Non-empty body check

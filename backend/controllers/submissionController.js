@@ -332,12 +332,23 @@ exports.submit = async (req, res) => {
       logger.warn({ err: _.message }, 'cppcheck failed (advisory)');
     }
 
-    // Get required nodes from the exercise's concept
-    const requiredNodesRes = await db.query(
-      'SELECT ast_nodes FROM concepts WHERE id=$1',
-      [exercise.concept_id]
-    );
-    const requiredNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
+    // Resolve required AST nodes for structure verification. Per-exercise
+    // requirements (exercise.ast_nodes) are strict — all must be present.
+    // When the exercise declares none, fall back to the concept's ast_nodes,
+    // which are alternatives ("any of").
+    const exerciseNodes = Array.isArray(exercise.ast_nodes) ? exercise.ast_nodes : [];
+    let requiredNodes = exerciseNodes;
+    let anyOf = false;
+    if (!requiredNodes.length) {
+      const requiredNodesRes = await db.query(
+        'SELECT ast_nodes FROM concepts WHERE id=$1',
+        [exercise.concept_id]
+      );
+      const conceptNodes = requiredNodesRes.rows.length > 0 ? (requiredNodesRes.rows[0].ast_nodes || []) : [];
+      requiredNodes = conceptNodes;
+      anyOf = true; // concept lists are alternative ("any of") lists
+    }
+    const requiredPatterns = Array.isArray(exercise.required_patterns) ? exercise.required_patterns : [];
 
     // Get concept name from database (needed by AST verifier and micro-concept analysis)
     const conceptRes = await db.query(
@@ -347,7 +358,7 @@ exports.submit = async (req, res) => {
     const conceptName = conceptRes.rows.length > 0 ? conceptRes.rows[0].name : 'Unknown';
 
     // Run AST verifier before saving submission
-    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes }, { starter_code: exercise.starter_code, concept_name: conceptName });
+    const verifyRes = await astVerifier.verify(code, { required_nodes: requiredNodes, any_of: anyOf, required_patterns: requiredPatterns }, { starter_code: exercise.starter_code, concept_name: conceptName });
     const is_verified = !!verifyRes.is_verified;
     const verification_note = (verifyRes.reasons || []).map(r => r.message || JSON.stringify(r)).join('; ');
 

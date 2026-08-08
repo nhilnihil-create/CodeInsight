@@ -54,22 +54,197 @@ async function applySchemaPatches() {
     // Per-exercise required AST node types used by structure verification.
     // Declared in schema.sql; patch keeps pre-existing databases in sync.
     patches.push(addColumnIfMissing('exercises', 'ast_nodes', `TEXT[] DEFAULT '{}'`));
+    // Per-exercise required patterns (tree-sitter queries + JS-handler kinds)
+    // used by structure verification. Declared in schema.sql.
+    patches.push(addColumnIfMissing('exercises', 'required_patterns', `JSONB DEFAULT '[]'`));
   }
 
-  // Backfill: known catalog exercises that require a specific construct.
-  // Guarded by empty ast_nodes so instructor-customized values are never
-  // overwritten. Matches the declarations in scripts/seedMasterTaxonomy.js.
-  if (await tableExists('exercises') && await columnExists('exercises', 'ast_nodes')) {
+  // Backfill: known catalog exercises that require a specific construct or
+  // pattern. Guarded by empty ast_nodes/required_patterns so instructor-
+  // customized values are never overwritten. Matches the declarations in
+  // scripts/seedMasterTaxonomy.js.
+  if (await tableExists('exercises') && await columnExists('exercises', 'ast_nodes') && await columnExists('exercises', 'required_patterns')) {
     try {
-      const backfill = await db.query(
-        `UPDATE exercises SET ast_nodes = ARRAY['for_statement']
-         WHERE title = 'Print Many Numbers' AND (ast_nodes IS NULL OR ast_nodes = '{}')`
-      );
-      if (backfill.rowCount > 0) {
-        console.log(`✓ Backfilled ast_nodes for 'Print Many Numbers' (${backfill.rowCount} row(s))`);
+      // ── Shared required-pattern definitions (JSON-mirror of astVerifier) ──
+      const P_IO_OUTPUT = { query: '[(binary_expression operator: "<<") (call_expression)]', label: 'stream output (cout <<) or printf', hint: 'your solution must print using cout << or printf' };
+      const P_LOOP = { query: '[(for_statement) (while_statement) (do_statement)]', label: 'a loop', hint: 'your solution must use a loop' };
+      const P_CONDITIONAL = { query: '[(if_statement) (switch_statement)]', label: 'an if or switch statement', hint: 'your solution must branch with if or switch — ternary-only solutions are rejected' };
+      const P_ARRAY_USAGE = { query: '[(array_declarator) (subscript_expression)]', label: 'an array', hint: 'your solution must store the values in an array' };
+      const P_STRING_TYPE = { kind: 'string_type', label: 'a std::string variable', hint: 'declare your strings with the string type (e.g. string name;)' };
+      const P_SELF_CALL = { kind: 'self_call', label: 'a recursive call', hint: 'your solution must call a function from within itself' };
+      const P_NO_LOOPS = { kind: 'forbidden', node: ['for_statement', 'while_statement', 'do_statement'], label: 'loops', hint: 'recursion exercises must not use loops — call the function from within itself' };
+      const P_USER_FUNCTION = { kind: 'user_function', label: 'a function other than main', hint: 'your solution must define and use a function other than main' };
+      const P_MIN_LOOPS2 = { kind: 'min_count', node: ['for_statement', 'while_statement', 'do_statement'], min: 2, label: 'at least two loops', hint: 'your solution must use nested loops (a loop inside a loop)' };
+
+      // 30-row catalog table — rows 6/7/12 (Variables concepts) carry no gate.
+      const EXERCISE_REQUIREMENTS = [
+        { title: 'Print Hello World', required_patterns: [P_IO_OUTPUT] },
+        { title: 'Print Test Cases', required_patterns: [P_IO_OUTPUT, P_LOOP] },
+        { title: 'Formal Name Formatter', required_patterns: [P_STRING_TYPE] },
+        { title: 'Simple Calculator', required_patterns: [P_CONDITIONAL] },
+        { title: 'Print Many Numbers', ast_nodes: ['for_statement'] },
+        { title: 'Print a Rectangle', required_patterns: [P_MIN_LOOPS2] },
+        { title: 'Find Missing Number', required_patterns: [P_ARRAY_USAGE] },
+        { title: 'Print a Frame', required_patterns: [P_MIN_LOOPS2] },
+        { title: 'Even and Odd Numbers', required_patterns: [P_CONDITIONAL] },
+        { title: 'Largest Number in a Sequence', required_patterns: [P_ARRAY_USAGE] },
+        { title: 'Multiplication Table', required_patterns: [P_MIN_LOOPS2] },
+        { title: 'Dice Game', required_patterns: [P_CONDITIONAL] },
+        { title: 'Fibonacci Sequence', required_patterns: [P_SELF_CALL, P_NO_LOOPS] },
+        { title: 'Factorial Function', required_patterns: [P_USER_FUNCTION] },
+        { title: 'Prime Number Check', required_patterns: [P_CONDITIONAL] },
+        { title: 'Grade Classification', ast_nodes: ['switch_statement'] },
+        { title: 'Array Sorting (Bubble Sort)', required_patterns: [P_ARRAY_USAGE] },
+        { title: 'String Reversal', required_patterns: [P_STRING_TYPE] },
+        { title: 'Count Characters in a String', required_patterns: [P_STRING_TYPE] },
+        { title: 'Compute Power', required_patterns: [P_USER_FUNCTION] },
+        { title: 'Maximum and Minimum', required_patterns: [P_ARRAY_USAGE] },
+        { title: 'Palindrome Check', required_patterns: [P_STRING_TYPE] },
+        { title: 'GCD and LCM', required_patterns: [P_USER_FUNCTION] },
+        { title: 'Convert Base', required_patterns: [P_LOOP] },
+        { title: 'Matrix Addition', required_patterns: [P_ARRAY_USAGE, P_MIN_LOOPS2] },
+        { title: 'Count Frequency', required_patterns: [P_ARRAY_USAGE] },
+        { title: 'Simple Struct: Point Distance', ast_nodes: ['struct_specifier'] },
+      ];
+
+      let backfillCount = 0;
+      for (const req of EXERCISE_REQUIREMENTS) {
+        const res = await db.query(
+          `UPDATE exercises SET ast_nodes = $2::text[], required_patterns = $3::jsonb
+           WHERE title = $1
+             AND (ast_nodes IS NULL OR ast_nodes = '{}')
+             AND (required_patterns IS NULL OR required_patterns = '[]'::jsonb)`,
+          [req.title, req.ast_nodes || null, req.required_patterns ? JSON.stringify(req.required_patterns) : null]
+        );
+        backfillCount += res.rowCount;
+      }
+      if (backfillCount > 0) {
+        console.log(`✓ Backfilled ast_nodes/required_patterns for ${backfillCount} exercise row(s)`);
+      }
+
+      // Fix broken concept-level gates. Guarded by the OLD ast_nodes value so
+      // an instructor's own customized list is never overwritten.
+      const CONCEPT_NODE_FIXES = [
+        { name: 'Scope', old: ['block'], new: [] },
+        { name: 'Input/Output', old: ['call_expression'], new: [] },
+        { name: 'Strings', old: ['string_literal'], new: [] },
+        { name: 'Dynamic Memory', old: ['call_expression'], new: ['new_expression', 'call_expression'] },
+        { name: 'Structs', old: ['struct_declaration'], new: ['struct_specifier'] },
+      ];
+      for (const fix of CONCEPT_NODE_FIXES) {
+        const res = await db.query(
+          'UPDATE concepts SET ast_nodes = $3::text[] WHERE name = $1 AND ast_nodes = $2::text[]',
+          [fix.name, fix.old, fix.new]
+        );
+        if (res.rowCount > 0) {
+          console.log(`✓ Fixed concept ast_nodes for '${fix.name}' (${res.rowCount} row(s))`);
+        }
       }
     } catch (err) {
-      console.warn('⚠ Could not backfill exercise ast_nodes:', err.message);
+      console.warn('⚠ Could not backfill exercise requirements:', err.message);
+    }
+  }
+
+  // One-time deactivation of over-broad bad patterns: `missing_include_iostream`
+  // matched EVERY expression_statement (rejecting every Input/Output solution)
+  // and `redundant_recursion` matched EVERY function body (rejecting every
+  // Recursion solution). Guarded by the old query text so an instructor's own
+  // customized version is never touched.
+  if (await tableExists('verification_rules')) {
+    try {
+      const deactivated = await db.query(
+        `UPDATE verification_rules SET is_active = false, updated_at = CURRENT_TIMESTAMP
+         WHERE rule_type = 'bad_pattern' AND is_active = true AND (
+           (pattern_id = 'missing_include_iostream' AND tree_sitter_query = '(expression_statement)')
+           OR
+           (pattern_id = 'redundant_recursion' AND tree_sitter_query = '(function_definition body: (compound_statement) @body)')
+         )`
+      );
+      if (deactivated.rowCount > 0) {
+        console.log(`✓ Deactivated over-broad bad patterns (${deactivated.rowCount} row(s))`);
+      }
+    } catch (err) {
+      console.warn('⚠ Could not deactivate over-broad bad patterns:', err.message);
+    }
+  }
+
+  // One-time deactivation of over-broad bad patterns (v2): these 38 patterns
+  // matched VALID code and hard-rejected every submission in their concept
+  // (e.g. `same_loop_variable`'s sibling `wrong_loop_order`, `empty_if_body`,
+  // `void_return_value`, ...). They were removed from badPatterns.js; prod rows
+  // are deactivated here so existing databases get the same fix. Guarded and
+  // idempotent — never crashes startup.
+  if (await tableExists('verification_rules')) {
+    try {
+      const REMOVED_BAD_PATTERN_IDS = [
+        'narrowing_conversion',
+        'cin_without_check',
+        'string_compare_eq',
+        'missing_string_include',
+        'empty_if_body',
+        'wrong_loop_order',
+        'undeclared_array',
+        'out_of_bounds_literal',
+        'void_return_value',
+        'no_base_case',
+        'missing_break',
+        'missing_default',
+        'large_struct_by_value',
+        'uninitialized_struct_field',
+        'missing_delete',
+        'double_delete',
+        'no_file_open_check',
+        'missing_fstream_include',
+        'declaration_in_loop',
+        'missing_braces',
+        'dereference_null',
+        'pointer_arithmetic_literal',
+        'plain_enum',
+        'enum_value_reuse',
+        'no_null_check_traversal',
+        'lost_node_reference',
+        'empty_catch',
+        'catch_by_value',
+        'c_style_cast',
+        'precision_loss_cast',
+        'macro_no_parens',
+        'missing_include_guard',
+        'using_namespace_header',
+        'missing_std_prefix',
+        'non_virtual_destructor',
+        'missing_override',
+        'object_slicing',
+        'non_virtual_call',
+      ];
+      const removed = await db.query(
+        `UPDATE verification_rules SET is_active = false, updated_at = CURRENT_TIMESTAMP
+         WHERE pattern_id = ANY($1::text[]) AND rule_type = 'bad_pattern' AND is_active = true`,
+        [REMOVED_BAD_PATTERN_IDS]
+      );
+      if (removed.rowCount > 0) {
+        console.log(`✓ Deactivated over-broad bad patterns v2 (${removed.rowCount} row(s))`);
+      }
+    } catch (err) {
+      console.warn('⚠ Could not deactivate over-broad bad patterns v2:', err.message);
+    }
+
+    // Make the prod `same_loop_variable` rule precise: previously it matched
+    // EVERY classic for-loop (query had no handler) and rejected valid nested
+    // loops with distinct variable names. Point the prod row at the
+    // checkSameLoopVariable handler and keep the current query. Idempotent.
+    try {
+      const fixed = await db.query(
+        `UPDATE verification_rules
+         SET tree_sitter_query = '(for_statement (declaration (init_declarator (identifier) @outer)))',
+             handler = 'checkSameLoopVariable',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE pattern_id = 'same_loop_variable' AND rule_type = 'bad_pattern'`
+      );
+      if (fixed.rowCount > 0) {
+        console.log(`✓ Attached checkSameLoopVariable handler to same_loop_variable (${fixed.rowCount} row(s))`);
+      }
+    } catch (err) {
+      console.warn('⚠ Could not fix same_loop_variable rule:', err.message);
     }
   }
 
