@@ -177,7 +177,7 @@ exports.getStudentsWithScores = async (req, res, next) => {
     const r = await db.query(
       `SELECT
         u.id, u.name, u.email,
-        (SELECT MAX(cds) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1) AS latest_cds,
+        (SELECT ROUND(AVG(cds)::numeric, 4) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1) AS avg_cds,
         (SELECT cds FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id=$1
          ORDER BY cs.computed_at ASC LIMIT 1) AS first_cds,
         (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id
@@ -204,7 +204,7 @@ exports.getStudentsAcrossSections = async (req, res, next) => {
     const r = await db.query(
       `SELECT DISTINCT
         u.id, u.name, u.email,
-        (SELECT MAX(cds) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id IN (SELECT id FROM sections WHERE instructor_id=$1)) AS latest_cds,
+        (SELECT ROUND(AVG(cds)::numeric, 4) FROM cds_scores cs WHERE cs.student_id=u.id AND cs.section_id IN (SELECT id FROM sections WHERE instructor_id=$1)) AS avg_cds,
         (SELECT COUNT(*) FROM submissions sub WHERE sub.student_id=u.id
          AND sub.exercise_id IN (SELECT id FROM exercises WHERE section_id IN (SELECT id FROM sections WHERE instructor_id=$1))) AS submitted_count,
         (SELECT COUNT(*) FROM exercises WHERE section_id IN (SELECT id FROM sections WHERE instructor_id=$1)) AS total_exercises,
