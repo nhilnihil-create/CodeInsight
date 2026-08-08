@@ -41,9 +41,9 @@ export default function DetailDrawer({
     >
       <SheetContent
         side="right"
-        className="w-full sm:max-w-lg p-0 gap-0 [&>.absolute]:hidden"
+        className="w-full sm:max-w-lg p-0 gap-0 [&>.absolute]:hidden flex flex-col h-full"
       >
-        <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="flex-none flex items-center justify-between p-6 border-b border-border">
           <div className="min-w-0 space-y-1">
             <h2 className="text-lg font-semibold text-foreground truncate">
               {title}
@@ -65,7 +65,7 @@ export default function DetailDrawer({
             </Button>
           </SheetClose>
         </div>
-        <div className="overflow-y-auto p-6 space-y-6">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">{children}</div>
       </SheetContent>
     </Sheet>
   );
