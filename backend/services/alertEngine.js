@@ -6,14 +6,18 @@
  */
 
 async function generateAlerts(exerciseId, db) {
+  // Prelim-High (small PRELIM classes) has the same severity-of-inclusion for
+  // alerting as High, but notification copy should treat it as lower-trust.
+  // INSUFFICIENT classes store 'Unscored', so they are excluded automatically.
+  const HIGH_CLASSIFICATIONS = ['High', 'Prelim-High'];
   const high = await db.query(
     `SELECT cs.student_id, cs.section_id, cs.cds, cs.classification,
             c.name AS concept_name
      FROM cds_scores cs
      JOIN exercises ex ON ex.id=cs.exercise_id
      JOIN concepts c ON c.id=ex.concept_id
-     WHERE cs.exercise_id=$1 AND cs.classification='High'`,
-    [exerciseId]
+     WHERE cs.exercise_id=$1 AND cs.classification = ANY($2::text[])`,
+    [exerciseId, HIGH_CLASSIFICATIONS]
   );
 
   for (const row of high.rows) {

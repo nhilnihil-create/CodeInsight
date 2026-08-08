@@ -7,7 +7,7 @@
  * 3. Graduated flagging through shared pipeline module
  * 4. Notification dedup in cdsJobQueue
  * 5. Hidden test separation in /run endpoint
- * 6. Preliminary class handling (<3 students)
+ * 6. Confidence tiers (INSUFFICIENT <5 → Unscored, PRELIM 5-9 → Prelim-*)
  * 7. Post-solution cutoff behavior
  *
  * Requires: PostgreSQL running locally with `codeinsight_test` database
@@ -94,12 +94,13 @@ describe('E2E — Integrity Flag Pipeline (CDS Exclusion)', function() {
   beforeEach(async () => { await clearTestTables(); });
 
   it('excludes HARDCODING-flagged students from CDS normalization', async () => {
-    const scenario = await seedFullScenario({ studentCount: 5 });
+    const scenario = await seedFullScenario({ studentCount: 8 });
 
-    // Students 0-2 submit good work; student 3 gets flagged; student 4 submits nothing
-    for (let i = 0; i < 4; i++) {
+    // Students 0-6 submit; student 3 gets flagged; student 7 submits nothing.
+    // 6 valid submitters → PRELIM tier so real scores are produced.
+    for (let i = 0; i < 7; i++) {
       await seedSubmission(scenario.studentIds[i], scenario.exerciseId, {
-        attemptNumber: 1, isCorrect: i < 3,
+        attemptNumber: 1, isCorrect: i !== 3,
         timeSpent: 30 + i * 10,
       });
     }
@@ -121,21 +122,23 @@ describe('E2E — Integrity Flag Pipeline (CDS Exclusion)', function() {
     strictEqual(flagged[0].classification, 'Flagged-Pending',
       'HARDCODING-flagged student is Flagged-Pending');
 
-    // Student 4: should be 'Unscored' (no submissions)
+    // Student 7: should be 'Unscored' (no submissions)
     const { rows: unscored } = await testPool.query(
       "SELECT classification FROM cds_scores WHERE exercise_id=$1 AND student_id=$2",
-      [scenario.exerciseId, scenario.studentIds[4]]
+      [scenario.exerciseId, scenario.studentIds[7]]
     );
     strictEqual(unscored[0].classification, 'Unscored',
       'no-submission student is Unscored');
 
-    // Students 0-2: should have real CDS values
+    // Students 0-2: should have real CDS values (Prelim-* tier)
     for (let i = 0; i < 3; i++) {
       const { rows } = await testPool.query(
-        'SELECT cds FROM cds_scores WHERE exercise_id=$1 AND student_id=$2',
+        'SELECT cds, classification FROM cds_scores WHERE exercise_id=$1 AND student_id=$2',
         [scenario.exerciseId, scenario.studentIds[i]]
       );
       ok(rows[0].cds !== null, `student ${i} has non-null CDS`);
+      ok(rows[0].classification.startsWith('Prelim-'),
+        `student ${i} is Prelim-* in a PRELIM class`);
     }
   });
 });
@@ -180,12 +183,12 @@ describe('E2E — Notification Dedup (cdsJobQueue)', function() {
   });
 });
 
-// ── Preliminary Class Handling ──────────────────────────────────────────────
+// ── Confidence Tiers (Phase 1 small-sample gating) ──────────────────────────
 
-describe('E2E — Preliminary Class (size < 3)', function() {
+describe('E2E — Confidence Tiers (INSUFFICIENT <5 / PRELIM 5-9)', function() {
   beforeEach(async () => { await clearTestTables(); });
 
-  it('marks CDS as Preliminary when fewer than 3 students', async () => {
+  it('stores Unscored (null CDS) when fewer than 5 valid submitters', async () => {
     const scenario = await seedFullScenario({ studentCount: 2 });
     for (const sid of scenario.studentIds) {
       await seedSubmission(sid, scenario.exerciseId, { attemptNumber: 1, isCorrect: true });
@@ -194,12 +197,34 @@ describe('E2E — Preliminary Class (size < 3)', function() {
     await cdsEngine.computeBatchCDS(scenario.exerciseId, testPool);
 
     const { rows } = await testPool.query(
-      "SELECT classification FROM cds_scores WHERE exercise_id=$1",
+      "SELECT classification, cds FROM cds_scores WHERE exercise_id=$1",
       [scenario.exerciseId]
     );
+    strictEqual(rows.length, 2, 'one cds_scores row per student');
+    for (const r of rows) {
+      strictEqual(r.classification, 'Unscored',
+        `INSUFFICIENT tier is stored as Unscored: ${r.classification}`);
+      ok(r.cds === null, 'INSUFFICIENT tier stores null CDS');
+    }
+  });
+
+  it('stores Prelim-* classifications for 5-9 valid submitters', async () => {
+    const scenario = await seedFullScenario({ studentCount: 9 });
+    for (const sid of scenario.studentIds) {
+      await seedSubmission(sid, scenario.exerciseId, { attemptNumber: 1, isCorrect: true });
+    }
+
+    await cdsEngine.computeBatchCDS(scenario.exerciseId, testPool);
+
+    const { rows } = await testPool.query(
+      "SELECT classification, cds FROM cds_scores WHERE exercise_id=$1",
+      [scenario.exerciseId]
+    );
+    strictEqual(rows.length, 9, 'one cds_scores row per student');
     for (const r of rows) {
       ok(r.classification.startsWith('Prelim-'),
-        `classification starts with Prelim-: ${r.classification}`);
+        `PRELIM tier classification starts with Prelim-: ${r.classification}`);
+      ok(r.cds !== null, 'PRELIM tier stores a real CDS value');
     }
   });
 });
@@ -210,7 +235,7 @@ describe('E2E — Post-Solution Cutoff', function() {
   beforeEach(async () => { await clearTestTables(); });
 
   it('excludes submissions after first unflagged acceptance from metrics', async () => {
-    const scenario = await seedFullScenario({ studentCount: 3 });
+    const scenario = await seedFullScenario({ studentCount: 8 });
 
     // Student 0: 2 wrong, then correct (no flag)
     await seedSubmission(scenario.studentIds[0], scenario.exerciseId, {
@@ -227,12 +252,18 @@ describe('E2E — Post-Solution Cutoff', function() {
       attemptNumber: 4, isCorrect: true, timeSpent: 999,
     });
 
-    // Other students: 1 attempt each
+    // Students 1-4: 1 attempt each → 5 valid submitters → PRELIM tier
     await seedSubmission(scenario.studentIds[1], scenario.exerciseId, {
       attemptNumber: 1, isCorrect: true, timeSpent: 30,
     });
     await seedSubmission(scenario.studentIds[2], scenario.exerciseId, {
       attemptNumber: 1, isCorrect: true, timeSpent: 35,
+    });
+    await seedSubmission(scenario.studentIds[3], scenario.exerciseId, {
+      attemptNumber: 1, isCorrect: true, timeSpent: 40,
+    });
+    await seedSubmission(scenario.studentIds[4], scenario.exerciseId, {
+      attemptNumber: 1, isCorrect: true, timeSpent: 45,
     });
 
     await cdsEngine.computeBatchCDS(scenario.exerciseId, testPool);

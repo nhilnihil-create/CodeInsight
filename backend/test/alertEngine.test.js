@@ -41,8 +41,8 @@ describe('Alert Engine Test Suite', function() {
      FROM cds_scores cs
      JOIN exercises ex ON ex.id=cs.exercise_id
      JOIN concepts c ON c.id=ex.concept_id
-     WHERE cs.exercise_id=$1 AND cs.classification='High'`,
-        [1]
+     WHERE cs.exercise_id=$1 AND cs.classification = ANY($2::text[])`,
+        [1, ['High', 'Prelim-High']]
       );
       expect(db.query).toHaveBeenNthCalledWith(2,
         `INSERT INTO alerts
@@ -76,12 +76,42 @@ describe('Alert Engine Test Suite', function() {
      FROM cds_scores cs
      JOIN exercises ex ON ex.id=cs.exercise_id
      JOIN concepts c ON c.id=ex.concept_id
-     WHERE cs.exercise_id=$1 AND cs.classification='High'`,
-        [1]
+     WHERE cs.exercise_id=$1 AND cs.classification = ANY($2::text[])`,
+        [1, ['High', 'Prelim-High']]
       );
 
       // Should return 0 alerts generated
       assert.strictEqual(result.alertsGenerated, 0);
+    });
+
+    it('should also generate alerts for students with Prelim-High classification', async function() {
+      // PRELIM-tier classes use Prelim-High; they are lower-trust but still flagged
+      db.query.mockResolvedValueOnce({ rows: [
+        { student_id: 5, section_id: 2, cds: 0.9, classification: 'Prelim-High', concept_name: 'Loops' }
+      ] });
+
+      db.query.mockResolvedValueOnce({ rowCount: 1 });
+
+      const result = await generateAlerts(2, db);
+
+      expect(db.query).toHaveBeenNthCalledWith(1,
+        `SELECT cs.student_id, cs.section_id, cs.cds, cs.classification,
+            c.name AS concept_name
+     FROM cds_scores cs
+     JOIN exercises ex ON ex.id=cs.exercise_id
+     JOIN concepts c ON c.id=ex.concept_id
+     WHERE cs.exercise_id=$1 AND cs.classification = ANY($2::text[])`,
+        [2, ['High', 'Prelim-High']]
+      );
+      expect(db.query).toHaveBeenNthCalledWith(2,
+        `INSERT INTO alerts
+       (student_id,exercise_id,section_id,cds_score,classification,concept_name)
+       VALUES($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (student_id,exercise_id) DO NOTHING`,
+        [5, 2, 2, 0.9, 'Prelim-High', 'Loops']
+      );
+
+      assert.strictEqual(result.alertsGenerated, 1);
     });
 
     it('should handle database errors gracefully', async function() {

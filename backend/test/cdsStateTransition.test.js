@@ -12,7 +12,7 @@ jest.mock('../services/alertEngine', () => ({ generateAlerts: jest.fn() }));
 
 const db = require('../config/db');
 const alertEngine = require('../services/alertEngine');
-const { computeBatchCDS, calculateLiveCDS, computeClassStats, normalizeWithStats, classify, getLivePeerRanking } = require('../services/cdsEngine');
+const { computeBatchCDS, calculateLiveCDS, computeClassStats, normalizeWithStats, getLivePeerRanking } = require('../services/cdsEngine');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -29,7 +29,7 @@ function makeStudent(id, name) {
 
 async function runBatchCds(exerciseId, students, excludedFlags, submissions) {
   db.query
-    .mockResolvedValueOnce({ rows: [{ id: exerciseId, section_id: 1 }] })
+    .mockResolvedValueOnce({ rows: [{ id: exerciseId, section_id: 1, time_limit_minutes: 45 }] })
     .mockResolvedValueOnce({ rows: students })
     .mockResolvedValueOnce({ rows: excludedFlags })
     .mockResolvedValueOnce({ rows: submissions });
@@ -84,28 +84,27 @@ describe('CDS State Transition — Zero-Variance Normalization', () => {
     expect(normalizeWithStats(10, stats)).toBe(0.00);
   });
 
-  it('all identical class values produce CDS=0 for all students', async () => {
+  it('all identical class values produce identical CDS for all students', async () => {
     const exerciseId = 10;
-    const students = [makeStudent(1, 'A'), makeStudent(2, 'B'), makeStudent(3, 'C')];
-    const subs = [
-      { student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 90, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 2, attempt_number: 1, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 2, attempt_number: 2, is_correct: true,  time_spent_seconds: 90, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 3, attempt_number: 1, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 3, attempt_number: 2, is_correct: true,  time_spent_seconds: 90, code: 'x', is_verified: true, flag_id: null },
-    ];
+    const students = [];
+    const subs = [];
+    for (let i = 1; i <= 10; i++) {
+      students.push(makeStudent(i, `S${i}`));
+      // Identical pattern for every student: 1 fail (60s) + 1 pass (90s)
+      subs.push({ student_id: i, attempt_number: 1, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null });
+      subs.push({ student_id: i, attempt_number: 2, is_correct: true,  time_spent_seconds: 90, code: 'x', is_verified: true, flag_id: null });
+    }
 
     await runBatchCds(exerciseId, students, [], subs);
     const scores = getScoreCalls();
 
     expect(scores.length).toBe(1); // bulk INSERT
-    for (const sid of [1, 2, 3]) {
-      const s = findStudentInBulkScore(sid);
-      expect(s.cds).toBe(0);
-      expect(s.ner).toBe(0.00);
-      expect(s.nrs).toBe(0.00);
-      expect(s.nts).toBe(0.00);
+    for (let i = 1; i <= 10; i++) {
+      const s = findStudentInBulkScore(i);
+      expect(s.ner).toBe(0.00); // zero variance in failures
+      expect(s.nrs).toBe(0.00); // zero variance in attempts
+      expect(s.nts).toBe(0.03); // absolute: 90s / (45min * 60)
+      expect(s.cds).toBe(0.01); // 0.40*0 + 0.35*0 + 0.25*0.03
     }
   });
 });
@@ -114,7 +113,7 @@ describe('CDS State Transition — Zero-Variance Normalization', () => {
 
 describe('CDS State Transition — Single Student Class', () => {
 
-  it('preliminary class with 1 student produces Preliminary classification', async () => {
+  it('class with 1 student is INSUFFICIENT → Unscored (no rank-derived score)', async () => {
     const exerciseId = 10;
     const students = [makeStudent(1, 'Solo')];
     const subs = [
@@ -125,8 +124,8 @@ describe('CDS State Transition — Single Student Class', () => {
     await runBatchCds(exerciseId, students, [], subs);
     const s = findStudentInBulkScore(1);
 
-    expect(s.cds).toBe(0);
-    expect(s.classification).toBe('Prelim-Very Low');
+    expect(s.cds).toBeNull();
+    expect(s.classification).toBe('Unscored');
   });
 });
 
@@ -169,20 +168,25 @@ describe('CDS State Transition — NaN Protection in Normalization', () => {
 
   it('student with null time_spent gets 0.00 not NaN for nts', async () => {
     const exerciseId = 10;
-    const students = [makeStudent(1, 'A'), makeStudent(2, 'B'), makeStudent(3, 'C')];
-    const subs = [
-      { student_id: 1, attempt_number: 1, is_correct: true, time_spent_seconds: null, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 2, attempt_number: 1, is_correct: true, time_spent_seconds: 120,  code: 'x', is_verified: true, flag_id: null },
-      { student_id: 3, attempt_number: 1, is_correct: true, time_spent_seconds: 60,   code: 'x', is_verified: true, flag_id: null },
-    ];
+    const students = [];
+    const subs = [];
+    // Student 1 has null time; students 2-10 have concrete times (CONFIDENT tier)
+    for (let i = 1; i <= 10; i++) {
+      students.push(makeStudent(i, `S${i}`));
+      subs.push({
+        student_id: i, attempt_number: 1, is_correct: true,
+        time_spent_seconds: i === 1 ? null : 60 * i,
+        code: 'x', is_verified: true, flag_id: null
+      });
+    }
 
     await runBatchCds(exerciseId, students, [], subs);
 
     const scores = getScoreCalls();
     expect(scores.length).toBe(1); // bulk INSERT
 
-    for (const sid of [1, 2, 3]) {
-      const s = findStudentInBulkScore(sid);
+    for (let i = 1; i <= 10; i++) {
+      const s = findStudentInBulkScore(i);
       expect(Number.isNaN(s.ner)).toBe(false);
       expect(Number.isNaN(s.nrs)).toBe(false);
       expect(Number.isNaN(s.nts)).toBe(false);
@@ -190,8 +194,7 @@ describe('CDS State Transition — NaN Protection in Normalization', () => {
       expect(typeof s.nts).toBe('number');
     }
 
-    // Student 1 has null time → max_time=0 (due to || 0 in reduce)
-    // normalizeWithStats(0, timeStats) → nts=0.00 (Math.max(0,0)/denom = 0)
+    // Student 1 has null time → max_time=0 (due to || 0 in reduce) → nts=0.00
     const student1Score = findStudentInBulkScore(1);
     expect(student1Score.nts).toBe(0.00);
   });
@@ -208,9 +211,15 @@ describe('CDS State Transition — HARDCODING + BLANK_TEMPLATE Both Get null CDS
     const subs = [
       { student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 10, code: 'hardcoded', is_verified: true, flag_id: 42 },
       { student_id: 2, attempt_number: 1, is_correct: false, time_spent_seconds: 10, code: '',          is_verified: true, flag_id: 43 },
-      { student_id: 3, attempt_number: 1, is_correct: true,  time_spent_seconds: 60, code: 'real code', is_verified: true, flag_id: null },
+      // Student 3: 2 correct attempts, but attempt 1 is the cutoff (max_time=10)
+      { student_id: 3, attempt_number: 1, is_correct: true,  time_spent_seconds: 10, code: 'real code', is_verified: true, flag_id: null },
       { student_id: 3, attempt_number: 2, is_correct: true,  time_spent_seconds: 45, code: 'real code', is_verified: true, flag_id: null },
     ];
+    // Students 3-12 = 10 clean submitters → CONFIDENT tier
+    for (let i = 4; i <= 12; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 60, code: 'real code', is_verified: true, flag_id: null });
+    }
 
     await runBatchCds(exerciseId, students, excluded, subs);
 
@@ -223,11 +232,11 @@ describe('CDS State Transition — HARDCODING + BLANK_TEMPLATE Both Get null CDS
     expect(blankSub.cds).toBeNull();
     expect(blankSub.classification).toBe('Flagged-Pending');
 
-    // Student 3 (normal): single entry filteredSubMap → hasVariance=false → all 0 → CDS=0
+    // Student 3: single counted correct attempt (cutoff at attempt 1)
     expect(normal.cds).toBe(0);
     expect(normal.ner).toBe(0.00);
     expect(normal.nrs).toBe(0.00);
-    expect(normal.nts).toBe(0.00);
+    expect(normal.nts).toBe(0.00); // 10s / (45min * 60)
     expect(normal.classification).toBe('Very Low');
   });
 });
@@ -240,7 +249,7 @@ describe('CDS State Transition — Live CDS vs Batch CDS Parity', () => {
     const exerciseId = 10;
     const studentId = 1;
 
-    // Batch: normal student + flagged student
+    // Batch: normal student + flagged student + enough clean students for CONFIDENT
     const students = [makeStudent(1, 'Normal'), makeStudent(2, 'Flagged')];
     const excluded = [{ student_id: 2 }];
     const subs = [
@@ -248,6 +257,11 @@ describe('CDS State Transition — Live CDS vs Batch CDS Parity', () => {
       { student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null },
       { student_id: 2, attempt_number: 1, is_correct: true,  time_spent_seconds: 999, code: 'bad', is_verified: true, flag_id: 42 },
     ];
+    // Students 1,3-11 = 10 clean submitters → CONFIDENT tier
+    for (let i = 3; i <= 11; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: null });
+    }
 
     await runBatchCds(exerciseId, students, excluded, subs);
     const batchScore = findStudentInBulkScore(studentId);
@@ -258,7 +272,7 @@ describe('CDS State Transition — Live CDS vs Batch CDS Parity', () => {
     alertEngine.generateAlerts.mockResolvedValue(undefined);
 
     db.query
-      .mockResolvedValueOnce({ rows: [{ id: exerciseId, section_id: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ id: exerciseId, section_id: 1, time_limit_minutes: 45 }] })
       .mockResolvedValueOnce({ rows: subs })
       .mockResolvedValueOnce({ rows: excluded });
 
@@ -304,13 +318,18 @@ describe('CDS State Transition — Post-Solution Cutoff + Flagged Attempt', () =
       // Student 2: single clean correct attempt
       { student_id: 2, attempt_number: 1, is_correct: true, time_spent_seconds: 50, code: 'x', is_verified: true, flag_id: null },
     ];
+    // Students 1-11 = 11 clean submitters → CONFIDENT tier (none in integrity_flags)
+    for (let i = 3; i <= 11; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 50, code: 'x', is_verified: true, flag_id: null });
+    }
 
     await runBatchCds(exerciseId, students, [], subs);
     const s1 = findStudentInBulkScore(1);
 
     expect(s1.ner).toBe(1.0);
     expect(s1.nrs).toBe(1.0);
-    expect(s1.nts).toBe(0.00);
+    expect(s1.nts).toBe(0.01); // absolute: 40s / (45min * 60) — max_time 40, not 999
     expect(s1.hasFlagged).toBe(true);
     expect(s1.flagCount).toBe(1);
   });
@@ -381,6 +400,11 @@ describe('CDS State Transition — Mixed Flag Types Parity', () => {
       { student_id: 3, attempt_number: 1, is_correct: true,  time_spent_seconds: 30,  code: 'good', is_verified: true, flag_id: null },
       { student_id: 4, attempt_number: 1, is_correct: true,  time_spent_seconds: 60,  code: 'good', is_verified: true, flag_id: null },
     ];
+    // Students 3-12 = 10 clean submitters → CONFIDENT tier
+    for (let i = 5; i <= 12; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 45, code: 'good', is_verified: true, flag_id: null });
+    }
 
     await runBatchCds(exerciseId, students, excluded, subs);
 
@@ -398,10 +422,10 @@ describe('CDS State Transition — Mixed Flag Types Parity', () => {
     expect(blank.cds).toBeNull();
     expect(hardcode.cds).toBeNull();
 
-    // Normal students: both have failed=0, total=1
+    // Normal students: both have failed=0, total=1 → NER/NRS = 0
     expect(normA.ner).toBe(0.00);
     expect(normA.nrs).toBe(0.00);
-    expect(normA.nts).toBe(0.00);
-    expect(normB.nts).toBe(1.00);
+    expect(normA.nts).toBe(0.01); // absolute: 30s / (45min * 60)
+    expect(normB.nts).toBe(0.02); // absolute: 60s / (45min * 60)
   });
 });

@@ -56,6 +56,36 @@ function classify(cds, isPreliminary = false) {
   return `${prefix}High`;
 }
 
+// ── Confidence Tiers (small-sample gating) ───────────────────────────────────
+// INSUFFICIENT (< PRELIM_MIN valid submitters): no class-relative CDS — stored
+//   as Unscored with null components (prevents rank artifacts on tiny classes).
+// PRELIM (PRELIM_MIN..CONFIDENT_MIN-1): scores computed, but labeled
+//   "Prelim-" so the frontend can badge them as low-confidence.
+// CONFIDENT (>= CONFIDENT_MIN): full confidence, no prefix.
+// Tiers key off VALID submitters (verified + not integrity-excluded), NOT the
+// enrolled count — the two can diverge sharply (e.g. 21 enrolled, 3 submitted).
+const CONFIDENCE = { CONFIDENT: 'CONFIDENT', PRELIM: 'PRELIM', INSUFFICIENT: 'INSUFFICIENT' };
+const CONFIDENT_MIN = 10;
+const PRELIM_MIN = 5;
+
+function getConfidenceTier(validSubmitterCount) {
+  if (validSubmitterCount >= CONFIDENT_MIN) return CONFIDENCE.CONFIDENT;
+  if (validSubmitterCount >= PRELIM_MIN) return CONFIDENCE.PRELIM;
+  return CONFIDENCE.INSUFFICIENT;
+}
+
+// ── NTS (CDS v4): absolute time ratio, not class-relative ───────────────────
+//   nts = time_spent_seconds / (time_limit_minutes * 60), capped at [0,1].
+// Criterion-referenced: needs no reference group, so it works at any class
+// size and removes 25% of the CDS weight from the small-sample problem.
+// Returns null when no usable time limit exists (schema default is 45).
+function computeNTS(timeSpentSeconds, timeLimitMinutes) {
+  if (timeLimitMinutes == null || Number(timeLimitMinutes) <= 0) return null;
+  const ratio = Number(timeSpentSeconds) / (Number(timeLimitMinutes) * 60);
+  if (!Number.isFinite(ratio)) return null;
+  return Number(Math.max(0, Math.min(ratio, 1)).toFixed(2));
+}
+
 // ── Batch CDS Computation ───────────────────────────────────────────────────
 
 async function computeBatchCDS(exerciseId, db) {
@@ -69,10 +99,6 @@ const students = await db.query(
     WHERE e.section_id=$1`,
   [exercise.section_id]
 );
-
-// Minimum class size check
-const MIN_CLASS_SIZE = 3;
-const isPreliminaryClass = students.rows.length < MIN_CLASS_SIZE;
 
 // GAP #8: Fetch students with integrity flags that exclude from normalization
 // HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics
@@ -153,6 +179,10 @@ for (const [sid, data] of Object.entries(subMap)) {
 // Skip class stats computation (would be meaningless zero-variance).
 const hasFilteredStudents = Object.keys(filteredSubMap).length > 0;
 
+// Confidence tier from VALID submitter count (verified + not integrity-excluded).
+const validSubmitterCount = hasFilteredStudents ? Object.keys(filteredSubMap).length : 0;
+const confidenceTier = getConfidenceTier(validSubmitterCount);
+
 const failedValues = hasFilteredStudents ? Object.values(filteredSubMap).map(s => Number(s.failed_attempts)) : [];
 const totalValues = hasFilteredStudents ? Object.values(filteredSubMap).map(s => Number(s.total_attempts)) : [];
 const timeValues = hasFilteredStudents ? Object.values(filteredSubMap).map(s => Number(s.max_time)) : [];
@@ -191,14 +221,22 @@ for (const student of students.rows) {
     hasFlagged = subs.hasFlaggedAttempt;
     flagCount = subs.integrityFlagCount;
 
-    // Apply normalization using pre-computed class stats (1 sort per metric, not per student)
-    ner = normalizeWithStats(failed, failedStats);
-    nrs = normalizeWithStats(total, totalStats);
-    nts = normalizeWithStats(timeSec, timeStats);
+    if (confidenceTier === CONFIDENCE.INSUFFICIENT) {
+      // Too few valid submitters to establish a class reference scale.
+      // Report Unscored (no misleading rank-derived signal) rather than
+      // computing min-max on a tiny pool.
+      ner = null; nrs = null; nts = null; cds = null;
+      classification = 'Unscored';
+    } else {
+      // Apply normalization using pre-computed class stats (1 sort per metric, not per student)
+      ner = normalizeWithStats(failed, failedStats);
+      nrs = normalizeWithStats(total, totalStats);
+      nts = computeNTS(timeSec, exercise.time_limit_minutes);
 
-    cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * nts));
-    cds = Number(parseFloat(cds).toFixed(2));
-    classification = classify(cds, isPreliminaryClass);
+      cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * (nts || 0)));
+      cds = Number(parseFloat(cds).toFixed(2));
+      classification = classify(cds, confidenceTier === CONFIDENCE.PRELIM);
+    }
   }
 
   scoreRows.push([sid, exerciseId, exercise.section_id, ner, nrs, nts, cds, classification, hasFlagged, flagCount]);
@@ -299,6 +337,7 @@ async function calculateLiveCDS(studentId, exerciseId, db) {
 try {
   const exRes = await db.query('SELECT * FROM exercises WHERE id=$1', [exerciseId]);
   if (!exRes.rows.length) return null;
+  const exercise = exRes.rows[0];
 
   // Paper: exclude unverified submissions from live CDS
   const subsRes = await db.query(
@@ -366,7 +405,6 @@ try {
   const cleanMetrics = metricsEntries.filter(([sid]) => !liveExcludedStudents.has(Number(sid)));
   const failedValues = cleanMetrics.map(([, d]) => Number(d.failed));
   const totalValues = cleanMetrics.map(([, d]) => Number(d.total));
-  const timeValues = cleanMetrics.map(([, d]) => Number(d.maxTime));
 
   const studentData = metricsMap[studentId];
   if (!studentData) {
@@ -383,21 +421,32 @@ try {
     };
   }
 
+  // Confidence tier from VALID submitter count (verified + not integrity-excluded).
+  const confidenceTier = getConfidenceTier(cleanMetrics.length);
+
+  if (confidenceTier === CONFIDENCE.INSUFFICIENT) {
+    // Callers persist live CDS only when cds !== null, so returning nulls here
+    // prevents misleading rank-derived scores from reaching cds_scores.
+    return {
+      ner: null, nrs: null, nts: null, cds: null,
+      classification: 'Unscored',
+      hasFlaggedAttempt: studentData.hasFlaggedAttempt,
+      integrityFlagCount: studentData.integrityFlagCount
+    };
+  }
+
   const ner = getNormalizedValue(Number(studentData.failed), failedValues).normalized;
   const nrs = getNormalizedValue(Number(studentData.total), totalValues).normalized;
-  const nts = getNormalizedValue(Number(studentData.maxTime), timeValues).normalized;
+  const nts = computeNTS(Number(studentData.maxTime), exercise.time_limit_minutes);
 
-  const cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * nts));
-
-  const MIN_CLASS_SIZE = 3;
-  const isPreliminaryClass = cleanMetrics.length < MIN_CLASS_SIZE;
+  const cds = Math.min(1, (0.40 * ner) + (0.35 * nrs) + (0.25 * (nts || 0)));
 
   return {
     ner: Number(parseFloat(ner).toFixed(2)),
     nrs: Number(parseFloat(nrs).toFixed(2)),
-    nts: Number(parseFloat(nts).toFixed(2)),
+    nts,
     cds: Number(parseFloat(cds).toFixed(2)),
-    classification: classify(cds, isPreliminaryClass),
+    classification: classify(cds, confidenceTier === CONFIDENCE.PRELIM),
     hasFlaggedAttempt: studentData.hasFlaggedAttempt,
     integrityFlagCount: studentData.integrityFlagCount
   };
@@ -407,4 +456,4 @@ try {
 }
 }
 
-module.exports = { computeBatchCDS, getLivePeerRanking, calculateLiveCDS, classify, CDS_THRESHOLDS, computeClassStats, normalizeWithStats };
+module.exports = { computeBatchCDS, getLivePeerRanking, calculateLiveCDS, classify, CDS_THRESHOLDS, computeClassStats, normalizeWithStats, getConfidenceTier, CONFIDENCE, CONFIDENT_MIN, PRELIM_MIN, computeNTS };

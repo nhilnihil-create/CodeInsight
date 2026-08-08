@@ -114,7 +114,8 @@ describe('Full Pipeline Integration — Submission → CDS → Alert', function(
   });
 
   it('produces consistent CDS between live and batch computation', async () => {
-    const scenario = await seedFullScenario({ studentCount: 3, exercise: { timeLimit: 60 } });
+    // 10 valid submitters → CONFIDENT tier → every student gets a real CDS value
+    const scenario = await seedFullScenario({ studentCount: 10, exercise: { timeLimit: 60 } });
 
     // Submit the same pattern for each student
     for (const sid of scenario.studentIds) {
