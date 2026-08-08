@@ -56,7 +56,7 @@ export default function RosterTab({ sectionId, sectionName }) {
     queryFn: async () => {
       const { data } = await api.get(`/api/sections/${sectionId}/students-with-scores`);
       return data.map((s) => {
-        const cds = parseFloat(s.latest_cds) || 0;
+        const cds = parseFloat(s.avg_cds) || 0;
         return {
           id: s.id,
           name: s.name,

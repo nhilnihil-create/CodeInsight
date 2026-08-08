@@ -50,7 +50,7 @@ export default function InstructorStudents() {
       id: s.id,
       name: s.name,
       studentId: s.studentId || s.student_id || String(s.id),
-      latestCds: s.latest_cds != null ? parseFloat(s.latest_cds) : null,
+      avgCds: s.avg_cds != null ? parseFloat(s.avg_cds) : null,
       submittedCount: s.submitted_count ?? 0,
     }))
     .filter((u) => {
@@ -110,12 +110,12 @@ export default function InstructorStudents() {
             header: 'Avg CDS',
             mobile: 'label',
             renderCell: (s) => {
-              if (s.latestCds == null || Number.isNaN(s.latestCds)) return '—';
-              return <span className="font-mono tabular-nums">{Math.round(s.latestCds * 100)}%</span>;
+              if (s.avgCds == null || Number.isNaN(s.avgCds)) return '—';
+              return <span className="font-mono tabular-nums">{Math.round(s.avgCds * 100)}%</span>;
             },
             renderMobileCell: (s) => {
-              if (s.latestCds == null || Number.isNaN(s.latestCds)) return '—';
-              return <span className="font-mono font-medium">{Math.round(s.latestCds * 100)}%</span>;
+              if (s.avgCds == null || Number.isNaN(s.avgCds)) return '—';
+              return <span className="font-mono font-medium">{Math.round(s.avgCds * 100)}%</span>;
             },
           },
           {
@@ -123,7 +123,7 @@ export default function InstructorStudents() {
             header: 'Status',
             mobile: 'label',
             renderCell: (s) => {
-              const cdsPct = s.latestCds != null && !Number.isNaN(s.latestCds) ? Math.round(s.latestCds * 100) : null;
+              const cdsPct = s.avgCds != null && !Number.isNaN(s.avgCds) ? Math.round(s.avgCds * 100) : null;
               const unstarted = cdsPct === null || s.submittedCount === 0;
               if (unstarted) {
                 return <Badge className="bg-cds-na/10 text-cds-na border border-cds-na/20">Unstarted</Badge>;
@@ -133,7 +133,7 @@ export default function InstructorStudents() {
                 : <Badge className="bg-cds-low/10 text-cds-low border border-cds-low/15">OK</Badge>;
             },
             renderMobileCell: (s) => {
-              const cdsPct = s.latestCds != null && !Number.isNaN(s.latestCds) ? Math.round(s.latestCds * 100) : null;
+              const cdsPct = s.avgCds != null && !Number.isNaN(s.avgCds) ? Math.round(s.avgCds * 100) : null;
               const unstarted = cdsPct === null || s.submittedCount === 0;
               if (unstarted) return <span className="text-cds-na">Unstarted</span>;
               return cdsPct > 50
