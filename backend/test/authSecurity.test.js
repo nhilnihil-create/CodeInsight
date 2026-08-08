@@ -92,25 +92,25 @@ describe('Auth Security', () => {
       expect(otp).toMatch(/^\d{6}$/);
     });
 
-    it('should store and verify OTP', () => {
+    it('should store and verify OTP', async () => {
       const otp = generateOtp();
-      storeOtp('alice@test.com', otp);
-      const result = verifyOtp('alice@test.com', otp);
+      await storeOtp('alice@test.com', otp);
+      const result = await verifyOtp('alice@test.com', otp);
       expect(result.valid).toBe(true);
     });
 
-    it('should reject wrong OTP', () => {
-      storeOtp('bob@test.com', '111111');
-      const result = verifyOtp('bob@test.com', '000000');
+    it('should reject wrong OTP', async () => {
+      await storeOtp('bob@test.com', '111111');
+      const result = await verifyOtp('bob@test.com', '000000');
       expect(result.valid).toBe(false);
     });
 
-    it('should block after 5 failed attempts', () => {
-      storeOtp('spam@test.com', '123456');
+    it('should block after 5 failed attempts', async () => {
+      await storeOtp('spam@test.com', '123456');
       for (let i = 0; i < 5; i++) {
-        verifyOtp('spam@test.com', '000000');
+        await verifyOtp('spam@test.com', '000000');
       }
-      const result = verifyOtp('spam@test.com', '000000');
+      const result = await verifyOtp('spam@test.com', '000000');
       expect(result.valid).toBe(false);
       expect(result.reason).toMatch(/too many|request a new/i);
     });

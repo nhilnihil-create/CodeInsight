@@ -143,9 +143,9 @@ describe('CDS Integration — Live vs Batch Consistency (E2E)', function() {
   });
 
   it('live CDS and batch CDS produce same value for same submission data', async function() {
-    // Seed: 4 students (enough for normalization), 1 exercise
+    // Seed: 5 students (PRELIM tier — scores computed with Prelim-* labels)
     const { studentIds, exerciseId } = await seedFullScenario({
-      studentCount: 4,
+      studentCount: 5,
       exercise: { title: 'Consistency Test' }
     });
 
@@ -155,6 +155,7 @@ describe('CDS Integration — Live vs Batch Consistency (E2E)', function() {
       { failed: 1, total: 2, maxTime: 60 },    // Average student
       { failed: 2, total: 3, maxTime: 120 },   // Struggling student
       { failed: 3, total: 4, maxTime: 180 },   // Worst student
+      { failed: 0, total: 1, maxTime: 45 },    // Second perfect student
     ];
 
     for (let i = 0; i < studentIds.length; i++) {
@@ -470,9 +471,9 @@ describe('CDS Integration — Full Pipeline (Submission → Batch CDS → Alerts
     );
     expect(parseInt(snapshots[0].count)).toBe(5);
 
-    // Verify classifications are set
+    // Verify classifications are set (5 students → PRELIM tier → Prelim-* prefix)
     const classifications = rows.map(r => r.classification);
-    expect(classifications).toContain('Very Low'); // Best student should be Very Low (5-tier)
+    expect(classifications).toContain('Prelim-Very Low'); // Best student should be Prelim-Very Low
   });
 
   it('handles student with no submissions (Unscored)', async function() {

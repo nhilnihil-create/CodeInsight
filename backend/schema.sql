@@ -30,6 +30,16 @@ CREATE TABLE IF NOT EXISTS token_blacklist (
 CREATE INDEX IF NOT EXISTS idx_token_blacklist_jti ON token_blacklist(jti);
 CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at);
 
+-- ── OTP Codes (email verification) ───────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS otp_codes (
+  email      VARCHAR(255) PRIMARY KEY,
+  otp        VARCHAR(6) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  attempts   INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- ── Sections ────────────────────────────────────────────────────────────────
 -- V2 additions: code, term, semester, join_policy, max_size
 
@@ -258,6 +268,22 @@ CREATE INDEX IF NOT EXISTS idx_submissions_exercise ON submissions(exercise_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON submissions(submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_submissions_exercise_correct ON submissions(exercise_id, is_correct);
+
+-- ── Run Attempts (pre-submit code executions via /run) ──────────────────────
+-- Every logged-in student run is stored for misconception analysis.
+
+CREATE TABLE IF NOT EXISTS run_attempts (
+  id             SERIAL PRIMARY KEY,
+  student_id     INT REFERENCES users(id) ON DELETE CASCADE,
+  exercise_id    INT REFERENCES exercises(id) ON DELETE CASCADE,
+  code           TEXT NOT NULL,
+  compiler_log   TEXT,
+  error_count    INT DEFAULT 0,
+  time_limit_hit BOOLEAN DEFAULT false,
+  run_at         TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_attempts_student_exercise ON run_attempts(student_id, exercise_id);
 
 -- ── CDS Scores ──────────────────────────────────────────────────────────────
 

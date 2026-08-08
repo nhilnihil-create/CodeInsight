@@ -1,6 +1,6 @@
 const db        = require('../config/db');
 const cdsEngine = require('../services/cdsEngine');
-const { classify, CDS_THRESHOLDS } = cdsEngine;
+const { classify, CDS_THRESHOLDS, getConfidenceTier, CONFIDENCE } = cdsEngine;
 const classMisconceptionReport = require('../services/classMisconceptionReport');
 const longitudinalReportEngine = require('../services/longitudinalReportEngine');
 const conceptAnalytics = require('../services/conceptAnalytics');
@@ -191,9 +191,19 @@ exports.liveCDS = async (req, res, next) => {
       ORDER BY cs.cds DESC
     `, [exerciseId]);
     
-    const MIN_CLASS_SIZE = 3;
     const submitterRes = await db.query(
       `SELECT COUNT(DISTINCT student_id) AS count FROM submissions WHERE exercise_id = $1`,
+      [exerciseId]
+    );
+    // VALID submitters (verified + not integrity-flagged) drive the confidence
+    // tier — mirrors cdsEngine's own class pool, so this stays consistent.
+    const validSubmitterRes = await db.query(
+      `SELECT COUNT(DISTINCT s.student_id) AS count
+       FROM submissions s
+       LEFT JOIN integrity_flags i
+         ON i.student_id = s.student_id AND i.exercise_id = s.exercise_id
+         AND i.flag_type IN ('HARDCODING','BLANK_TEMPLATE') AND i.status = 'flagged'
+       WHERE s.exercise_id = $1 AND s.is_verified = true AND i.id IS NULL`,
       [exerciseId]
     );
     const enrolledRes = await db.query(
@@ -206,24 +216,25 @@ exports.liveCDS = async (req, res, next) => {
     );
 
     const submitterCount = parseInt(submitterRes.rows[0].count, 10) || 0;
+    const validSubmitterCount = parseInt(validSubmitterRes.rows[0].count, 10) || 0;
     const enrolledCount = parseInt(enrolledRes.rows[0].count, 10) || 0;
     const submissionCount = parseInt(submissionCountRes.rows[0].count, 10) || 0;
 
-    // Preliminary when too few distinct submitters or incomplete class participation
-    const isPreliminary =
-      submitterCount < MIN_CLASS_SIZE ||
-      enrolledCount < MIN_CLASS_SIZE ||
-      (enrolledCount > 0 && submitterCount < enrolledCount);
+    const confidenceTier = getConfidenceTier(validSubmitterCount);
+    const isPreliminary = confidenceTier !== CONFIDENCE.CONFIDENT;
 
     let reliability = 'Accurate';
-    if (isPreliminary) {
+    if (confidenceTier === CONFIDENCE.INSUFFICIENT) {
+      reliability = 'Insufficient data';
+    } else if (confidenceTier === CONFIDENCE.PRELIM) {
       reliability =
-        submitterCount < MIN_CLASS_SIZE
-          ? 'Preliminary'
-          : 'Preliminary (incomplete participation)';
+        submitterCount < enrolledCount
+          ? 'Preliminary (incomplete participation)'
+          : 'Preliminary';
     }
 
-    // Only rank students who have submitted on this exercise
+    // Only rank students who have submitted on this exercise.
+    // Preserve null CDS (INSUFFICIENT classes) instead of coercing to 0.
     const rankings = scores.rows
       .filter(s => parseInt(s.total_attempts, 10) > 0)
       .map(s => ({
@@ -231,32 +242,35 @@ exports.liveCDS = async (req, res, next) => {
         name: s.name,
         totalAttempts: parseInt(s.total_attempts, 10) || 0,
         failedAttempts: parseInt(s.failed_attempts, 10) || 0,
-        ner: parseFloat(s.ner || 0),
-        nrs: parseFloat(s.nrs || 0),
-        nts: parseFloat(s.nts || 0),
-        cds: parseFloat(s.cds || 0),
+        ner: s.ner == null ? null : parseFloat(s.ner),
+        nrs: s.nrs == null ? null : parseFloat(s.nrs),
+        nts: s.nts == null ? null : parseFloat(s.nts),
+        cds: s.cds == null ? null : parseFloat(s.cds),
         classification: s.classification
       }));
 
-    const rankedCds = rankings.map(r => r.cds);
+    const scoredRanks = rankings.filter(r => r.cds != null);
+    const rankedCds = scoredRanks.map(r => r.cds);
     const classAvgFromSubmitters =
-      rankedCds.length > 0 ? rankedCds.reduce((a, b) => a + b, 0) / rankedCds.length : 0;
-    const classMinFromSubmitters = rankedCds.length > 0 ? Math.min(...rankedCds) : 0;
-    const classMaxFromSubmitters = rankedCds.length > 0 ? Math.max(...rankedCds) : 0;
-    const classAvgClassification = countLabel(classAvgFromSubmitters);
+      rankedCds.length > 0 ? rankedCds.reduce((a, b) => a + b, 0) / rankedCds.length : null;
+    const classMinFromSubmitters = rankedCds.length > 0 ? Math.min(...rankedCds) : null;
+    const classMaxFromSubmitters = rankedCds.length > 0 ? Math.max(...rankedCds) : null;
+    const classAvgClassification = scoredRanks.length > 0 ? countLabel(classAvgFromSubmitters) : 'Unscored';
 
     res.json({
       exercise: { id: exercise.id, title: exercise.title, timeLimitMinutes: exercise.time_limit_minutes },
       studentCount: submitterCount,
       enrolledCount,
       submitterCount,
+      validSubmitterCount,
       submissionCount,
+      confidenceTier,
       preliminary: isPreliminary,
       reliability,
       classAverage: {
-        ner: rankings.length > 0 ? (rankings.reduce((a, s) => a + s.ner, 0) / rankings.length) : 0,
-        nrs: rankings.length > 0 ? (rankings.reduce((a, s) => a + s.nrs, 0) / rankings.length) : 0,
-        nts: rankings.length > 0 ? (rankings.reduce((a, s) => a + s.nts, 0) / rankings.length) : 0,
+        ner: scoredRanks.length > 0 ? (scoredRanks.reduce((a, s) => a + s.ner, 0) / scoredRanks.length) : null,
+        nrs: scoredRanks.length > 0 ? (scoredRanks.reduce((a, s) => a + s.nrs, 0) / scoredRanks.length) : null,
+        nts: scoredRanks.length > 0 ? (scoredRanks.reduce((a, s) => a + s.nts, 0) / scoredRanks.length) : null,
         cds: classAvgFromSubmitters,
         classification: classAvgClassification,
         min: classMinFromSubmitters,

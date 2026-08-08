@@ -7,7 +7,7 @@
  * minimum class size, and CDS rounding consistency.
  */
 
-const { classify, CDS_THRESHOLDS } = require('../services/cdsEngine');
+const { classify, CDS_THRESHOLDS, getConfidenceTier, CONFIDENCE, computeNTS } = require('../services/cdsEngine');
 
 // ── Instant CDS helper (NER-only, for single-run test evaluation) ─────────
 function calculateCDS(testResults) {
@@ -420,27 +420,50 @@ describe('CDS Engine — Blank Submission Detection', function() {
   });
 });
 
-// ── Minimum Class Size ──────────────────────────────────────────────────────
+// ── Confidence Tiers (Phase 1 small-sample gating) ─────────────────────────
 
-describe('CDS Engine — Minimum Class Size (<3 → Preliminary)', function() {
-  const MIN_CLASS_SIZE = 3;
-
-  it('marks as preliminary when enrolled < 3', function() {
-    expect(2 < MIN_CLASS_SIZE).toBe(true);
-    expect(1 < MIN_CLASS_SIZE).toBe(true);
-    expect(0 < MIN_CLASS_SIZE).toBe(true);
+describe('CDS Engine — Confidence Tiers (INSUFFICIENT <5 / PRELIM 5-9 / CONFIDENT 10+)', function() {
+  it('marks as INSUFFICIENT below 5 valid submitters', function() {
+    expect(getConfidenceTier(0)).toBe(CONFIDENCE.INSUFFICIENT);
+    expect(getConfidenceTier(1)).toBe(CONFIDENCE.INSUFFICIENT);
+    expect(getConfidenceTier(4)).toBe(CONFIDENCE.INSUFFICIENT);
   });
 
-  it('not preliminary when enrolled >= 3', function() {
-    expect(3 < MIN_CLASS_SIZE).toBe(false);
-    expect(5 < MIN_CLASS_SIZE).toBe(false);
-    expect(100 < MIN_CLASS_SIZE).toBe(false);
+  it('marks as PRELIM from 5 to 9 valid submitters', function() {
+    expect(getConfidenceTier(5)).toBe(CONFIDENCE.PRELIM);
+    expect(getConfidenceTier(9)).toBe(CONFIDENCE.PRELIM);
   });
 
-  it('classify adds Preliminary prefix for small classes', function() {
+  it('marks as CONFIDENT at 10+ valid submitters', function() {
+    expect(getConfidenceTier(10)).toBe(CONFIDENCE.CONFIDENT);
+    expect(getConfidenceTier(100)).toBe(CONFIDENCE.CONFIDENT);
+  });
+
+  it('classify adds Preliminary prefix for PRELIM tier', function() {
     expect(classify(0.2, true)).toBe('Prelim-Very Low');
     expect(classify(0.4, true)).toBe('Prelim-Low');
     expect(classify(0.8, true)).toBe('Prelim-Elevated');
+  });
+});
+
+// ── NTS (CDS v4 absolute time ratio) ────────────────────────────────────────
+
+describe('CDS Engine — NTS (absolute time ratio, not class-relative)', function() {
+  it('computes time_spent / (time_limit_minutes * 60)', function() {
+    expect(computeNTS(2700, 45)).toBe(1.0); // full 45-min limit
+    expect(computeNTS(900, 45)).toBe(0.33); // 15 min of 45
+    expect(computeNTS(30, 45)).toBe(0.01);  // 30s of 45 min
+  });
+
+  it('caps at 1.0 for overtime and never below 0', function() {
+    expect(computeNTS(7200, 45)).toBe(1.0); // 2h > limit → capped
+    expect(computeNTS(0, 45)).toBe(0);
+  });
+
+  it('returns null when time limit is unset or zero', function() {
+    expect(computeNTS(100, null)).toBeNull();
+    expect(computeNTS(100, 0)).toBeNull();
+    expect(computeNTS(100, undefined)).toBeNull();
   });
 });
 

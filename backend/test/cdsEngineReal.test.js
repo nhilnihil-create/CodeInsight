@@ -32,7 +32,7 @@ function getNormalizedValue(value, allValues) {
 
 // Import the real classify and thresholds from cdsEngine
 // NOTE: These MUST match the authoritative source — no local copies!
-const { classify, CDS_THRESHOLDS } = require('../services/cdsEngine');
+const { classify, CDS_THRESHOLDS, getConfidenceTier, CONFIDENCE } = require('../services/cdsEngine');
 
 // ── Classification Tests ─────────────────────────────────────────────────────
 
@@ -454,37 +454,30 @@ describe('CDS Engine — Classification Boundary Audit', function() {
   });
 });
 
-// ── Cohort Size Logic ─────────────────────────────────────────────────────────
+// ── Confidence Tiers (Phase 1 small-sample gating) ──────────────────────────
 
-describe('CDS Engine — Minimum Class Size', function() {
-  const MIN_CLASS_SIZE = 3;
-
-  it('marks as preliminary when enrolled < 3', function() {
-    const enrolled = 2;
-    const isPreliminary = enrolled < MIN_CLASS_SIZE;
-    assert.strictEqual(isPreliminary, true);
+describe('CDS Engine — Confidence Tiers', function() {
+  it('marks as INSUFFICIENT below 5 valid submitters', function() {
+    assert.strictEqual(getConfidenceTier(0), CONFIDENCE.INSUFFICIENT);
+    assert.strictEqual(getConfidenceTier(1), CONFIDENCE.INSUFFICIENT);
+    assert.strictEqual(getConfidenceTier(4), CONFIDENCE.INSUFFICIENT);
   });
 
-  it('marks as preliminary when submitters < 3', function() {
-    const submitters = 1;
-    const isPreliminary = submitters < MIN_CLASS_SIZE;
-    assert.strictEqual(isPreliminary, true);
+  it('marks as PRELIM from 5 to 9 valid submitters', function() {
+    assert.strictEqual(getConfidenceTier(5), CONFIDENCE.PRELIM);
+    assert.strictEqual(getConfidenceTier(9), CONFIDENCE.PRELIM);
   });
 
-  it('not preliminary when >= 3 students', function() {
-    const enrolled = 5;
-    const submitters = 4;
-    const isPreliminary = enrolled < MIN_CLASS_SIZE || submitters < MIN_CLASS_SIZE;
-    assert.strictEqual(isPreliminary, false);
+  it('marks as CONFIDENT at 10+ valid submitters', function() {
+    assert.strictEqual(getConfidenceTier(10), CONFIDENCE.CONFIDENT);
+    assert.strictEqual(getConfidenceTier(100), CONFIDENCE.CONFIDENT);
   });
 
-  it('preliminary when enrolled >= 3 but not all submitted', function() {
-    // Per analyticsController.liveCDS line 184:
-    // isPreliminary = submitterCount < MIN_CLASS_SIZE || enrolledCount < MIN_CLASS_SIZE || (enrolledCount > 0 && submitterCount < enrolledCount)
-    const enrolledCount = 5;
-    const submitterCount = 3;
-    const isPreliminary = submitterCount < MIN_CLASS_SIZE || enrolledCount < MIN_CLASS_SIZE || (enrolledCount > 0 && submitterCount < enrolledCount);
-    assert.strictEqual(isPreliminary, true);
+  it('PRELIM is distinct from CONFIDENT and always has a Preliminary prefix', function() {
+    assert.notStrictEqual(CONFIDENCE.PRELIM, CONFIDENCE.CONFIDENT);
+    assert.notStrictEqual(CONFIDENCE.PRELIM, CONFIDENCE.INSUFFICIENT);
+    // classify(score, true) is used for PRELIM tier
+    assert.strictEqual(classify(0.2, true), 'Prelim-Very Low');
   });
 });
 
