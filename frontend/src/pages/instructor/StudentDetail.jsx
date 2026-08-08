@@ -26,6 +26,7 @@ import PageBreadcrumb from "@/components/ui/page-breadcrumb";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import RiskBadge from "@/components/ui/risk-badge";
+import { tierForMastery, NEW_TIER_META } from "@/components/ui/mastery-bar";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import DecisionList from "@/components/ui/decision-list";
 import { flagTypeLabel } from "@/lib/flagTypes";
@@ -141,23 +142,34 @@ export default function InstructorStudentDetail() {
     });
     return Object.entries(map).map(([name, vals]) => {
       const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-      const pct = Math.round(avg * 100);
-      const level = avg <= 0.20 ? "low" : avg <= 0.40 ? "moderate" : "high";
-      return { concept: name, value: pct, level };
+      const mastery = Math.round((1 - avg) * 100);
+      return { concept: name, mastery };
     });
   }, [cdsScores]);
 
   const struggling = useMemo(() =>
     [...conceptMastery]
-      .sort((a, b) => a.value - b.value)
+      .filter((c) => {
+        const tier = tierForMastery(c.mastery);
+        return tier === "significant" || tier === "critical";
+      })
+      .sort((a, b) => a.mastery - b.mastery)
       .slice(0, 3)
-      .map((c, i) => ({
-        id: String(i),
-        title: c.concept,
-        subtitle: `Mastery ${c.value}%`,
-        meta: c.level === "low" ? "needs work" : "fair",
-        level: c.level,
-      })),
+      .map((c, i) => {
+        const tier = tierForMastery(c.mastery);
+        const meta = NEW_TIER_META[tier];
+        return {
+          id: String(i),
+          title: c.concept,
+          subtitle: `Mastery ${c.mastery}%`,
+          badge: (
+            <Badge className={`bg-white/[0.03] border-white/[0.08] ${meta.text}`}>
+              {meta.label}
+            </Badge>
+          ),
+          level: tier,
+        };
+      }),
   [conceptMastery]);
 
   const flagCount = integrityFlags.length;
@@ -366,7 +378,7 @@ export default function InstructorStudentDetail() {
               {struggling.length > 0 ? (
                 <DecisionList items={struggling} />
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No concept data yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">No concepts in the struggling threshold.</p>
               )}
             </div>
           </div>
