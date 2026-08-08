@@ -30,6 +30,7 @@ import { tierForMastery, NEW_TIER_META } from "@/components/ui/mastery-bar";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import DecisionList from "@/components/ui/decision-list";
 import { flagTypeLabel } from "@/lib/flagTypes";
+import { formatDateAgo, formatDuration } from "@/lib/format";
 import api from "@/services/api";
 
 function initials(name) {
@@ -41,18 +42,6 @@ function initials(name) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-function timeAgo(dateStr) {
-  if (!dateStr) return "—";
-  const ms = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(ms / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
 }
 
 function evidenceToString(evidence) {
@@ -178,7 +167,7 @@ export default function InstructorStudentDetail() {
       id: f.id,
       title: `${flagTypeLabel(f.flag_type)} · ${f.exercise_title || ""}`,
       subtitle: f.evidence?.summary || f.flag_type,
-      meta: timeAgo(f.created_at),
+      meta: formatDateAgo(f.created_at),
       level: f.severity,
       badge: <RiskBadge level={f.severity} />,
     })),
@@ -329,7 +318,7 @@ export default function InstructorStudentDetail() {
           { label: "CDS", value: `${Math.round(avgCds * 100)}%`, delta: cdsSeries.length >= 2 ? parseFloat((cdsSeries[cdsSeries.length - 1] - cdsSeries[0]).toFixed(2)) : 0, series: cdsSeries, comparison: "over time", inverted: true },
           { label: "Submissions", value: submissions.length, delta: null, comparison: "total" },
           { label: "Flags", value: flagCount, delta: null, comparison: "total" },
-          { label: "Last Active", value: submissions.length > 0 ? timeAgo(submissions[0].submitted_at) : "—", delta: null, comparison: "" },
+          { label: "Last Active", value: submissions.length > 0 ? formatDateAgo(submissions[0].submitted_at) : "—", delta: null, comparison: "" },
         ]}
       />
 
@@ -395,7 +384,7 @@ export default function InstructorStudentDetail() {
                 renderCell: (s) => <span className="text-muted-foreground">#{s.attempt_number}</span>,
               },
               { key: 'when', header: 'When', mobile: 'label',
-                renderCell: (s) => <span className="text-muted-foreground">{timeAgo(s.submitted_at)}</span>,
+                renderCell: (s) => <span className="text-muted-foreground">{formatDateAgo(s.submitted_at)}</span>,
               },
               { key: 'passed', header: 'Passed', mobile: 'label',
                 renderCell: (s) => (
@@ -407,7 +396,7 @@ export default function InstructorStudentDetail() {
               { key: 'time', header: 'Time', mobile: 'hidden',
                 renderCell: (s) => (
                   <span className="font-mono tabular-nums text-xs text-muted-foreground block text-right">
-                    {s.time_spent_seconds != null ? `${Math.round(s.time_spent_seconds)}s` : '—'}
+                    {formatDuration(s.time_spent_seconds)}
                   </span>
                 ),
               },
@@ -461,7 +450,7 @@ export default function InstructorStudentDetail() {
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
                   Flagged
                 </p>
-                <p className="text-sm font-mono tabular-nums">{timeAgo(drawerFlag.created_at)}</p>
+                <p className="text-sm font-mono tabular-nums">{formatDateAgo(drawerFlag.created_at)}</p>
               </div>
             </div>
 
