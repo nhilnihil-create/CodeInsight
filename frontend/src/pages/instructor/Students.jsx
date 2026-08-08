@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { tierForCds, TIER_META } from '@/components/ui/mastery-bar';
 import { Search } from 'lucide-react';
 import SectionFilter from '@/components/SectionFilter';
 import useLastSection from '@/hooks/useLastSection';
@@ -123,22 +124,18 @@ export default function InstructorStudents() {
             header: 'Status',
             mobile: 'label',
             renderCell: (s) => {
-              const cdsPct = s.avgCds != null && !Number.isNaN(s.avgCds) ? Math.round(s.avgCds * 100) : null;
-              const unstarted = cdsPct === null || s.submittedCount === 0;
+              const unstarted = s.avgCds == null || Number.isNaN(s.avgCds) || s.submittedCount === 0;
               if (unstarted) {
                 return <Badge className="bg-cds-na/10 text-cds-na border border-cds-na/20">Unstarted</Badge>;
               }
-              return cdsPct > 50
-                ? <Badge className="bg-cds-high/10 text-cds-high border border-cds-high/15">At risk</Badge>
-                : <Badge className="bg-cds-low/10 text-cds-low border border-cds-low/15">OK</Badge>;
+              const meta = TIER_META[tierForCds(s.avgCds)];
+              return <Badge className={`bg-white/[0.03] border-white/[0.08] ${meta.text}`}>{meta.label}</Badge>;
             },
             renderMobileCell: (s) => {
-              const cdsPct = s.avgCds != null && !Number.isNaN(s.avgCds) ? Math.round(s.avgCds * 100) : null;
-              const unstarted = cdsPct === null || s.submittedCount === 0;
+              const unstarted = s.avgCds == null || Number.isNaN(s.avgCds) || s.submittedCount === 0;
               if (unstarted) return <span className="text-cds-na">Unstarted</span>;
-              return cdsPct > 50
-                ? <span className="text-cds-high">At risk</span>
-                : <span className="text-cds-low">OK</span>;
+              const meta = TIER_META[tierForCds(s.avgCds)];
+              return <span className={meta.text}>{meta.label}</span>;
             },
           },
         ]}
