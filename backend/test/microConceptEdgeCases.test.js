@@ -246,12 +246,14 @@ describe('Micro-Concept Edge Case Fuzzing Suite', function() {
         testResults: [],
         timeLimitHit: false,
         // AST fixture: no node types observed — the goto/if rewrite of a loop
-        // is not recognized as an iteration construct by the engine.
+        // is not recognized as an iteration construct by the engine. Task 4
+        // closes this gap via loop_goto_loop (backward-jump detector).
         ast: { node_types: [] }
       };
       const result = await microConceptEngine.getMicroConceptFeedback(context, 'Loops');
       assert.strictEqual(typeof result.hasFeedback, 'boolean');
-      assert.strictEqual(result.hasFeedback, false);
+      assert.strictEqual(result.hasFeedback, true);
+      assert.ok(result.issues.some(i => i.id === 'loop_goto_loop'));
     });
   });
 

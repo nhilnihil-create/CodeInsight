@@ -93,6 +93,10 @@ function computeNTS(timeSpentSeconds, timeLimitMinutes) {
   return Number(Math.max(0, Math.min(ratio, 1)).toFixed(2));
 }
 
+// Only code-invalidating flags block the post-solution cutoff. PASSIVE_BEHAVIOR_LOG
+// is counted but never blocks (consistent with its non-exclusion from class stats).
+const BLOCKING_FLAG_TYPES = new Set(['HARDCODING', 'BLANK_TEMPLATE']);
+
 // ── Batch CDS Computation ───────────────────────────────────────────────────
 
 async function computeBatchCDS(exerciseId, db) {
@@ -110,11 +114,10 @@ const students = await db.query(
 // GAP #8: Fetch students with integrity flags that exclude from normalization
 // HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics.
 // Only code-invalidating flags (HARDCODING/BLANK_TEMPLATE) are excluded from
-// class stats; PASSIVE_BEHAVIOR_LOG is counted but not excluded. A flagged-correct
-// attempt is never treated as acceptance (conservative: flagged solutions are
-// under review).
-// NOTE (Task 4 candidate): a PASSIVE_BEHAVIOR_LOG flag on an otherwise-correct
-// attempt still blocks the firstAccepted cutoff — documented asymmetry, unchanged.
+// class stats; PASSIVE_BEHAVIOR_LOG is counted but not excluded. The post-solution
+// cutoff blocks only code-invalidating flags (BLOCKING_FLAG_TYPES); a
+// PASSIVE_BEHAVIOR_LOG flag on an otherwise-correct attempt is treated as
+// acceptance. NOTE: the documented asymmetry is now FIXED (Task 4).
 const excludedRes = await db.query(
   `SELECT DISTINCT student_id FROM integrity_flags
    WHERE exercise_id=$1
@@ -134,7 +137,14 @@ const excludedStudents = new Set(excludedRes.rows.map(r => r.student_id));
                 WHERE i.student_id = s.student_id
                 AND i.exercise_id = s.exercise_id
                 AND i.status = 'flagged'
-                LIMIT 1) AS flag_id
+                ORDER BY (i.flag_type IN ('HARDCODING','BLANK_TEMPLATE')) DESC, i.id ASC
+                LIMIT 1) AS flag_id,
+              (SELECT i.flag_type FROM integrity_flags i
+                WHERE i.student_id = s.student_id
+                AND i.exercise_id = s.exercise_id
+                AND i.status = 'flagged'
+                ORDER BY (i.flag_type IN ('HARDCODING','BLANK_TEMPLATE')) DESC, i.id ASC
+                LIMIT 1) AS flag_type
         FROM submissions s
         JOIN exercises e ON e.id = s.exercise_id
         WHERE s.exercise_id=$1
@@ -153,16 +163,20 @@ for (const r of subsRes.rows) {
     is_correct: r.is_correct,
     time_spent_seconds: r.time_spent_seconds,
     code: r.code,
-    flag_id: r.flag_id
+    flag_id: r.flag_id,
+    flag_type: r.flag_type
   });
 }
 
 const subMap = {};
 for (const [sid, info] of Object.entries(perStudent)) {
   const attempts = info.attempts;
-  // A flagged-correct attempt is never treated as acceptance (conservative:
-  // flagged solutions are under review).
-  const firstAccepted = attempts.find(a => a.is_correct === true && a.flag_id === null);
+  // A flagged-correct attempt blocks the cutoff only when the flag is
+  // code-invalidating (BLOCKING_FLAG_TYPES); other flags are non-blocking.
+  const firstAccepted = attempts.find(a =>
+    a.is_correct === true &&
+    !(a.flag_id !== null && BLOCKING_FLAG_TYPES.has(a.flag_type))
+  );
   const cutoff = firstAccepted ? firstAccepted.attempt_number : null;
   const counted = cutoff ? attempts.filter(a => a.attempt_number <= cutoff) : attempts;
 
@@ -365,7 +379,14 @@ try {
               WHERE i.student_id = s.student_id
               AND i.exercise_id = s.exercise_id
               AND i.status = 'flagged'
-              LIMIT 1) AS flag_id
+              ORDER BY (i.flag_type IN ('HARDCODING','BLANK_TEMPLATE')) DESC, i.id ASC
+              LIMIT 1) AS flag_id,
+            (SELECT i.flag_type FROM integrity_flags i
+              WHERE i.student_id = s.student_id
+              AND i.exercise_id = s.exercise_id
+              AND i.status = 'flagged'
+              ORDER BY (i.flag_type IN ('HARDCODING','BLANK_TEMPLATE')) DESC, i.id ASC
+              LIMIT 1) AS flag_type
       FROM submissions s
       JOIN exercises e ON e.id = s.exercise_id
       WHERE s.exercise_id=$1
@@ -382,16 +403,20 @@ try {
     perStudent[sid].attempts.push({
       is_correct: r.is_correct,
       time_spent_seconds: r.time_spent_seconds,
-      flag_id: r.flag_id
+      flag_id: r.flag_id,
+      flag_type: r.flag_type
     });
   }
 
   const metricsMap = {};
   for (const [sid, info] of Object.entries(perStudent)) {
     const attempts = info.attempts;
-    // A flagged-correct attempt is never treated as acceptance (conservative:
-    // flagged solutions are under review).
-    const firstAcceptedIdx = attempts.findIndex(a => a.is_correct === true && a.flag_id === null);
+    // A flagged-correct attempt blocks the cutoff only when the flag is
+    // code-invalidating (BLOCKING_FLAG_TYPES); other flags are non-blocking.
+    const firstAcceptedIdx = attempts.findIndex(a =>
+      a.is_correct === true &&
+      !(a.flag_id !== null && BLOCKING_FLAG_TYPES.has(a.flag_type))
+    );
     const counted = firstAcceptedIdx !== -1
       ? attempts.slice(0, firstAcceptedIdx + 1)
       : attempts;
@@ -412,9 +437,10 @@ try {
 
   // ── GAP #8: Exclude integrity-flagged students (HARDCODING/BLANK_TEMPLATE) ─
   // Only code-invalidating flags (HARDCODING/BLANK_TEMPLATE) are excluded from
-  // class stats; PASSIVE_BEHAVIOR_LOG is counted but not excluded. A flagged-correct
-  // attempt is never treated as acceptance (conservative: flagged solutions are
-  // under review).
+  // class stats; PASSIVE_BEHAVIOR_LOG is counted but not excluded. The post-solution
+  // cutoff blocks only code-invalidating flags (BLOCKING_FLAG_TYPES); a
+  // PASSIVE_BEHAVIOR_LOG flag on an otherwise-correct attempt is treated as
+  // acceptance. NOTE: the documented asymmetry is now FIXED (Task 4).
   const liveExcludedRes = await db.query(
     `SELECT DISTINCT student_id FROM integrity_flags
      WHERE exercise_id=$1

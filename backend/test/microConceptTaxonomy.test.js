@@ -157,6 +157,137 @@ describe('Micro-Concept Taxonomy Test Suite', function() {
       assert.strictEqual(evidence, 'Pattern detected');
     });
   });
+
+  describe('F1 regression — cond_assignment_vs_comparison regex', function() {
+    // Detector path only: empty compilerLog so the fixed regex is what fires.
+    const detect = (code) => {
+      const submission = {
+        code,
+        ast_data: { node_types: ['if_statement'], if_count: 1, else_count: 0 }
+      };
+      const exercise = { concept_name: 'Conditionals', required_ast_nodes: [] };
+      return analyzeSubmission(submission, exercise, [], '');
+    };
+
+    const hasAssignRule = (result) =>
+      result.some(r => r.microConceptId === 'cond_assignment_vs_comparison');
+
+    it('does NOT fire on if (a == b)', function() {
+      // cond_missing_else may co-fire (if_count 1, else_count 0) — ignore it.
+      assert.strictEqual(hasAssignRule(detect('if (a == b) { cout << a; }')), false);
+    });
+
+    it('does NOT fire on if (a != b)', function() {
+      assert.strictEqual(hasAssignRule(detect('if (a != b) {...}')), false);
+    });
+
+    it('does NOT fire on if (a <= b)', function() {
+      assert.strictEqual(hasAssignRule(detect('if (a <= b) {...}')), false);
+    });
+
+    it('does NOT fire on if (a >= b)', function() {
+      assert.strictEqual(hasAssignRule(detect('if (a >= b) {...}')), false);
+    });
+
+    it('fires on if (a = b)', function() {
+      assert.strictEqual(hasAssignRule(detect('if (a = b) {...}')), true);
+    });
+
+    it('fires on if (a = b == c)', function() {
+      assert.strictEqual(hasAssignRule(detect('if (a = b == c) {...}')), true);
+    });
+  });
+
+  describe('var_comma_operator rule', function() {
+    const detect = (code) => {
+      const submission = { code, ast_data: { node_types: [] } };
+      const exercise = { concept_name: 'Variables', required_ast_nodes: [] };
+      return analyzeSubmission(submission, exercise, [], '');
+    };
+
+    const hasCommaRule = (result) =>
+      result.some(r => r.microConceptId === 'var_comma_operator');
+
+    it('detects comma operator chaining statements', function() {
+      const result = detect('int x; x = 5, y = 10; cout << x;');
+      assert.strictEqual(hasCommaRule(result), true);
+    });
+
+    it('does NOT fire on for-headers', function() {
+      const result = detect('for (int i = 0, j = 0; i < n; i++) { }');
+      assert.strictEqual(hasCommaRule(result), false);
+    });
+
+    it('does NOT fire on function arguments', function() {
+      const result = detect('f(a, b);');
+      assert.strictEqual(hasCommaRule(result), false);
+    });
+
+    it('does NOT fire on declarations', function() {
+      const result = detect('int a = 1, b = 2;');
+      assert.strictEqual(hasCommaRule(result), false);
+    });
+  });
+
+  describe('loop_goto_loop rule', function() {
+    const detect = (code) => {
+      const submission = { code, ast_data: { node_types: [] } };
+      const exercise = { concept_name: 'Loops', required_ast_nodes: [] };
+      return analyzeSubmission(submission, exercise, [], '');
+    };
+
+    const hasGotoRule = (result) =>
+      result.some(r => r.microConceptId === 'loop_goto_loop');
+
+    it('detects backward goto (loop emulation)', function() {
+      const result = detect('int main() { int a = 0; loop_start: if (a >= 10) goto loop_end; a = a + 1; goto loop_start; loop_end: return 0; }');
+      assert.strictEqual(hasGotoRule(result), true);
+    });
+
+    it('does NOT fire on forward goto', function() {
+      const result = detect('int main() { goto cleanup; cleanup: return 0; }');
+      assert.strictEqual(hasGotoRule(result), false);
+    });
+  });
+
+  describe('sw_duffs_device rule', function() {
+    const detect = (code) => {
+      const submission = {
+        code,
+        ast_data: { node_types: ['switch_statement', 'do_statement'] }
+      };
+      const exercise = { concept_name: 'Switch/Case', required_ast_nodes: [] };
+      return analyzeSubmission(submission, exercise, [], '');
+    };
+
+    const hasDuffRule = (result) =>
+      result.some(r => r.microConceptId === 'sw_duffs_device');
+
+    it("detects Duff's device (canonical snippet)", function() {
+      // Canonical Duff's device from fuzzing test 9 in microConceptEdgeCases.test.js.
+      const code = [
+        'int n = (count + 7) / 8;',
+        'switch (count % 8) {',
+        '  case 0: do { *to = *from++;',
+        '  case 7: *to = *from++;',
+        '  case 6: *to = *from++;',
+        '  case 5: *to = *from++;',
+        '  case 4: *to = *from++;',
+        '  case 3: *to = *from++;',
+        '  case 2: *to = *from++;',
+        '  case 1: *to = *from++;',
+        '  } while (--n > 0);',
+        '}'
+      ].join('\n');
+      const result = detect(code);
+      assert.strictEqual(hasDuffRule(result), true);
+    });
+
+    it('does NOT fire on a plain switch with a do-while inside a case', function() {
+      const result = detect('switch (x) { case 1: break; case 2: do { work(); } while (y); break; }');
+      assert.strictEqual(hasDuffRule(result), false);
+    });
+  });
 });
 
 console.log('Micro-Concept Taxonomy test suite created');

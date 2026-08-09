@@ -325,9 +325,9 @@ describe('CDS State Transition — Post-Solution Cutoff + Flagged Attempt', () =
     const exerciseId = 10;
     const students = [makeStudent(1, 'FlaggedPass'), makeStudent(2, 'Other')];
     const subs = [
-      // Student 1: attempt 2 is correct but FLAGGED; attempt 4 is correct and clean
+      // Student 1: attempt 2 is correct but FLAGGED (HARDCODING); attempt 4 is correct and clean
       { student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 10, code: 'x', is_verified: true, flag_id: null },
-      { student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 20, code: 'x', is_verified: true, flag_id: 99 },
+      { student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 20, code: 'x', is_verified: true, flag_id: 99, flag_type: 'HARDCODING' },
       { student_id: 1, attempt_number: 3, is_correct: false, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: null },
       { student_id: 1, attempt_number: 4, is_correct: true,  time_spent_seconds: 40, code: 'x', is_verified: true, flag_id: null },
       // Student 2: single clean correct attempt
@@ -484,7 +484,7 @@ describe('CDS State Transition — PASSIVE_BEHAVIOR_LOG Non-Exclusion', () => {
     const subs = [];
     // Student 1: correct attempt carrying a PASSIVE_BEHAVIOR_LOG flag (flag_id 42).
     // Behavioral flags are NOT in the HARDCODING/BLANK_TEMPLATE exclusion set.
-    subs.push({ student_id: 1, attempt_number: 1, is_correct: true, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42 });
+    subs.push({ student_id: 1, attempt_number: 1, is_correct: true, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42, flag_type: 'PASSIVE_BEHAVIOR_LOG' });
     students.push(makeStudent(1, 'Behavioral'));
     // Students 2-10 clean → 10 valid submitters → CONFIDENT tier
     for (let i = 2; i <= 10; i++) {
@@ -508,8 +508,8 @@ describe('CDS State Transition — PASSIVE_BEHAVIOR_LOG Non-Exclusion', () => {
     const students = [];
     const subs = [];
     // Student 1: never correct; both attempts carry a PASSIVE_BEHAVIOR_LOG flag.
-    subs.push({ student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: 42 });
-    subs.push({ student_id: 1, attempt_number: 2, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42 });
+    subs.push({ student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: 42, flag_type: 'PASSIVE_BEHAVIOR_LOG' });
+    subs.push({ student_id: 1, attempt_number: 2, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42, flag_type: 'PASSIVE_BEHAVIOR_LOG' });
     students.push(makeStudent(1, 'NeverSolves'));
     for (let i = 2; i <= 10; i++) {
       students.push(makeStudent(i, `Clean${i}`));
@@ -525,6 +525,33 @@ describe('CDS State Transition — PASSIVE_BEHAVIOR_LOG Non-Exclusion', () => {
     // Behavioral flag only → not excluded → normalized CDS, not Flagged-Pending
     expect(s1.classification).not.toBe('Flagged-Pending');
     expect(s1.cds).not.toBeNull();
+  });
+
+  it('PASSIVE_BEHAVIOR_LOG-flagged correct attempt counts toward cutoff (non-blocking)', async () => {
+    const exerciseId = 10;
+    const students = [makeStudent(1, 'BehavioralAccepted')];
+    const subs = [
+      // Student 1: attempt 2 is correct and carries a PASSIVE_BEHAVIOR_LOG flag —
+      // non-blocking → cutoff fires at attempt 2 → later attempts excluded.
+      { student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: null },
+      { student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42, flag_type: 'PASSIVE_BEHAVIOR_LOG' },
+      { student_id: 1, attempt_number: 3, is_correct: false, time_spent_seconds: 90, code: 'x', is_verified: true, flag_id: null },
+    ];
+    // Students 1-11 = 11 valid submitters → CONFIDENT tier
+    for (let i = 2; i <= 11; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 50, code: 'x', is_verified: true, flag_id: null });
+    }
+
+    await runBatchCds(exerciseId, students, [], subs);
+    const s1 = findStudentInBulkScore(1);
+
+    // Non-blocking flag → attempt 2 accepted → post-solution attempt 3 excluded:
+    // max_time = 60s → nts = 60/(45*60) ≈ 0.02. (Old behavior skipped the cutoff →
+    // attempt 3 counted → nts = 0.03.)
+    expect(s1.nts).toBe(0.02);
+    expect(s1.hasFlagged).toBe(true);
+    expect(s1.flagCount).toBe(1);
   });
 });
 
@@ -561,6 +588,27 @@ describe('CDS State Transition — Live Confidence-Tier Parity', () => {
     expect(liveResult.ner).toBeNull();
     expect(liveResult.nrs).toBeNull();
     expect(liveResult.nts).toBeNull();
+  });
+
+  it('PASSIVE_BEHAVIOR_LOG-flagged correct attempt counts toward live cutoff (non-blocking)', async () => {
+    const exerciseId = 10;
+    const subs = [];
+    // Student 1: attempt 2 is correct and carries a PASSIVE_BEHAVIOR_LOG flag —
+    // non-blocking → live cutoff fires at attempt 2 → attempt 3 excluded.
+    subs.push({ student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 30, is_verified: true, flag_id: null });
+    subs.push({ student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 60, is_verified: true, flag_id: 42, flag_type: 'PASSIVE_BEHAVIOR_LOG' });
+    subs.push({ student_id: 1, attempt_number: 3, is_correct: false, time_spent_seconds: 90, is_verified: true, flag_id: null });
+    for (let i = 2; i <= 5; i++) {
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 50, is_verified: true, flag_id: null });
+    }
+
+    const liveResult = await runLiveCds(1, exerciseId, subs, []);
+
+    // Non-blocking flag → attempt 2 accepted → post-solution attempt 3 excluded:
+    // maxTime = 60s → nts = 60/(45*60) ≈ 0.02. (Old behavior skipped the cutoff →
+    // attempt 3 counted → nts = 0.03.)
+    expect(liveResult.nts).toBe(0.02);
+    expect(liveResult.classification.startsWith('Prelim-')).toBe(true);
   });
 });
 

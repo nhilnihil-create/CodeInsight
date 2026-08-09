@@ -366,6 +366,41 @@ describe('Micro-Concept Engine Test Suite', function() {
       assert.strictEqual(typeof result.hasFeedback, 'boolean');
     });
   });
+
+  describe('cc_missing_return_main (F2)', function() {
+    const containsMissingReturn = (result) =>
+      (result.issues || []).some(i => i.id === 'cc_missing_return_main');
+
+    it('fires on main() that falls off the end', async function() {
+      const context = { code: 'int main() { cout << "hi" << endl; }' };
+      const result = await microConceptEngine.getMicroConceptFeedback(context, 'Variables');
+      assert.strictEqual(containsMissingReturn(result), true);
+    });
+
+    it('does NOT fire on main() with return 0', async function() {
+      const context = { code: 'int main() { return 0; }' };
+      const result = await microConceptEngine.getMicroConceptFeedback(context, 'Variables');
+      assert.strictEqual(containsMissingReturn(result), false);
+    });
+
+    it('does NOT fire on main() with a non-zero return', async function() {
+      const context = { code: 'int main() { return x; }' };
+      const result = await microConceptEngine.getMicroConceptFeedback(context, 'Variables');
+      assert.strictEqual(containsMissingReturn(result), false);
+    });
+
+    it('does NOT fire on main() with an infinite loop', async function() {
+      const context = { code: 'int main() { while (true) { work(); } }' };
+      const result = await microConceptEngine.getMicroConceptFeedback(context, 'Variables');
+      assert.strictEqual(containsMissingReturn(result), false);
+    });
+
+    it('does NOT fire on main() calling exit()', async function() {
+      const context = { code: 'int main() { exit(0); }' };
+      const result = await microConceptEngine.getMicroConceptFeedback(context, 'Variables');
+      assert.strictEqual(containsMissingReturn(result), false);
+    });
+  });
 });
 
 console.log('Micro-Concept Engine test suite created');

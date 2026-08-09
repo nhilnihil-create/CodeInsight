@@ -118,6 +118,21 @@ const MICRO_CONCEPT_RULES = {
         const err = compilerErrors.find(e => e.includes('uninitialized'));
         return err ? err.trim() : 'Variable used without initialization';
       }
+    },
+    {
+      id: 'var_comma_operator',
+      name: 'Comma Operator Chains Statements',
+      description: 'Comma operator joins multiple expressions into one statement; only the rightmost value is used (e.g., x = 5, y = 10;)',
+      detector: ({code}) => {
+        if (typeof code !== 'string' || code.length === 0) return false;
+        return /(?:^|;|\{)\s*\w+\s*=\s*[^;]*,\s*\w+\s*=/.test(code);
+      },
+      instructorMessage: 'The comma operator evaluates both expressions but discards the left value. Use separate statements (x = 5; y = 10;) for clarity.',
+      studentMessage: 'Using the comma operator (x = 5, y = 10;) makes code hard to read — split into separate statements.',
+      evidenceExtractor: ({code}) => {
+        const match = code.match(/(?:^|;|\{)\s*\w+\s*=\s*[^;]*,\s*\w+\s*=/);
+        return match ? match[0].trim() : 'comma operator statement';
+      }
     }
   ],
 
@@ -147,15 +162,15 @@ const MICRO_CONCEPT_RULES = {
           err.includes('suggest parentheses')
         );
 
-        // Regex: if (x = y)  EXCLUDES if (x == y)
-        const assignNotCompare = /if\s*\([^)]*=[^=!>]/.test(code);
+        // Regex: if (x = y) — negative lookbehind/lookahead exclude ==, !=, <=, >=
+        const assignNotCompare = /if\s*\([^)]*(?<![=!<>])=(?![=!<>])[^)]*\)/.test(code);
 
         return hasAssignInConditionErr || assignNotCompare;
       },
       instructorMessage: 'Used single = (assignment) in an if condition instead of ==. This assigns the value and evaluates to that value, not a boolean.',
       studentMessage: 'In C++, = assigns, == compares. Use == in conditions: if (x == 5) not if (x = 5)',
       evidenceExtractor: ({code}) => {
-        const match = code.match(/if\s*\([^)]*=[^=!>]/);
+        const match = code.match(/if\s*\([^)]*(?<![=!<>])=(?![=!<>])[^)]*\)/);
         return match ? `Found: ${match[0].trim()}` : 'Assignment operator used in condition';
       }
     },
@@ -267,6 +282,35 @@ const MICRO_CONCEPT_RULES = {
         const required = required_ast_nodes.filter(n => ['for_statement','while_statement','do_statement'].includes(n));
         const used = ast.node_types.filter(n => ['for_statement','while_statement','do_statement'].includes(n));
         return `Required: ${required.join(',')}; Used: ${used.join(',')}`;
+      }
+    },
+    {
+      id: 'loop_goto_loop',
+      name: 'Goto-Based Loop (Backward Jump)',
+      description: 'goto jumps backward to an earlier label, emulating a loop instead of using for/while',
+      detector: ({code}) => {
+        if (typeof code !== 'string' || code.length === 0) return false;
+        const gotoRe = /\bgoto\s+([A-Za-z_]\w*)\s*;/g;
+        const labelRe = /(?:^|[;{}]\s*)([A-Za-z_]\w*)\s*:(?!:)/g;
+        const labels = new Map();
+        let lm;
+        while ((lm = labelRe.exec(code)) !== null) {
+          if (['case','default','public','private','protected'].includes(lm[1])) continue;
+          if (!labels.has(lm[1])) labels.set(lm[1], lm.index);
+        }
+        let gm;
+        while ((gm = gotoRe.exec(code)) !== null) {
+          const target = gm[1];
+          const labelOffset = labels.get(target);
+          if (labelOffset !== undefined && labelOffset < gm.index) return true;
+        }
+        return false;
+      },
+      instructorMessage: "You used goto to emulate a loop by jumping backward to an earlier label. Use a for/while loop instead — goto-based loops are hard to read and error-prone.",
+      studentMessage: "This goto jumps backward (loop emulation). A normal for/while loop is clearer.",
+      evidenceExtractor: ({code}) => {
+        const match = code.match(/\bgoto\s+[A-Za-z_]\w*\s*;/);
+        return match ? match[0].trim() : 'backward goto';
       }
     }
   ],
@@ -748,6 +792,21 @@ const MICRO_CONCEPT_RULES = {
       evidenceExtractor: ({compilerErrors}) => {
         const err = compilerErrors.find(e => e.includes('duplicate') && e.includes('case'));
         return err ? err.trim() : 'Duplicate case value';
+      }
+    },
+    {
+      id: 'sw_duffs_device',
+      name: "Duff's Device (Loop Unrolling)",
+      description: "switch/case wrapping a do-while with stacked case labels (Duff's device) — advanced control-flow obfuscation that hides the loop structure",
+      detector: ({code}) => {
+        if (typeof code !== 'string' || code.length === 0) return false;
+        return /switch\s*\([^)]*\)\s*\{\s*case\s+[^:]*:\s*do\s*\{/.test(code);
+      },
+      instructorMessage: "Duff's device unrolls a loop using switch/case fall-through. It's an advanced optimization that hides the loop structure — use a plain for/while loop instead.",
+      studentMessage: "Your switch/case wraps a do-while loop (Duff's device). A normal loop is clearer and easier to debug.",
+      evidenceExtractor: ({code}) => {
+        const match = code.match(/switch\s*\([^)]*\)\s*\{\s*case\s+[^:]*:\s*do\s*\{/);
+        return match ? `Duff's device: ${match[0].trim()}...` : "Duff's device pattern detected";
       }
     }
   ],

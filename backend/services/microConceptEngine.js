@@ -42,16 +42,19 @@ const crossCuttingRules = [
   },
   {
     id: 'cc_missing_return_main',
-    name: 'Missing return 0 in main()',
-    description: 'Main function without return 0; at the end',
+    name: 'main() Falls Off the End Without Return',
+    description: 'main() has no return statement, no exit-family call, and no infinite loop — it falls off the end',
     detector: ({code}) => {
       const hasMain = /\bmain\s*\(/.test(code);
-      const hasReturn = /return\s+0\s*;/.test(code);
-      return hasMain && !hasReturn;
+      if (!hasMain) return false;
+      const hasAnyReturn = /\breturn\b[^;]*;/.test(code);
+      const hasExitLike = /\b(?:exit|_Exit|abort|quick_exit)\s*\(/.test(code);
+      const hasInfiniteLoop = /for\s*\(\s*;;\s*\)|while\s*\(\s*(?:true|1)\s*\)/.test(code);
+      return !hasAnyReturn && !hasExitLike && !hasInfiniteLoop;
     },
-    instructorMessage: 'main() should return 0 to indicate successful program completion to the operating system.',
+    instructorMessage: 'main() should return 0 to indicate successful program completion to the operating system. If the program never returns (exit-family call or infinite loop), a return is not required.',
     studentMessage: 'Add "return 0;" at the end of main() to indicate the program ran successfully.',
-    evidenceExtractor: () => 'main() missing return 0'
+    evidenceExtractor: () => 'main() missing return statement'
   },
   {
     id: 'cc_using_namespace_std',
