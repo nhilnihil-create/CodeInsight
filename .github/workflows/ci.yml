@@ -46,6 +46,9 @@ jobs:
         env:
           PGPASSWORD: codepassword123
 
+      - name: Pre-pull sandbox image
+        run: docker pull gcc:14-bookworm
+
       - name: Run backend tests
         run: npm run test:ci
         working-directory: backend
