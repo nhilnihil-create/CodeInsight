@@ -37,7 +37,7 @@
     "resend": "^6.4.2",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
-    "tree-sitter": "^0.22.0",
+    "tree-sitter": "^0.21.1",
     "tree-sitter-cpp": "^0.23.4"
   },
   "devDependencies": {
