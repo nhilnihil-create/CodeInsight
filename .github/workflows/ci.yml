@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, CodeInsight-V2]
   pull_request:
-    branches: [main]
+    branches: [main, CodeInsight-V2]
 
 jobs:
   backend-tests:
