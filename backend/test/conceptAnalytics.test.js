@@ -3,6 +3,17 @@
 
 const assert = require('assert');
 const conceptAnalytics = require('../services/conceptAnalytics');
+const {
+  pool: testPool,
+  seedTestInstructor,
+  seedTestSection,
+  seedTestConcept,
+  seedTestExercise,
+  seedTestUser,
+  seedEnrollment,
+  seedSubmission,
+  clearTestTables,
+} = require('./setup');
 
 describe('conceptAnalytics', function() {
   // ── Export verification ───────────────────────────────────────────
@@ -72,7 +83,37 @@ describe('conceptAnalytics', function() {
   // ── Integration tests with real data ─────────────────────────────
 
   describe('integration (real DB)', function() {
-    const TEST_SECTION = 55; // Live Demo section: 50 students, 2 exercises, 100 CDS scores
+    let TEST_SECTION;
+
+    beforeEach(async () => {
+      await clearTestTables();
+      const instructorId = await seedTestInstructor();
+      TEST_SECTION = await seedTestSection(instructorId);
+      const conceptId = await seedTestConcept();
+      const exerciseId = await seedTestExercise(TEST_SECTION, conceptId, { title: 'Concept Analytics Test' });
+      // seedTestExercise does NOT create exercise_concept_tags — required by computeCMI/computeCRS
+      await testPool.query(
+        `INSERT INTO exercise_concept_tags (exercise_id, concept_id, is_primary)
+         VALUES ($1, $2, true)`,
+        [exerciseId, conceptId]
+      );
+      const studentId = await seedTestUser();
+      await seedEnrollment(studentId, TEST_SECTION);
+      await seedSubmission(studentId, exerciseId, { isCorrect: true, timeSpent: 30 });
+      // computeCRS reads cds_scores with cds IS NOT NULL
+      await testPool.query(
+        `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification)
+         VALUES ($1, $2, $3, 0.5, 'Medium')`,
+        [studentId, exerciseId, TEST_SECTION]
+      );
+      // getSectionCRS reads section_concept_metrics; seeded directly because the
+      // global afterEach wipes computeCRS's writes before that test runs
+      await testPool.query(
+        `INSERT INTO section_concept_metrics (section_id, concept_id, crs, crs_score, student_count, at_risk_count)
+         VALUES ($1, $2, 'medium', 0.5, 1, 0)`,
+        [TEST_SECTION, conceptId]
+      );
+    });
 
     it('computeCMI updates student metrics', async function() {
       const result = await conceptAnalytics.computeCMI(TEST_SECTION);
