@@ -46,6 +46,9 @@ jobs:
         env:
           PGPASSWORD: codepassword123
 
+      - name: Pre-pull sandbox image
+        run: docker pull gcc:14-bookworm
+
       - name: Run backend tests
         run: npm run test:ci
         working-directory: backend
@@ -55,6 +58,11 @@ jobs:
           TEST_DB_PORT: 5432
           TEST_DB_USER: codeuser
           TEST_DB_PASSWORD: codepassword123
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: codeinsight_test
+          DB_USER: codeuser
+          DB_PASSWORD: codepassword123
           SANDBOX_TIMEOUT_MS: 5000
           JWT_SECRET: ci-test-secret-key
           CI: true
