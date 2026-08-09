@@ -231,8 +231,7 @@ exports.getSectionExercises = async (req, res, next) => {
         ex.closed_at, ex.deadline, ex.created_at, c.name AS concept_name,
         (SELECT COUNT(*)::INTEGER FROM enrollments WHERE section_id=$1) AS total_students,
         (SELECT COUNT(DISTINCT student_id)::INTEGER FROM submissions 
-         WHERE exercise_id=ex.id AND student_id IN 
-           (SELECT student_id FROM enrollments WHERE section_id=$1)) AS submitted_count,
+         WHERE exercise_id=ex.id) AS submitted_count,
         (SELECT AVG(cs.cds) FROM cds_scores cs 
          WHERE cs.exercise_id=ex.id AND cs.section_id=$1) AS avg_cds,
         (SELECT COUNT(CASE WHEN cs.cds <= 0.40 THEN 1 END)::INTEGER FROM cds_scores cs 
