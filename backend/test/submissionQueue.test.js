@@ -6,13 +6,31 @@ const IORedis = require('ioredis');
 const queueModule = require('../queues/submissionQueue');
 
 function fakeIoRedis() {
+  const handlers = {};
   const instance = {
-    on: jest.fn().mockReturnThis(),
+    on: jest.fn((event, handler) => {
+      if (!handlers[event]) handlers[event] = [];
+      handlers[event].push(handler);
+      return instance;
+    }),
+    emit: jest.fn((event, ...args) => {
+      (handlers[event] || []).forEach((h) => h(...args));
+      return instance;
+    }),
     waitUntilReady: jest.fn(),
     quit: jest.fn().mockResolvedValue(),
   };
   IORedis.mockImplementation(() => instance);
   return instance;
+}
+
+function connectIoRedis() {
+  const redis = fakeIoRedis();
+  redis.waitUntilReady.mockResolvedValue();
+  // initQueue registers its 'connect' handler synchronously before its first
+  // await, so emitting on the next tick is guaranteed to resolve it.
+  process.nextTick(() => redis.emit('connect'));
+  return redis;
 }
 
 function fakeQueue() {
@@ -36,8 +54,7 @@ describe('submissionQueue — initQueue', function() {
   });
 
   it('connects to Redis and creates queue on success', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     fakeQueue();
 
     const result = await queueModule.initQueue();
@@ -57,8 +74,7 @@ describe('submissionQueue — initQueue', function() {
   });
 
   it('returns cached state on second call', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     fakeQueue();
 
     await queueModule.initQueue();
@@ -121,8 +137,7 @@ describe('submissionQueue — addSubmissionJob', function() {
   });
 
   it('adds a job and returns its ID when Redis is available', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     fakeQueue();
 
     await queueModule.initQueue();
@@ -132,8 +147,7 @@ describe('submissionQueue — addSubmissionJob', function() {
   });
 
   it('calls initQueue when not initialized', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     fakeQueue();
 
     // Module not initialized — addSubmissionJob should initialize internally
@@ -151,8 +165,7 @@ describe('submissionQueue — addSubmissionJob', function() {
   });
 
   it('generates unique job IDs per call', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     await queueModule.initQueue();
 
@@ -165,8 +178,7 @@ describe('submissionQueue — addSubmissionJob', function() {
   });
 
   it('passes payload to queue.add', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     await queueModule.initQueue();
 
@@ -189,8 +201,7 @@ describe('submissionQueue — getJobStatus', function() {
   });
 
   it('returns job status when completed', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     q.getJob.mockResolvedValue({
       id: 'job-1',
@@ -218,8 +229,7 @@ describe('submissionQueue — getJobStatus', function() {
   });
 
   it('returns job status when failed', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     q.getJob.mockResolvedValue({
       id: 'job-2',
@@ -240,8 +250,7 @@ describe('submissionQueue — getJobStatus', function() {
   });
 
   it('returns null when job not found', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     q.getJob.mockResolvedValue(null);
     await queueModule.initQueue();
@@ -257,8 +266,7 @@ describe('submissionQueue — getJobStatus', function() {
   });
 
   it('returns job with waiting state', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     q.getJob.mockResolvedValue({
       id: 'job-waiting',
@@ -289,8 +297,7 @@ describe('submissionQueue — isReady', function() {
   });
 
   it('returns true after successful init', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     fakeQueue();
     await queueModule.initQueue();
     expect(queueModule.isReady()).toBe(true);
@@ -306,8 +313,7 @@ describe('submissionQueue — isReady', function() {
 
 describe('submissionQueue — closeQueue', function() {
   it('closes queue and connection when both exist', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     const q = fakeQueue();
     await queueModule.initQueue();
 
@@ -344,8 +350,7 @@ describe('submissionQueue — redisConnection getter', function() {
   });
 
   it('returns the connection after init', async function() {
-    const redis = fakeIoRedis();
-    redis.waitUntilReady.mockResolvedValue();
+    const redis = connectIoRedis();
     fakeQueue();
     await queueModule.initQueue();
     expect(queueModule.redisConnection).toBe(redis);
