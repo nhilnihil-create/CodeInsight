@@ -184,6 +184,70 @@ function checkBlankTemplate(code, starterCode) {
 }
 
 /**
+ * Normalize code for blank-template comparison:
+ *   1. Strip comments (line and block).
+ *   2. Extract `#include` lines, sort them, and remove them from the body.
+ *   3. Remove all remaining whitespace from the body.
+ *   4. Return sorted includes joined with newlines, then the whitespace-free body.
+ *
+ * The result is a canonical form in which comment-only differences and
+ * include-order differences disappear, so they can be compared for equality.
+ */
+function normalizeForBlankComparison(code) {
+  let body = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const includePattern = /^\s*#\s*include\s*[<"][^>"]*[>"]\s*$/gm;
+  const includes = (body.match(includePattern) || []).map(inc => inc.trim()).sort();
+  body = body.replace(includePattern, '');
+  body = body.replace(/\s+/g, '');
+  return includes.join('\n') + '\n' + body;
+}
+
+/**
+ * Extended blank/template check — catches comment-only and include-reorder
+ * submissions that are otherwise identical to the starter code once comments
+ * are stripped and whitespace/include order is normalized.
+ *
+ * Whitespace-only differences are explicitly excluded (the basic check treats
+ * them as non-violations). A whitespace-plus-single-character change (e.g.
+ * `return 0;` → `return 1;`) is a documented gap: it normalizes differently
+ * and is indistinguishable from a real edit without semantics.
+ *
+ * @param {string} code - The student's submitted code
+ * @param {string} starterCode - The exercise's starter code
+ * @returns {object|null} - Flag object if normalized-identical, null otherwise
+ */
+function checkBlankTemplateExtended(code, starterCode) {
+  try {
+    // Empty submissions are unambiguous and handled by the basic check.
+    if (!code || !starterCode || code.trim() === '' || starterCode.trim() === '') return null;
+
+    // Preserve "whitespace-only is not a violation": pure whitespace
+    // differences between submission and starter must not be flagged.
+    if (code.replace(/\s+/g, '') === starterCode.replace(/\s+/g, '')) return null;
+
+    if (normalizeForBlankComparison(code) === normalizeForBlankComparison(starterCode)) {
+      return {
+        type: 'BLANK_TEMPLATE',
+        severity: 'MEDIUM',
+        evidence: {
+          summary: 'Submission is identical to starter code after removing comments and normalizing whitespace/include order',
+          codeLength: code.length,
+          starterCodeLength: starterCode.length,
+          confidence: 0.8,
+          pattern: 'normalized_identical',
+          innocent_explanation: 'The submission differs from the starter only by comments, whitespace, or include ordering — no meaningful code changes detected. Review whether the student implemented the exercise.',
+        },
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('Error in checkBlankTemplateExtended:', err);
+    return null;
+  }
+}
+
+/**
  * Extended hardcoding check — catches bypass techniques the basic check misses.
  *
  * Detects these evasion patterns:
@@ -414,6 +478,12 @@ async function evaluateIntegrity(params) {
     flags.push({ ...blankFlag, studentId, exerciseId });
   }
 
+  // 2b. Extended blank/template detection (comment-only / include-order bypasses)
+  const blankExtendedFlag = checkBlankTemplateExtended(code, starterCode);
+  if (blankExtendedFlag) {
+    flags.push({ ...blankExtendedFlag, studentId, exerciseId });
+  }
+
   return flags;
 }
 
@@ -421,5 +491,6 @@ module.exports = {
   checkHardcoding,
   checkHardcodingExtended,
   checkBlankTemplate,
+  checkBlankTemplateExtended,
   evaluateIntegrity,
 };

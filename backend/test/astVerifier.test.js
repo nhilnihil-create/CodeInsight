@@ -180,7 +180,7 @@ describe('AST Verifier Test Suite', function() {
   });
 
   describe('Edge Cases (structural / semicolon / ternary)', function() {
-    it('should not catch empty body via semicolon-only if statement (known gap — tree-sitter parses ; as expression_statement, not compound_statement)', async function() {
+    it('should catch empty body via semicolon-only if statement (gap closed — bare ; parses as expression_statement with no expression)', async function() {
       const code = `
         #include <iostream>
         using namespace std;
@@ -196,8 +196,8 @@ describe('AST Verifier Test Suite', function() {
       const result = await astVerifier.verify(code, {
         required_nodes: ['if_statement', 'else_clause']
       }, {});
-      const emptyBodyReasons = result.reasons.filter(r => r.message.includes('Empty body'));
-      assert.strictEqual(emptyBodyReasons.length, 0);
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('Empty body')));
     });
 
     it('should NOT flag ternary expression as empty body', async function() {
@@ -1276,6 +1276,105 @@ describe('AST Verifier Test Suite', function() {
     it('accepts a single for loop named i (no false fire)', async function() {
       const result = await astVerifier.verify(singleLoop, {}, { concept_name: 'Nested Loops' });
       assert.strictEqual(result.is_verified, true);
+    });
+  });
+
+  describe('AST Silent Failures — astVerifier.verify', () => {
+    it('flags semicolon-only if body as empty', async () => {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int x = 5;
+          if (x) ;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['if_statement'] }, {});
+      expect(result.is_verified).toBe(false);
+      expect(result.reasons.some(r => r.message.includes('Empty body'))).toBe(true);
+    });
+
+    it('flags semicolon-only while body as empty', async () => {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int x = 5;
+          while (x) ;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['while_statement'] }, {});
+      expect(result.is_verified).toBe(false);
+      expect(result.reasons.some(r => r.message.includes('Empty body'))).toBe(true);
+    });
+
+    it('flags side-effect-free ternary if body as empty', async () => {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int x = 5;
+          if (x) x ? 1 : 2;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['if_statement'] }, {});
+      expect(result.is_verified).toBe(false);
+      expect(result.reasons.some(r => r.message.includes('Empty body'))).toBe(true);
+    });
+
+    it('flags side-effect-free comma if body as empty', async () => {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int x = 5;
+          if (x) 1, 2;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['if_statement'] }, {});
+      expect(result.is_verified).toBe(false);
+      expect(result.reasons.some(r => r.message.includes('Empty body'))).toBe(true);
+    });
+
+    it('flags a for loop whose variables never reach output (fprintf to stderr is not program output)', async () => {
+      const code = `
+        #include <iostream>
+        #include <cstdio>
+        using namespace std;
+        int main() {
+          int sum = 0;
+          for (int i = 0; i < 10; i++) {
+            sum += i;
+          }
+          fprintf(stderr, "boom\\n");
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['for_statement'] }, {});
+      expect(result.is_verified).toBe(false);
+      expect(result.reasons.some(r => r.message.includes('affect program output'))).toBe(true);
+    });
+
+    it('recognizes exit(...) as an output path (no dead-code error)', async () => {
+      const code = `
+        #include <iostream>
+        #include <cstdlib>
+        using namespace std;
+        int main() {
+          int sum = 0;
+          for (int i = 0; i < 10; i++) {
+            sum += i;
+          }
+          exit(sum);
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_nodes: ['for_statement'] }, {});
+      expect(result.is_verified).toBe(true);
     });
   });
 });

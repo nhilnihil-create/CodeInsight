@@ -6,26 +6,34 @@
 
 const { getPatternsForConcept, getVariableUsageRule } = require('./verificationRulesService');
 
-// Module-level parser + module reference kept alive via globalThis prevents
-// native addon GC when tree-sitter is loaded.
+// tree-sitter is lazy-loaded per module instance: each instance keeps its own
+// module reference, language, and Parser. These MUST NOT be cached on
+// globalThis — jest loads every test file in its own module registry, and a
+// tree-sitter binding loaded inside one registry becomes unusable after that
+// registry is torn down. Reusing it from another registry makes parse()
+// return a broken tree (no root node), silently failing every check in that
+// module instance.
+let _tsModule = null;
+let _tsLangCpp = null;
 let _parser = null;
+
 function getParser() {
   // Test seam — lets the jest suite force the no-parser fallback path even
   // when the tree-sitter native addon is installed and loadable.
   if (globalThis.__ci_force_no_parser) return null;
-  if (!globalThis.__ci_ts_module) {
+  if (!_tsModule) {
     try {
-      globalThis.__ci_ts_module = require('tree-sitter');
-      globalThis.__ci_ts_lang_cpp = require('tree-sitter-cpp');
+      _tsModule = require('tree-sitter');
+      _tsLangCpp = require('tree-sitter-cpp');
     } catch (e) {
-      globalThis.__ci_ts_module = null;
+      _tsModule = null;
     }
   }
-  if (!globalThis.__ci_ts_module) return null;
+  if (!_tsModule) return null;
   if (!_parser) {
     try {
-      _parser = new (globalThis.__ci_ts_module)();
-      _parser.setLanguage(globalThis.__ci_ts_lang_cpp);
+      _parser = new _tsModule();
+      _parser.setLanguage(_tsLangCpp);
     } catch (e) {
       _parser = null;
     }
@@ -165,7 +173,7 @@ const STRING_TYPE_QUERIES = [
 ];
 
 function collectQueryCaptureTexts(rootNode, querySource, captureName) {
-  const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, querySource);
+  const query = new _tsModule.Query(_tsLangCpp, querySource);
   const texts = [];
   for (const match of query.matches(rootNode)) {
     for (const capture of match.captures) {
@@ -350,7 +358,7 @@ function evaluateRequiredPattern(tree, pattern) {
         return { passed: collectNodesByType(tree.rootNode, 'for_range_loop').length > 0 };
       }
       default: {
-        const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, pattern.query);
+        const query = new _tsModule.Query(_tsLangCpp, pattern.query);
         return { passed: query.matches(tree.rootNode).length > 0 };
       }
     }
@@ -388,6 +396,38 @@ function checkEmptyBodies(tree) {
     'do_statement', 'for_statement', 'compound_statement'
   ]);
 
+  // Side effects make an expression body meaningful. comma_expression is
+  // intentionally NOT listed: a comma of pure literals (`if (x) 1, 2;`) is
+  // side-effect free, while a comma containing a call/assignment/update is
+  // still caught through those node types.
+  function hasSideEffects(node) {
+    return hasNodeType(node, 'call_expression') ||
+      hasNodeType(node, 'assignment_expression') ||
+      hasNodeType(node, 'update_expression');
+  }
+
+  // The statement that forms the body of a control-flow construct.
+  function bodyNodeOf(node) {
+    if (node.type === 'if_statement') return node.childForFieldName('consequence');
+    if (node.type === 'else_clause') {
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (child.isNamed) return child;
+      }
+      return null;
+    }
+    // while_statement / for_statement / do_statement
+    return node.childForFieldName('body');
+  }
+
+  // `if (x) ;` parses the `;` as an expression_statement whose only child is
+  // the (unnamed) semicolon token, so an expression_statement body is empty
+  // when it has no named children at all.
+  function isEmptyExpressionBody(body) {
+    if (body.childCount === 0) return true;
+    return body.childCount === 1 && !body.child(0).isNamed;
+  }
+
   function traverse(node) {
     if (bodyConstructs.has(node.type)) {
       let hasMeaningfulContent = false;
@@ -404,6 +444,34 @@ function checkEmptyBodies(tree) {
           line: node.startPosition.row + 1,
           column: node.startPosition.column + 1
         });
+      }
+
+      // Semicolon-only and side-effect-free ternary/comma bodies are not
+      // caught by the generic scan above (the expression_statement body is a
+      // named child), so inspect the body statement directly.
+      if (node.type !== 'compound_statement') {
+        const body = bodyNodeOf(node);
+        if (body && body.type === 'expression_statement') {
+          if (isEmptyExpressionBody(body)) {
+            errors.push({
+              message: `Empty body detected in ${node.type}`,
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column + 1
+            });
+          } else if (hasNodeType(body, 'conditional_expression') && !hasSideEffects(body)) {
+            errors.push({
+              message: `Empty body detected in ${node.type} (ternary expression with no side effects)`,
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column + 1
+            });
+          } else if (hasNodeType(body, 'comma_expression') && !hasSideEffects(body)) {
+            errors.push({
+              message: `Empty body detected in ${node.type} (comma operator with no side effects)`,
+              line: node.startPosition.row + 1,
+              column: node.startPosition.column + 1
+            });
+          }
+        }
       }
     }
     for (let i = 0; i < node.childCount; i++) traverse(node.child(i));
@@ -533,13 +601,26 @@ function checkOutputDependency(tree, requiredNodes) {
   // Collect all identifiers used in output statements (cout, return)
   const outputIdentifiers = new Set();
 
-  // Find all output statements (cout, printf, puts, fprintf)
+  // Find all output statements (cout, printf, puts, fprintf, exit, fwrite)
   const callExprs = collectNodesByType(tree.rootNode, 'call_expression');
+  const outputFn = ['cout', 'printf', 'puts', 'fprintf', 'sprintf', 'write', 'cin', 'exit', 'fwrite'];
   for (const call of callExprs) {
     const text = call.text || '';
-    const outputFn = ['cout', 'printf', 'puts', 'fprintf', 'sprintf', 'write', 'cin'];
     if (outputFn.some(fn => text.includes(fn))) {
       const identifiers = collectIdentifiersFromNode(call);
+      identifiers.forEach(id => outputIdentifiers.add(id));
+    }
+  }
+
+  // Second pass: binary expressions using `<<` cover `cout << x`,
+  // `cerr << x`, `ofstream f; f << x`, and `ostringstream << x`. Over-capture
+  // of bit-shifts is safe: it only enlarges the identifier set, which can
+  // only suppress dead-code errors, never create them.
+  const binaryExprs = collectNodesByType(tree.rootNode, 'binary_expression');
+  for (const bin of binaryExprs) {
+    const operator = bin.childForFieldName('operator');
+    if (operator && operator.text === '<<') {
+      const identifiers = collectIdentifiersFromNode(bin);
       identifiers.forEach(id => outputIdentifiers.add(id));
     }
   }
@@ -823,14 +904,14 @@ function getForLoopVariableName(forNode, code) {
  * @returns {Array<{message: string, line: number, column: number}>}
  */
 async function checkBadPatterns(tree, conceptName, code) {
-  if (!globalThis.__ci_ts_module) return [];
+  if (!_tsModule) return [];
 
   const errors = [];
   const patterns = await getPatternsForConcept(conceptName);
 
   for (const pattern of patterns) {
     try {
-      const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, pattern.query);
+      const query = new _tsModule.Query(_tsLangCpp, pattern.query);
       const matches = query.matches(tree.rootNode);
 
       for (const match of matches) {
@@ -1062,7 +1143,7 @@ async function verify(code, requirements = {}, options = {}) {
        reason.message.includes('too short') ||
        reason.message.includes('Loop condition uses only literals') ||
        reason.message.includes('Conditional uses hardcoded') ||
-       reason.message.includes("doesn't affect program output"))
+       reason.message.includes("don't affect program output"))
     );
 
     if (hasErrors) {

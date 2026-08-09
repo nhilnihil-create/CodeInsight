@@ -159,4 +159,71 @@ describe('Academic Integrity Engine — evaluateIntegrity integration', () => {
   });
 });
 
+describe('Hardcoding Evasion — documented gaps', () => {
+  it('does not catch cout << 42 << endl chains (basic regex requires literal followed by ; or >)', () => {
+    const code = '#include <iostream>\nusing namespace std;\nint main() { cout << 42 << endl; return 0; }';
+    const flag = academicIntegrityEngine.checkHardcoding(code, exerciseWithExpected, {});
+    expect(flag).toBeNull();
+  });
+
+  it('does not catch constexpr literals via extended check', () => {
+    const code = '#include <iostream>\nusing namespace std;\nint main() { constexpr int x = 42; cout << x; return 0; }';
+    const flag = academicIntegrityEngine.checkHardcodingExtended(code, exerciseWithExpected, {});
+    expect(flag).toBeNull();
+  });
+
+  it('does not catch macro literals via extended check', () => {
+    const code = '#define ANSWER 42\n#include <iostream>\nusing namespace std;\nint main() { cout << ANSWER; return 0; }';
+    const flag = academicIntegrityEngine.checkHardcodingExtended(code, exerciseWithExpected, {});
+    expect(flag).toBeNull();
+  });
+
+  it('does not catch hex literals (basic regex requires decimal digits)', () => {
+    const code = '#include <iostream>\nusing namespace std;\nint main() { cout << 0x2A; return 0; }';
+    const flag = academicIntegrityEngine.checkHardcoding(code, exerciseWithExpected, {});
+    expect(flag).toBeNull();
+  });
+
+  it('does not catch parenthesized literals (basic regex requires digit right after <<)', () => {
+    const code = '#include <iostream>\nusing namespace std;\nint main() { cout << (42); return 0; }';
+    const flag = academicIntegrityEngine.checkHardcoding(code, exerciseWithExpected, {});
+    expect(flag).toBeNull();
+  });
+});
+
+describe('Blank Template Bypass — checkBlankTemplateExtended', () => {
+  it('flags comment-only-identical submissions (normalized_identical)', () => {
+    const starter = '// Write code here\n#include <iostream>\nint main() { return 0; }';
+    const code = '// Write code here\n#include <iostream>\n// Student name: John Doe\nint main() { return 0; }';
+    const flag = academicIntegrityEngine.checkBlankTemplateExtended(code, starter);
+    expect(flag).not.toBeNull();
+    expect(flag.type).toBe('BLANK_TEMPLATE');
+    expect(flag.severity).toBe('MEDIUM');
+    expect(flag.evidence.pattern).toBe('normalized_identical');
+  });
+
+  it('flags include-reshuffle-identical submissions (normalized_identical)', () => {
+    const starter = '#include <iostream>\n#include <vector>\n\nint main() { return 0; }';
+    const code = '#include <vector>\n#include <iostream>\n\nint main() { return 0; }';
+    const flag = academicIntegrityEngine.checkBlankTemplateExtended(code, starter);
+    expect(flag).not.toBeNull();
+    expect(flag.type).toBe('BLANK_TEMPLATE');
+    expect(flag.evidence.pattern).toBe('normalized_identical');
+  });
+
+  it('does not flag whitespace-plus-single-char edits (documented gap)', () => {
+    const starter = '// Write code here\n#include <iostream>\nint main() { return 0; }';
+    const code = '// Write code here\n#include <iostream>\nint main() { return 1; }';
+    const flag = academicIntegrityEngine.checkBlankTemplateExtended(code, starter);
+    expect(flag).toBeNull();
+  });
+
+  it('does not flag a real edit (no false positive)', () => {
+    const starter = '// Write code here\n#include <iostream>\nint main() { return 0; }';
+    const code = '// Write code here\n#include <iostream>\nint main() { int x = 5; return x; }';
+    const flag = academicIntegrityEngine.checkBlankTemplateExtended(code, starter);
+    expect(flag).toBeNull();
+  });
+});
+
 
