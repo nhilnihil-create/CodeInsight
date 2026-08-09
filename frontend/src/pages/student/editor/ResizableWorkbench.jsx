@@ -229,6 +229,7 @@ export default function ResizableWorkbench({
                   onChange={onCodeChange}
                   onMount={onMount}
                   language={language}
+                  readOnly={isReviewMode}
                 />
               </Panel>
               <DragHandle axis="row" />

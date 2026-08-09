@@ -98,8 +98,8 @@ export default function EditorHeader({
 
       {/* Right: timer · Run · Submit */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Timer countdown */}
-        {timeLimitSeconds > 0 && countdownSeconds > 0 && (
+        {/* Timer countdown (hidden in review mode — the exercise is already done) */}
+        {!isReviewMode && timeLimitSeconds > 0 && countdownSeconds > 0 && (
           <div className={cn(
             "hidden sm:flex items-center gap-1.5 text-sm font-mono tabular-nums",
             countdownSeconds <= 60 ? "text-destructive" : "text-muted-foreground",
@@ -113,7 +113,7 @@ export default function EditorHeader({
         <button
           type="button"
           onClick={onRun}
-          disabled={isRunning}
+          disabled={isRunning || isReviewMode}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:shadow-[0_0_20px_rgba(16,185,129,0.35)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Play className="h-3.5 w-3.5" strokeWidth={2} />

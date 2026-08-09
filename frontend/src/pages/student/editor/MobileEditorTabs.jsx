@@ -36,6 +36,7 @@ export default function MobileEditorTabs({
   history,
   compilationLog = "",
   programOutput = "",
+  isReviewMode = false,
 }) {
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -74,6 +75,7 @@ export default function MobileEditorTabs({
             value={code}
             onChange={onCodeChange}
             onMount={onMount}
+            readOnly={isReviewMode}
           />
         ) : activeTab === "output" ? (
           <div className="h-full">

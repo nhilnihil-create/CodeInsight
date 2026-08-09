@@ -118,6 +118,10 @@ export default function StudentCodeEditor() {
   const editorContainerRef = useRef(null);
 
   const isCompleted = !!exercise?.isCompleted;
+  // Review mode: the exercise was already completed or solved this session.
+  // In review mode the editor is read-only, Run/Submit are inert, and no
+  // behavioral telemetry is collected.
+  const isReviewMode = isCompleted || isSolved;
 
   useEffect(() => {
     const id = exerciseId;
@@ -178,25 +182,51 @@ export default function StudentCodeEditor() {
 
   // ── Contextual Activity Logging (paper flag #5) ───────────────────────
   // Track tab switches and paste events. Sends cumulative counts with each
-  // submission AND asynchronously flushes raw events for audit trail every
-  // 10 seconds.
+  // run (server-owned per-run snapshot) AND asynchronously flushes raw
+  // events for the audit trail every 10 seconds.
   useEffect(() => {
-    if (!exerciseId || isCompleted || isSolved) return;
+    if (!exerciseId || isReviewMode) return;
 
     // Reset counters when entering a new exercise session
     behavioralCounts.current = { tabSwitches: 0, pastes: 0 };
     pendingEventsRef.current = [];
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        behavioralCounts.current.tabSwitches += 1;
-        pendingEventsRef.current.push({ type: 'tab_switch', timestamp: new Date().toISOString() });
-      }
+    // Tab-switch tracking. A single "hidden episode" can fire blur AND
+    // visibilitychange together, so the isAway flag dedupes them per episode.
+    let isAway = false;
+    const markAway = () => {
+      if (isAway) return;
+      isAway = true;
+      behavioralCounts.current.tabSwitches += 1;
+      pendingEventsRef.current.push({ type: 'tab_switch', timestamp: new Date().toISOString() });
+    };
+    const markBack = () => {
+      isAway = false;
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) markAway();
+      else markBack();
+    };
+    const handleWindowBlur = () => {
+      if (!document.hasFocus()) markAway();
+    };
+    const handleWindowFocus = () => markBack();
+
+    // Paste tracking: capture-phase document paste + a ctrl/cmd+V keydown
+    // fallback (some browsers don't fire paste on document) with a 300ms
+    // dedupe window, plus drag-drop onto the editor container.
+    let lastKeydownPasteAt = 0;
     const handlePaste = () => {
       behavioralCounts.current.pastes += 1;
       pendingEventsRef.current.push({ type: 'paste', timestamp: new Date().toISOString() });
+    };
+    const handleKeydownPaste = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || (e.key !== 'v' && e.key !== 'V')) return;
+      const now = Date.now();
+      if (now - lastKeydownPasteAt < 300) return;
+      lastKeydownPasteAt = now;
+      handlePaste();
     };
 
     // Flush events to backend every 10 seconds (audit trail)
@@ -215,25 +245,57 @@ export default function StudentCodeEditor() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('paste', handlePaste);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('paste', handlePaste, true);
+    document.addEventListener('keydown', handleKeydownPaste);
     flushTimer = setInterval(flushEvents, 10000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('paste', handlePaste);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('paste', handlePaste, true);
+      document.removeEventListener('keydown', handleKeydownPaste);
       clearInterval(flushTimer);
       flushEvents(); // Final flush on unmount
     };
-  }, [exerciseId, isCompleted, isSolved]);
+  }, [exerciseId, isReviewMode]);
+
+  // Drag-drop paste: the editor container only mounts once the exercise has
+  // loaded, so the drop listener is attached separately from the listeners
+  // above and re-attached whenever the container (or review mode) changes.
+  useEffect(() => {
+    const container = editorContainerRef.current;
+    if (!container || isReviewMode) return undefined;
+    const handleDrop = (e) => {
+      if (!e.dataTransfer?.types?.length) return;
+      behavioralCounts.current.pastes += 1;
+      pendingEventsRef.current.push({ type: 'paste', timestamp: new Date().toISOString() });
+    };
+    container.addEventListener('drop', handleDrop, true);
+    return () => container.removeEventListener('drop', handleDrop, true);
+  }, [isReviewMode, exercise]);
 
   const handleRun = async () => {
-    if (!exerciseId) return;
+    if (!exerciseId || isReviewMode) return;
     setIsRunning(true);
     setTestResults(null);
     try {
-      const r = await api.post(`/api/student/exercises/${exerciseId}/run`, { code, language: 'cpp' });
+      const r = await api.post(`/api/student/exercises/${exerciseId}/run`, {
+        code,
+        language: 'cpp',
+        tabSwitchCount: behavioralCounts.current.tabSwitches,
+        pasteCount: behavioralCounts.current.pastes,
+        timeSpentSeconds: activeElapsedSeconds,
+        lineCount: code.split('\n').filter((line) => line.trim().length > 0).length,
+      });
       const { testResults: rawResults, compilerError, hidden } = r.data;
       setTestResults(transformTestResults(rawResults, compilerError, hidden));
+      // The backend persists this run's snapshot (run_attempts), so the
+      // counters become server-owned per run — reset for the next run.
+      behavioralCounts.current = { tabSwitches: 0, pastes: 0 };
+      pendingEventsRef.current = [];
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || "Run failed");
     } finally {
@@ -248,20 +310,26 @@ export default function StudentCodeEditor() {
     }
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
-    if (isCompleted) {
-      toast.info("Exercise already completed. Your CDS is locked.");
+    if (isReviewMode) {
+      if (isCompleted) toast.info("Exercise already completed. Your CDS is locked.");
       isSubmittingRef.current = false;
       return;
     }
     setIsRunning(true);
     try {
-      // Flush pending behavioral events BEFORE submit to prevent double-counting
+      // Flush pending behavioral events BEFORE submit — awaited so the audit
+      // trail is complete before the submission is recorded (the submit
+      // endpoint aggregates session totals from per-run run_attempts).
       if (pendingEventsRef.current.length > 0) {
         const pending = pendingEventsRef.current.splice(0, pendingEventsRef.current.length);
-        api.post('/api/student/behavioral-events', {
-          exerciseId: parseInt(exerciseId),
-          events: pending,
-        }).catch((err) => console.warn('Failed to flush behavioral events:', err.message));
+        try {
+          await api.post('/api/student/behavioral-events', {
+            exerciseId: parseInt(exerciseId),
+            events: pending,
+          });
+        } catch (err) {
+          console.warn('Failed to flush behavioral events:', err.message);
+        }
       }
 
       const r = await api.post(`/api/student/exercises/${exerciseId}/submit`, {
@@ -370,6 +438,7 @@ export default function StudentCodeEditor() {
 
   return (
     <motion.div
+      ref={editorContainerRef}
       initial={{ opacity: 0, scale: 0.99 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
@@ -391,9 +460,9 @@ export default function StudentCodeEditor() {
         timeLimitMinutes={exercise.time_limit_minutes}
         activeElapsedSeconds={activeElapsedSeconds}
         isRunning={isRunning}
-        isReviewMode={isCompleted}
+        isReviewMode={isReviewMode}
         onRun={handleRun}
-        onSubmit={isCompleted ? undefined : handleSubmit}
+        onSubmit={isReviewMode ? undefined : handleSubmit}
         onBack={handleBack}
       />
 
@@ -410,7 +479,7 @@ export default function StudentCodeEditor() {
           programOutput={testResults?.programOutput ?? ""}
           compilationLog={testResults?.compilationLog ?? ""}
           onClearTerminal={handleClearTerminal}
-          isReviewMode={isCompleted}
+          isReviewMode={isReviewMode}
         />
       </div>
 
@@ -427,9 +496,9 @@ export default function StudentCodeEditor() {
           history={history}
           compilationLog={testResults?.compilationLog ?? ""}
           programOutput={testResults?.programOutput ?? ""}
-          isReviewMode={isCompleted}
+          isReviewMode={isReviewMode}
         />
-        <EditorActionBar onRun={handleRun} onSubmit={isCompleted ? undefined : handleSubmit} isRunning={isRunning} />
+        <EditorActionBar onRun={handleRun} onSubmit={isReviewMode ? undefined : handleSubmit} isRunning={isRunning} isReviewMode={isReviewMode} />
       </div>
 
       {preCheckHints.length > 0 && (

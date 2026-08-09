@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
  *
  * Tokens only.
  */
-export default function EditorActionBar({ onRun, onSubmit, isRunning }) {
+export default function EditorActionBar({ onRun, onSubmit, isRunning, isReviewMode = false }) {
   return (
     <div
       className="h-14 bg-card border-t border-border flex items-center gap-2 px-3 shrink-0"
@@ -20,7 +20,7 @@ export default function EditorActionBar({ onRun, onSubmit, isRunning }) {
       <Button
         variant="ghost"
         onClick={onRun}
-        disabled={isRunning}
+        disabled={isRunning || isReviewMode}
         className="flex-1 font-medium"
       >
         <Play className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
