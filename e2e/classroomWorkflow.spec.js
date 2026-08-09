@@ -82,7 +82,7 @@ test.describe('Student Join Code Gate', () => {
     await codeInput.fill('ABC-DEF');
     await page.getByRole('button', { name: 'Join' }).click();
 
-    await expect(page.getByText(/failed|invalid|error/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/failed|invalid|error/i).first()).toBeVisible({ timeout: 5000 });
   });
 });
 

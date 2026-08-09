@@ -317,19 +317,17 @@ int main() {
     const codeVisible = await studentPage.locator('.monaco-editor').getByText('cout << 42').isVisible().catch(() => false);
     console.log('Code visible in Monaco:', codeVisible);
 
-    // Click "Submit" for the first time (1st offense → warning only)
+    // Submit the hardcoded code once. The AST verifier flags it (is_verified=false,
+    // verification_logs row, graduated WARNING event) but the submission still passes
+    // 1/1 test cases, so the exercise completes on this single submit.
     const submitBtn = studentPage.getByRole('button', { name: /submit/i });
-    await submitBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await submitBtn.waitFor({ state: 'visible', timeout: 15000 });
     await submitBtn.click({ force: true });
-    await studentPage.waitForTimeout(5000);
-    await studentPage.waitForLoadState('networkidle');
 
-    // Submit again — second offense should create a LOW flag
-    const submitBtn2 = studentPage.getByRole('button', { name: /submit/i });
-    await submitBtn2.waitFor({ state: 'visible', timeout: 5000 });
-    await submitBtn2.click({ force: true });
-    await studentPage.waitForTimeout(5000);
-    await studentPage.waitForLoadState('networkidle');
+    // Deterministic end state: the "✓ Exercise Completed — Your CDS is locked" banner.
+    // The success toast auto-dismisses, so assert on the banner, not the toast. This wait
+    // also covers the compile/settle time (~5-60s), so no extra waitForTimeout is needed.
+    await expect(studentPage.getByText(/Your CDS is locked/)).toBeVisible({ timeout: 60000 });
   });
 
   // ── Test 4: Student views integrity page and submits context ─────────

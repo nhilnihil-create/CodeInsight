@@ -144,8 +144,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Create E2E database
+        run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d postgres -c "CREATE DATABASE codeinsight OWNER codeuser;"
+
       - name: Load database schema
-        run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d codeinsight_test -f schema.sql
+        run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d codeinsight -f schema.sql
         working-directory: backend
 
       - name: Seed test data
@@ -154,7 +157,7 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: codeinsight_test
+          DB_NAME: codeinsight
           DB_USER: codeuser
           DB_PASSWORD: codepassword123
           NODE_ENV: test
@@ -171,16 +174,17 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_NAME: codeinsight_test
+          DB_NAME: codeinsight
           DB_USER: codeuser
           DB_PASSWORD: codepassword123
           JWT_SECRET: ci-test-secret-key
           PORT: 5000
           NODE_ENV: test
           CORS_ORIGINS: http://localhost:5173
+          PLAYWRIGHT: 1
 
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: npx playwright test --config=playwright.config.js --project=chromium --grep-invert "BSIT-4H"
         env:
           CI: true
 

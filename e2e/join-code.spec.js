@@ -15,9 +15,9 @@ test.describe('Join Code Feature - E2E', () => {
     test('instructor can see join code in sections list', async ({ page }) => {
       // Login as instructor
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       // Wait for redirect to dashboard
       await page.waitForURL('/instructor/dashboard');
@@ -39,9 +39,9 @@ test.describe('Join Code Feature - E2E', () => {
       
       // Login as instructor
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/instructor/dashboard');
       
@@ -64,9 +64,9 @@ test.describe('Join Code Feature - E2E', () => {
       
       // Login as instructor
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/instructor/dashboard');
       
@@ -75,7 +75,7 @@ test.describe('Join Code Feature - E2E', () => {
       await page.waitForSelector('text=/[A-Z0-9]{3}-[A-Z0-9]{3}/');
       
       // Click on first section to go to detail
-      const sectionLink = page.locator('a[href*="/instructor/sections/"]').first();
+      const sectionLink = page.locator('ul[aria-label="Decision list"] li[role="button"]').first();
       await sectionLink.click();
       
       // Wait for section detail to load
@@ -94,9 +94,9 @@ test.describe('Join Code Feature - E2E', () => {
     test('instructor can rotate join code', async ({ page }) => {
       // Login as instructor
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/instructor/dashboard');
       
@@ -108,7 +108,7 @@ test.describe('Join Code Feature - E2E', () => {
       const oldCode = await page.locator('text=/[A-Z0-9]{3}-[A-Z0-9]{3}/').first().textContent();
       
       // Click on first section
-      const sectionLink = page.locator('a[href*="/instructor/sections/"]').first();
+      const sectionLink = page.locator('ul[aria-label="Decision list"] li[role="button"]').first();
       await sectionLink.click();
       
       // Wait for section detail
@@ -133,26 +133,35 @@ test.describe('Join Code Feature - E2E', () => {
   test.describe('Student Flow', () => {
     
     test('student can join section with valid code', async ({ page }) => {
-      // First, get a valid code from instructor
+      // First, create a fresh section to get a valid join code
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill(INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/instructor/dashboard');
       await page.goto('/instructor/sections');
-      await page.waitForSelector('text=/[A-Z0-9]{3}-[A-Z0-9]{3}/');
-      
-      const validCode = await page.locator('text=/[A-Z0-9]{3}-[A-Z0-9]{3}/').first().textContent();
+
+      const sectionName = `E2E Join ${Date.now()}`;
+      await page.click('button:has-text("New Section")');
+      await page.fill('input[id="create-name"]', sectionName);
+      await page.fill('input[id="create-course"]', 'E2E101');
+      await page.click('button:has-text("Create Section")');
+      await page.waitForSelector(`text=${sectionName}`);
+
+      const row = page.locator('ul[aria-label="Decision list"] li[role="button"]').filter({ hasText: sectionName });
+      const copyBtn = row.locator('button[aria-label^="Copy join code"]');
+      await expect(copyBtn).toBeVisible();
+      const validCode = (await copyBtn.getAttribute('aria-label')).replace('Copy join code ', '').trim();
       
       // Logout instructor
       await page.goto('/api/auth/logout');
       
       // Login as student
       await page.goto('/login');
-      await page.fill('input[name="email"]', STUDENT_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( STUDENT_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/student/dashboard');
       
@@ -175,9 +184,9 @@ test.describe('Join Code Feature - E2E', () => {
     test('student sees error for invalid code', async ({ page }) => {
       // Login as student
       await page.goto('/login');
-      await page.fill('input[name="email"]', STUDENT_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( STUDENT_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/student/dashboard');
       
@@ -192,28 +201,37 @@ test.describe('Join Code Feature - E2E', () => {
       await page.click('button:has-text("Join")');
       
       // Verify error toast
-      await expect(page.locator('text=Invalid join code')).toBeVisible();
+      await expect(page.locator('text=Invalid join code').first()).toBeVisible();
     });
 
     test('student sees error for already enrolled', async ({ page }) => {
-      // First get a valid code
+      // First, create a fresh section to get a valid join code
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill(INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/instructor/dashboard');
       await page.goto('/instructor/sections');
-      await page.waitForSelector('text=/[A-Z0-9]{3}-[A-Z0-9]{3}/');
-      
-      const validCode = await page.locator('text=/[A-Z0-9]{3}-[A-Z0-9]{3}/').first().textContent();
+
+      const sectionName = `E2E Join ${Date.now()}`;
+      await page.click('button:has-text("New Section")');
+      await page.fill('input[id="create-name"]', sectionName);
+      await page.fill('input[id="create-course"]', 'E2E101');
+      await page.click('button:has-text("Create Section")');
+      await page.waitForSelector(`text=${sectionName}`);
+
+      const row = page.locator('ul[aria-label="Decision list"] li[role="button"]').filter({ hasText: sectionName });
+      const copyBtn = row.locator('button[aria-label^="Copy join code"]');
+      await expect(copyBtn).toBeVisible();
+      const validCode = (await copyBtn.getAttribute('aria-label')).replace('Copy join code ', '').trim();
       
       // Logout and login as student
       await page.goto('/api/auth/logout');
       await page.goto('/login');
-      await page.fill('input[name="email"]', STUDENT_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( STUDENT_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/student/dashboard');
       
@@ -231,15 +249,15 @@ test.describe('Join Code Feature - E2E', () => {
       await page.click('button:has-text("Join")');
       
       // Verify already enrolled error
-      await expect(page.locator('text=You are already enrolled in this section.')).toBeVisible();
+      await expect(page.locator('text=You are already enrolled in this section.').first()).toBeVisible();
     });
 
     test('code input auto-formats to uppercase with hyphen', async ({ page }) => {
       // Login as student
       await page.goto('/login');
-      await page.fill('input[name="email"]', STUDENT_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( STUDENT_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/student/dashboard');
       
@@ -259,9 +277,9 @@ test.describe('Join Code Feature - E2E', () => {
     test('join button disabled until code is 7 characters', async ({ page }) => {
       // Login as student
       await page.goto('/login');
-      await page.fill('input[name="email"]', STUDENT_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( STUDENT_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/student/dashboard');
       
@@ -290,34 +308,36 @@ test.describe('Join Code Feature - E2E', () => {
     test('complete flow: create section → copy code → student joins', async ({ page }) => {
       // === PART 1: Instructor creates section ===
       await page.goto('/login');
-      await page.fill('input[name="email"]', INSTRUCTOR_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( INSTRUCTOR_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/instructor/dashboard');
       
       // Go to sections
       await page.goto('/instructor/sections');
       
-      // Click "New Section"
+      // Create a fresh section with a unique name — the old constant name collided with
+      // stale sections persisted in the DB from prior runs
+      const sectionName = `E2E Full ${Date.now()}`;
       await page.click('button:has-text("New Section")');
       
       // Fill form
-      await page.fill('input[id="create-name"]', 'E2E Test Section');
+      await page.fill('input[id="create-name"]', sectionName);
       await page.fill('input[id="create-course"]', 'E2E101');
       
       // Submit
       await page.click('button:has-text("Create Section")');
       
       // Wait for section to appear
-      await page.waitForSelector('text=E2E Test Section');
+      await page.waitForSelector(`text=${sectionName}`);
       
-      // Get the new section's code
-      const code = await page.locator('text=/E2E101.*?([A-Z0-9]{3}-[A-Z0-9]{3})/').first().textContent();
-      const match = code.match(/([A-Z0-9]{3}-[A-Z0-9]{3})/);
-      const joinCode = match ? match[1] : null;
-      
-      expect(joinCode).toBeTruthy();
+      // Get the new section's code from the row filtered by the unique name — the old
+      // regex grabbed the first DOM match, which could be a stale section from a prior run
+      const row = page.locator('ul[aria-label="Decision list"] li[role="button"]').filter({ hasText: sectionName });
+      const copyBtn = row.locator('button[aria-label^="Copy join code"]');
+      await expect(copyBtn).toBeVisible();
+      const joinCode = (await copyBtn.getAttribute('aria-label')).replace('Copy join code ', '').trim();
       
       // === PART 2: Student joins with code ===
       
@@ -326,9 +346,9 @@ test.describe('Join Code Feature - E2E', () => {
       
       // Login as student
       await page.goto('/login');
-      await page.fill('input[name="email"]', STUDENT_EMAIL);
-      await page.fill('input[name="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      await page.getByLabel('EMAIL').fill( STUDENT_EMAIL);
+      await page.getByLabel('PASSWORD').fill(TEST_PASSWORD);
+      await page.getByRole('button', { name: 'Sign In' }).click();
       
       await page.waitForURL('/student/dashboard');
       
@@ -345,8 +365,11 @@ test.describe('Join Code Feature - E2E', () => {
       // Verify success
       await expect(page.locator('text=Successfully joined the section!')).toBeVisible();
       
-      // Verify section appears in student's list
-      await expect(page.locator('text=E2E Test Section')).toBeVisible();
+      // Verify section appears in student's list. The student page renders enrolled
+      // sections as Cards with an <h3>{section.name}</h3> (verified in
+      // frontend/src/pages/student/Sections.jsx) — use the unique name with .first()
+      // to guard against any duplicate text on the page.
+      await expect(page.getByText(sectionName).first()).toBeVisible();
     });
   });
 });
