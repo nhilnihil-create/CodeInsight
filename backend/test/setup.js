@@ -104,9 +104,13 @@ async function seedEnrollment(studentId, sectionId) {
 }
 
 async function seedSubmission(studentId, exerciseId, opts = {}) {
+  // is_verified defaults to true: these fixtures seed submissions that
+  // participate in CDS computation, which only processes verified
+  // submissions (schema default is false; pass isVerified:false to opt out).
+  const isVerified = opts.isVerified !== undefined ? opts.isVerified : true;
   const { rows } = await testPool.query(
-    `INSERT INTO submissions (student_id, exercise_id, attempt_number, code, is_correct, time_spent_seconds, test_results)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO submissions (student_id, exercise_id, attempt_number, code, is_correct, time_spent_seconds, test_results, is_verified)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
     [
       studentId,
@@ -115,7 +119,8 @@ async function seedSubmission(studentId, exerciseId, opts = {}) {
       opts.code || 'int main() { return 0; }',
       opts.isCorrect || false,
       opts.timeSpent || 30,
-      JSON.stringify(opts.testResults || [{ passed: opts.isCorrect || false }])
+      JSON.stringify(opts.testResults || [{ passed: opts.isCorrect || false }]),
+      isVerified
     ]
   );
   return rows[0].id;
