@@ -244,6 +244,8 @@ CREATE TABLE IF NOT EXISTS submissions (
   student_id        INT REFERENCES users(id) ON DELETE CASCADE,
   exercise_id       INT REFERENCES exercises(id) ON DELETE CASCADE,
   code              TEXT NOT NULL,
+  compiler_log      TEXT,
+  time_limit_hit    BOOLEAN DEFAULT false,
   test_results      JSONB DEFAULT '[]',
   is_correct        BOOLEAN DEFAULT false,
   cds               DECIMAL(6,4) DEFAULT 0,
