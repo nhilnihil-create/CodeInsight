@@ -35,7 +35,10 @@ export default function StudentRecommendations() {
             priority: idx + 1,
             pattern: r.blurb || r.title,
             confidence: r.status === 'pending' ? 'high' : 'medium',
-            action: { label: `Start ${r.title}`, to: `/student/exercises/${r.id}` },
+            action: {
+              label: (r.isCompleted ?? r.status === 'completed') ? 'Review' : 'Start',
+              to: `/student/exercises/${r.id}`,
+            },
             whyLink: true,
           }));
           setRecs(mapped);

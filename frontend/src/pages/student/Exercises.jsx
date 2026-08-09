@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,48 @@ export default function StudentExercises() {
     load();
     return () => { cancelled = true; };
   }, [hasSections, fetchKey]);
+
+  // Silent background refresh so completion state stays fresh when navigating
+  // Back (bfcache restore via `pageshow` with persisted=true) or when the
+  // window regains focus. The focus refresh is debounced/guarded so repeated
+  // focus events don't hammer the API. `pageshow` with persisted=false (the
+  // initial page load) is skipped to avoid a duplicate first fetch.
+  const loadExercises = useCallback(async () => {
+    if (hasSections === null || !hasSections) return;
+    try {
+      const res = await api.get('/api/student/exercises');
+      setExercises(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      // Silent refresh — keep the current list on transient failures.
+    }
+  }, [hasSections]);
+
+  const focusRefreshTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (hasSections === null || !hasSections) return undefined;
+    const handlePageShow = (e) => {
+      if (!e.persisted) return;
+      loadExercises();
+    };
+    const handleFocus = () => {
+      if (focusRefreshTimerRef.current) return;
+      focusRefreshTimerRef.current = setTimeout(() => {
+        focusRefreshTimerRef.current = null;
+        loadExercises();
+      }, 400);
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleFocus);
+      if (focusRefreshTimerRef.current) {
+        clearTimeout(focusRefreshTimerRef.current);
+        focusRefreshTimerRef.current = null;
+      }
+    };
+  }, [loadExercises, hasSections]);
 
   const handleJoined = () => {
     recheck();
@@ -156,7 +198,7 @@ export default function StudentExercises() {
                         size="sm"
                       >
                         <Link to={`/student/exercises/${ex.id}`}>
-                          {isCompleted ? 'Review Exercise' : 'Start Exercise'}
+                          {isCompleted ? 'Review' : 'Start'}
                           {!isCompleted && <ChevronRight className="ml-1 h-3.5 w-3.5" strokeWidth={2} />}
                         </Link>
                       </Button>

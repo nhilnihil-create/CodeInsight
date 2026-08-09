@@ -229,7 +229,7 @@ export default function StudentDashboard() {
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Button asChild size="sm" className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300">
                     <Link to={`/student/exercises/${nearest.id}`}>
-                      Start {nearest.title}
+                      {(nearest.isCompleted ?? nearest.status === 'completed') ? 'Review' : 'Start'}
                       <ArrowRight className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
                     </Link>
                   </Button>
