@@ -13,6 +13,33 @@
  */
 
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+const { Pool } = require('pg');
+
+// ── Live-DB access for direct assertions (e.g. run_attempts snapshots) ─────
+// Credentials come from backend/.env — the same source the live backend on
+// :5000 uses. Requires PostgreSQL reachable from the process running Playwright.
+
+function loadDotEnv(file) {
+  const out = {};
+  const text = fs.readFileSync(file, 'utf8');
+  for (const line of text.split('\n')) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+  return out;
+}
+
+const BACKEND_ENV = loadDotEnv(path.join(__dirname, '..', 'backend', '.env'));
+const dbPool = new Pool({
+  host: BACKEND_ENV.DB_HOST || 'localhost',
+  port: parseInt(BACKEND_ENV.DB_PORT || '5432', 10),
+  database: BACKEND_ENV.DB_NAME || 'codeinsight',
+  user: BACKEND_ENV.DB_USER,
+  password: BACKEND_ENV.DB_PASSWORD,
+  max: 2,
+});
 
 // ── Credentials ─────────────────────────────────────────────────────────
 
@@ -96,7 +123,7 @@ async function setMonacoCode(page, code) {
 // ── Test Suite ───────────────────────────────────────────────────────────
 
 test.describe.serial('Academic Integrity Full UI Workflow', () => {
-  test.setTimeout(120000);
+  test.setTimeout(180000);
 
   // ── Setup: long-lived pages ──────────────────────────────────────────
 
@@ -110,6 +137,7 @@ test.describe.serial('Academic Integrity Full UI Workflow', () => {
   test.afterAll(async () => {
     await instructorPage?.close();
     await studentPage?.close();
+    await dbPool?.end();
   });
 
     // ── Test 1: Instructor creates section ───────────────────────────────
@@ -284,8 +312,8 @@ test.describe.serial('Academic Integrity Full UI Workflow', () => {
     await studentPage.goto('/student/exercises');
     await studentPage.waitForLoadState('networkidle');
 
-    // Find and click "Start Exercise" link (rendered as <a> via Button asChild)
-    const startBtn = studentPage.locator('a').filter({ hasText: 'Start Exercise' }).first();
+    // Find and click the "Start" link (rendered as <a> via Button asChild)
+    const startBtn = studentPage.locator('a').filter({ hasText: 'Start' }).first();
     await startBtn.waitFor({ state: 'visible', timeout: 15000 });
     await startBtn.click();
 
@@ -317,6 +345,16 @@ int main() {
     const codeVisible = await studentPage.locator('.monaco-editor').getByText('cout << 42').isVisible().catch(() => false);
     console.log('Code visible in Monaco:', codeVisible);
 
+    // Run once — exercises the per-run checkpoint path (persists a run_attempts
+    // snapshot with the behavioral counters) before the final submit.
+    const runBtn = studentPage.getByRole('button', { name: /run/i });
+    await runBtn.waitFor({ state: 'visible', timeout: 15000 });
+    await runBtn.click({ force: true });
+
+    // Wait for the visible test result to settle (run pipeline compiles + executes).
+    // This exercise has exactly 1 visible test case (expected output "42").
+    await expect(studentPage.locator('[aria-label="1 of 1 tests passing"]')).toBeVisible({ timeout: 60000 });
+
     // Submit the hardcoded code once. The AST verifier flags it (is_verified=false,
     // verification_logs row, graduated WARNING event) but the submission still passes
     // 1/1 test cases, so the exercise completes on this single submit.
@@ -328,6 +366,37 @@ int main() {
     // The success toast auto-dismisses, so assert on the banner, not the toast. This wait
     // also covers the compile/settle time (~5-60s), so no extra waitForTimeout is needed.
     await expect(studentPage.getByText(/Your CDS is locked/)).toBeVisible({ timeout: 60000 });
+  });
+
+  // ── Test 3b: Completed exercise → "Review" label + locked review mode ────
+
+  test('03b — Completed exercise shows Review label and locked review mode', async () => {
+    // 1. Still on the completed exercise page: review mode is locked
+    await expect(studentPage.getByText('Review Mode')).toBeVisible({ timeout: 15000 });
+    await expect(studentPage.getByRole('button', { name: /run/i })).toBeDisabled();
+    // The countdown timer is hidden in review mode
+    await expect(studentPage.locator('span.sr-only', { hasText: 'Time remaining:' })).toHaveCount(0);
+
+    // The Run click in test 03 persisted a run_attempts snapshot for this exercise
+    const { rows } = await dbPool.query(
+      'SELECT COUNT(*)::int AS n FROM run_attempts WHERE exercise_id = $1',
+      [Number(SHARED.exerciseId)]
+    );
+    expect(rows[0].n).toBeGreaterThanOrEqual(1);
+
+    // 2. The exercises list now shows "Review" instead of "Start"
+    await studentPage.goto('/student/exercises');
+    await studentPage.waitForLoadState('networkidle');
+    const reviewLink = studentPage.locator('a').filter({ hasText: 'Review' });
+    await expect(reviewLink.first()).toBeVisible({ timeout: 15000 });
+
+    // 3. Reopening keeps review mode locked (Run disabled, no countdown)
+    await reviewLink.first().click();
+    await studentPage.waitForURL(/\/student\/exercises\/\d+/);
+    await studentPage.waitForLoadState('networkidle');
+    await expect(studentPage.getByText('Review Mode')).toBeVisible({ timeout: 15000 });
+    await expect(studentPage.getByRole('button', { name: /run/i })).toBeDisabled();
+    await expect(studentPage.locator('span.sr-only', { hasText: 'Time remaining:' })).toHaveCount(0);
   });
 
   // ── Test 4: Student views integrity page and submits context ─────────
