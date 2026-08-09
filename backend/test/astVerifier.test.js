@@ -448,6 +448,13 @@ describe('AST Verifier Test Suite', function() {
     const NO_LOOPS = { kind: 'forbidden', node: ['for_statement','while_statement','do_statement'], label: 'loops', hint: 'recursion exercises must not use loops — call the function from within itself' };
     const USER_FUNCTION = { kind: 'user_function', label: 'a function other than main', hint: 'your solution must define and use a function other than main' };
     const MIN_LOOPS2 = { kind: 'min_count', node: 'for_statement', min: 2, label: 'at least two loops', hint: 'your solution must use nested loops (a loop inside a loop)' };
+    const DECL_TYPE_STRING = { kind: 'decl_type', types: ['string', 'std::string'], label: 'a string variable', hint: 'declare a variable of type string or std::string' };
+    const DECL_TYPE_VECTOR = { kind: 'decl_type', types: ['vector'], label: 'a vector variable', hint: 'declare a variable of type vector (e.g. std::vector<int>)' };
+    const VIRTUAL_METHOD = { kind: 'virtual_method', label: 'a virtual method', hint: 'declare a method as virtual or override a virtual method' };
+    const CAST_STATIC = { kind: 'cast_type', casts: ['static_cast'], label: 'a static_cast', hint: 'use static_cast to convert between types' };
+    const CAST_CSTYLE = { kind: 'cast_type', casts: ['c_style'], label: 'a C-style cast', hint: 'use a C-style cast such as (int)x' };
+    const CAST_DYNAMIC = { kind: 'cast_type', casts: ['dynamic_cast'], label: 'a dynamic_cast', hint: 'use dynamic_cast for polymorphic downcasting' };
+    const FOR_RANGE_LOOP = { kind: 'for_range_loop', label: 'a range-based for loop', hint: 'iterate over a container with a range-based for loop' };
 
     it('I/O: accepts cout << output', async function() {
       const code = `
@@ -922,6 +929,263 @@ describe('AST Verifier Test Suite', function() {
       const result = await astVerifier.verify(code, { required_patterns: [broken] }, {});
       assert.strictEqual(result.is_verified, false);
       assert.ok(result.reasons.some(r => r.message.includes('Required')));
+    });
+
+    it('decl_type: accepts std::string declaration when std::string is required', async function() {
+      const code = `
+        #include <iostream>
+        #include <string>
+        using namespace std;
+        int main() {
+          std::string s;
+          cin >> s;
+          cout << s << endl;
+          return 0;
+        }
+      `;
+      const pattern = { kind: 'decl_type', types: ['std::string'], label: 'a std::string variable', hint: 'declare a variable of type std::string' };
+      const result = await astVerifier.verify(code, { required_patterns: [pattern] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('decl_type: accepts std::string declaration when string is required', async function() {
+      const code = `
+        #include <iostream>
+        #include <string>
+        using namespace std;
+        int main() {
+          std::string s;
+          cin >> s;
+          cout << s << endl;
+          return 0;
+        }
+      `;
+      const pattern = { kind: 'decl_type', types: ['string'], label: 'a string variable', hint: 'declare a variable of type string' };
+      const result = await astVerifier.verify(code, { required_patterns: [pattern] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('decl_type: accepts std::vector<int> when vector is required', async function() {
+      const code = `
+        #include <iostream>
+        #include <vector>
+        using namespace std;
+        int main() {
+          std::vector<int> v;
+          v.push_back(1);
+          cout << v[0] << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [DECL_TYPE_VECTOR] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('decl_type: rejects int declaration when string is required', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int x = 5;
+          cout << x << endl;
+          return 0;
+        }
+      `;
+      const pattern = { kind: 'decl_type', types: ['string'], label: 'a string variable', hint: 'declare a variable of type string' };
+      const result = await astVerifier.verify(code, { required_patterns: [pattern] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('string variable')));
+    });
+
+    it('decl_type: accepts bare string declaration with combined pattern', async function() {
+      const code = `
+        #include <iostream>
+        #include <string>
+        using namespace std;
+        int main() {
+          string s;
+          cin >> s;
+          cout << s << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [DECL_TYPE_STRING] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('virtual_method: accepts virtual method declaration', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        class Shape {
+        public:
+          virtual void draw();
+        };
+        int main() {
+          cout << "hi" << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [VIRTUAL_METHOD] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('virtual_method: accepts inline virtual method definition', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        class Shape {
+        public:
+          virtual void fill() { cout << "fill" << endl; }
+        };
+        int main() {
+          cout << "hi" << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [VIRTUAL_METHOD] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('virtual_method: accepts override', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        class Shape {
+        public:
+          virtual void draw();
+        };
+        class Circle : public Shape {
+        public:
+          void draw() override;
+        };
+        int main() {
+          cout << "hi" << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [VIRTUAL_METHOD] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('virtual_method: rejects class with only plain methods', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        class Shape {
+        public:
+          void draw() { cout << "draw" << endl; }
+        };
+        int main() {
+          cout << "hi" << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [VIRTUAL_METHOD] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('virtual method')));
+    });
+
+    it('cast_type: accepts static_cast', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          double d = 1.5;
+          int x = static_cast<int>(d);
+          cout << x << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CAST_STATIC] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('cast_type: accepts C-style cast', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          double d = 1.5;
+          int x = (int)d;
+          cout << x << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CAST_CSTYLE] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('cast_type: accepts dynamic_cast', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        class Base {
+        public:
+          virtual void f() { cout << "b" << endl; }
+        };
+        class Derived : public Base {
+        public:
+          void f() override { cout << "d" << endl; }
+        };
+        int main() {
+          Base* b = new Derived();
+          Derived* d = dynamic_cast<Derived*>(b);
+          cout << d << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CAST_DYNAMIC] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('cast_type: rejects no-cast solution', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          double d = 1.5;
+          int x = d;
+          cout << x << endl;
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [CAST_STATIC] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('static_cast')));
+    });
+
+    it('for_range_loop: accepts range-based for loop', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int a[3] = {1, 2, 3};
+          for (int x : a) {
+            cout << x << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [FOR_RANGE_LOOP] }, {});
+      assert.strictEqual(result.is_verified, true);
+    });
+
+    it('for_range_loop: rejects classic for loop', async function() {
+      const code = `
+        #include <iostream>
+        using namespace std;
+        int main() {
+          int n = 3;
+          for (int i = 0; i < n; i++) {
+            cout << i << endl;
+          }
+          return 0;
+        }
+      `;
+      const result = await astVerifier.verify(code, { required_patterns: [FOR_RANGE_LOOP] }, {});
+      assert.strictEqual(result.is_verified, false);
+      assert.ok(result.reasons.some(r => r.message.includes('range-based')));
     });
   });
 

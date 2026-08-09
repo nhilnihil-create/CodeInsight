@@ -338,12 +338,15 @@ async function computeVelocity(sectionId, dbClient) {
 
         const velocity = (recentAvg - baselineAvg) / weeksBetween;
         const roundedVelocity = Math.round(velocity * 100) / 100;
+        // Clamp to NUMERIC(5,2) range (±999.99) — the 0.1-week floor amplifies
+        // short time spans and can overflow the column, aborting the whole transaction.
+        const clampedVelocity = Math.max(-999.99, Math.min(999.99, roundedVelocity));
 
         await client.query(
           `UPDATE student_concept_metrics
            SET velocity = $1, last_updated = NOW()
            WHERE student_id = $2 AND concept_id = $3 AND section_id = $4`,
-          [roundedVelocity, parseInt(studentId), concept.id, sectionId]
+          [clampedVelocity, parseInt(studentId), concept.id, sectionId]
         );
 
         updated++;

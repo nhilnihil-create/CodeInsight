@@ -104,6 +104,7 @@ const REQUIRED_NODE_LABELS = {
   for_statement: 'a for loop',
   while_statement: 'a while loop',
   do_statement: 'a do-while loop',
+  for_range_loop: 'a range-based for loop',
   if_statement: 'an if statement',
   function_definition: 'a function',
   class_specifier: 'a class',
@@ -192,6 +193,61 @@ function countNodeTypes(rootNode, nodeTypes) {
   return total;
 }
 
+function asArray(value) {
+  if (value === null || value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+/**
+ * Extract the declared type of a declaration/field_declaration node.
+ *
+ * Returns `{ fullType, baseType }` or null when no type node can be found:
+ *  - fullType: whitespace-stripped text of the type node (e.g. "std::vector<int>").
+ *  - baseType: the LAST `type_identifier` / `identifier` descendant of the type
+ *    node, which is the type's base name (e.g. "vector" for std::vector<int>,
+ *    "string" for std::string). Falls back to fullType when the type node has
+ *    no identifier descendants (e.g. "int", "unsigned int").
+ */
+function declarationTypeCandidates(declNode) {
+  let typeNode = declNode.childForFieldName('type');
+  // Defensive fallback: some declarations expose the type as a plain child
+  // (or a type_qualifier rather than the qualified type itself).
+  if (typeNode === null || typeNode === undefined || typeNode.type === 'type_qualifier') {
+    typeNode = null;
+    for (let i = 0; i < declNode.childCount; i++) {
+      const child = declNode.child(i);
+      if (['type_identifier', 'qualified_identifier', 'template_type', 'primitive_type', 'sized_type_specifier'].includes(child.type)) {
+        typeNode = child;
+        break;
+      }
+    }
+    if (!typeNode) return null;
+  }
+  const fullType = typeNode.text.replace(/\s+/g, '');
+  let baseType = null;
+  const stack = [typeNode];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (node.type === 'type_identifier' || node.type === 'identifier') {
+      baseType = node.text;
+    }
+    // Push children in reverse so they are visited in document order.
+    for (let i = node.childCount - 1; i >= 0; i--) stack.push(node.child(i));
+  }
+  if (baseType === null) baseType = fullType;
+  return { fullType, baseType };
+}
+
+/**
+ * Return the name of a named cast (e.g. "static_cast") from a
+ * template_function node, or null when the node is not a named cast.
+ */
+function castNameOf(node) {
+  if (node.childCount === 0) return null;
+  const first = node.child(0);
+  return first.type === 'identifier' ? first.text : null;
+}
+
 /**
  * Evaluate a single required pattern against a parsed tree.
  *
@@ -202,6 +258,10 @@ function countNodeTypes(rootNode, nodeTypes) {
  *  - 'string_type': passes when a `string` / `std::string` declaration exists.
  *  - 'min_count': passes when the combined count across `node` types is ≥ min.
  *  - 'forbidden': fails with a "Bad pattern" error when any `node` type appears.
+ *  - 'decl_type': passes when a variable declaration of a given type exists (types array or singular type).
+ *  - 'virtual_method': passes when a virtual method is declared (virtual keyword, or override/final on a method).
+ *  - 'cast_type': passes when a cast of a given kind is used (named casts like static_cast, or 'c_style').
+ *  - 'for_range_loop': passes when a range-based for loop exists.
  *
  * Query compile errors fail closed (passed = false) so a broken rule can
  * never grant verification.
@@ -243,6 +303,51 @@ function evaluateRequiredPattern(tree, pattern) {
           return { passed: false, errorMessage: `Bad pattern: ${pattern.label} — ${pattern.hint}` };
         }
         return { passed: true };
+      }
+      case 'decl_type': {
+        const types = asArray(pattern.types || pattern.type).map(t => t.replace(/\s+/g, ''));
+        if (types.length === 0) return { passed: false };
+        // Scan both local declarations and class member declarations so a
+        // member variable of the required type satisfies the pattern.
+        const declNodes = collectNodesByType(tree.rootNode, 'declaration')
+          .concat(collectNodesByType(tree.rootNode, 'field_declaration'));
+        for (const node of declNodes) {
+          const c = declarationTypeCandidates(node);
+          if (c && types.some(t => t === c.fullType || t === c.baseType)) return { passed: true };
+        }
+        return { passed: false };
+      }
+      case 'virtual_method': {
+        const virtualNodes = collectNodesByType(tree.rootNode, 'virtual');
+        for (const node of virtualNodes) {
+          if (node.parent && ['field_declaration', 'declaration', 'function_definition'].includes(node.parent.type)) {
+            return { passed: true };
+          }
+        }
+        const specifierNodes = collectNodesByType(tree.rootNode, 'virtual_specifier');
+        for (const node of specifierNodes) {
+          if (node.parent && node.parent.type === 'function_declarator') return { passed: true };
+        }
+        return { passed: false };
+      }
+      case 'cast_type': {
+        const casts = asArray(pattern.casts || pattern.cast);
+        if (casts.length === 0) return { passed: false };
+        if (casts.includes('c_style') && collectNodesByType(tree.rootNode, 'cast_expression').length > 0) {
+          return { passed: true };
+        }
+        const named = casts.filter(c => c !== 'c_style');
+        if (named.length > 0) {
+          const templateFunctions = collectNodesByType(tree.rootNode, 'template_function');
+          for (const tf of templateFunctions) {
+            const name = castNameOf(tf);
+            if (name && named.includes(name)) return { passed: true };
+          }
+        }
+        return { passed: false };
+      }
+      case 'for_range_loop': {
+        return { passed: collectNodesByType(tree.rootNode, 'for_range_loop').length > 0 };
       }
       default: {
         const query = new (globalThis.__ci_ts_module).Query(globalThis.__ci_ts_lang_cpp, pattern.query);

@@ -75,6 +75,11 @@ async function applySchemaPatches() {
       const P_NO_LOOPS = { kind: 'forbidden', node: ['for_statement', 'while_statement', 'do_statement'], label: 'loops', hint: 'recursion exercises must not use loops — call the function from within itself' };
       const P_USER_FUNCTION = { kind: 'user_function', label: 'a function other than main', hint: 'your solution must define and use a function other than main' };
       const P_MIN_LOOPS2 = { kind: 'min_count', node: ['for_statement', 'while_statement', 'do_statement'], min: 2, label: 'at least two loops', hint: 'your solution must use nested loops (a loop inside a loop)' };
+      const P_VIRTUAL_METHOD = { kind: 'virtual_method', label: 'a virtual method', hint: 'declare a method as virtual or override a virtual method' };
+      const P_CAST_STATIC = { kind: 'cast_type', casts: ['static_cast'], label: 'a static_cast', hint: 'use static_cast to convert between types' };
+      const P_CAST_CSTYLE = { kind: 'cast_type', casts: ['c_style'], label: 'a C-style cast', hint: 'use a C-style cast such as (double)x' };
+      const P_VECTOR_TYPE = { kind: 'decl_type', types: ['vector'], label: 'a vector variable', hint: 'declare a variable of type vector (e.g. std::vector<int>)' };
+      const P_FOR_RANGE_LOOP = { kind: 'for_range_loop', label: 'a range-based for loop', hint: 'iterate over a container with a range-based for loop' };
 
       // 30-row catalog table — rows 6/7/12 (Variables concepts) carry no gate.
       const EXERCISE_REQUIREMENTS = [
@@ -105,6 +110,10 @@ async function applySchemaPatches() {
         { title: 'Matrix Addition', required_patterns: [P_ARRAY_USAGE, P_MIN_LOOPS2] },
         { title: 'Count Frequency', required_patterns: [P_ARRAY_USAGE] },
         { title: 'Simple Struct: Point Distance', ast_nodes: ['struct_specifier'] },
+        { title: 'Average of Two Integers', required_patterns: [P_CAST_CSTYLE, P_IO_OUTPUT] },
+        { title: 'Shape Area', required_patterns: [P_VIRTUAL_METHOD, P_IO_OUTPUT] },
+        { title: 'Sum with Vector', required_patterns: [P_VECTOR_TYPE, P_FOR_RANGE_LOOP, P_IO_OUTPUT] },
+        { title: 'Integer Part of a Double', required_patterns: [P_CAST_STATIC, P_IO_OUTPUT] },
       ];
 
       let backfillCount = 0;

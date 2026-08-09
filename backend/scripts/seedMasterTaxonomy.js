@@ -48,6 +48,11 @@ const P_SELF_CALL = { kind: 'self_call', label: 'a recursive call', hint: 'your 
 const P_NO_LOOPS = { kind: 'forbidden', node: ['for_statement', 'while_statement', 'do_statement'], label: 'loops', hint: 'recursion exercises must not use loops — call the function from within itself' };
 const P_USER_FUNCTION = { kind: 'user_function', label: 'a function other than main', hint: 'your solution must define and use a function other than main' };
 const P_MIN_LOOPS2 = { kind: 'min_count', node: ['for_statement', 'while_statement', 'do_statement'], min: 2, label: 'at least two loops', hint: 'your solution must use nested loops (a loop inside a loop)' };
+const P_VIRTUAL_METHOD = { kind: 'virtual_method', label: 'a virtual method', hint: 'declare a method as virtual or override a virtual method' };
+const P_CAST_STATIC = { kind: 'cast_type', casts: ['static_cast'], label: 'a static_cast', hint: 'use static_cast to convert between types' };
+const P_CAST_CSTYLE = { kind: 'cast_type', casts: ['c_style'], label: 'a C-style cast', hint: 'use a C-style cast such as (double)x' };
+const P_VECTOR_TYPE = { kind: 'decl_type', types: ['vector'], label: 'a vector variable', hint: 'declare a variable of type vector (e.g. std::vector<int>)' };
+const P_FOR_RANGE_LOOP = { kind: 'for_range_loop', label: 'a range-based for loop', hint: 'iterate over a container with a range-based for loop' };
 
 // ── 1. Expand concepts to 20 rows ──────────────────────────────────────────
 
@@ -497,6 +502,59 @@ const CODENET_EXERCISES = [
     ],
     starter_code: '#include <iostream>\n#include <cmath>\n#include <iomanip>\nusing namespace std;\n\nstruct Point {\n  double x, y;\n};\n\ndouble distance(Point p1, Point p2) {\n  // Compute Euclidean distance\n}\n\nint main() {\n  Point p1, p2;\n  cin >> p1.x >> p1.y >> p2.x >> p2.y;\n  cout << fixed << setprecision(5) << distance(p1, p2) << endl;\n  return 0;\n}\n',
     reference_solution: '#include <iostream>\n#include <cmath>\n#include <iomanip>\nusing namespace std;\nstruct Point{double x,y;}; double dist(Point a,Point b){return sqrt(pow(a.x-b.x,2)+pow(a.y-b.y,2));} int main(){Point a,b;cin>>a.x>>a.y>>b.x>>b.y;cout<<fixed<<setprecision(5)<<dist(a,b)<<endl;return 0;}',
+  },
+  {
+    title: 'Average of Two Integers',
+    description: 'Read two integers a and b. Print a/b as a floating-point number with 5 decimal places. Integer division truncates the fractional part — cast a to double first.',
+    concept: 'Type Casting',
+    secondary_concepts: ['Input/Output', 'Datatypes'],
+    required_patterns: [P_CAST_CSTYLE, P_IO_OUTPUT],
+    test_cases: [
+      { input: '7 2', expected: '3.50000', passed: false },
+      { input: '5 4', expected: '1.25000', passed: false },
+      { input: '9 2', expected: '4.50000', passed: false },
+    ],
+    starter_code: '#include <iostream>\n#include <iomanip>\nusing namespace std;\n\nint main() {\n  int a, b;\n  cin >> a >> b;\n  cout << fixed << setprecision(5) << a / b << endl;\n  return 0;\n}\n',
+    reference_solution: '#include <iostream>\n#include <iomanip>\nusing namespace std;\nint main() { int a, b; cin >> a >> b; cout << fixed << setprecision(5) << (double)a / b << endl; return 0; }',
+  },
+  {
+    title: 'Shape Area',
+    description: 'Define a base class Shape with a virtual area() method. Define Circle and Rect, each overriding area(). In main, call area() through a Shape* pointer and print both results.',
+    concept: 'Polymorphism',
+    secondary_concepts: ['Inheritance', 'OOP'],
+    required_patterns: [P_VIRTUAL_METHOD, P_IO_OUTPUT],
+    test_cases: [
+      { input: '', expected: '3.14159\n6', passed: false },
+    ],
+    starter_code: '#include <iostream>\nusing namespace std;\n\nclass Shape {\npublic:\n  double area() { return 0; }\n};\n\nint main() {\n  // Create a Circle and a Rect, print their areas\n  return 0;\n}\n',
+    reference_solution: '#include <iostream>\nusing namespace std;\nclass Shape { public: virtual double area() { return 0; } };\nclass Circle : public Shape { public: double r; Circle(double x) { r = x; } double area() { return 3.14159 * r * r; } };\nclass Rect : public Shape { public: double w, h; Rect(double a, double b) { w = a; h = b; } double area() { return w * h; } };\nint main() { Circle c(1); Rect r(2, 3); Shape* s1 = &c; Shape* s2 = &r; cout << s1->area() << endl; cout << s2->area() << endl; return 0; }',
+  },
+  {
+    title: 'Sum with Vector',
+    description: 'Read N, then N integers. Store all integers in a vector<int> and print their sum using a range-based for loop.',
+    concept: 'Datatypes',
+    secondary_concepts: ['Loops', 'Input/Output'],
+    required_patterns: [P_VECTOR_TYPE, P_FOR_RANGE_LOOP, P_IO_OUTPUT],
+    test_cases: [
+      { input: '5\n1 2 3 4 5', expected: '15', passed: false },
+      { input: '3\n10 20 30', expected: '60', passed: false },
+    ],
+    starter_code: '#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  cin >> n;\n  // Read N integers and print their sum\n  return 0;\n}\n',
+    reference_solution: '#include <iostream>\n#include <vector>\nusing namespace std;\nint main() { int n; cin >> n; vector<int> v; for (int i = 0; i < n; i++) { int x; cin >> x; v.push_back(x); } int s = 0; for (int x : v) s += x; cout << s << endl; return 0; }',
+  },
+  {
+    title: 'Integer Part of a Double',
+    description: 'Read a floating-point number d. Print its integer part (truncated toward zero using static_cast) followed by the original value with 1 decimal place.',
+    concept: 'Datatypes',
+    secondary_concepts: ['Type Casting', 'Input/Output'],
+    required_patterns: [P_CAST_STATIC, P_IO_OUTPUT],
+    test_cases: [
+      { input: '3.5', expected: '3 3.5', passed: false },
+      { input: '7.9', expected: '7 7.9', passed: false },
+      { input: '-2.7', expected: '-2 -2.7', passed: false },
+    ],
+    starter_code: '#include <iostream>\n#include <iomanip>\nusing namespace std;\n\nint main() {\n  double d;\n  cin >> d;\n  cout << fixed << setprecision(1) << d << endl;\n  return 0;\n}\n',
+    reference_solution: '#include <iostream>\n#include <iomanip>\nusing namespace std;\nint main() { double d; cin >> d; int whole = static_cast<int>(d); cout << whole << " " << fixed << setprecision(1) << d << endl; return 0; }',
   },
 ];
 

@@ -171,8 +171,10 @@
   - Add ~10 new rule blocks covering edge cases from Task 2 fuzzing
   - Include: comma operator abuse, goto-induced control flow, macro obfuscation, setjmp/longjmp, Duff's device pattern, lambda recursion
 
-- [ ] **Step 2: Merge all new bad patterns into badPatterns.js**
+- [x] **Step 2: Merge all new bad patterns into badPatterns.js** — CLOSED AS DOCUMENTED GAP (2026-08-09)
   - From Task 2 AST analysis: empty loop bodies, ternary-as-control-flow, short-circuit-gate, fallthrough-without-comment
+  - Status: 3 of 4 are already covered by microConceptEngine.js crossCuttingRules (advisory, non-rejecting): cc_empty_loop_body, cc_short_circuit_if, cc_comma_in_conditional. Ternary-as-control-flow is additionally gated by the P_CONDITIONAL required pattern (ternary-only solutions fail verification).
+  - fallthrough-without-comment is NOT added: tree-sitter-cpp cannot express it as a precise query (case_statement bodies nest statements, so `(case_statement !(break_statement))` false-positives on `case 1: { x++; break; }` and `case 1: if (x) { break; } foo();`). Precise detection requires a JS handler (last-statement analysis + comment adjacency) plus a verification_rules row — and given the 38 over-broad patterns already deactivated in migrations.js (REMOVED_BAD_PATTERN_IDS), a hard-reject pattern without a tested handler is high-risk. Revisit only with a handler-based implementation and regression tests.
 
 - [ ] **Step 3: Merge extended integrity checks**
   - From Task 1: printf/putchar hardcoding, ostringstream bypass, return-value cheating, exit-code evasion
