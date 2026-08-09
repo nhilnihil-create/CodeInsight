@@ -85,6 +85,12 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     const { code } = req.body;
     if (!code) throw new AppError('Code required', 400, codes.VALIDATION);
 
+    // Per-run behavioral snapshot (sent by the client along with the code)
+    const tabSwitchCount   = Math.max(0, parseInt(req.body.tabSwitchCount, 10) || 0);
+    const pasteCount       = Math.max(0, parseInt(req.body.pasteCount, 10) || 0);
+    const timeSpentSeconds = Math.max(0, parseInt(req.body.timeSpentSeconds, 10) || 0);
+    const lineCount        = Math.max(0, parseInt(req.body.lineCount, 10) || code.split('\n').length);
+
     const exRes = await db.query(`
       SELECT ex.*, c.name AS concept_name
       FROM exercises ex
@@ -135,12 +141,64 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
       failed: hiddenResults.filter(r => !r.passed).length,
     };
 
+    // ── Run snapshot (run_attempts) ──────────────────────────────────────
+    // Persist a per-run record with behavioral + growth metadata so the
+    // submit-time aggregation and integrity checks have run-level data.
+    const errorCount = results.filter(r =>
+      r.status === 'Compile Error' || r.status === 'Runtime Error' || r.status === 'Execution Error'
+    ).length;
+    const timeLimitHit = results.some(r => r.status === 'Time Limit Exceeded');
+
+    const prevRunRes = await db.query(
+      `SELECT line_count FROM run_attempts
+       WHERE student_id = $1 AND exercise_id = $2
+       ORDER BY run_at DESC, id DESC
+       LIMIT 1`,
+      [req.user.id, exercise.id]
+    );
+    const prevLineCount = prevRunRes.rows[0]?.line_count || 0;
+    const codeGrowthDelta = prevRunRes.rows.length > 0 ? lineCount - prevLineCount : 0;
+
+    const runInsert = await db.query(
+      `INSERT INTO run_attempts
+       (student_id, exercise_id, code, compiler_log, error_count, time_limit_hit, run_at,
+        tab_switch_count, paste_count, time_spent_seconds, line_count, code_growth_delta)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11)
+       RETURNING id`,
+      [req.user.id, exercise.id, code, compilerError, errorCount, timeLimitHit,
+       tabSwitchCount, pasteCount, timeSpentSeconds, lineCount, codeGrowthDelta]
+    );
+    const runId = runInsert.rows[0].id;
+
+    // Background per-run integrity checkpoint (paste/tab, hardcoding, blank)
+    defer(async () => {
+      try {
+        const { evaluateRunCheckpoint } = require('../services/runCheckpoint');
+        await evaluateRunCheckpoint({
+          runId,
+          studentId: req.user.id,
+          exerciseId: exercise.id,
+          sectionId: exercise.section_id,
+          code,
+          starterCode: exercise.starter_code || '',
+          exercise,
+          tabSwitchCount,
+          pasteCount,
+          timeSpentSeconds,
+        });
+      } catch (checkErr) {
+        logger.warn({ err: checkErr }, 'Run checkpoint evaluation failed');
+      }
+    });
+
     res.json({
       passed: results.every(r => r.passed),
       testResults: visibleResults,
       hidden: hiddenSummary,
       compilerError,
       microConceptFeedback: null,
+      runId,
+      integrityFlags: [],
     });
   } catch (err) { next(err); }
 });
@@ -265,6 +323,26 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     );
     const attempt_number = (attemptRes.rows[0].count || 0) + 1;
 
+    // Session totals: aggregate per-run behavioral snapshots captured at /run
+    // time since the previous submission (or all runs for the first attempt).
+    // These feed the submission's tab_switch_count / paste_count.
+    const sessionTotalsRes = await db.query(
+      `WITH prev_sub AS (
+         SELECT COALESCE(MAX(submitted_at), '1970-01-01') AS cutoff
+         FROM submissions
+         WHERE student_id = $1 AND exercise_id = $2
+       )
+       SELECT COALESCE(SUM(ra.tab_switch_count), 0)::int   AS tab_switches,
+              COALESCE(SUM(ra.paste_count), 0)::int        AS pastes,
+              COALESCE(SUM(ra.time_spent_seconds), 0)::int AS run_time_seconds
+       FROM run_attempts ra
+       CROSS JOIN prev_sub ps
+       WHERE ra.student_id = $1 AND ra.exercise_id = $2 AND ra.run_at > ps.cutoff`,
+      [req.user.id, exercise.id]
+    );
+    const sessionTabSwitches = sessionTotalsRes.rows[0]?.tab_switches || 0;
+    const sessionPastes      = sessionTotalsRes.rows[0]?.pastes || 0;
+
     const subRes = await db.query(`
       INSERT INTO submissions
         (exercise_id, student_id, code, test_results, is_correct, is_verified, verification_note,
@@ -272,7 +350,7 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       RETURNING id, exercise_id, student_id, is_correct, attempt_number, submitted_at, time_spent_seconds
     `, [exercise.id, req.user.id, code, JSON.stringify(allResults), passed, is_verified, verificationNote,
-        attempt_number, timeSpentSeconds || 0, tabSwitchCount, pasteCount]);
+        attempt_number, timeSpentSeconds || 0, sessionTabSwitches, sessionPastes]);
 
     // Log verification failures into verification_logs for instructor review
     if (!is_verified) {
@@ -328,11 +406,13 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       };
       const totalTime = timeSpentSeconds || 1;
       const behavioralSignals = [];
-      if (tabSwitchCount >= BEHAVIORAL_THRESHOLDS.TAB_SWITCH_HIGH) {
-        behavioralSignals.push(`${tabSwitchCount} tab switches`);
+      // Use the session totals aggregated from per-run snapshots so the flag
+      // evidence matches the submission's stored tab_switch_count / paste_count.
+      if (sessionTabSwitches >= BEHAVIORAL_THRESHOLDS.TAB_SWITCH_HIGH) {
+        behavioralSignals.push(`${sessionTabSwitches} tab switches`);
       }
-      if (pasteCount >= BEHAVIORAL_THRESHOLDS.PASTE_HIGH) {
-        behavioralSignals.push(`${pasteCount} paste events`);
+      if (sessionPastes >= BEHAVIORAL_THRESHOLDS.PASTE_HIGH) {
+        behavioralSignals.push(`${sessionPastes} paste events`);
       }
 
       if (behavioralSignals.length > 0) {
@@ -353,8 +433,8 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
             exercise.section_id, exercise.id, req.user.id, subRes.rows[0].id,
             behavioralSeverity,
             JSON.stringify({
-              tab_switch_count: tabSwitchCount,
-              paste_count: pasteCount,
+              tab_switch_count: sessionTabSwitches,
+              paste_count: sessionPastes,
               total_time_seconds: totalTime,
             }),
             [
@@ -465,6 +545,53 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
         }
       } catch (behavioralError) {
         logger.warn({ err: behavioralError }, 'Behavioral anomaly detection failed');
+      }
+
+      // ── Finalize run-checkpoint flags with this submission ──────────────
+      // Flags captured at /run time have run_id set but submission_id NULL;
+      // back-fill them now that the submission exists.
+      try {
+        await db.query(
+          `UPDATE integrity_flags
+           SET submission_id = $1
+           WHERE exercise_id = $2 AND student_id = $3
+             AND run_id IS NOT NULL AND submission_id IS NULL`,
+          [subRes.rows[0].id, exercise.id, req.user.id]
+        );
+      } catch (finalizeErr) {
+        logger.warn({ err: finalizeErr }, 'Finalize run flags failed');
+      }
+
+      // ── Self-heal: backfill flags for runs without any checkpoint flag ──
+      try {
+        const { evaluateRunCheckpoint } = require('../services/runCheckpoint');
+        const orphanRuns = await db.query(
+          `SELECT ra.id AS run_id, ra.code,
+                  ra.tab_switch_count, ra.paste_count, ra.time_spent_seconds
+           FROM run_attempts ra
+           WHERE ra.student_id = $1 AND ra.exercise_id = $2
+             AND NOT EXISTS (
+               SELECT 1 FROM integrity_flags if2 WHERE if2.run_id = ra.id
+             )
+           ORDER BY ra.run_at ASC`,
+          [req.user.id, exercise.id]
+        );
+        for (const run of orphanRuns.rows) {
+          await evaluateRunCheckpoint({
+            runId: run.run_id,
+            studentId: req.user.id,
+            exerciseId: exercise.id,
+            sectionId: exercise.section_id,
+            code: run.code,
+            starterCode: exercise.starter_code || '',
+            exercise,
+            tabSwitchCount: run.tab_switch_count || 0,
+            pasteCount: run.paste_count || 0,
+            timeSpentSeconds: run.time_spent_seconds || 0,
+          });
+        }
+      } catch (healErr) {
+        logger.warn({ err: healErr }, 'Run flag self-heal failed');
       }
 
     });
@@ -789,31 +916,9 @@ router.post('/behavioral-events', behavioralLimiter, verifyToken, requireRole('s
       );
     }
 
-    // Also update the submission's tab_switch_count and paste_count
-    // Find the latest submission for this student+exercise
-    const latestSub = await db.query(
-      `SELECT id FROM submissions
-       WHERE student_id = $1 AND exercise_id = $2
-       ORDER BY attempt_number DESC LIMIT 1`,
-      [studentId, exerciseId]
-    );
-
-    if (latestSub.rows.length > 0) {
-      const subId = latestSub.rows[0].id;
-      const tabSwitches = toInsert.filter(e => e.type === 'tab_switch').length;
-      const pastes = toInsert.filter(e => e.type === 'paste').length;
-
-      if (tabSwitches > 0 || pastes > 0) {
-        await db.query(
-          `UPDATE submissions
-           SET tab_switch_count = tab_switch_count + $1,
-               paste_count = paste_count + $2
-           WHERE id = $3`,
-          [tabSwitches, pastes, subId]
-        );
-      }
-    }
-
+    // Note: behavioral events are logged here (passive behavior log) but no
+    // longer mutate submissions — tab_switch_count/paste_count on a submission
+    // are aggregated from per-run snapshots (run_attempts) at submit time.
     res.json({ received: toInsert.length });
   } catch (err) { next(err); }
 });

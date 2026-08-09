@@ -283,7 +283,12 @@ CREATE TABLE IF NOT EXISTS run_attempts (
   compiler_log   TEXT,
   error_count    INT DEFAULT 0,
   time_limit_hit BOOLEAN DEFAULT false,
-  run_at         TIMESTAMP DEFAULT NOW()
+  run_at             TIMESTAMP DEFAULT NOW(),
+  tab_switch_count   INT NOT NULL DEFAULT 0,
+  paste_count        INT NOT NULL DEFAULT 0,
+  time_spent_seconds INT NOT NULL DEFAULT 0,
+  line_count         INT NOT NULL DEFAULT 0,
+  code_growth_delta  INT NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_run_attempts_student_exercise ON run_attempts(student_id, exercise_id);
@@ -361,6 +366,7 @@ CREATE TABLE IF NOT EXISTS integrity_flags (
   exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
   student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   submission_id       INT REFERENCES submissions(id) ON DELETE SET NULL,
+  run_id              INT REFERENCES run_attempts(id) ON DELETE SET NULL,
   flag_type           VARCHAR(50) NOT NULL,
   severity            VARCHAR(20) NOT NULL,
   evidence            JSONB DEFAULT '{}',

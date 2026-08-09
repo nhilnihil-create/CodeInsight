@@ -15,22 +15,30 @@ const db = require('../config/db');
 // ── createFlag ─────────────────────────────────────────────────────────────
 
 async function createFlag(flagData) {
-  const { sectionId, exerciseId, studentId, flagType, severity, evidence, contextBehaviors, status, submissionId } = flagData;
+  const { sectionId, exerciseId, studentId, flagType, severity, evidence, contextBehaviors, status, submissionId, runId } = flagData;
 
   try {
     const result = await db.query(
       `INSERT INTO integrity_flags
-       (section_id, exercise_id, student_id, flag_type, severity, evidence, context_behaviors, status, created_at, submission_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)
+       (section_id, exercise_id, student_id, flag_type, severity, evidence, context_behaviors, status, created_at, submission_id, run_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10)
        ON CONFLICT (exercise_id, student_id, flag_type)
        DO UPDATE SET
          severity = EXCLUDED.severity,
-         evidence = EXCLUDED.evidence,
-         context_behaviors = EXCLUDED.context_behaviors,
-         submission_id = EXCLUDED.submission_id
+         evidence = COALESCE(integrity_flags.evidence, '{}') || COALESCE(EXCLUDED.evidence, '{}'),
+         context_behaviors = ARRAY(
+           SELECT DISTINCT b
+           FROM unnest(
+             COALESCE(integrity_flags.context_behaviors, '{}') ||
+             COALESCE(EXCLUDED.context_behaviors, '{}')
+           ) AS b
+         ),
+         status = EXCLUDED.status,
+         submission_id = COALESCE(EXCLUDED.submission_id, integrity_flags.submission_id),
+         run_id = COALESCE(EXCLUDED.run_id, integrity_flags.run_id)
        RETURNING *`,
       [sectionId, exerciseId, studentId, flagType, severity,
-       JSON.stringify(evidence), contextBehaviors, status || 'flagged', submissionId || null]
+       JSON.stringify(evidence), contextBehaviors, status || 'flagged', submissionId || null, runId || null]
     );
 
     return result.rows[0];

@@ -338,11 +338,25 @@ async function applySchemaPatches() {
         compiler_log    TEXT,
         error_count     INT DEFAULT 0,
         time_limit_hit  BOOLEAN DEFAULT false,
-        run_at          TIMESTAMP DEFAULT NOW()
+        run_at              TIMESTAMP DEFAULT NOW(),
+        tab_switch_count    INT NOT NULL DEFAULT 0,
+        paste_count         INT NOT NULL DEFAULT 0,
+        time_spent_seconds  INT NOT NULL DEFAULT 0,
+        line_count          INT NOT NULL DEFAULT 0,
+        code_growth_delta   INT NOT NULL DEFAULT 0
       )
     `);
     await db.query(`CREATE INDEX IF NOT EXISTS idx_run_attempts_student_exercise ON run_attempts(student_id, exercise_id)`);
     console.log('✓ Created run_attempts table');
+  }
+
+  // ── Run-checkpoint snapshot columns (per-run behavioral + growth data) ──
+  if (await tableExists('run_attempts')) {
+    patches.push(addColumnIfMissing('run_attempts', 'tab_switch_count', 'INT NOT NULL DEFAULT 0'));
+    patches.push(addColumnIfMissing('run_attempts', 'paste_count', 'INT NOT NULL DEFAULT 0'));
+    patches.push(addColumnIfMissing('run_attempts', 'time_spent_seconds', 'INT NOT NULL DEFAULT 0'));
+    patches.push(addColumnIfMissing('run_attempts', 'line_count', 'INT NOT NULL DEFAULT 0'));
+    patches.push(addColumnIfMissing('run_attempts', 'code_growth_delta', 'INT NOT NULL DEFAULT 0'));
   }
 
   if (await tableExists('cds_scores')) {
@@ -413,6 +427,7 @@ async function applySchemaPatches() {
         exercise_id         INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
         student_id          INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         submission_id       INT REFERENCES submissions(id) ON DELETE SET NULL,
+        run_id              INT REFERENCES run_attempts(id) ON DELETE SET NULL,
         flag_type           VARCHAR(50) NOT NULL,
         severity            VARCHAR(20) NOT NULL,
         evidence            JSONB DEFAULT '{}',
@@ -425,6 +440,11 @@ async function applySchemaPatches() {
       )
     `);
     console.log('✓ Created integrity_flags table');
+  }
+
+  // ── Link flags to the run snapshot that produced them (run checkpoint) ──
+  if (await tableExists('integrity_flags')) {
+    patches.push(addColumnIfMissing('integrity_flags', 'run_id', 'INT REFERENCES run_attempts(id) ON DELETE SET NULL'));
   }
 
   if (!(await tableExists('section_memberships'))) {
