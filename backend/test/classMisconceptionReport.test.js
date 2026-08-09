@@ -150,6 +150,50 @@ describe('Class Misconception Report Test Suite', function() {
       assert.strictEqual(result.recommendedAction, 'No issues found. Proceed to next concept or provide enrichment activities.');
     });
 
+    it('should source rootCause and recommendedAction from CONCEPT_ROOT_CAUSES in the mostCommonIssue branch', async function() {
+      // Mock exercise exists with a concept present in CONCEPT_ROOT_CAUSES
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ id: 8, title: 'Loop Exercise', concept_name: 'Loops', ast_nodes: '[]' }] });
+      // Mock submissions: one student with no compiler errors → mostCommonIssue branch
+      mockDbQuery.mockResolvedValueOnce({ rows: [
+        { student_id: 1, attempt_number: 1, code: 'for (int i = 0; i <= 10; i++) { cout << i; }', test_results: '[]', compiler_log: '', time_limit_hit: false }
+      ] });
+      // Mock run_attempts query for the student
+      mockRunAttemptsEmpty(1);
+
+      // Mock engine feedback: a taxonomy issue with no raw compiler errors
+      microConceptEngine.getMicroConceptFeedback.mockResolvedValueOnce({
+        hasFeedback: true,
+        detectedCount: 1,
+        issues: [{ id: 'loop_off_by_one', name: 'Off-by-One Loop Bound', description: 'Loop condition includes the boundary value' }],
+        instructorNotes: [],
+        studentMessages: [],
+        evidence: [],
+        summary: 'One loop issue detected.',
+        suggestedAction: 'Review loop bounds.'
+      });
+
+      const result = await generateClassMisconceptionReport(8);
+
+      // No raw compiler errors → the mostCommonIssue narrative branch executes
+      assert.strictEqual(result.mostCommonIssue.id, 'loop_off_by_one');
+      assert.strictEqual(result.affectedCount, 1);
+      assert.strictEqual(result.affectedPercent, 100);
+      assert.strictEqual(result.secondIssue, null);
+      assert.deepStrictEqual(result.commonErrors, []);
+      // rootCause and recommendedAction are sourced from CONCEPT_ROOT_CAUSES['Loops']
+      assert.strictEqual(
+        result.rootCause,
+        'Loop headers are misconfigured \u2014 off-by-one bounds, missing increments, or the wrong loop type chosen for the task.'
+      );
+      assert.strictEqual(
+        result.recommendedAction,
+        'Check the initialization, condition, and step of every loop; test boundary inputs like 0, 1, and size.'
+      );
+      // The class summary carries the count narrative and the grounded root cause
+      assert.ok(result.classSummary.includes('1 of 1 students'));
+      assert.ok(result.classSummary.includes(result.rootCause));
+    });
+
     describe('commonErrors - raw compiler error aggregation', function() {
       it('should filter out std namespace errors (cout, cin, string, etc.)', async function() {
         mockDbQuery.mockResolvedValueOnce({ rows: [{ id: 2, title: 'IO Exercise', concept_name: 'I/O', ast_nodes: '[]' }] });

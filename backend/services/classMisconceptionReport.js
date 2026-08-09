@@ -61,6 +61,112 @@ const ERROR_FRIENDLY_MAP = [
   { pattern: /^expected '\)' before ','/, friendly: 'Extra comma or missing parenthesis before a comma' },
 ];
 
+// Concept-grounded root causes for the most-common-issue narrative.
+// Keys match the micro-concept taxonomy concept names exactly; content is
+// grounded in each concept's rule IDs. Pure data — no functions.
+const CONCEPT_ROOT_CAUSES = {
+  'Datatypes': {
+    rootCause: 'Students mix data types in operations — integer division truncation, or printing a value in the wrong type — producing incorrect output types.',
+    recommendedAction: 'Reinforce type rules: perform integer division carefully, print matching types, and verify operator behavior with mixed-type operands.'
+  },
+  'Variables': {
+    rootCause: 'Variables are used before declaration or initialization, so the compiler rejects the name or the value read back is garbage.',
+    recommendedAction: 'Practice declaring and initializing every variable before first use; treat declarations as a prerequisite for any statement.'
+  },
+  'Conditionals': {
+    rootCause: 'Conditional logic is incomplete or miswritten — missing else branches, = instead of ==, or inverted conditions.',
+    recommendedAction: 'Cover every branch with if/else, use == for comparison, and trace boolean expressions with concrete test values.'
+  },
+  'Loops': {
+    rootCause: 'Loop headers are misconfigured — off-by-one bounds, missing increments, or the wrong loop type chosen for the task.',
+    recommendedAction: 'Check the initialization, condition, and step of every loop; test boundary inputs like 0, 1, and size.'
+  },
+  'Functions': {
+    rootCause: 'Functions are defined with mismatched signatures, missing return values on some paths, or are never called.',
+    recommendedAction: 'Match parameter lists to calls, ensure every non-void path returns a value, and call the helpers you define.'
+  },
+  'Arrays': {
+    rootCause: 'Arrays are accessed with hardcoded or out-of-range indices instead of bounds-aware iteration.',
+    recommendedAction: 'Iterate with loop variables and validate every index against the array size before access.'
+  },
+  'OOP': {
+    rootCause: 'Classes lack encapsulation — everything public, missing constructors, or members touched directly from outside.',
+    recommendedAction: 'Encapsulate members behind private access with public methods, and add constructors to initialize state.'
+  },
+  'Pointers': {
+    rootCause: 'Pointers are dereferenced without initialization or null checks, or allocated without a matching delete.',
+    recommendedAction: 'Initialize pointers, check for null before dereferencing, and pair every new with a delete.'
+  },
+  'Strings': {
+    rootCause: 'Strings are used without the right header, mixed with char arrays, or indexed beyond their length.',
+    recommendedAction: 'Include <string>, prefer std::string over char arrays, and use bounds-safe access such as .at() or size checks.'
+  },
+  'Input/Output': {
+    rootCause: 'Stream usage is broken — missing <iostream>, reversed >> / << operators, or missing newlines in the output format.',
+    recommendedAction: 'Include <iostream>, read with >> and write with <<, and match the expected output format including newlines.'
+  },
+  'Switch/Case': {
+    rootCause: 'Switch statements are incomplete — missing break or return, no default branch, or duplicate case values.',
+    recommendedAction: 'Terminate every case with break or return, add a default branch, and keep case values unique.'
+  },
+  'Nested Loops': {
+    rootCause: 'Inner and outer loops reuse the same loop variable, or an accumulator is not reset before each outer iteration.',
+    recommendedAction: 'Use distinct loop variables per nesting level and reset accumulators at the start of each outer iteration.'
+  },
+  'Recursion': {
+    rootCause: 'Recursive functions lack a base case, miss return values, or apply the wrong recurrence.',
+    recommendedAction: 'Define a stopping base case first, return a value on every path, and verify the recurrence on small inputs.'
+  },
+  'File I/O': {
+    rootCause: 'File streams are used without <fstream>, or files are opened without checking whether the open succeeded.',
+    recommendedAction: 'Include <fstream>, open files, and always check is_open() before reading or writing.'
+  },
+  'Scope': {
+    rootCause: 'Variables are shadowed in inner blocks, or accessed outside the scope where they were declared.',
+    recommendedAction: 'Declare variables at the scope where they are used and avoid re-declaring the same name in nested blocks.'
+  },
+  'Enums': {
+    rootCause: 'Plain enums are used instead of enum class, or enum variables are read before initialization.',
+    recommendedAction: 'Prefer enum class for type safety and initialize enum variables before use.'
+  },
+  'Structs': {
+    rootCause: 'Struct fields are left uninitialized, structs are passed by value, or the definition is missing its trailing semicolon.',
+    recommendedAction: 'Initialize all fields, pass large structs by const reference, and end struct definitions with ;.'
+  },
+  'Dynamic Memory': {
+    rootCause: 'Heap allocations are not matched with deletes, freed memory is reused, or the same block is freed twice.',
+    recommendedAction: 'Pair every new with a delete and every new[] with delete[], and null out pointers after freeing.'
+  },
+  'Linked Lists': {
+    rootCause: 'List traversals skip null checks, or insertions do not rewire the next pointers correctly.',
+    recommendedAction: 'Guard every traversal with null checks and rewire next pointers correctly on each insertion or removal.'
+  },
+  'Error Handling': {
+    rootCause: 'Exceptions are caught by value, or catch blocks are left empty and swallow errors silently.',
+    recommendedAction: 'Catch exceptions by const reference and never leave a catch block empty — log or handle the error.'
+  },
+  'Type Casting': {
+    rootCause: 'C-style casts hide unsafe conversions, or narrowing casts silently lose precision.',
+    recommendedAction: 'Use static_cast<Type>() and verify precision before converting between numeric types.'
+  },
+  'Preprocessor': {
+    rootCause: 'Headers lack include guards, or macro arguments and bodies are not wrapped in parentheses.',
+    recommendedAction: 'Add #pragma once or include guards to headers and parenthesize macro arguments and bodies.'
+  },
+  'Namespaces': {
+    rootCause: 'Standard names are used without std::, or namespace usage produces ambiguous identifiers.',
+    recommendedAction: 'Prefix standard names with std:: and resolve ambiguous names explicitly instead of relying on using directives.'
+  },
+  'Inheritance': {
+    rootCause: 'Base classes lack virtual destructors, derived constructors skip base initialization, or objects are sliced when passed by value.',
+    recommendedAction: 'Make base destructors virtual, initialize base classes in the initializer list, and pass polymorphic objects by reference.'
+  },
+  'Polymorphism': {
+    rootCause: 'Overriding functions lack virtual or override keywords, or their signatures do not match the base declaration.',
+    recommendedAction: 'Mark base functions virtual and derived overrides with override so mismatches are caught at compile time.'
+  }
+};
+
 function isStdNamespaceError(rawMessage) {
   const match = rawMessage.match(/'([a-zA-Z_]\w*)'/);
   if (match && STD_IDS.has(match[1])) {
@@ -297,6 +403,7 @@ async function generateClassMisconceptionReport(exerciseId) {
     // Generate data-driven narratives from actual compiler error patterns
     let classSummary = '';
     let recommendedAction = '';
+    let guidance = {};
 
     if (topRawErrors.length > 0) {
       const e1 = topRawErrors[0];
@@ -311,8 +418,12 @@ async function generateClassMisconceptionReport(exerciseId) {
       recommendedAction = `Most frequent: ${details}. Practice resolving these errors before advancing.`;
 
     } else if (mostCommonIssue) {
+      guidance = CONCEPT_ROOT_CAUSES[conceptName] || {};
       classSummary = `${affectedCount} of ${totalStudents} students (${affectedPercent}%) showed "${mostCommonIssue.name}".`;
-      recommendedAction = `${mostCommonIssue.name} \u2014 ${mostCommonIssue.description}. Review with targeted examples before advancing.`;
+      if (guidance.rootCause) {
+        classSummary += ` ${guidance.rootCause}`;
+      }
+      recommendedAction = guidance.recommendedAction || `${mostCommonIssue.name} \u2014 ${mostCommonIssue.description}. Review with targeted examples before advancing.`;
 
     } else {
       classSummary = `No significant issues detected among ${totalStudents} students.`;
@@ -339,6 +450,7 @@ async function generateClassMisconceptionReport(exerciseId) {
       secondCount,
       classSummary,
       recommendedAction,
+      rootCause: guidance.rootCause || null,
       generatedAt: new Date().toISOString(),
       commonErrors: topRawErrors
     };

@@ -134,6 +134,113 @@ const crossCuttingRules = [
       const macros = (code.match(/#define\s/g) || []).length;
       return `${macros} #define directives found, no function definitions`;
     }
+  },
+  {
+    id: 'cc_over_nested',
+    name: 'Suspiciously Over-Nested Structure',
+    description: 'Control-flow keyword nested at brace depth of 5 or more — logic buried too deep to follow',
+    detector: ({code}) => {
+      if (typeof code !== 'string' || code.length === 0) return false;
+      const OVER_NESTED_THRESHOLD = 5;
+      // Strip comments (// and /* */) and string/char literals so braces and
+      // keywords inside them do not affect depth tracking. Pure char scan.
+      const cleaned = code
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/\/\/[^\n]*/g, ' ')
+        .replace(/"(?:[^"\\]|\\.)*"/g, ' ')
+        .replace(/'(?:[^'\\]|\\.)*'/g, ' ');
+      let depth = 0;
+      for (let i = 0; i < cleaned.length; i++) {
+        const ch = cleaned[i];
+        if (ch === '{') {
+          depth++;
+        } else if (ch === '}') {
+          depth = depth > 0 ? depth - 1 : 0;
+        } else if (depth >= OVER_NESTED_THRESHOLD && /^(?:for|while|do|if|switch)\b/.test(cleaned.slice(i))) {
+          return true;
+        }
+      }
+      return false;
+    },
+    instructorMessage: 'Logic nested 5+ levels deep is very hard to read and debug. Refactor into smaller helper functions.',
+    studentMessage: 'Your code is nested very deeply. Break it into smaller functions so each piece stays readable.',
+    evidenceExtractor: ({code}) => {
+      const kw = (code.match(/\b(?:for|while|do|if|switch)\b/) || [])[0];
+      return kw ? `Control-flow keyword "${kw}" appears at brace depth >= 5` : 'Deeply nested control flow detected';
+    }
+  },
+  {
+    id: 'cc_implicit_fallthrough',
+    name: 'Implicit Fallthrough in Switch',
+    description: 'A switch case block runs into the next case without break/return — execution falls through',
+    detector: ({code}) => {
+      if (typeof code !== 'string' || code.length === 0) return false;
+      const switchRe = /\bswitch\s*\(/g;
+      let swMatch;
+      while ((swMatch = switchRe.exec(code)) !== null) {
+        const openIdx = code.indexOf('{', swMatch.index + swMatch[0].length);
+        if (openIdx === -1) continue;
+        // Extract the switch body via brace counting
+        let depth = 0;
+        let closeIdx = -1;
+        for (let i = openIdx; i < code.length; i++) {
+          if (code[i] === '{') depth++;
+          else if (code[i] === '}') {
+            depth--;
+            if (depth === 0) { closeIdx = i; break; }
+          }
+        }
+        if (closeIdx === -1) continue;
+        const body = code.slice(openIdx + 1, closeIdx);
+        // Split the body into blocks by case/default labels
+        const labelRe = /\b(?:case\b[^:]*|default)\s*:/g;
+        const labelMatches = [];
+        let labelMatch;
+        while ((labelMatch = labelRe.exec(body)) !== null) labelMatches.push(labelMatch);
+        if (labelMatches.length === 0) continue;
+        // Every block except the last must end with a terminator if non-empty.
+        // Stacked labels (case 1: case 2:) produce an empty block and do not fire.
+        for (let b = 0; b < labelMatches.length - 1; b++) {
+          const blockStart = labelMatches[b].index + labelMatches[b][0].length;
+          const blockEnd = labelMatches[b + 1].index;
+          const block = body.slice(blockStart, blockEnd);
+          if (!/\S/.test(block)) continue;
+          if (/\bbreak\s*;|\breturn\b|\bgoto\b|\bthrow\b|\bcontinue\s*;|\bexit\s*\(/.test(block)) continue;
+          return true;
+        }
+      }
+      return false;
+    },
+    instructorMessage: 'A case block falls through into the next case without break or return. Add a terminator to every non-empty case.',
+    studentMessage: 'Every case in a switch should end with break; (or return/continue) unless you intentionally want fallthrough.',
+    evidenceExtractor: ({code}) => {
+      const match = code.match(/\bswitch\s*\([^)]*\)\s*\{/);
+      return match ? `Fallthrough risk in: ${match[0].trim()}...` : 'Implicit fallthrough in switch';
+    }
+  },
+  {
+    id: 'cc_macro_obfuscation',
+    name: 'Macro-Obfuscated Logic',
+    description: 'Function-like macro whose body hides control flow or statements — logic buried in a single macro',
+    // NOTE: distinct from cc_macro_heavy (which is count-based, > 5 #define directives);
+    // this rule is content-based and catches a single macro hiding real logic.
+    detector: ({code}) => {
+      if (typeof code !== 'string' || code.length === 0) return false;
+      const macroRe = /#define\s+[A-Za-z_]\w*\s*\([^)]*\)\s*(.*)$/gm;
+      let m;
+      while ((m = macroRe.exec(code)) !== null) {
+        const body = m[1] || '';
+        const hidesLogic = /\b(?:for|while|do|switch|if|else|return|goto|break|continue)\b/.test(body) || body.includes(';');
+        if (hidesLogic) return true;
+      }
+      return false;
+    },
+    instructorMessage: 'A #define macro hides control-flow logic. Macros bypass type checking and make debugging harder — use a function instead.',
+    studentMessage: 'Your macro contains real control flow (loops, conditionals, return). Replace it with a regular function — it is easier to read and debug.',
+    evidenceExtractor: ({code}) => {
+      const match = code.match(/#define\s+[A-Za-z_]\w*\s*\([^)]*\)[^\n]*/);
+      return match ? `Macro with hidden logic: ${match[0].trim()}` : 'Function-like macro hides control flow';
+    }
   }
 ];
 
