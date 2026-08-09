@@ -5,6 +5,12 @@
  * Covers edge cases: zero-variance, empty classes, all-excluded
  * students, NaN propagation, HARDCODING special scoring, live vs
  * batch parity, and post-solution cutoff with flagged attempts.
+ *
+ * Task 3 additions: empty/single-value class stats, inconsistent-stats
+ * NaN guard (normalizeWithStats), classify(NaN), PASSIVE_BEHAVIOR_LOG
+ * non-exclusion, live confidence-tier parity (PRELIM/INSUFFICIENT),
+ * live-vs-batch divergence (race documented as by-design), and
+ * never-solves + behavioral flag handling.
  */
 
 jest.mock('../config/db', () => ({ query: jest.fn() }));
@@ -12,7 +18,7 @@ jest.mock('../services/alertEngine', () => ({ generateAlerts: jest.fn() }));
 
 const db = require('../config/db');
 const alertEngine = require('../services/alertEngine');
-const { computeBatchCDS, calculateLiveCDS, computeClassStats, normalizeWithStats, getLivePeerRanking } = require('../services/cdsEngine');
+const { computeBatchCDS, calculateLiveCDS, computeClassStats, normalizeWithStats, getLivePeerRanking, classify } = require('../services/cdsEngine');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -34,6 +40,15 @@ async function runBatchCds(exerciseId, students, excludedFlags, submissions) {
     .mockResolvedValueOnce({ rows: excludedFlags })
     .mockResolvedValueOnce({ rows: submissions });
   return computeBatchCDS(exerciseId, db);
+}
+
+// calculateLiveCDS makes: 3 prep queries (exercise, submissions, excludedFlags).
+async function runLiveCds(studentId, exerciseId, subs, excludedFlags) {
+  db.query
+    .mockResolvedValueOnce({ rows: [{ id: exerciseId, section_id: 1, time_limit_minutes: 45 }] })
+    .mockResolvedValueOnce({ rows: subs })
+    .mockResolvedValueOnce({ rows: excludedFlags });
+  return calculateLiveCDS(studentId, exerciseId, db);
 }
 
 function getScoreCalls() {
@@ -427,5 +442,167 @@ describe('CDS State Transition — Mixed Flag Types Parity', () => {
     expect(normA.nrs).toBe(0.00);
     expect(normA.nts).toBe(0.01); // absolute: 30s / (45min * 60)
     expect(normB.nts).toBe(0.02); // absolute: 60s / (45min * 60)
+  });
+});
+
+// ── Test: 8. Task 3 Boundary Guards (pure-function units) ────────────────────
+
+describe('CDS State Transition — Task 3 Boundary Guards', () => {
+
+  it('computeClassStats([]) returns the safe empty-class stats', () => {
+    expect(computeClassStats([])).toEqual({ min: 0, p95: 0, denominator: 0, hasVariance: false });
+  });
+
+  it('computeClassStats with only non-numeric values returns the safe empty result', () => {
+    const stats = computeClassStats([NaN, undefined, 'x']);
+    expect(stats).toEqual({ min: 0, p95: 0, denominator: 0, hasVariance: false });
+  });
+
+  it('computeClassStats with a single value has no variance (min === p95)', () => {
+    expect(computeClassStats([5])).toEqual({ min: 5, p95: 5, denominator: 0, hasVariance: false });
+  });
+
+  it('normalizeWithStats never returns NaN for inconsistent stats (hasVariance=true, denominator=0)', () => {
+    const stats = { min: 0, p95: 0, denominator: 0, hasVariance: true };
+    const result = normalizeWithStats(5, stats);
+    expect(result).toBe(0.00);
+    expect(Number.isNaN(result)).toBe(false);
+  });
+
+  it('classify(NaN) returns Unscored (never falls through threshold comparisons to High)', () => {
+    expect(classify(NaN)).toBe('Unscored');
+  });
+});
+
+// ── Test: 9. Behavioral Flags Are Counted But Not Excluded ───────────────────
+
+describe('CDS State Transition — PASSIVE_BEHAVIOR_LOG Non-Exclusion', () => {
+
+  it('behavioral-flagged correct attempt does not exclude student from class stats', async () => {
+    const exerciseId = 10;
+    const students = [];
+    const subs = [];
+    // Student 1: correct attempt carrying a PASSIVE_BEHAVIOR_LOG flag (flag_id 42).
+    // Behavioral flags are NOT in the HARDCODING/BLANK_TEMPLATE exclusion set.
+    subs.push({ student_id: 1, attempt_number: 1, is_correct: true, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42 });
+    students.push(makeStudent(1, 'Behavioral'));
+    // Students 2-10 clean → 10 valid submitters → CONFIDENT tier
+    for (let i = 2; i <= 10; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null });
+    }
+
+    await runBatchCds(exerciseId, students, [], subs);
+
+    const s1 = findStudentInBulkScore(1);
+    // Not excluded → normalized CDS, NOT Flagged-Pending
+    expect(s1.cds).not.toBeNull();
+    expect(s1.classification).not.toBe('Flagged-Pending');
+    // Flag still surfaced on the score row
+    expect(s1.hasFlagged).toBe(true);
+    expect(s1.flagCount).toBe(1);
+  });
+
+  it('never-solving student with behavioral flags gets all attempts counted + normalized CDS', async () => {
+    const exerciseId = 10;
+    const students = [];
+    const subs = [];
+    // Student 1: never correct; both attempts carry a PASSIVE_BEHAVIOR_LOG flag.
+    subs.push({ student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: 42 });
+    subs.push({ student_id: 1, attempt_number: 2, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: 42 });
+    students.push(makeStudent(1, 'NeverSolves'));
+    for (let i = 2; i <= 10; i++) {
+      students.push(makeStudent(i, `Clean${i}`));
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null });
+    }
+
+    await runBatchCds(exerciseId, students, [], subs);
+
+    const s1 = findStudentInBulkScore(1);
+    // No unflagged correct attempt → cutoff null → ALL attempts counted
+    expect(s1.flagCount).toBe(2);
+    expect(s1.hasFlagged).toBe(true);
+    // Behavioral flag only → not excluded → normalized CDS, not Flagged-Pending
+    expect(s1.classification).not.toBe('Flagged-Pending');
+    expect(s1.cds).not.toBeNull();
+  });
+});
+
+// ── Test: 10. Live Confidence-Tier Parity (PRELIM / INSUFFICIENT) ────────────
+
+describe('CDS State Transition — Live Confidence-Tier Parity', () => {
+
+  it('5 clean students → live PRELIM classification with Prelim- prefix and finite cds in [0,1]', async () => {
+    const exerciseId = 10;
+    const subs = [];
+    for (let i = 1; i <= 5; i++) {
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 60, is_verified: true, flag_id: null });
+    }
+
+    const liveResult = await runLiveCds(1, exerciseId, subs, []);
+
+    expect(liveResult.classification.startsWith('Prelim-')).toBe(true);
+    expect(Number.isFinite(liveResult.cds)).toBe(true);
+    expect(liveResult.cds).toBeGreaterThanOrEqual(0);
+    expect(liveResult.cds).toBeLessThanOrEqual(1);
+  });
+
+  it('2 clean students → live INSUFFICIENT returns null components + Unscored (parity with batch)', async () => {
+    const exerciseId = 10;
+    const subs = [];
+    for (let i = 1; i <= 2; i++) {
+      subs.push({ student_id: i, attempt_number: 1, is_correct: true, time_spent_seconds: 60, is_verified: true, flag_id: null });
+    }
+
+    const liveResult = await runLiveCds(1, exerciseId, subs, []);
+
+    expect(liveResult.cds).toBeNull();
+    expect(liveResult.classification).toBe('Unscored');
+    expect(liveResult.ner).toBeNull();
+    expect(liveResult.nrs).toBeNull();
+    expect(liveResult.nts).toBeNull();
+  });
+});
+
+// ── Test: 11. Live vs Batch Divergence (race by design) ──────────────────────
+
+describe('CDS State Transition — Live vs Batch Divergence', () => {
+
+  it('live reflects current state (newer attempts) even when batch snapshot is stale', async () => {
+    const exerciseId = 10;
+    const studentA = 1;
+
+    // Batch dataset1: 11 identical students (1 fail + 1 clean correct each)
+    const students1 = [];
+    const subs1 = [];
+    for (let i = 1; i <= 11; i++) {
+      students1.push(makeStudent(i, `S${i}`));
+      subs1.push({ student_id: i, attempt_number: 1, is_correct: false, time_spent_seconds: 30, code: 'x', is_verified: true, flag_id: null });
+      subs1.push({ student_id: i, attempt_number: 2, is_correct: true,  time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null });
+    }
+
+    await runBatchCds(exerciseId, students1, [], subs1);
+    const batchCds = findStudentInBulkScore(studentA).cds;
+
+    // Live dataset2: student A has since gained an extra failed attempt.
+    jest.clearAllMocks();
+    alertEngine.generateAlerts.mockResolvedValue(undefined);
+
+    const subs2 = [];
+    subs2.push({ student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 30, is_verified: true, flag_id: null });
+    subs2.push({ student_id: 1, attempt_number: 2, is_correct: false, time_spent_seconds: 60, is_verified: true, flag_id: null });
+    subs2.push({ student_id: 1, attempt_number: 3, is_correct: true,  time_spent_seconds: 90, is_verified: true, flag_id: null });
+    for (let i = 2; i <= 11; i++) {
+      subs2.push({ student_id: i, attempt_number: 1, is_correct: false, time_spent_seconds: 30, is_verified: true, flag_id: null });
+      subs2.push({ student_id: i, attempt_number: 2, is_correct: true,  time_spent_seconds: 60, is_verified: true, flag_id: null });
+    }
+
+    const liveResult = await runLiveCds(studentA, exerciseId, subs2, []);
+
+    // Divergence is by design: live = current state, batch = snapshot.
+    expect(liveResult.cds).not.toBe(batchCds);
+    // Dataset2 reflected: the extra failed attempt caps ner/nrs for student A.
+    expect(liveResult.ner).toBe(1.0);
+    expect(liveResult.nrs).toBe(1.0);
   });
 });

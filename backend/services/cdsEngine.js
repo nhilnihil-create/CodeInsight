@@ -30,6 +30,9 @@ function normalizeWithStats(value, stats) {
   if (isNaN(numValue)) return 0.00;
   const cappedValue = Math.min(numValue, stats.p95);
   const raw = Math.max(0, Math.min((cappedValue - stats.min) / stats.denominator, 1.0));
+  // Defensive: inconsistent stats (e.g. p95=min=0 with hasVariance=true)
+  // would produce NaN/Infinity here — never propagate non-finite values.
+  if (!Number.isFinite(raw)) return 0.00;
   return Number(parseFloat(raw).toFixed(2));
 }
 
@@ -48,6 +51,10 @@ const CDS_THRESHOLDS = { VERY_LOW: 0.20, LOW: 0.40, MODERATE: 0.60, ELEVATED: 0.
 
 function classify(cds, isPreliminary = false) {
   if (cds === null || cds === undefined) return 'Unscored';
+  // Defensive: NaN must never classify as High (it falls through every
+  // threshold comparison). Unreachable from current callers, but guards
+  // future callers and keeps classify total.
+  if (Number.isNaN(cds)) return 'Unscored';
   const prefix = isPreliminary ? 'Prelim-' : '';
   if (cds <= CDS_THRESHOLDS.VERY_LOW) return `${prefix}Very Low`;
   if (cds <= CDS_THRESHOLDS.LOW) return `${prefix}Low`;
@@ -101,7 +108,13 @@ const students = await db.query(
 );
 
 // GAP #8: Fetch students with integrity flags that exclude from normalization
-// HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics
+// HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics.
+// Only code-invalidating flags (HARDCODING/BLANK_TEMPLATE) are excluded from
+// class stats; PASSIVE_BEHAVIOR_LOG is counted but not excluded. A flagged-correct
+// attempt is never treated as acceptance (conservative: flagged solutions are
+// under review).
+// NOTE (Task 4 candidate): a PASSIVE_BEHAVIOR_LOG flag on an otherwise-correct
+// attempt still blocks the firstAccepted cutoff — documented asymmetry, unchanged.
 const excludedRes = await db.query(
   `SELECT DISTINCT student_id FROM integrity_flags
    WHERE exercise_id=$1
@@ -147,6 +160,8 @@ for (const r of subsRes.rows) {
 const subMap = {};
 for (const [sid, info] of Object.entries(perStudent)) {
   const attempts = info.attempts;
+  // A flagged-correct attempt is never treated as acceptance (conservative:
+  // flagged solutions are under review).
   const firstAccepted = attempts.find(a => a.is_correct === true && a.flag_id === null);
   const cutoff = firstAccepted ? firstAccepted.attempt_number : null;
   const counted = cutoff ? attempts.filter(a => a.attempt_number <= cutoff) : attempts;
@@ -177,6 +192,9 @@ for (const [sid, data] of Object.entries(subMap)) {
 
 // Guard: empty filteredSubMap means all submitters are integrity-flagged.
 // Skip class stats computation (would be meaningless zero-variance).
+// Empty-set semantics: all-flagged classes skip normalization entirely;
+// flagged students get Flagged-Pending (nulls), non-submitters get Unscored;
+// no 0.00/NaN artifacts are produced.
 const hasFilteredStudents = Object.keys(filteredSubMap).length > 0;
 
 // Confidence tier from VALID submitter count (verified + not integrity-excluded).
@@ -371,6 +389,8 @@ try {
   const metricsMap = {};
   for (const [sid, info] of Object.entries(perStudent)) {
     const attempts = info.attempts;
+    // A flagged-correct attempt is never treated as acceptance (conservative:
+    // flagged solutions are under review).
     const firstAcceptedIdx = attempts.findIndex(a => a.is_correct === true && a.flag_id === null);
     const counted = firstAcceptedIdx !== -1
       ? attempts.slice(0, firstAcceptedIdx + 1)
@@ -391,6 +411,10 @@ try {
   }
 
   // ── GAP #8: Exclude integrity-flagged students (HARDCODING/BLANK_TEMPLATE) ─
+  // Only code-invalidating flags (HARDCODING/BLANK_TEMPLATE) are excluded from
+  // class stats; PASSIVE_BEHAVIOR_LOG is counted but not excluded. A flagged-correct
+  // attempt is never treated as acceptance (conservative: flagged solutions are
+  // under review).
   const liveExcludedRes = await db.query(
     `SELECT DISTINCT student_id FROM integrity_flags
      WHERE exercise_id=$1
@@ -421,6 +445,9 @@ try {
     };
   }
 
+  // Parity with batch: live CDS applies the same confidence tiers —
+  // INSUFFICIENT → nulls/Unscored, PRELIM → Prelim-* prefix.
+  // The historical '<3 students' gap was closed in CDS v4.
   // Confidence tier from VALID submitter count (verified + not integrity-excluded).
   const confidenceTier = getConfidenceTier(cleanMetrics.length);
 
