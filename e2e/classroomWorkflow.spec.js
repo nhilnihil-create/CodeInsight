@@ -100,8 +100,11 @@ test.describe('Workspace Code Submission Flow', () => {
     await page.goto('http://localhost:5173/student/exercises');
     await page.waitForLoadState('networkidle');
 
-    // Find links that match /student/exercises/\d+ pattern
-    const exerciseLinks = page.locator('a[href*="/student/exercises/"]');
+    // Find links that match /student/exercises/\d+ pattern. Prefer an
+    // uncompleted exercise: completed ones are in locked review mode with a
+    // disabled Run/Submit. The list labels completed exercises "Review" and
+    // incomplete ones "Start".
+    const exerciseLinks = page.locator('a[href*="/student/exercises/"]').filter({ hasNotText: 'Review' });
     const count = await exerciseLinks.count();
 
     if (count > 0) {
