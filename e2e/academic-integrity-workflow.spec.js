@@ -372,7 +372,7 @@ int main() {
 
   test('03b — Completed exercise shows Review label and locked review mode', async () => {
     // 1. Still on the completed exercise page: review mode is locked
-    await expect(studentPage.getByText('Review Mode')).toBeVisible({ timeout: 15000 });
+    await expect(studentPage.getByText('Review Mode').first()).toBeVisible({ timeout: 15000 });
     await expect(studentPage.getByRole('button', { name: /run/i })).toBeDisabled();
     // The countdown timer is hidden in review mode
     await expect(studentPage.locator('span.sr-only', { hasText: 'Time remaining:' })).toHaveCount(0);
@@ -394,7 +394,7 @@ int main() {
     await reviewLink.first().click();
     await studentPage.waitForURL(/\/student\/exercises\/\d+/);
     await studentPage.waitForLoadState('networkidle');
-    await expect(studentPage.getByText('Review Mode')).toBeVisible({ timeout: 15000 });
+    await expect(studentPage.getByText('Review Mode').first()).toBeVisible({ timeout: 15000 });
     await expect(studentPage.getByRole('button', { name: /run/i })).toBeDisabled();
     await expect(studentPage.locator('span.sr-only', { hasText: 'Time remaining:' })).toHaveCount(0);
   });
