@@ -645,6 +645,15 @@ async function ensureTablesExist() {
       }
     }
 
+    // Renumber duplicate submission attempt numbers (deterministic + idempotent).
+    try {
+      const { up } = require('./migrations/20260810_renumber_submission_attempts');
+      await up(db);
+      console.log('✓ submission attempt numbers renumbered');
+    } catch (renErr) {
+      console.warn('⚠ attempt renumber migration failed:', renErr.message);
+    }
+
     // Remove unused learning outcome tables (sink nodes, never referenced)
     if (await tableExists('learning_outcomes')) {
       try {

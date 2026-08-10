@@ -1989,6 +1989,238 @@ exports.getSectionSubmissions = async (req, res, next) => {
 };
 
 /**
+ * Safety cap for the grouped submission browser. All rows for the section are
+ * fetched (no SQL LIMIT/OFFSET so grouping is complete); if the cap is
+ * exceeded we log a warning rather than silently truncate.
+ */
+const MAX_SUBMISSION_GROUP_ROWS = 5000;
+
+/**
+ * GET /api/analytics/sections/:sectionId/submission-groups
+ * Returns all submissions for a section grouped by (student_id, exercise_id).
+ * Group status reflects the LATEST attempt (max submitted_at, tie-break
+ * attempt_number). Attempts are included in full, ascending, for inline
+ * expansion. Pagination applies to groups, not rows.
+ */
+exports.getSectionSubmissionGroups = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const { search, exerciseId, status, limit = 50, offset = 0 } = req.query;
+
+    let where = 'WHERE ex.section_id = $1';
+    const params = [sectionId];
+    let paramIdx = 2;
+
+    if (exerciseId) {
+      where += ` AND s.exercise_id = $${paramIdx++}`;
+      params.push(exerciseId);
+    }
+    if (search) {
+      where += ` AND u.name ILIKE $${paramIdx++}`;
+      params.push(`%${search}%`);
+    }
+
+    const { rows } = await db.query(
+      `SELECT s.id, s.student_id, u.name AS student_name, u.email AS student_email,
+              s.exercise_id, ex.title AS exercise_title, c.name AS concept_name,
+              s.attempt_number, s.is_correct, s.code, s.compiler_log,
+              s.submitted_at, s.time_spent_seconds,
+              (SELECT COUNT(*) FROM integrity_flags f WHERE f.student_id = s.student_id AND f.exercise_id = s.exercise_id AND f.status = 'flagged')::int AS flag_count
+       FROM submissions s
+       JOIN users u ON s.student_id = u.id
+       JOIN exercises ex ON s.exercise_id = ex.id
+       JOIN concepts c ON ex.concept_id = c.id
+       ${where}
+       ORDER BY s.submitted_at ASC, s.attempt_number ASC NULLS LAST, s.id ASC`,
+      params
+    );
+
+    if (rows.length > MAX_SUBMISSION_GROUP_ROWS) {
+      console.warn(`getSectionSubmissionGroups: ${rows.length} rows exceed safety cap ${MAX_SUBMISSION_GROUP_ROWS}`);
+    }
+
+    // Group in JS keyed by (student_id, exercise_id) pair.
+    const groupMap = new Map();
+    for (const row of rows) {
+      const key = `${row.student_id}:${row.exercise_id}`;
+      let group = groupMap.get(key);
+      if (!group) {
+        group = {
+          student_id: row.student_id,
+          student_name: row.student_name,
+          student_email: row.student_email,
+          exercise_id: row.exercise_id,
+          exercise_title: row.exercise_title,
+          concept_name: row.concept_name,
+          flag_count: row.flag_count,
+          attempt_count: 0,
+          latest: null,
+          latest_is_correct: null,
+          latest_submitted_at: null,
+          best_status: false,
+          total_time_spent_seconds: 0,
+          attempts: [],
+        };
+        groupMap.set(key, group);
+      }
+      group.attempts.push(row);
+      group.attempt_count += 1;
+      group.total_time_spent_seconds += (row.time_spent_seconds ?? 0);
+      if (row.is_correct) group.best_status = true;
+
+      const cur = group.latest;
+      if (
+        !cur ||
+        new Date(row.submitted_at).getTime() > new Date(cur.submitted_at).getTime() ||
+        (new Date(row.submitted_at).getTime() === new Date(cur.submitted_at).getTime() &&
+          (row.attempt_number ?? -1) > (cur.attempt_number ?? -1))
+      ) {
+        group.latest = row;
+      }
+    }
+
+    let groups = Array.from(groupMap.values());
+
+    // Status filters operate on the LATEST attempt of each group.
+    if (status === 'pass') {
+      groups = groups.filter(g => g.latest?.is_correct === true);
+    } else if (status === 'fail') {
+      groups = groups.filter(g => g.latest?.is_correct === false);
+    } else if (status === 'flagged') {
+      groups = groups.filter(g => g.flag_count > 0);
+    }
+
+    const total = groups.length;
+    const pLimit = parseInt(limit, 10) || 50;
+    const pOffset = parseInt(offset, 10) || 0;
+    const page = groups.slice(pOffset, pOffset + pLimit);
+
+    for (const g of page) {
+      g.latest_is_correct = g.latest ? g.latest.is_correct : null;
+      g.latest_submitted_at = g.latest ? g.latest.submitted_at : null;
+    }
+
+    res.json({ groups: page, total, limit: pLimit, offset: pOffset });
+  } catch (err) {
+    console.error('getSectionSubmissionGroups error:', err);
+    next(err);
+  }
+};
+
+// users.deleted_at is added by a runtime patch on some environments; the
+// non-submitters query references it conditionally so it works everywhere.
+let usersHaveDeletedAt = null;
+async function usersHaveDeletedAtColumn() {
+  if (usersHaveDeletedAt !== null) return usersHaveDeletedAt;
+  try {
+    const r = await db.query(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_name = 'users' AND column_name = 'deleted_at'`
+    );
+    usersHaveDeletedAt = r.rows.length > 0;
+  } catch {
+    usersHaveDeletedAt = false;
+  }
+  return usersHaveDeletedAt;
+}
+
+/**
+ * GET /api/analytics/sections/:sectionId/non-submitters
+ * Enrolled students with no submissions (optionally for one exercise).
+ * Without ?exerciseId, per-exercise non-submitter counts are included.
+ */
+exports.getSectionNonSubmitters = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const { exerciseId } = req.query;
+
+    if (exerciseId) {
+      const exRes = await db.query(
+        `SELECT 1 FROM exercises WHERE id = $1 AND section_id = $2`,
+        [exerciseId, sectionId]
+      );
+      if (!exRes.rows.length) {
+        return res.status(400).json({ error: 'Exercise not found in this section' });
+      }
+    }
+
+    const notDeleted = (await usersHaveDeletedAtColumn()) ? 'AND u.deleted_at IS NULL' : '';
+
+    const totalRes = await db.query(
+      `SELECT COUNT(DISTINCT u.id)::int AS total_students
+       FROM enrollments e
+       JOIN users u ON u.id = e.student_id
+       WHERE e.section_id = $1 ${notDeleted}`,
+      [sectionId]
+    );
+    const totalStudents = totalRes.rows[0]?.total_students || 0;
+
+    let nonSubmitters = [];
+    let perExercise = null;
+
+    if (exerciseId) {
+      const r = await db.query(
+        `SELECT u.id, u.name, u.email
+         FROM enrollments e
+         JOIN users u ON u.id = e.student_id
+         WHERE e.section_id = $1
+           ${notDeleted}
+           AND NOT EXISTS (
+             SELECT 1 FROM submissions s
+             WHERE s.student_id = u.id AND s.exercise_id = $2
+           )
+         ORDER BY u.name`,
+        [sectionId, exerciseId]
+      );
+      nonSubmitters = r.rows;
+    } else {
+      const r = await db.query(
+        `SELECT u.id, u.name, u.email
+         FROM enrollments e
+         JOIN users u ON u.id = e.student_id
+         WHERE e.section_id = $1
+           ${notDeleted}
+           AND NOT EXISTS (
+             SELECT 1 FROM submissions s
+             JOIN exercises ex ON ex.id = s.exercise_id
+             WHERE s.student_id = u.id AND ex.section_id = $1
+           )
+         ORDER BY u.name`,
+        [sectionId]
+      );
+      nonSubmitters = r.rows;
+
+      const perEx = await db.query(
+        `SELECT ex.id, ex.title,
+                COUNT(DISTINCT u.id) FILTER (WHERE s.id IS NULL)::int AS non_submitter_count
+         FROM exercises ex
+         CROSS JOIN enrollments e
+         JOIN users u ON u.id = e.student_id
+         LEFT JOIN submissions s
+           ON s.student_id = u.id AND s.exercise_id = ex.id
+         WHERE ex.section_id = $1 AND e.section_id = $1
+           ${notDeleted}
+         GROUP BY ex.id, ex.title
+         ORDER BY ex.title`,
+        [sectionId]
+      );
+      perExercise = perEx.rows;
+    }
+
+    res.json({
+      nonSubmitters,
+      total: nonSubmitters.length,
+      total_students: totalStudents,
+      exerciseId: exerciseId ? parseInt(exerciseId, 10) : null,
+      perExercise,
+    });
+  } catch (err) {
+    console.error('getSectionNonSubmitters error:', err);
+    next(err);
+  }
+};
+
+/**
  * GET /api/analytics/submissions/:submissionId/runs
  * Returns run_attempts + final submission for the same student+exercise.
  */

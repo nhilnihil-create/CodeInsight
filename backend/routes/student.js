@@ -318,10 +318,10 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     }
 
     const attemptRes = await db.query(
-      'SELECT COUNT(*)::int AS count FROM submissions WHERE exercise_id = $1 AND student_id = $2',
+      'SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next FROM submissions WHERE exercise_id = $1 AND student_id = $2',
       [req.params.id, req.user.id]
     );
-    const attempt_number = (attemptRes.rows[0].count || 0) + 1;
+    const attempt_number = attemptRes.rows[0].next;
 
     // Session totals: aggregate per-run behavioral snapshots captured at /run
     // time since the previous submission (or all runs for the first attempt).

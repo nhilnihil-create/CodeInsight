@@ -77,28 +77,36 @@ describe('formatDuration', () => {
     expect(formatDuration(0)).toBe('0s');
   });
 
-  it('formats 90 seconds as "1.5 min"', () => {
-    expect(formatDuration(90)).toBe('1.5 min');
+  it('formats 90 seconds as "1m 30s"', () => {
+    expect(formatDuration(90)).toBe('1m 30s');
   });
 
-  it('formats 120 seconds as "2 min"', () => {
-    expect(formatDuration(120)).toBe('2 min');
+  it('formats 120 seconds as "2m" (omits "00s")', () => {
+    expect(formatDuration(120)).toBe('2m');
   });
 
-  it('rounds 61 seconds to "1 min"', () => {
-    expect(formatDuration(61)).toBe('1 min');
+  it('rounds 61 seconds to "1m 1s"', () => {
+    expect(formatDuration(61)).toBe('1m 1s');
   });
 
-  it('formats 3600 seconds as "1 hr"', () => {
-    expect(formatDuration(3600)).toBe('1 hr');
+  it('formats 754 seconds as "12m 34s"', () => {
+    expect(formatDuration(754)).toBe('12m 34s');
   });
 
-  it('formats 5400 seconds as "1.5 hr"', () => {
-    expect(formatDuration(5400)).toBe('1.5 hr');
+  it('formats 3600 seconds as "1h 00m"', () => {
+    expect(formatDuration(3600)).toBe('1h 00m');
   });
 
-  it('formats 7200 seconds as "2 hr"', () => {
-    expect(formatDuration(7200)).toBe('2 hr');
+  it('formats 3900 seconds as "1h 05m"', () => {
+    expect(formatDuration(3900)).toBe('1h 05m');
+  });
+
+  it('formats 5400 seconds as "1h 30m"', () => {
+    expect(formatDuration(5400)).toBe('1h 30m');
+  });
+
+  it('formats 7200 seconds as "2h 00m"', () => {
+    expect(formatDuration(7200)).toBe('2h 00m');
   });
 
   it('clamps negative durations to "0s"', () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import api from '@/services/api';
  */
 export default function InstructorExercises() {
   const [sectionId, setSectionId] = useLastSection();
+  const navigate = useNavigate();
   const [exercises, setExercises] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -197,6 +198,9 @@ export default function InstructorExercises() {
                           <div className="inline-flex gap-1">
                             <Button asChild variant="ghost" size="sm">
                               <Link to={`/instructor/exercises/${e.id}/edit`}>Edit</Link>
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); navigate(`/instructor/sections/${sectionId}?tab=submissions&exercise=${e.id}`); }} title="View submissions" aria-label="View submissions">
+                              View submissions
                             </Button>
                             {isClosed ? (
                               <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleReopen(e); }} disabled={busyId === e.id} title="Reopen exercise" aria-label="Reopen exercise">

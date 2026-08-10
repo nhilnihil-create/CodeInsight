@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/format";
 import api from "@/services/api";
 import { useSidebar } from "@/context/SidebarContext";
 import CodeViewer from "./CodeViewer";
@@ -163,6 +164,16 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
                 {submission?.student_email}
                 <span className="mx-1.5 text-muted-foreground/40">·</span>
                 {submission?.exercise_title}
+                {submission?.time_spent_seconds !== null &&
+                  submission?.time_spent_seconds !== undefined && (
+                  <>
+                    <span className="mx-1.5 text-muted-foreground/40">·</span>
+                    <span className="inline-flex items-center gap-1" title="Time spent on this attempt">
+                      <Clock className="h-3 w-3" strokeWidth={1.5} />
+                      {formatDuration(submission.time_spent_seconds)}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>

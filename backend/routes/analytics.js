@@ -70,6 +70,8 @@ router.get('/sections/:sectionId/class-concept-radar', verifyToken, requireRole(
 
 // Submission browser (instructor code history viewer)
 router.get('/sections/:sectionId/submissions', verifyToken, requireRole('instructor'), ctrl.getSectionSubmissions);
+router.get('/sections/:sectionId/submission-groups', verifyToken, requireRole('instructor'), ctrl.getSectionSubmissionGroups);
+router.get('/sections/:sectionId/non-submitters', verifyToken, requireRole('instructor'), ctrl.getSectionNonSubmitters);
 router.get('/submissions/:submissionId/runs', verifyToken, requireRole('instructor'), ctrl.getSubmissionRuns);
 router.get('/submissions/:submissionId/flags', verifyToken, requireRole('instructor'), ctrl.getSubmissionFlags);
 

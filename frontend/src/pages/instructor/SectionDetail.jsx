@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import useLastSection from "@/hooks/useLastSection";
 import {
@@ -52,15 +52,32 @@ function emptySeries() {
 export default function SectionDetail() {
   const { sectionId: id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [, setLastSectionId] = useLastSection();
 
   useEffect(() => {
     if (id) setLastSectionId(Number(id));
   }, [id, setLastSectionId]);
 
-  const [tab, setTab] = useState("roster");
+  // Tab is URL-driven so deep links like ?tab=submissions&exercise=5 work.
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get("tab");
+    return ["roster", "analytics", "submissions", "settings"].includes(t)
+      ? t
+      : "roster";
+  });
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
+
+  const handleTabChange = useCallback(
+    (value) => {
+      setTab(value);
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", value);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
 
   const { data: section, isLoading, isError, refetch } = useQuery({
     queryKey: ["section", id],
@@ -257,7 +274,7 @@ export default function SectionDetail() {
                   Rotate join code
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setTab("settings")}>
+                <DropdownMenuItem onClick={() => handleTabChange("settings")}>
                   <Users className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Manage roster
                 </DropdownMenuItem>
@@ -296,7 +313,7 @@ export default function SectionDetail() {
       />
 
       {/* ---------- Tabs ---------- */}
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList className="inline-flex h-10 items-center gap-0 bg-transparent p-0 border-b border-border rounded-none w-full justify-start overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <TabsTrigger
             value="roster"
@@ -332,7 +349,7 @@ export default function SectionDetail() {
           <AnalyticsTab sectionId={id} />
         </TabsContent>
         <TabsContent value="submissions" className="mt-6">
-          <SubmissionsTab sectionId={id} />
+          <SubmissionsTab sectionId={id} initialExerciseId={searchParams.get("exercise")} />
         </TabsContent>
         <TabsContent value="settings" className="mt-6">
           <SettingsTab

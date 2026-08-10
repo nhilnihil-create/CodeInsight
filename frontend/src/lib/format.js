@@ -29,16 +29,18 @@ export function formatDateAgo(value, now = Date.now()) {
   return days === 1 ? "1 day ago" : `${days} days ago`;
 }
 
-function trimTrailingZero(value) {
-  return String(Math.round(value * 10) / 10).replace(/\.0$/, "");
-}
-
 export function formatDuration(seconds) {
   if (seconds === null || seconds === undefined || typeof seconds !== "number" || isNaN(seconds)) {
     return "—";
   }
-  if (seconds < 0) return "0s";
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${trimTrailingZero(seconds / 60)} min`;
-  return `${trimTrailingZero(seconds / 3600)} hr`;
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) {
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    return rs === 0 ? `${m}m` : `${m}m ${rs}s`;
+  }
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${h}h ${String(m).padStart(2, "0")}m`;
 }
