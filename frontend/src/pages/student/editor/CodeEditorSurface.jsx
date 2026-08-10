@@ -53,9 +53,46 @@ export default function CodeEditorSurface({
 
   // Wire the autocomplete-accept signal to the caller, then forward the
   // mount so the editor instance reaches the page as before.
+  //
+  // Monaco removed `editor.onDidAcceptSuggestion` in v0.45 (the CDN loads
+  // 0.55.1) — calling it unconditionally crashed the editor on mount. We
+  // feature-detect it, and otherwise watch for the accept gesture directly
+  // with capture-phase DOM listeners on the editor root: those fire BEFORE
+  // Monaco's own keybinding handler (bubble phase), so the suggest widget
+  // is still visible when we check.
   const handleEditorMount = (editor, monaco) => {
     if (editor && typeof onAutocompleteAccept === "function") {
-      editor.onDidAcceptSuggestion(() => onAutocompleteAccept());
+      try {
+        if (typeof editor.onDidAcceptSuggestion === "function") {
+          editor.onDidAcceptSuggestion(() => onAutocompleteAccept());
+        } else {
+          const domNode = editor.getDomNode?.();
+          const acceptIfWidgetVisible = () => {
+            if (domNode?.querySelector(".suggest-widget.visible")) {
+              onAutocompleteAccept();
+            }
+          };
+          const onKeyDown = (e) => {
+            if (e.key === "Tab" || e.key === "Enter") {
+              acceptIfWidgetVisible();
+            }
+          };
+          const onPointerDown = (e) => {
+            if (e.target instanceof Element && e.target.closest(".suggest-widget")) {
+              onAutocompleteAccept();
+            }
+          };
+          domNode?.addEventListener("keydown", onKeyDown, true);
+          domNode?.addEventListener("pointerdown", onPointerDown, true);
+          editor.onDidDispose?.(() => {
+            domNode?.removeEventListener("keydown", onKeyDown, true);
+            domNode?.removeEventListener("pointerdown", onPointerDown, true);
+          });
+        }
+      } catch (err) {
+        // Never let autocomplete wiring crash the editor again.
+        console.warn("CodeEditorSurface: autocomplete wiring skipped", err);
+      }
     }
     onMount?.(editor, monaco);
   };
