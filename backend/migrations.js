@@ -447,6 +447,29 @@ async function applySchemaPatches() {
     patches.push(addColumnIfMissing('integrity_flags', 'run_id', 'INT REFERENCES run_attempts(id) ON DELETE SET NULL'));
   }
 
+  // ── Code-growth rate detection: per-session token-count samples ───────
+  // Sampled by the student editor every few seconds of active editing and
+  // posted to POST /api/student/code-snapshots. Analyzed at submit time by
+  // the rate-burst detector (services/codeGrowthRateDetector.js). Declared
+  // in schema.sql; this keeps pre-existing databases in sync.
+  if (!(await tableExists('code_snapshots'))) {
+    await db.query(`
+      CREATE TABLE code_snapshots (
+        id            SERIAL PRIMARY KEY,
+        student_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        exercise_id   INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+        session_id    TEXT NOT NULL,
+        token_count   INT NOT NULL,
+        active_elapsed_seconds INT NOT NULL,
+        autocomplete  BOOLEAN NOT NULL DEFAULT FALSE,
+        occurred_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (session_id, active_elapsed_seconds)
+      )
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_code_snapshots_session_lookup ON code_snapshots (student_id, exercise_id, session_id, active_elapsed_seconds)`);
+    console.log('✓ Created code_snapshots table');
+  }
+
   if (!(await tableExists('section_memberships'))) {
     await db.query(`
       CREATE TABLE section_memberships (

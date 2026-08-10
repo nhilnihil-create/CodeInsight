@@ -32,6 +32,7 @@ export default function MobileEditorTabs({
   onCodeChange,
   testResults,
   onMount,
+  onAutocompleteAccept,
   submissions,
   history,
   compilationLog = "",
@@ -75,6 +76,7 @@ export default function MobileEditorTabs({
             value={code}
             onChange={onCodeChange}
             onMount={onMount}
+            onAutocompleteAccept={onAutocompleteAccept}
             readOnly={isReviewMode}
           />
         ) : activeTab === "output" ? (

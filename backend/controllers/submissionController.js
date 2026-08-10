@@ -8,6 +8,7 @@ const conceptAnalytics = require('../services/conceptAnalytics');
 const submissionQueue = require('../queues/submissionQueue');
 const logger = require('../lib/logger');
 const { graduatedFlag, runAcademicIntegrityChecks, runBehavioralChecks, runPassiveBehaviorCheck } = require('../lib/submissionPipeline');
+const { detectGrowthRateBursts, computeClassMedianRate } = require('../services/codeGrowthRateDetector');
 
 /**
  * Token counter for growth velocity monitoring.
@@ -198,6 +199,7 @@ exports.submit = async (req, res) => {
     // code insertion (pasting) rather than incremental coding. Threshold
     // requires BOTH >50% growth AND >50 absolute lines to avoid false
     // positives from legitimate additions (comments, error handling, etc.)
+    let staticGrowthFlagFired = false;
     const CODE_GROWTH_PCT_THRESHOLD = 50;
     const CODE_GROWTH_ABS_THRESHOLD = 100;
     const currentLineCount = (code || '').split('\n').length;
@@ -222,37 +224,6 @@ exports.submit = async (req, res) => {
             flagged: growthPercent > CODE_GROWTH_PCT_THRESHOLD && currentLineCount > CODE_GROWTH_ABS_THRESHOLD,
           };
         }
-      }
-    }
-
-    // Flag code growth anomaly if triggered (graduated: first is warning only)
-    if (codeGrowthAnomaly?.flagged) {
-      try {
-        await graduatedFlag({
-          sectionId: exercise.section_id,
-          exerciseId,
-          studentId,
-          flagType: 'CODE_GROWTH_ANOMALY',
-          severity: 'low',
-          evidence: {
-            summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
-            baseline_lines: codeGrowthAnomaly.baselineLines,
-            student_lines: codeGrowthAnomaly.studentLines,
-            growth_percent: codeGrowthAnomaly.growthPercent,
-            threshold_pct: codeGrowthAnomaly.thresholdPct,
-            threshold_abs: codeGrowthAnomaly.thresholdAbs,
-            attempt_number: attemptNumber,
-            confidence: 0.3,
-            innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
-          },
-          contextBehaviors: [
-            `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
-          ],
-          submissionId,
-        });
-      } catch (flagErr) {
-        // Non-fatal: don't break submission flow
-        console.warn('Code growth anomaly flag creation failed:', flagErr.message);
       }
     }
 
@@ -439,6 +410,181 @@ exports.submit = async (req, res) => {
 
     const submissionId = insRes.rows[0].id;
 
+    // Static growth fallback flag (created here so submissionId exists)
+    if (codeGrowthAnomaly?.flagged) {
+      try {
+        await graduatedFlag({
+          sectionId: exercise.section_id,
+          exerciseId,
+          studentId,
+          flagType: 'CODE_GROWTH_ANOMALY',
+          severity: 'low',
+          evidence: {
+            summary: `Code grew ${codeGrowthAnomaly.growthPercent}% from ${codeGrowthAnomaly.baselineLines} to ${codeGrowthAnomaly.studentLines} lines in attempt #${attemptNumber}`,
+            baseline_lines: codeGrowthAnomaly.baselineLines,
+            student_lines: codeGrowthAnomaly.studentLines,
+            growth_percent: codeGrowthAnomaly.growthPercent,
+            threshold_pct: codeGrowthAnomaly.thresholdPct,
+            threshold_abs: codeGrowthAnomaly.thresholdAbs,
+            attempt_number: attemptNumber,
+            confidence: 0.3,
+            innocent_explanation: 'Student may have added error handling, comments, or a complete function body. Large line count changes between attempts are common when students consolidate partial work. 50%+ growth with 50+ lines absolute is still within normal range for many exercises.',
+          },
+          contextBehaviors: [
+            `Code grew ${codeGrowthAnomaly.growthPercent}% in attempt #${attemptNumber} (${codeGrowthAnomaly.baselineLines} → ${codeGrowthAnomaly.studentLines} lines)`,
+          ],
+          submissionId,
+        });
+        staticGrowthFlagFired = true;
+      } catch (flagErr) {
+        // Non-fatal: don't break submission flow
+        console.warn('Code growth anomaly flag creation failed:', flagErr.message);
+      }
+    }
+
+    // ── Code Growth Rate Burst Detection (rate-based, non-fatal) ─────────
+    // Analyzes the session's token-count samples for bursts of unusually
+    // fast code growth, cross-referenced with paste events and class peers.
+    // Placed after the submission INSERT so graduatedFlag can link the flag
+    // to submissionId. Any failure here is advisory only — the rate block
+    // must never break the submission flow.
+    let rateDetection = {
+      ruleTriggered: 'NONE',
+      bursts: [],
+      sessionMedianRate: null,
+      classMedianRate: null,
+      thresholdUsed: null,
+      samplesAnalyzed: 0,
+      reason: null,
+      skipped: false,
+    };
+    let rateBlockSkipped = false;
+    try {
+      // a. Resolve session id: frontend-provided, else most recent within 24h
+      let sessionId = typeof req.body.sessionId === 'string' ? req.body.sessionId : null;
+      if (!sessionId) {
+        const sessRes = await db.query(
+          `SELECT session_id FROM code_snapshots
+           WHERE student_id=$1 AND exercise_id=$2 AND occurred_at > NOW() - INTERVAL '24 hours'
+           ORDER BY occurred_at DESC LIMIT 1`,
+          [studentId, exerciseId]
+        );
+        if (sessRes.rows.length > 0) sessionId = sessRes.rows[0].session_id;
+      }
+
+      if (!sessionId) {
+        // No session telemetry — skip the rate block entirely (no flag).
+        rateBlockSkipped = true;
+        rateDetection.skipped = true;
+      } else {
+        // b. Token-count samples for the session, ascending by active time
+        const snapRes = await db.query(
+          `SELECT token_count, active_elapsed_seconds, autocomplete, occurred_at
+           FROM code_snapshots
+           WHERE student_id=$1 AND exercise_id=$2 AND session_id=$3
+           ORDER BY active_elapsed_seconds ASC`,
+          [studentId, exerciseId, sessionId]
+        );
+        const firstSampleAt = snapRes.rows.length > 0 ? new Date(snapRes.rows[0].occurred_at).getTime() : null;
+        const samples = snapRes.rows.map(r => ({
+          tokenCount: r.token_count,
+          activeElapsedSeconds: r.active_elapsed_seconds,
+          autocomplete: r.autocomplete,
+        }));
+
+        // c. Paste events aligned on the first snapshot's occurred_at axis
+        const pasteEvents = [];
+        if (firstSampleAt !== null) {
+          const pasteRes = await db.query(
+            `SELECT occurred_at FROM behavioral_events
+             WHERE student_id=$1 AND exercise_id=$2 AND event_type='paste'
+               AND occurred_at >= NOW() - INTERVAL '24 hours'`,
+            [studentId, exerciseId]
+          );
+          for (const p of pasteRes.rows) {
+            pasteEvents.push({
+              activeElapsedSeconds: (new Date(p.occurred_at).getTime() - firstSampleAt) / 1000,
+            });
+          }
+        }
+
+        // d. At least two samples are required to compute growth intervals
+        if (samples.length >= 2) {
+          // e. Class median growth rate from same-section peers who ran the exercise
+          let classMedianRate = null;
+          try {
+            const peerRes = await db.query(
+              `SELECT r.student_id, r.run_at, r.code
+               FROM run_attempts r
+               JOIN enrollments e ON e.student_id = r.student_id
+               WHERE r.exercise_id = $1 AND e.section_id = $2 AND r.student_id != $3
+               ORDER BY r.student_id, r.run_at ASC`,
+              [exerciseId, exercise.section_id, studentId]
+            );
+            const peerRates = [];
+            let peerStudentId = null;
+            let prevPeerRun = null;
+            for (const run of peerRes.rows) {
+              if (run.student_id !== peerStudentId) {
+                peerStudentId = run.student_id;
+                prevPeerRun = null;
+              }
+              if (prevPeerRun) {
+                const deltaTokens = Math.max(countTokens(run.code || '') - countTokens(prevPeerRun.code || ''), 0);
+                const deltaSeconds = (new Date(run.run_at).getTime() - new Date(prevPeerRun.run_at).getTime()) / 1000;
+                peerRates.push(deltaTokens / Math.max(deltaSeconds, 1));
+              }
+              prevPeerRun = run;
+            }
+            classMedianRate = computeClassMedianRate(peerRates);
+          } catch (peerErr) {
+            console.warn('Class median rate computation failed:', peerErr.message);
+            classMedianRate = null;
+          }
+
+          // f. Run rate-based burst detection on the session samples
+          const rateResult = detectGrowthRateBursts(samples, pasteEvents, { classMedianRate });
+
+          rateDetection = {
+            ruleTriggered: rateResult.ruleTriggered,
+            bursts: rateResult.bursts,
+            sessionMedianRate: rateResult.sessionMedianRate,
+            classMedianRate: rateResult.classMedianRate,
+            thresholdUsed: rateResult.thresholdUsed,
+            samplesAnalyzed: rateResult.samplesAnalyzed,
+            reason: rateResult.reason,
+            skipped: rateBlockSkipped,
+          };
+
+          // g. Flag rate bursts via the graduated pipeline (advisory only)
+          if (rateResult.ruleTriggered === 'RATE_BURST') {
+            await graduatedFlag({
+              sectionId: exercise.section_id,
+              exerciseId,
+              studentId,
+              flagType: 'CODE_GROWTH_ANOMALY',
+              severity: 'low',
+              evidence: {
+                rule: 'rate_burst',
+                bursts: rateResult.bursts,
+                sessionMedianRate: rateResult.sessionMedianRate,
+                classMedianRate: rateResult.classMedianRate,
+                thresholdUsed: rateResult.thresholdUsed,
+                samplesAnalyzed: rateResult.samplesAnalyzed,
+                pasteCorrelationCount: rateResult.bursts.filter(b => b.pasteCorrelated).length,
+                bothRules: staticGrowthFlagFired,
+              },
+              contextBehaviors: rateResult.bursts.some(b => b.pasteCorrelated) ? ['Paste events correlated with burst'] : [],
+              submissionId,
+            });
+          }
+        }
+      }
+    } catch (rateErr) {
+      // Non-fatal: don't break submission flow
+      console.warn('Rate-based code growth detection failed:', rateErr.message);
+    }
+
     // Log exercise_completed on first correct submission (triggers Practice Mode in frontend)
     if (allPassed && attemptNumber === 1) {
       await logAuditEvent(studentId, exerciseId, 'exercise_completed', {
@@ -610,6 +756,7 @@ exports.submit = async (req, res) => {
       hidden: hiddenSummary,
       codeGrowthDelta,
       growthVelocity,
+      rateDetection,
       cppcheckWarnings: cppcheckWarnings.length > 0 ? cppcheckWarnings : undefined,
       liveCDS,
       verification: {

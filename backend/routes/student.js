@@ -923,6 +923,37 @@ router.post('/behavioral-events', behavioralLimiter, verifyToken, requireRole('s
   } catch (err) { next(err); }
 });
 
+// ── Code Snapshot Storage ────────────────────────────────────────────────────
+// Receives editor telemetry samples (token count + active elapsed seconds).
+// Stores in code_snapshots table, deduped per (session_id, active_elapsed_seconds).
+
+router.post('/code-snapshots', behavioralLimiter, verifyToken, requireRole('student'), async (req, res, next) => {
+  try {
+    const studentId = req.user.id;
+    const { exerciseId, sessionId, samples } = req.body;
+
+    if (!exerciseId || !sessionId || !Array.isArray(samples) || samples.length === 0) {
+      return res.status(400).json({ error: 'exerciseId, sessionId, and samples array required' });
+    }
+
+    // Batch insert samples (max 200 per request)
+    const toInsert = samples.slice(0, 200);
+    for (const s of toInsert) {
+      const { tokenCount, activeElapsedSeconds, autocomplete } = s;
+      if (typeof tokenCount !== 'number' || typeof activeElapsedSeconds !== 'number') continue;
+
+      await db.query(
+        `INSERT INTO code_snapshots (student_id, exercise_id, session_id, token_count, active_elapsed_seconds, autocomplete)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (session_id, active_elapsed_seconds) DO NOTHING`,
+        [studentId, exerciseId, sessionId, tokenCount, Math.round(activeElapsedSeconds), Boolean(autocomplete)]
+      );
+    }
+
+    res.json({ received: toInsert.length });
+  } catch (err) { next(err); }
+});
+
 // Get today's personalized study plan
 router.get('/today', verifyToken, requireRole('student'), async (req, res, next) => {
   try {

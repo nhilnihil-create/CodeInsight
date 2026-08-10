@@ -468,6 +468,24 @@ CREATE TABLE IF NOT EXISTS behavioral_events (
 CREATE INDEX IF NOT EXISTS idx_behavioral_events_student_exercise ON behavioral_events(student_id, exercise_id);
 CREATE INDEX IF NOT EXISTS idx_behavioral_events_lookup ON behavioral_events(student_id, exercise_id, event_type);
 
+-- ── Code Snapshots (V2) ─────────────────────────────────────────────────────
+-- Editor telemetry snapshots for run reconstruction and effort tracking
+
+CREATE TABLE IF NOT EXISTS code_snapshots (
+  id            SERIAL PRIMARY KEY,
+  student_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  exercise_id   INT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  session_id    TEXT NOT NULL,
+  token_count   INT NOT NULL,
+  active_elapsed_seconds INT NOT NULL,
+  autocomplete  BOOLEAN NOT NULL DEFAULT FALSE,
+  occurred_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (session_id, active_elapsed_seconds)
+);
+
+CREATE INDEX IF NOT EXISTS idx_code_snapshots_session_lookup
+  ON code_snapshots (student_id, exercise_id, session_id, active_elapsed_seconds);
+
 -- ── Section Audit Log (V2) ──────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS section_audit_log (

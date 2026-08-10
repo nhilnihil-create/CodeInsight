@@ -26,6 +26,7 @@ export default function CodeEditorSurface({
   value,
   onChange,
   onMount,
+  onAutocompleteAccept,
   language = "cpp",
   readOnly = false,
 }) {
@@ -50,6 +51,15 @@ export default function CodeEditorSurface({
     window.monaco.editor.setTheme("vs-dark");
   }, [theme]);
 
+  // Wire the autocomplete-accept signal to the caller, then forward the
+  // mount so the editor instance reaches the page as before.
+  const handleEditorMount = (editor, monaco) => {
+    if (editor && typeof onAutocompleteAccept === "function") {
+      editor.onDidAcceptSuggestion(() => onAutocompleteAccept());
+    }
+    onMount?.(editor, monaco);
+  };
+
   return (
     <div
       className="h-full w-full bg-background overflow-hidden"
@@ -61,7 +71,7 @@ export default function CodeEditorSurface({
         language={language}
         value={value}
         onChange={onChange}
-        onMount={onMount}
+        onMount={handleEditorMount}
         theme="vs-dark"
         loading={<EditorSkeleton />}
         options={{

@@ -58,10 +58,11 @@ function countTokens(code) {
 }
 
 /**
- * Growth velocity check: compares new code tokens against baseline.
+ * Static growth fallback: compares new code tokens against baseline.
  * Returns { flagged, baselineTokens, newTokens, growthPercent, threshold }
- * Threshold: 200% growth (3× the baseline) triggers flag.
- * This replaces static solution comparison with dynamic growth monitoring.
+ * Primary detection is time-based rate-burst analysis (adaptive to the
+ * student's own typing speed); this static rule runs only when no typing
+ * telemetry exists.
  */
 function checkGrowthVelocity(starterCode, newCode, threshold = 200) {
   const baseline = countTokens(starterCode);
@@ -349,12 +350,12 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
               </div>
               <Separator />
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Growth Velocity Threshold</span>
-                <span className="font-mono font-semibold">200%</span>
+                <span className="text-muted-foreground">Growth Flagging</span>
+                <span className="font-mono font-semibold">Rate-burst</span>
               </div>
               <p className="text-muted-foreground text-[10px] mt-1">
-                Submissions exceeding <strong>3× the baseline token count</strong> in a single attempt will trigger an integrity flag.
-                This monitors growth velocity instead of comparing against a static solution.
+                Flags submissions where code grows in a <strong>sudden burst</strong> far above the student's own typing speed — the threshold is adaptive to each student.
+                Bursts coinciding with paste events are correlated. A static line-growth rule applies only when no typing telemetry exists. Flags are for review only.
               </p>
               {baselineTokens < 5 && (
                 <div className="flex items-center gap-1.5 text-amber-600 text-[10px]">
@@ -396,30 +397,32 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
             <p className="text-xs text-muted-foreground mt-1">Due date is set in the basket panel on the right when you publish.</p>
           </div>
 
-          {/* Growth Velocity Info */}
+          {/* Rate-Burst Detection Info */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-primary" /> Growth Velocity Monitor
+                <TrendingUp className="w-4 h-4 text-primary" /> Rate-Burst Detection
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-2">
               <p className="text-muted-foreground">
-                When students submit code, the system compares their token count against this exercise's baseline ({baselineTokens} tokens).
-                If a student's submission grows by more than 200% in a single attempt, an integrity flag is triggered.
+                The student's typing speed is sampled every few seconds (token count over active editing time). An adaptive threshold is derived
+                from their session median and classmates' medians; a burst of growth far above their own speed gets flagged for review, and bursts
+                coinciding with paste events are correlated. A static line-growth rule applies only when no typing telemetry exists.
+                Flags are low severity, for review only — not automatic penalties.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center p-2 rounded bg-muted/40">
-                  <div className="text-lg font-mono font-semibold">{baselineTokens}</div>
-                  <div className="text-[10px] text-muted-foreground">Baseline</div>
+                  <div className="text-lg font-mono font-semibold">Live</div>
+                  <div className="text-[10px] text-muted-foreground">Speed sampled every few seconds</div>
                 </div>
                 <div className="text-center p-2 rounded bg-muted/40">
-                  <div className="text-lg font-mono font-semibold">{Math.round(baselineTokens * 2)}</div>
-                  <div className="text-[10px] text-muted-foreground">+100%</div>
+                  <div className="text-lg font-mono font-semibold">Adaptive</div>
+                  <div className="text-[10px] text-muted-foreground">Threshold per student</div>
                 </div>
                 <div className="text-center p-2 rounded bg-destructive/10">
-                  <div className="text-lg font-mono font-semibold text-destructive">{Math.round(baselineTokens * 3)}</div>
-                  <div className="text-[10px] text-destructive">⚠ Flag &gt;200%</div>
+                  <div className="text-lg font-mono font-semibold text-destructive">Rate-burst</div>
+                  <div className="text-[10px] text-destructive">⚠ Flag for review</div>
                 </div>
               </div>
             </CardContent>

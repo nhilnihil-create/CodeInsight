@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/services/api";
+import { countTokens } from "@/lib/countTokens";
 import EditorHeader from "./editor/EditorHeader";
 import ResizableWorkbench from "./editor/ResizableWorkbench";
 import MobileEditorTabs from "./editor/MobileEditorTabs";
@@ -96,6 +97,10 @@ function formatTimestamp(dateStr) {
   return `${Math.floor(diffHr / 24)}d ago`;
 }
 
+function createSessionId() {
+  return crypto?.randomUUID?.() ?? `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function StudentCodeEditor() {
   const navigate = useNavigate();
   const { exerciseId } = useParams();
@@ -116,6 +121,14 @@ export default function StudentCodeEditor() {
   const behavioralCounts = useRef({ tabSwitches: 0, pastes: 0 });
   const pendingEventsRef = useRef([]);
   const editorContainerRef = useRef(null);
+  // Code-sampling pipeline refs (growth velocity). Independent of the
+  // behavioral logging refs above.
+  const sessionIdRef = useRef(createSessionId());
+  const activeElapsedSecondsRef = useRef(0);
+  const autoCompleteRef = useRef(false);
+  const pendingSnapshotsRef = useRef([]);
+  const flushSnapshotsRef = useRef(null);
+  const codeRef = useRef("");
 
   const isCompleted = !!exercise?.isCompleted;
   // Review mode: the exercise was already completed or solved this session.
@@ -170,10 +183,25 @@ export default function StudentCodeEditor() {
     };
   }, [exerciseId]);
 
+  // Mirror of the `code` state for the sampling pipeline: interval
+  // callbacks must not close over stale state, and the Monaco instance
+  // may be unmounted (mobile tab switch) so the state mirror is the
+  // fallback source at sample time.
+  useEffect(() => {
+    codeRef.current = code;
+  }, [code]);
+
+  // One session id per exercise: regenerate whenever the route changes so
+  // snapshots are grouped by (student, exercise, session).
+  useEffect(() => {
+    sessionIdRef.current = createSessionId();
+  }, [exerciseId]);
+
   useEffect(() => {
     if (isCompleted || isSolved) return undefined;
     const id = setInterval(() => {
       setActiveElapsedSeconds((s) => s + 1);
+      activeElapsedSecondsRef.current += 1;
     }, 1000);
     return () => {
       clearInterval(id);
@@ -262,6 +290,70 @@ export default function StudentCodeEditor() {
     };
   }, [exerciseId, isReviewMode]);
 
+  // ── Code Sampling (growth velocity) ─────────────────────────────────────
+  // Independent sampling pipeline: every 4s record a sample
+  // (tokenCount, activeElapsedSeconds, autocomplete-used) into a local
+  // buffer; flush the buffer to the backend every 30s. On visibility loss
+  // take a final sample + flush and pause sampling. flushSnapshotsRef is
+  // exposed so the submit handler can flush before recording a submission.
+  useEffect(() => {
+    if (!exerciseId || isReviewMode) return;
+
+    let paused = false;
+    const sample = () => {
+      if (paused) return;
+      // Prefer the live editor text; fall back to the state mirror when
+      // the editor isn't mounted (a disposed instance can throw).
+      let currentCode = codeRef.current;
+      try {
+        currentCode = editorRef.current?.getValue() ?? currentCode;
+      } catch {
+        // Disposed editor — keep the state mirror value.
+      }
+      pendingSnapshotsRef.current.push({
+        tokenCount: countTokens(currentCode),
+        activeElapsedSeconds: activeElapsedSecondsRef.current,
+        autocomplete: autoCompleteRef.current,
+      });
+      autoCompleteRef.current = false;
+    };
+    const flush = async () => {
+      if (pendingSnapshotsRef.current.length === 0) return;
+      const samples = pendingSnapshotsRef.current.splice(0, pendingSnapshotsRef.current.length);
+      try {
+        await api.post('/api/student/code-snapshots', {
+          exerciseId: parseInt(exerciseId, 10),
+          sessionId: sessionIdRef.current,
+          samples,
+        });
+      } catch (_) {
+        // Non-fatal: don't break the editor if snapshot telemetry fails
+      }
+    };
+    flushSnapshotsRef.current = flush;
+
+    const interval = setInterval(sample, 4000);
+    const flushInterval = setInterval(flush, 30000);
+    const onVisibility = () => {
+      if (document.hidden) {
+        sample();
+        flush();
+        paused = true;
+      } else {
+        paused = false;
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(flushInterval);
+      document.removeEventListener('visibilitychange', onVisibility);
+      sample();
+      flush();
+    };
+  }, [exerciseId, isReviewMode]);
+
   // Drag-drop paste: the editor container only mounts once the exercise has
   // loaded, so the drop listener is attached separately from the listeners
   // above and re-attached whenever the container (or review mode) changes.
@@ -332,12 +424,20 @@ export default function StudentCodeEditor() {
         }
       }
 
+      // Flush pending code snapshots BEFORE submit so the growth-velocity
+      // trail is complete when the submission is recorded. The flush never
+      // throws (failures are swallowed inside), so no extra handling.
+      if (flushSnapshotsRef.current) {
+        await flushSnapshotsRef.current();
+      }
+
       const r = await api.post(`/api/student/exercises/${exerciseId}/submit`, {
         code,
         language: 'cpp',
         timeSpentSeconds: activeElapsedSeconds,
         tabSwitchCount: behavioralCounts.current.tabSwitches,
         pasteCount: behavioralCounts.current.pastes,
+        sessionId: sessionIdRef.current,
       });
       const data = r.data;
       const hidden = data.hiddenTestCount ?? 0;
@@ -393,6 +493,12 @@ export default function StudentCodeEditor() {
   const handleMount = (editor) => {
     editorRef.current = editor;
   };
+
+  // Fired by Monaco when the user accepts a suggestion; flagged on the
+  // next code sample via autoCompleteRef.
+  const handleAutocompleteAccept = useCallback(() => {
+    autoCompleteRef.current = true;
+  }, []);
 
   const handleBack = useCallback(() => {
     navigate("/student/exercises");
@@ -473,6 +579,7 @@ export default function StudentCodeEditor() {
           onCodeChange={handleCodeChange}
           testResults={testResults}
           onMount={handleMount}
+          onAutocompleteAccept={handleAutocompleteAccept}
           language="cpp"
           submissions={submissions}
           history={history}
@@ -492,6 +599,7 @@ export default function StudentCodeEditor() {
           onCodeChange={handleCodeChange}
           testResults={testResults}
           onMount={handleMount}
+          onAutocompleteAccept={handleAutocompleteAccept}
           submissions={submissions}
           history={history}
           compilationLog={testResults?.compilationLog ?? ""}

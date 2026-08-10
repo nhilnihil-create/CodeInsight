@@ -64,6 +64,7 @@ export default function ResizableWorkbench({
   onCodeChange,
   testResults,
   onMount,
+  onAutocompleteAccept,
   language = "cpp",
   submissions = [],
   history = [],
@@ -228,6 +229,7 @@ export default function ResizableWorkbench({
                   value={code}
                   onChange={onCodeChange}
                   onMount={onMount}
+                  onAutocompleteAccept={onAutocompleteAccept}
                   language={language}
                   readOnly={isReviewMode}
                 />
