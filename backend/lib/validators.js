@@ -128,6 +128,16 @@ const verifyOtp = Joi.object({
   role: role.optional(),
 });
 
+const forgotPassword = Joi.object({
+  email: email.required(),
+});
+
+const resetPassword = Joi.object({
+  email: email.required(),
+  otp: Joi.string().pattern(/^\d{6}$/).required(),
+  password: password.required(),
+});
+
 const login = Joi.object({
   email: email.required(),
   password: Joi.string().min(1).required(),
@@ -215,6 +225,7 @@ module.exports = {
   exerciseCreate, exerciseUpdate,
   sectionCreate, enrollPayload, membershipUpdate, policyUpdate, joinByCode,
   submitCode, evaluationSubmit, register, requestOtp, verifyOtp, login, idParam, enrollParams,
+  forgotPassword, resetPassword,
   adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate, adminConceptUpdate,
   bulkImportCSV, rosterImportRows,
   bulkPublish, exerciseValidate, adminPasswordReset,

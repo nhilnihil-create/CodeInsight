@@ -6,6 +6,8 @@ import { ThemeProvider } from './lib/theme.jsx';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import SectionGatePage from './components/section-gate-page';
 import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorHeatmap from './pages/instructor/Heatmap';
 import InstructorStudents from './pages/instructor/Students';
@@ -46,7 +48,7 @@ import AdminAudit from './pages/admin/Audit';
 import AdminFlags from './pages/admin/Flags';
 import AdminSettings from './pages/admin/Settings';
 
-function ProtectedRoute({ children, requiredRole }) {
+function ProtectedRoute({ children, requiredRole, bare }) {
   const { isLoggedIn, user } = useAuth();
 
   if (!isLoggedIn) return <Navigate to="/login" replace />;
@@ -58,7 +60,7 @@ function ProtectedRoute({ children, requiredRole }) {
         : '/student/dashboard';
     return <Navigate to={home} replace />;
   }
-  return <Layout>{children}</Layout>;
+  return bare ? children : <Layout>{children}</Layout>;
 }
 
 function AppContent() {
@@ -68,6 +70,7 @@ function AppContent() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         
         {/* Instructor Routes — design paths canonical */}
         <Route path="/instructor/command" element={
@@ -260,6 +263,11 @@ function AppContent() {
         <Route path="/student/profile" element={
           <ProtectedRoute requiredRole="student">
             <RequireSection><StudentProfile /></RequireSection>
+          </ProtectedRoute>
+        } />
+        <Route path="/student/select-section" element={
+          <ProtectedRoute requiredRole="student" bare>
+            <SectionGatePage />
           </ProtectedRoute>
         } />
 

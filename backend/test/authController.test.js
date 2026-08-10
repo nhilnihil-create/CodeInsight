@@ -22,6 +22,7 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendVerificationEmail = require('../lib/email').sendVerificationEmail;
+const { sendOtpEmail } = require('../lib/email');
 const { validateEmailDomain } = require('../lib/domainValidator');
 const { storeOtp, verifyOtp } = require('../lib/otpStore');
 const controller = require('../controllers/authController');
@@ -484,5 +485,140 @@ describe('authController.verifyEmail', function() {
     const err = next.mock.calls[0][0];
     expect(err.status).toBe(400);
     expect(err.message).toMatch(/expired/i);
+  });
+});
+
+describe('authController.forgotPassword', function() {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns 404 when no account exists for the email', async function() {
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const req = { body: { email: 'nobody@test.com' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.forgotPassword(req, res, next);
+
+    expect(db.query).toHaveBeenCalledWith('SELECT id, name FROM users WHERE email=$1', ['nobody@test.com']);
+    const err = next.mock.calls[0][0];
+    expect(err.status).toBe(404);
+    expect(err.code).toBe('NOT_FOUND');
+    expect(err.message).toMatch(/No account found/i);
+    expect(storeOtp).not.toHaveBeenCalled();
+  });
+
+  it('stores an OTP and sends it for a known email', async function() {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Alice' }] });
+
+    const req = { body: { email: 'alice@test.com' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.forgotPassword(req, res, next);
+
+    expect(storeOtp).toHaveBeenCalledWith('alice@test.com', '123456');
+    expect(sendOtpEmail).toHaveBeenCalledWith({ to: 'alice@test.com', name: 'Alice', otp: '123456' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'Password reset code sent to your email' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns the OTP in the body when email delivery fails', async function() {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Alice' }] });
+    sendOtpEmail.mockRejectedValueOnce(new Error('SMTP unavailable'));
+
+    const req = { body: { email: 'alice@test.com' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.forgotPassword(req, res, next);
+
+    expect(res.json).toHaveBeenCalledWith({
+      message: 'Email delivery failed. Use the OTP below to reset your password.',
+      otp: '123456',
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('calls next on database error', async function() {
+    db.query.mockRejectedValueOnce(new Error('connection failed'));
+
+    const req = { body: { email: 'alice@test.com' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.forgotPassword(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'connection failed' }));
+  });
+});
+
+describe('authController.resetPassword', function() {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each([
+    'No OTP requested for this email',
+    'OTP has expired. Request a new one.',
+    'Too many failed attempts. Request a new OTP.',
+    'Invalid code. Use the code from the most recent email, or tap Resend.',
+  ])('returns 400 when OTP is invalid (%s)', async function(reason) {
+    verifyOtp.mockReturnValue({ valid: false, reason });
+
+    const req = { body: { email: 'alice@test.com', otp: '000000', password: 'Secret123!' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.resetPassword(req, res, next);
+
+    expect(verifyOtp).toHaveBeenCalledWith('alice@test.com', '000000');
+    const err = next.mock.calls[0][0];
+    expect(err.status).toBe(400);
+    expect(err.code).toBe('VALIDATION_ERROR');
+    expect(err.message).toBe(reason);
+    expect(db.query).toHaveBeenCalledTimes(0);
+  });
+
+  it('updates the password and marks the email verified with a valid OTP', async function() {
+    verifyOtp.mockReturnValue({ valid: true });
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+    bcrypt.hash.mockResolvedValue('hashed-pw-value');
+    db.query.mockResolvedValueOnce({ rowCount: 1 });
+
+    const req = { body: { email: 'alice@test.com', otp: '123456', password: 'Secret123!' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.resetPassword(req, res, next);
+
+    expect(bcrypt.hash).toHaveBeenCalledWith('Secret123!', 10);
+    expect(db.query).toHaveBeenNthCalledWith(2,
+      expect.stringContaining('UPDATE users SET password_hash = $1, email_verified = true'),
+      ['hashed-pw-value', 'alice@test.com']
+    );
+    expect(res.cookie).not.toHaveBeenCalled();
+    expect(jwt.sign).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ message: 'Password updated. Please sign in with your new password.' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the user is missing after a valid OTP', async function() {
+    verifyOtp.mockReturnValue({ valid: true });
+    db.query.mockResolvedValueOnce({ rows: [] });
+
+    const req = { body: { email: 'ghost@test.com', otp: '123456', password: 'Secret123!' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.resetPassword(req, res, next);
+
+    const err = next.mock.calls[0][0];
+    expect(err.status).toBe(404);
+    expect(err.code).toBe('NOT_FOUND');
+    expect(err.message).toMatch(/No account found/i);
+    expect(bcrypt.hash).not.toHaveBeenCalled();
   });
 });

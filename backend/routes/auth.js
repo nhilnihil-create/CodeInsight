@@ -29,6 +29,26 @@ const registrationLimiter = PLAYWRIGHT
 
 const otpLimiter = (req, res, next) => next();
 
+const forgotPasswordLimiter = PLAYWRIGHT
+  ? (req, res, next) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { message: 'Too many password reset requests. Please try again in 15 minutes.' },
+    });
+
+const resetPasswordLimiter = PLAYWRIGHT
+  ? (req, res, next) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { message: 'Too many reset attempts. Please try again in 15 minutes.' },
+    });
+
 /**
  * @swagger
  * /api/auth/register:
@@ -163,6 +183,51 @@ router.post('/request-otp', otpLimiter, validate.body(v.requestOtp), ctrl.reques
  *       409: { description: Email already registered }
  */
 router.post('/verify-otp',  registrationLimiter, validate.body(v.verifyOtp), ctrl.verifyOtpAndRegister);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Request a password reset code (OTP) for an existing account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200: { description: Password reset code sent (otp included when email delivery fails) }
+ *       404: { description: No account found with this email }
+ */
+router.post('/forgot-password', forgotPasswordLimiter, validate.body(v.forgotPassword), ctrl.forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Reset the password using the emailed OTP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp, password]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               otp: { type: string, pattern: "^[0-9]{6}$", example: "123456" }
+ *               password: { type: string, minLength: 8 }
+ *     responses:
+ *       200: { description: Password updated }
+ *       400: { description: Invalid, expired, or exhausted OTP }
+ *       404: { description: No account found with this email }
+ */
+router.post('/reset-password', resetPasswordLimiter, validate.body(v.resetPassword), ctrl.resetPassword);
 
 router.get('/email-status', (req, res) => {
   const enabled = process.env.EMAIL_ENABLED === 'true';

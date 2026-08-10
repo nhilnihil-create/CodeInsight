@@ -39,16 +39,22 @@ router.get('/exercises', verifyToken, requireRole('student'), async (req, res, n
     const r = await db.query(`
       SELECT ex.id, ex.title, ex.description, c.name AS concept_name,
              ex.time_limit_minutes, ex.deadline, ex.test_cases,
-             CASE WHEN s.id IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
-             (s.id IS NOT NULL) AS "isCompleted",
+             CASE WHEN s.submitted_at IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
+             (s.submitted_at IS NOT NULL) AS "isCompleted",
+             CASE
+               WHEN s.submitted_at IS NOT NULL AND (ex.deadline IS NULL OR s.submitted_at <= ex.deadline) THEN 'done'
+               WHEN s.submitted_at IS NOT NULL AND ex.deadline IS NOT NULL AND s.submitted_at > ex.deadline THEN 'late'
+               WHEN s.submitted_at IS NULL AND ex.deadline IS NOT NULL AND ex.deadline < NOW() THEN 'missing'
+               ELSE 'todo'
+             END AS work_status,
              cs.cds
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id
       LEFT JOIN LATERAL (
-        SELECT id FROM submissions
+        SELECT MIN(submitted_at) AS submitted_at
+        FROM submissions
         WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
-        LIMIT 1
       ) s ON true
       LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1 AND cs.section_id = ex.section_id
       WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${sectionFilter}

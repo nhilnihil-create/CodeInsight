@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { render, screen, cleanup } from '@testing-library/react';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import RequireSection from './require-section';
 
 vi.mock('@/context/StudentContext', () => ({
@@ -13,10 +13,18 @@ vi.mock('@/services/api', () => ({
 
 let mockContext;
 
-function renderGate(children = <div>page content</div>) {
+function SelectSectionMarker() {
+  const location = useLocation();
+  return <div>select-section-marker:{location.state?.from ?? 'none'}</div>;
+}
+
+function renderGate(children = <div>page content</div>, initialEntries = ['/student/exercises']) {
   return render(
-    <MemoryRouter>
-      <RequireSection>{children}</RequireSection>
+    <MemoryRouter initialEntries={initialEntries}>
+      <Routes>
+        <Route path="/student/select-section" element={<SelectSectionMarker />} />
+        <Route path="*" element={<RequireSection>{children}</RequireSection>} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -48,35 +56,25 @@ describe('RequireSection', () => {
     expect(screen.queryByText('page content')).not.toBeInTheDocument();
   });
 
-  it('renders the full-page picker when sections exist but no active section is set', () => {
+  it('redirects to the section gate when sections exist but no active section is set', () => {
     mockContext.activeSectionId = null;
     renderGate();
-    expect(screen.getByRole('heading', { name: 'Select a Section' })).toBeInTheDocument();
-    expect(screen.getByText(/enrolled in 2 sections/i)).toBeInTheDocument();
-    expect(screen.getByText('CS101 A')).toBeInTheDocument();
-    expect(screen.getByText('K7P-3QX · Fall 2026')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Join another section/i })).toHaveAttribute('href', '/student/sections');
+    expect(screen.getByText('select-section-marker:/student/exercises')).toBeInTheDocument();
+    expect(screen.queryByText('page content')).not.toBeInTheDocument();
   });
 
-  it('activates the picked section from the picker', () => {
-    mockContext.activeSectionId = null;
-    renderGate();
-    fireEvent.click(screen.getByText('CS101 B'));
-    expect(mockContext.setActiveSectionId).toHaveBeenCalledWith(2);
-  });
-
-  it('renders the join gate when there are no enrolled sections', () => {
+  it('redirects to the section gate when there are no enrolled sections', () => {
     mockContext.sections = [];
     mockContext.hasSections = false;
     mockContext.activeSectionId = null;
-    renderGate();
-    expect(screen.getByRole('heading', { name: 'Join a Section' })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('e.g. K7P-3QX')).toBeInTheDocument();
+    renderGate(undefined, ['/student/progress']);
+    expect(screen.getByText('select-section-marker:/student/progress')).toBeInTheDocument();
+    expect(screen.queryByText('page content')).not.toBeInTheDocument();
   });
 
   it('renders the wrapped page when an active section is set', () => {
     renderGate();
     expect(screen.getByText('page content')).toBeInTheDocument();
-    expect(screen.queryByText('Select a Section')).not.toBeInTheDocument();
+    expect(screen.queryByText(/select-section-marker/)).not.toBeInTheDocument();
   });
 });

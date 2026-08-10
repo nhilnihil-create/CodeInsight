@@ -1,4 +1,5 @@
-import { Play, Send, Clock, ChevronLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Play, Send, Clock, ChevronLeft, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -6,7 +7,7 @@ import { cn } from "@/lib/utils";
  * EditorHeader
  * Sticky h-14 (56px) header bar for the code editor.
  *
- *   [Back]  Title + concept chips  |  N / M passing  |  Timer · Run · Submit
+ *   [Back]  [All classes]  Title + concept chips  |  N / M passing  |  Timer · Run · Submit
  *
  * Emerald-accented glassmorphic theme.
  */
@@ -54,6 +55,15 @@ export default function EditorHeader({
           <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
         </Button>
       ) : null}
+
+      {/* All classes */}
+      <Link
+        to="/student/select-section"
+        className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary shrink-0"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+        All classes
+      </Link>
 
       {/* Left: title + concepts */}
       <div className="flex items-center gap-2 min-w-0 flex-1">

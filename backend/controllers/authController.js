@@ -38,11 +38,11 @@ function setAuthCookie(res, user) {
 exports.requestOtp = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) throw new AppError('Email is required', 400, codes.VALIDATION_ERROR);
+    if (!email) throw new AppError('Email is required', 400, codes.VALIDATION);
 
     const domainCheck = await validateEmailDomain(email);
     if (!domainCheck.valid) {
-      throw new AppError(domainCheck.reason, 400, codes.VALIDATION_ERROR);
+      throw new AppError(domainCheck.reason, 400, codes.VALIDATION);
     }
 
     const existing = await db.query('SELECT id FROM users WHERE email=$1', [email]);
@@ -75,13 +75,13 @@ exports.verifyOtpAndRegister = async (req, res, next) => {
   try {
     const { email, otp, name, password, role: requestedRole } = req.body;
     if (!email || !otp || !name || !password) {
-      throw new AppError('Email, OTP, name, and password are required', 400, codes.VALIDATION_ERROR);
+      throw new AppError('Email, OTP, name, and password are required', 400, codes.VALIDATION);
     }
 
     const result = await verifyOtp(email, otp);
     if (!result.valid) {
       logger.warn({ email, reason: result.reason }, 'OTP verification failed');
-      throw new AppError(result.reason, 400, codes.VALIDATION_ERROR);
+      throw new AppError(result.reason, 400, codes.VALIDATION);
     }
 
     const existing = await db.query('SELECT id FROM users WHERE email=$1', [email]);
@@ -92,7 +92,7 @@ exports.verifyOtpAndRegister = async (req, res, next) => {
     const domainCheck = await validateEmailDomain(email);
     const role = requestedRole || await determineRole(email);
     if (role === 'instructor' && !domainCheck.isUniversity) {
-      throw new AppError('Instructor accounts require a university email', 400, codes.VALIDATION_ERROR);
+      throw new AppError('Instructor accounts require a university email', 400, codes.VALIDATION);
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -118,12 +118,12 @@ exports.register = async (req, res, next) => {
 
     const domainCheck = await validateEmailDomain(email);
     if (!domainCheck.valid) {
-      throw new AppError(domainCheck.reason, 400, codes.VALIDATION_ERROR);
+      throw new AppError(domainCheck.reason, 400, codes.VALIDATION);
     }
 
     const assignedRole = role || await determineRole(email);
     if (assignedRole === 'instructor' && !domainCheck.isUniversity) {
-      throw new AppError('Instructor accounts require a university email', 400, codes.VALIDATION_ERROR);
+      throw new AppError('Instructor accounts require a university email', 400, codes.VALIDATION);
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -175,6 +175,62 @@ exports.login = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const result = await db.query('SELECT id, name FROM users WHERE email=$1', [email]);
+    if (!result.rows.length) {
+      throw new AppError('No account found with this email', 404, codes.NOT_FOUND);
+    }
+    const { name } = result.rows[0];
+
+    const otp = generateOtp();
+    await storeOtp(email, otp);
+
+    let emailSent = false;
+    try {
+      await sendOtpEmail({ to: email, name, otp });
+      emailSent = true;
+    } catch (err) {
+      logger.error({ err, email }, 'Failed to send OTP email — returning code in response');
+    }
+
+    const response = { message: 'Password reset code sent to your email' };
+    if (!emailSent) {
+      response.otp = otp;
+      response.message = 'Email delivery failed. Use the OTP below to reset your password.';
+    }
+    res.json(response);
+  } catch (err) { next(err); }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, password } = req.body;
+
+    const result = await verifyOtp(email, otp);
+    if (!result.valid) {
+      throw new AppError(result.reason, 400, codes.VALIDATION);
+    }
+
+    const existing = await db.query('SELECT id FROM users WHERE email=$1', [email]);
+    if (!existing.rows.length) {
+      throw new AppError('No account found with this email', 404, codes.NOT_FOUND);
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    // The OTP proves inbox ownership, so legacy unverified accounts are
+    // unlocked here too (email_verified = true).
+    await db.query(
+      'UPDATE users SET password_hash = $1, email_verified = true WHERE email = $2',
+      [hash, email]
+    );
+
+    res.json({ message: 'Password updated. Please sign in with your new password.' });
+  } catch (err) { next(err); }
+};
+
 exports.me = async (req, res, next) => {
   try {
     let userId = req.user?.id;
@@ -197,7 +253,7 @@ exports.me = async (req, res, next) => {
 exports.verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.params;
-    if (!token) throw new AppError('Verification token is required', 400, codes.VALIDATION_ERROR);
+    if (!token) throw new AppError('Verification token is required', 400, codes.VALIDATION);
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
@@ -208,12 +264,12 @@ exports.verifyEmail = async (req, res, next) => {
     );
 
     if (!result.rows.length) {
-      throw new AppError('Invalid or expired verification token', 400, codes.VALIDATION_ERROR);
+      throw new AppError('Invalid or expired verification token', 400, codes.VALIDATION);
     }
 
     const user = result.rows[0];
     if (new Date() > new Date(user.verification_token_expires)) {
-      throw new AppError('Verification token has expired. Please register again.', 400, codes.VALIDATION_ERROR);
+      throw new AppError('Verification token has expired. Please register again.', 400, codes.VALIDATION);
     }
 
     await db.query(
