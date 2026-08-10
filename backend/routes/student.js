@@ -5,6 +5,7 @@ const { runAgainstTestCases, isHiddenTestCase } = require('../services/executor'
 const cdsEngine = require('../services/cdsEngine');
 const academicIntegrityEngine = require('../services/academicIntegrityEngine');
 const integrityFlagEngine = require('../services/integrityFlagEngine');
+const { evaluateCodeGrowthAnomaly, CODE_GROWTH_ANOMALY_CONFIG } = require('../services/codeGrowthAnomaly');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { AppError, codes } = require('../lib/AppError');
 const { rateLimit } = require('express-rate-limit');
@@ -457,28 +458,36 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
           );
           if (prevRes.rows.length > 0) {
             const prevLineCount = (prevRes.rows[0].code || '').split('\n').length;
-            if (prevLineCount > 0) {
-              const growthPercent = ((currentLineCount - prevLineCount) / prevLineCount) * 100;
-              if (growthPercent > 30) {
-                await integrityFlagEngine.createFlag({
-                  sectionId: exercise.section_id,
-                  exerciseId: exercise.id,
-                  studentId: req.user.id,
-                  flagType: 'CODE_GROWTH_ANOMALY',
-                  severity: 'high',
-                  evidence: {
-                    baseline_lines: prevLineCount,
-                    student_lines: currentLineCount,
-                    growth_percent: Math.round(growthPercent),
-                    threshold: 30,
-                    attempt_number,
-                  },
-                  contextBehaviors: [
-                    `Code grew ${Math.round(growthPercent)}% in attempt #${attempt_number} (${prevLineCount} → ${currentLineCount} lines)`,
-                  ],
-                  status: 'flagged',
-                });
-              }
+            const growthResult = evaluateCodeGrowthAnomaly({
+              baselineLines: prevLineCount,
+              studentLines: currentLineCount,
+              attemptNumber: attempt_number,
+            });
+            if (growthResult.flagged) {
+              await integrityFlagEngine.createFlag({
+                sectionId: exercise.section_id,
+                exerciseId: exercise.id,
+                studentId: req.user.id,
+                flagType: 'CODE_GROWTH_ANOMALY',
+                severity: growthResult.severity,
+                evidence: {
+                  baseline_lines: prevLineCount,
+                  student_lines: currentLineCount,
+                  growth_percent: growthResult.growthPercent,
+                  threshold: CODE_GROWTH_ANOMALY_CONFIG.PCT_THRESHOLD,
+                  attempt_number,
+                  lines_added: growthResult.linesAdded,
+                  min_lines_added: CODE_GROWTH_ANOMALY_CONFIG.MIN_LINES_ADDED,
+                  floor_met: growthResult.floorMet,
+                  severity_basis: growthResult.severityBasis,
+                  baseline_source: growthResult.baselineSource,
+                },
+                contextBehaviors: [
+                  `Code grew ${growthResult.growthPercent}% in attempt #${attempt_number} (${prevLineCount} → ${currentLineCount} lines)`,
+                ],
+                status: 'flagged',
+                submissionId: subRes.rows[0].id,
+              });
             }
           }
         }
