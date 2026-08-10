@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import RequireSection from './require-section';
 
@@ -38,6 +38,7 @@ describe('RequireSection', () => {
         { id: 2, name: 'CS101 B', code: 'X9M-2LP', term: 'Fall 2026' },
       ],
       loading: false,
+      error: false,
       activeSectionId: 1,
       setActiveSectionId: vi.fn(),
       recheck: vi.fn(),
@@ -76,5 +77,31 @@ describe('RequireSection', () => {
     renderGate();
     expect(screen.getByText('page content')).toBeInTheDocument();
     expect(screen.queryByText(/select-section-marker/)).not.toBeInTheDocument();
+  });
+
+  it('renders retry screen with error and does not redirect', () => {
+    mockContext.error = true;
+    mockContext.hasSections = false;
+    mockContext.activeSectionId = null;
+    renderGate();
+    expect(screen.getByText("Couldn't load your classes")).toBeInTheDocument();
+    expect(screen.getByText('Check your connection and try again.')).toBeInTheDocument();
+    expect(screen.queryByText('page content')).not.toBeInTheDocument();
+    expect(screen.queryByText(/select-section-marker/)).not.toBeInTheDocument();
+  });
+
+  it('retry button calls recheck', () => {
+    mockContext.error = true;
+    renderGate();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mockContext.recheck).toHaveBeenCalled();
+  });
+
+  it('loading takes precedence over error', () => {
+    mockContext.loading = true;
+    mockContext.error = true;
+    renderGate();
+    expect(screen.getByText('Loading your sections…')).toBeInTheDocument();
+    expect(screen.queryByText("Couldn't load your classes")).not.toBeInTheDocument();
   });
 });

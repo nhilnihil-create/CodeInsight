@@ -302,7 +302,7 @@ describe('StudentSections', () => {
       });
     });
 
-    it('shows error toast for already enrolled (409)', async () => {
+    it('treats 409 as already-enrolled recovery', async () => {
       api.post.mockRejectedValue({
         response: { status: 409, data: { error: 'Already enrolled' } }
       });
@@ -318,8 +318,10 @@ describe('StudentSections', () => {
       fireEvent.click(screen.getByRole('button', { name: /join/i }));
       
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('You are already enrolled in this section.');
+        expect(toast.success).toHaveBeenCalledWith('You are already enrolled in this section.');
       });
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(mockContext.recheck).toHaveBeenCalled();
     });
 
     it('displays error message inline', async () => {
@@ -382,6 +384,8 @@ describe('StudentSections', () => {
       await waitFor(() => {
         expect(screen.getByText('CS101-A')).toBeInTheDocument();
         expect(screen.getByText('CS101-B')).toBeInTheDocument();
+        expect(screen.queryByText('ABC-123')).not.toBeInTheDocument();
+        expect(screen.queryByText('DEF-456')).not.toBeInTheDocument();
       });
     });
 

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
  * one picked yet — pick a class to enter it.
  *
  * Props
- *   - sections    Array of enrolled sections ({ id, name, code, course_code, term })
+ *   - sections    Array of enrolled sections ({ id, name, course_code, term })
  *   - onSelected  (section) => void — called when a class card is clicked
  *   - onJoin      () => void — called when "+ Join class" is clicked
  */
@@ -79,13 +79,12 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
                 </span>
               </div>
               <div className="px-5 py-4 space-y-1">
-                <p className="text-xs font-mono text-muted-foreground/70 truncate">
-                  {section.code || section.course_code || `#${section.id}`}
-                  {section.term ? ` · ${section.term}` : ''}
-                </p>
-                <p className="text-xs text-muted-foreground/50">
-                  Open class · join by code
-                </p>
+                {(section.course_code || section.term) && (
+                  <p className="text-xs font-mono text-muted-foreground/70 truncate">
+                    {[section.course_code, section.term].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground/50">Open class</p>
               </div>
             </motion.button>
           ))}

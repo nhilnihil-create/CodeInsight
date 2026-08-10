@@ -97,6 +97,39 @@ describe('StudentContext', () => {
 
     await waitFor(() => expect(result.current.checking).toBe(false));
     expect(result.current.hasSections).toBe(false);
+    expect(result.current.error).toBe(true);
+    expect(result.current.sections).toEqual([]);
     expect(result.current.activeSectionId).toBeNull();
+  });
+
+  it('clears error and recovers after a successful recheck', async () => {
+    api.get.mockRejectedValueOnce(new Error('Network error'));
+    api.get.mockResolvedValueOnce({ data: [{ id: 1, name: 'CS101 A' }] });
+
+    const { result } = renderStudentContext();
+
+    await waitFor(() => expect(result.current.error).toBe(true));
+
+    await act(() => result.current.recheck());
+
+    expect(result.current.error).toBe(false);
+    expect(result.current.hasSections).toBe(true);
+  });
+
+  it('keeps last-known-good sections and active section when a recheck fails', async () => {
+    localStorage.setItem(STORAGE_KEY, '42');
+    api.get.mockResolvedValue({ data: [{ id: 42, name: 'CS101 B' }] });
+
+    const { result } = renderStudentContext();
+
+    await waitFor(() => expect(result.current.hasSections).toBe(true));
+    expect(result.current.activeSectionId).toBe(42);
+
+    api.get.mockRejectedValueOnce(new Error('Network error'));
+    await act(() => result.current.recheck());
+
+    expect(result.current.error).toBe(true);
+    expect(result.current.sections).toHaveLength(1);
+    expect(result.current.activeSectionId).toBe(42);
   });
 });

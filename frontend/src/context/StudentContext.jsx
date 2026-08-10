@@ -31,6 +31,10 @@ function persist(id) {
  * every load — a valid stored id is kept (returning users land directly
  * in their section), while a missing/stale id is left null so the
  * RequireSection gate can show the section picker first.
+ *
+ * A failed recheck (network/API error) preserves the last-known sections
+ * and the active section and sets `error` to true so pages can show a
+ * retry screen instead of silently treating the student as unenrolled.
  */
 const StudentContext = createContext(null);
 
@@ -41,6 +45,7 @@ export function StudentProvider({ children }) {
   const activeRef = useRef(readStored());
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeSectionId, setActiveSectionIdState] = useState(activeRef.current);
 
   const applyActiveId = useCallback((id) => {
@@ -51,11 +56,13 @@ export function StudentProvider({ children }) {
 
   const recheck = useCallback(async () => {
     if (!isStudent) {
+      setError(false);
       setSections([]);
       setLoading(false);
       return false;
     }
     setLoading(true);
+    setError(false);
     try {
       const res = await api.get('/api/sections');
       const list = Array.isArray(res.data) ? res.data : [];
@@ -74,8 +81,11 @@ export function StudentProvider({ children }) {
       setLoading(false);
       return list.length > 0;
     } catch {
-      setSections([]);
-      if (activeRef.current !== null) applyActiveId(null);
+      // Keep the last-known-good sections and active section on failure so
+      // an enrolled student is never stranded by a transient network error.
+      // `error` lets the gates show a retry screen instead of pretending
+      // the student has no sections.
+      setError(true);
       setLoading(false);
       return false;
     }
@@ -93,11 +103,12 @@ export function StudentProvider({ children }) {
     sections,
     loading,
     checking: loading,
+    error,
     activeSectionId,
     setActiveSectionId,
     hasSections: !loading && sections.length > 0,
     recheck,
-  }), [sections, loading, activeSectionId, setActiveSectionId, recheck]);
+  }), [sections, loading, error, activeSectionId, setActiveSectionId, recheck]);
 
   return <StudentContext.Provider value={value}>{children}</StudentContext.Provider>;
 }

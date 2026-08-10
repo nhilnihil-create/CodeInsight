@@ -64,9 +64,19 @@ export default function JoinSectionGate({ onJoined, onBack }) {
       setJoinCode("");
       if (onJoined) onJoined();
     } catch (err) {
-      const msg = getJoinErrorMessage(err);
-      toast.error(msg);
-      setError(msg);
+      // 409 means the student is already enrolled — treat it as success
+      // in disguise: confirm with a toast, clear the input, and hand off to
+      // the caller instead of showing a dead-end error.
+      if (err.response?.status === 409) {
+        toast.success(getJoinErrorMessage(err));
+        setJoinCode("");
+        if (onBack) onBack();
+        if (onJoined) onJoined();
+      } else {
+        const msg = getJoinErrorMessage(err);
+        toast.error(msg);
+        setError(msg);
+      }
     } finally {
       setJoining(false);
     }

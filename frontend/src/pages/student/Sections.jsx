@@ -49,9 +49,19 @@ export default function StudentSections() {
       setJoinCode('');
       await recheck();
     } catch (err) {
-      const msg = getJoinErrorMessage(err);
-      toast.error(msg);
-      setError(msg);
+      // 409 means the student is already enrolled — treat it as success in
+      // disguise: confirm with a toast and refresh the enrollment list
+      // instead of showing a dead-end error.
+      if (err.response?.status === 409) {
+        toast.success(getJoinErrorMessage(err));
+        setJoinCode('');
+        setError(null);
+        await recheck();
+      } else {
+        const msg = getJoinErrorMessage(err);
+        toast.error(msg);
+        setError(msg);
+      }
     } finally {
       setJoining(false);
     }
@@ -98,7 +108,7 @@ export default function StudentSections() {
               <div>
                 <h3 className="font-semibold">{section.name}</h3>
                 <p className="text-xs text-muted-foreground font-mono">
-                  {section.code} &middot; {section.term || 'Active'}
+                  {[section.course_code, section.term || 'Active'].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <div className="flex items-center gap-2">
