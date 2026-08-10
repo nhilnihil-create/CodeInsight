@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import StudentDashboardShell from '@/components/student-dashboard-shell';
-import JoinSectionGate from '@/components/join-section-gate';
-import useHasSections from '@/hooks/useHasSections';
+import { useStudentContext } from '@/context/StudentContext';
 import api from '@/services/api';
 
 const priorityConfig = {
@@ -17,18 +16,18 @@ const priorityConfig = {
 };
 
 export default function StudentRecommendations() {
-  const { hasSections, checking, recheck } = useHasSections();
+  const { activeSectionId } = useStudentContext();
   const [recs, setRecs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return;
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await api.get('/api/student/dashboard');
+        const res = await api.get('/api/student/dashboard', {
+          params: activeSectionId ? { sectionId: activeSectionId } : {},
+        });
         if (!cancelled) {
           const recommended = res.data?.recommended || [];
           const mapped = recommended.map((r, idx) => ({
@@ -51,44 +50,7 @@ export default function StudentRecommendations() {
     };
     load();
     return () => { cancelled = true; };
-  }, [hasSections, fetchKey]);
-
-  const handleJoined = () => {
-    recheck();
-    setFetchKey((k) => k + 1);
-  };
-
-  if (checking) {
-    return (
-      <StudentDashboardShell
-        breadcrumb={[
-          { label: 'Student', href: '/student/dashboard' },
-          { label: 'Recommended Next Moves' },
-        ]}
-        subtitle="Personalized suggestions based on your progress."
-      >
-        <div className="py-12 text-center text-muted-foreground">Loading recommendations…</div>
-      </StudentDashboardShell>
-    );
-  }
-
-  if (!hasSections) {
-    return <JoinSectionGate onJoined={handleJoined} />;
-  }
-
-  if (error) {
-    return (
-      <StudentDashboardShell
-        breadcrumb={[
-          { label: 'Student', href: '/student/dashboard' },
-          { label: 'Recommended Next Moves' },
-        ]}
-        subtitle="Personalized suggestions based on your progress."
-      >
-        <div className="py-12 text-center text-muted-foreground">Loading recommendations…</div>
-      </StudentDashboardShell>
-    );
-  }
+  }, [activeSectionId]);
 
   if (error) {
     return (

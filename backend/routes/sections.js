@@ -31,6 +31,7 @@ router.get('/:section_id/exercises',    verifyToken, requireRole('instructor'), 
 
 // New section management endpoints (spec §11.6)
 router.post('/join',                    verifyToken, requireRole('student'),        validate.body(v.joinByCode),        ctrl.joinSection);
+router.post('/:id/leave',               verifyToken, requireRole('student'),        validate.params(v.idParam),        ctrl.leaveSection);
 router.post('/:id/rotate-code',         verifyToken, requireRole('instructor'),     validate.params(v.idParam),        ctrl.rotateCode);
 router.post('/:id/memberships',         verifyToken, requireRole('instructor'),     validate.body(v.membershipUpdate), validate.params(v.idParam), ctrl.addMembership);
 router.patch('/:id/memberships/:mid',   verifyToken, requireRole('instructor'),     validate.body(v.membershipUpdate), validate.params(v.idParam), ctrl.updateMembership);

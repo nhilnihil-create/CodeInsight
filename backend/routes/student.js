@@ -26,6 +26,14 @@ const behavioralLimiter = rateLimit({
 // Get all exercises for enrolled sections
 router.get('/exercises', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
+    // Optional ?sectionId=<id> narrows results to a single active enrollment.
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    const params = [req.user.id];
+    let sectionFilter = '';
+    if (sectionId) {
+      params.push(sectionId);
+      sectionFilter = ` AND ex.section_id = $${params.length}`;
+    }
     // Completion status is derived from a correct submission, not from CDS
     // (CDS rows exist even for students with no accepted solution).
     const r = await db.query(`
@@ -42,10 +50,10 @@ router.get('/exercises', verifyToken, requireRole('student'), async (req, res, n
         WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
         LIMIT 1
       ) s ON true
-      LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1
-      WHERE en.student_id = $1 AND ex.is_draft = false
+      LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1 AND cs.section_id = ex.section_id
+      WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${sectionFilter}
       ORDER BY ex.created_at DESC
-    `, [req.user.id]);
+    `, params);
     res.json(r.rows);
   } catch (err) { next(err); }
 });
@@ -53,17 +61,31 @@ router.get('/exercises', verifyToken, requireRole('student'), async (req, res, n
 // Get single exercise details
 router.get('/exercises/:id', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
-    const r = await db.query(`
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+
+    const exRes = await db.query(`
       SELECT ex.*, c.name AS concept_name
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
-      JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE ex.id = $1 AND en.student_id = $2
-    `, [req.params.id, req.user.id]);
+      WHERE ex.id = $1
+    `, [req.params.id]);
+    if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
 
-    if (!r.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
+    // Optional sectionId must match the exercise's section; otherwise the
+    // request is for a section the student is not (actively) in.
+    if (sectionId && sectionId !== exRes.rows[0].section_id) {
+      throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
+    }
 
-    const ex = r.rows[0];
+    const enrollRes = await db.query(
+      'SELECT 1 FROM enrollments WHERE student_id=$1 AND section_id=$2 AND dropped_at IS NULL',
+      [req.user.id, exRes.rows[0].section_id]
+    );
+    if (!enrollRes.rows.length) {
+      throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
+    }
+
+    const ex = exRes.rows[0];
     if (ex.test_cases) {
       let testCases = typeof ex.test_cases === 'string' ? JSON.parse(ex.test_cases) : ex.test_cases;
       ex.test_cases = testCases.filter(tc => !isHiddenTestCase(tc));
@@ -101,6 +123,21 @@ router.post('/exercises/:id/run', verifyToken, requireRole('student'), async (re
     if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
 
     const exercise = exRes.rows[0];
+
+    // Gate: only actively enrolled students may run an exercise. A student
+    // who left the section (dropped_at set) is rejected with 403.
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    if (sectionId && sectionId !== exercise.section_id) {
+      throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
+    }
+    const enrollRes = await db.query(
+      'SELECT 1 FROM enrollments WHERE student_id=$1 AND section_id=$2 AND dropped_at IS NULL',
+      [req.user.id, exercise.section_id]
+    );
+    if (!enrollRes.rows.length) {
+      throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
+    }
+
     const testCases = typeof exercise.test_cases === 'string'
       ? JSON.parse(exercise.test_cases) : (exercise.test_cases || []);
     const visibleTC = testCases.filter(tc => !isHiddenTestCase(tc));
@@ -222,6 +259,20 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       if (!exRes.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
       exercise = exRes.rows[0];
       cache.set(cacheKey, exercise);
+    }
+
+    // Gate: only actively enrolled students may submit. A student who left
+    // the section (dropped_at set) is rejected with 403.
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    if (sectionId && sectionId !== exercise.section_id) {
+      throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
+    }
+    const enrollRes = await db.query(
+      'SELECT 1 FROM enrollments WHERE student_id=$1 AND section_id=$2 AND dropped_at IS NULL',
+      [req.user.id, exercise.section_id]
+    );
+    if (!enrollRes.rows.length) {
+      throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
     }
 
     // Resolve required AST nodes for structure verification.
@@ -612,11 +663,22 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 
 router.get('/exercises/:id/attempts', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    const params = [req.params.id, req.user.id];
+    let sectionFilter = '';
+    if (sectionId) {
+      params.push(sectionId);
+      sectionFilter = ` AND ex.section_id = $${params.length}`;
+    }
+    // Only return attempts for exercises the student is actively enrolled in.
     const r = await db.query(`
-      SELECT id, exercise_id, is_correct AS passed, attempt_number, submitted_at, test_results
-      FROM submissions WHERE exercise_id = $1 AND student_id = $2
-      ORDER BY submitted_at DESC LIMIT 10
-    `, [req.params.id, req.user.id]);
+      SELECT sub.id, sub.exercise_id, sub.is_correct AS passed, sub.attempt_number, sub.submitted_at, sub.test_results
+      FROM submissions sub
+      JOIN exercises ex ON ex.id = sub.exercise_id
+      JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = sub.student_id
+      WHERE sub.exercise_id = $1 AND sub.student_id = $2 AND en.dropped_at IS NULL${sectionFilter}
+      ORDER BY sub.submitted_at DESC LIMIT 10
+    `, params);
     const rows = (r.rows || []).map(row => {
       let results = row.test_results;
       try {
@@ -635,6 +697,13 @@ router.get('/exercises/:id/attempts', verifyToken, requireRole('student'), async
 router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const studentId = req.user.id;
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    const params = [studentId];
+    let sectionFilter = '';
+    if (sectionId) {
+      params.push(sectionId);
+      sectionFilter = ` AND ex.section_id = $${params.length}`;
+    }
 
     // 1. Exercises — find due-soon count, nearest deadline, and all for recommendations
     // Completion status derives from a correct submission (not CDS rows).
@@ -652,10 +721,10 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
         WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
         LIMIT 1
       ) s ON true
-      LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1
-      WHERE en.student_id = $1 AND ex.is_draft = false
+      LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1 AND cs.section_id = ex.section_id
+      WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${sectionFilter}
       ORDER BY ex.deadline ASC NULLS LAST
-    `, [studentId]);
+    `, params);
 
     const allExercises = exercisesRes.rows || [];
     const pendingExercises = allExercises.filter(ex => ex.status === 'pending');
@@ -670,21 +739,33 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     // 2. CDS scores — avg + per-concept breakdown (only from current enrollments)
     // Only real scores count: batch 'Unscored' placeholders (cds IS NULL) are
     // created for students with no submissions and must not appear as mastery.
+    const cdsParams = [studentId];
+    let cdsSectionFilter = '';
+    if (sectionId) {
+      cdsParams.push(sectionId);
+      cdsSectionFilter = ` AND en.section_id = $${cdsParams.length}`;
+    }
     const cdsRes = await db.query(`
       SELECT cs.cds, cs.classification, cs.exercise_id, c.name AS concept_name, ex.title AS exercise_title
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
       JOIN concepts c ON c.id = ex.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE cs.student_id = $1 AND en.student_id = $1 AND cs.cds IS NOT NULL
+      WHERE cs.student_id = $1 AND en.student_id = $1 AND cs.cds IS NOT NULL AND en.dropped_at IS NULL${cdsSectionFilter}
       ORDER BY cs.computed_at DESC
-    `, [studentId]);
+    `, cdsParams);
     const scores = cdsRes.rows || [];
     const avgCds = scores.length > 0
       ? scores.reduce((sum, s) => sum + parseFloat(s.cds || 0), 0) / scores.length
       : 0;
 
     // 3. Stats — exercise completion (activity metric, not mastery)
+    const statsParams = [studentId];
+    let statsSectionFilter = '';
+    if (sectionId) {
+      statsParams.push(sectionId);
+      statsSectionFilter = ` AND ex.section_id = $${statsParams.length}`;
+    }
     const statsRes = await db.query(`
       SELECT
         COUNT(DISTINCT ex.id)::int AS total,
@@ -693,12 +774,12 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
          JOIN exercises ex2 ON s.exercise_id = ex2.id
          JOIN enrollments en2 ON en2.section_id = ex2.section_id
           WHERE s.student_id = $1 AND s.is_correct = true
-            AND en2.student_id = $1
+            AND en2.student_id = $1 AND en2.dropped_at IS NULL
         ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE en.student_id = $1 AND ex.is_draft = false
-    `, [studentId]);
+      WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${statsSectionFilter}
+    `, statsParams);
     const total = statsRes.rows[0]?.total || 0;
     const completed = statsRes.rows[0]?.completed || 0;
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -818,34 +899,62 @@ router.post('/integrity-flags/:id/respond', verifyToken, requireRole('student'),
 router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const studentId = req.user.id;
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+
+    // Scope: flags count only when the student is actively enrolled in the
+    // exercise's section (optional ?sectionId narrows to one section).
+    const scopeFrom = `
+      FROM integrity_flags i
+      JOIN exercises ex ON ex.id = i.exercise_id
+      JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = i.student_id
+    `;
+    const scopeWhere = (offset) => {
+      let clause = `WHERE i.student_id = $${offset} AND en.dropped_at IS NULL`;
+      if (sectionId) clause += ` AND en.section_id = $${offset + 1}`;
+      return clause;
+    };
+    const statsParams = sectionId ? [studentId, sectionId] : [studentId];
 
     // Stats
     const statsRes = await db.query(`
       SELECT
         COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE status = 'flagged') AS flagged,
-        COUNT(*) FILTER (WHERE status IN ('reviewed', 'dismissed')) AS reviewed
-      FROM integrity_flags WHERE student_id = $1
-    `, [studentId]);
+        COUNT(*) FILTER (WHERE i.status = 'flagged') AS flagged,
+        COUNT(*) FILTER (WHERE i.status IN ('reviewed', 'dismissed')) AS reviewed
+      ${scopeFrom}
+      ${scopeWhere(1)}
+    `, statsParams);
 
     const byTypeRes = await db.query(`
-      SELECT flag_type, COUNT(*) AS count
-      FROM integrity_flags WHERE student_id = $1
-      GROUP BY flag_type
-    `, [studentId]);
+      SELECT i.flag_type, COUNT(*) AS count
+      ${scopeFrom}
+      ${scopeWhere(1)}
+      GROUP BY i.flag_type
+    `, statsParams);
 
+    const cdsParams = [studentId];
+    let cdsSectionFilter = '';
+    if (sectionId) {
+      cdsParams.push(sectionId);
+      cdsSectionFilter = ` AND cs.section_id = $${cdsParams.length}`;
+    }
     const cdsRes = await db.query(`
       SELECT
         ROUND(AVG(cds)::numeric, 2) AS avg_cds,
         MAX(cds) AS max_cds
-      FROM cds_scores WHERE student_id = $1 AND cds IS NOT NULL AND visible = true
-    `, [studentId]);
+      FROM cds_scores cs
+      JOIN enrollments en ON en.section_id = cs.section_id AND en.student_id = cs.student_id
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL AND cs.visible = true
+        AND en.dropped_at IS NULL${cdsSectionFilter}
+    `, cdsParams);
 
     const latestCdsRes = await db.query(`
-      SELECT classification FROM cds_scores
-      WHERE student_id = $1 AND cds IS NOT NULL AND visible = true
-      ORDER BY computed_at DESC LIMIT 1
-    `, [studentId]);
+      SELECT cs.classification FROM cds_scores cs
+      JOIN enrollments en ON en.section_id = cs.section_id AND en.student_id = cs.student_id
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL AND cs.visible = true
+        AND en.dropped_at IS NULL${cdsSectionFilter}
+      ORDER BY cs.computed_at DESC LIMIT 1
+    `, cdsParams);
 
     const totalCount = parseInt(statsRes.rows[0]?.total || 0, 10);
     const flaggedCount = parseInt(statsRes.rows[0]?.flagged || 0, 10);
@@ -862,12 +971,11 @@ router.get('/integrity-flags', verifyToken, requireRole('student'), async (req, 
 
     const r = await db.query(`
       SELECT i.id, i.flag_type AS rule, i.evidence, i.status, i.created_at,
-             e.title AS exercise_title
-      FROM integrity_flags i
-      JOIN exercises e ON e.id = i.exercise_id
-      WHERE i.student_id = $1
+             ex.title AS exercise_title
+      ${scopeFrom}
+      ${scopeWhere(1)}
       ORDER BY i.created_at DESC
-    `, [studentId]);
+    `, statsParams);
     const flags = r.rows.map(row => {
       let evidence = row.evidence;
       if (typeof evidence === 'string') {
@@ -967,6 +1075,13 @@ router.post('/code-snapshots', behavioralLimiter, verifyToken, requireRole('stud
 router.get('/today', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const studentId = req.user.id;
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    const params = [studentId];
+    let sectionFilter = '';
+    if (sectionId) {
+      params.push(sectionId);
+      sectionFilter = ` AND ex.section_id = $${params.length}`;
+    }
 
     // 1. Exercises with concept CDS
     // Completion status derives from a correct submission (not CDS rows).
@@ -984,16 +1099,22 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
         WHERE exercise_id = ex.id AND student_id = $1 AND is_correct = true
         LIMIT 1
       ) s ON true
-      LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1
-      WHERE en.student_id = $1 AND ex.is_draft = false
+      LEFT JOIN cds_scores cs ON cs.exercise_id = ex.id AND cs.student_id = $1 AND cs.section_id = ex.section_id
+      WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${sectionFilter}
       ORDER BY ex.deadline ASC NULLS LAST
-    `, [studentId]);
+    `, params);
 
     const allExercises = exercisesRes.rows || [];
     const pending = allExercises.filter(ex => ex.status === 'pending');
 
     // 2. Concept-level CDS (avg across all exercises per concept)
     // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
+    const conceptParams = [studentId];
+    let conceptSectionFilter = '';
+    if (sectionId) {
+      conceptParams.push(sectionId);
+      conceptSectionFilter = ` AND en.section_id = $${conceptParams.length}`;
+    }
     const conceptCdsRes = await db.query(`
       SELECT COALESCE(pt.name, c.name) AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
@@ -1004,10 +1125,10 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL AND en.dropped_at IS NULL${conceptSectionFilter}
       GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds DESC
-    `, [studentId]);
+    `, conceptParams);
 
     const conceptCds = conceptCdsRes.rows || [];
     const conceptMap = {};
@@ -1044,6 +1165,12 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
     // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
     let classAvg = 0.5; // default
     if (focusEx) {
+      const classParams = [focusEx.concept_name];
+      let classSectionFilter = '';
+      if (sectionId) {
+        classParams.push(sectionId);
+        classSectionFilter = ` AND en.section_id = $${classParams.length}`;
+      }
       const classRes = await db.query(`
         SELECT AVG(cs.cds)::float AS class_avg
         FROM cds_scores cs
@@ -1052,8 +1179,8 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
         LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
         LEFT JOIN concepts pt ON pt.id = ect.concept_id
         JOIN enrollments en ON en.section_id = ex.section_id
-        WHERE COALESCE(pt.name, c.name) = $1 AND en.student_id = cs.student_id
-      `, [focusEx.concept_name]);
+        WHERE COALESCE(pt.name, c.name) = $1 AND en.student_id = cs.student_id AND en.dropped_at IS NULL${classSectionFilter}
+      `, classParams);
       if (classRes.rows[0]?.class_avg != null) {
         classAvg = parseFloat(classRes.rows[0].class_avg);
       }
@@ -1119,20 +1246,33 @@ router.get('/today', verifyToken, requireRole('student'), async (req, res, next)
 
 router.get('/stats', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    const totalParams = [req.user.id];
+    let totalSectionFilter = '';
+    if (sectionId) {
+      totalParams.push(sectionId);
+      totalSectionFilter = ` AND ex.section_id = $${totalParams.length}`;
+    }
     const totalRes = await db.query(`
       SELECT COUNT(DISTINCT ex.id)::int AS total
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE en.student_id = $1 AND ex.is_draft = false
-    `, [req.user.id]);
+      WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${totalSectionFilter}
+    `, totalParams);
+    const completedParams = [req.user.id];
+    let completedSectionFilter = '';
+    if (sectionId) {
+      completedParams.push(sectionId);
+      completedSectionFilter = ` AND en.section_id = $${completedParams.length}`;
+    }
     const completedRes = await db.query(`
       SELECT COUNT(DISTINCT s.exercise_id)::int AS completed
       FROM submissions s
       JOIN exercises ex ON s.exercise_id = ex.id
       JOIN enrollments en ON en.section_id = ex.section_id
       WHERE s.student_id = $1 AND s.is_correct = true
-        AND en.student_id = $1
-    `, [req.user.id]);
+        AND en.student_id = $1 AND en.dropped_at IS NULL${completedSectionFilter}
+    `, completedParams);
     const total = totalRes.rows[0].total || 0;
     const completed = completedRes.rows[0].completed || 0;
     res.json({
@@ -1150,9 +1290,16 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     const studentId = req.user.id;
     const daysParam = Math.max(1, parseInt(req.query.days, 10) || 30);
     const interval = `${daysParam} days`;
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
 
     // 1. Concept mastery — CDS aggregated by concept (scoped to current enrollments)
     // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags
+    const conceptParams = [studentId];
+    let conceptSectionFilter = '';
+    if (sectionId) {
+      conceptParams.push(sectionId);
+      conceptSectionFilter = ` AND en.section_id = $${conceptParams.length}`;
+    }
     const conceptCdsRes = await db.query(`
       SELECT COALESCE(pt.name, c.name) AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
@@ -1163,10 +1310,10 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL AND en.dropped_at IS NULL${conceptSectionFilter}
       GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds ASC
-    `, [studentId]);
+    `, conceptParams);
 
     const conceptCodes = {
       Loops: 'LP', Arrays: 'AR', Functions: 'FN', Pointers: 'PT',
@@ -1286,6 +1433,12 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     })();
 
     // 2b. Exercise completion percentage (activity, not mastery)
+    const completionParams = [studentId];
+    let completionSectionFilter = '';
+    if (sectionId) {
+      completionParams.push(sectionId);
+      completionSectionFilter = ` AND ex.section_id = $${completionParams.length}`;
+    }
     const completionRes = await db.query(`
       SELECT COUNT(DISTINCT ex.id)::int AS total,
              (SELECT COUNT(DISTINCT s.exercise_id)::int
@@ -1293,22 +1446,32 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
               JOIN exercises ex2 ON s.exercise_id = ex2.id
               JOIN enrollments en2 ON en2.section_id = ex2.section_id
               WHERE s.student_id = $1 AND s.is_correct = true
-                 AND en2.student_id = $1
+                 AND en2.student_id = $1 AND en2.dropped_at IS NULL
              ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
-      WHERE en.student_id = $1 AND ex.is_draft = false
-    `, [studentId]);
+      WHERE en.student_id = $1 AND en.dropped_at IS NULL AND ex.is_draft = false${completionSectionFilter}
+    `, completionParams);
     const total = completionRes.rows[0]?.total || 0;
     const completed = completionRes.rows[0]?.completed || 0;
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    // 4. Avg attempts per exercise
+    // 4. Avg attempts per exercise (scoped to active enrollments in the section)
+    const avgParams = [studentId];
+    let avgSectionFilter = '';
+    if (sectionId) {
+      avgParams.push(sectionId);
+      avgSectionFilter = ` AND ex.section_id = $${avgParams.length}`;
+    }
     const avgAttemptsRes = await db.query(`
       SELECT AVG(attempt_count)::float AS avg_attempts
-      FROM (SELECT exercise_id, MAX(attempt_number) AS attempt_count
-            FROM submissions WHERE student_id = $1 GROUP BY exercise_id) sub
-    `, [studentId]);
+      FROM (SELECT ex.section_id, MAX(sub.attempt_number) AS attempt_count
+            FROM submissions sub
+            JOIN exercises ex ON ex.id = sub.exercise_id
+            JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = sub.student_id
+            WHERE sub.student_id = $1 AND en.dropped_at IS NULL${avgSectionFilter}
+            GROUP BY ex.section_id, sub.exercise_id) s
+    `, avgParams);
     const avgAttempts = parseFloat(avgAttemptsRes.rows[0]?.avg_attempts) || 0;
 
     res.json({
@@ -1346,7 +1509,14 @@ function formatRelativeTime(dateStr) {
 router.get('/concepts/all', verifyToken, requireRole('student'), async (req, res, next) => {
   try {
     const studentId = req.user.id;
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
 
+    const params = [studentId];
+    let sectionFilter = '';
+    if (sectionId) {
+      params.push(sectionId);
+      sectionFilter = ` AND en.section_id = $${params.length}`;
+    }
     const conceptCdsRes = await db.query(`
       SELECT COALESCE(pt.name, c.name) AS concept_name,
              AVG(cs.cds)::float AS avg_cds,
@@ -1357,10 +1527,10 @@ router.get('/concepts/all', verifyToken, requireRole('student'), async (req, res
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL
+      WHERE cs.student_id = $1 AND cs.cds IS NOT NULL AND en.dropped_at IS NULL${sectionFilter}
       GROUP BY COALESCE(pt.name, c.name)
       ORDER BY avg_cds ASC
-    `, [studentId]);
+    `, params);
 
     const conceptCodes = {
       Loops: 'LP', Arrays: 'AR', Functions: 'FN', Pointers: 'PT',

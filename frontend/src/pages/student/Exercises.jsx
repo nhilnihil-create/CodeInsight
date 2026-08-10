@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,7 @@ import GlassPanel, {
 } from '@/components/ui/glass-panel';
 import EmptyState from '@/components/ui/empty-state';
 import { Sparkles, ChevronRight } from 'lucide-react';
-import JoinSectionGate from '@/components/join-section-gate';
-import useHasSections from '@/hooks/useHasSections';
+import { useStudentContext } from '@/context/StudentContext';
 import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
@@ -25,20 +24,23 @@ const fadeUp = {
 };
 
 export default function StudentExercises() {
-  const { hasSections, checking, recheck } = useHasSections();
+  const { activeSectionId } = useStudentContext();
   const [exercises, setExercises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fetchKey, setFetchKey] = useState(0);
+
+  const sectionParams = useMemo(
+    () => (activeSectionId ? { sectionId: activeSectionId } : {}),
+    [activeSectionId]
+  );
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return;
     let cancelled = false;
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get('/api/student/exercises');
+        const res = await api.get('/api/student/exercises', { params: sectionParams });
         if (!cancelled) setExercises(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         if (!cancelled) setError(err.response?.data?.error || 'Failed to load exercises');
@@ -48,7 +50,7 @@ export default function StudentExercises() {
     };
     load();
     return () => { cancelled = true; };
-  }, [hasSections, fetchKey]);
+  }, [sectionParams]);
 
   // Silent background refresh so completion state stays fresh when navigating
   // Back (bfcache restore via `pageshow` with persisted=true) or when the
@@ -56,19 +58,17 @@ export default function StudentExercises() {
   // focus events don't hammer the API. `pageshow` with persisted=false (the
   // initial page load) is skipped to avoid a duplicate first fetch.
   const loadExercises = useCallback(async () => {
-    if (hasSections === null || !hasSections) return;
     try {
-      const res = await api.get('/api/student/exercises');
+      const res = await api.get('/api/student/exercises', { params: sectionParams });
       setExercises(Array.isArray(res.data) ? res.data : []);
     } catch {
       // Silent refresh — keep the current list on transient failures.
     }
-  }, [hasSections]);
+  }, [sectionParams]);
 
   const focusRefreshTimerRef = useRef(null);
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return undefined;
     const handlePageShow = (e) => {
       if (!e.persisted) return;
       loadExercises();
@@ -90,20 +90,10 @@ export default function StudentExercises() {
         focusRefreshTimerRef.current = null;
       }
     };
-  }, [loadExercises, hasSections]);
-
-  const handleJoined = () => {
-    recheck();
-    setFetchKey((k) => k + 1);
-  };
-
-  // ---------- No sections — show join gate ----------
-  if (hasSections === false) {
-    return <JoinSectionGate onJoined={handleJoined} />;
-  }
+  }, [loadExercises]);
 
   // ---------- Loading ----------
-  if (checking || loading) {
+  if (loading) {
     return (
       <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading exercises…</div>
     );

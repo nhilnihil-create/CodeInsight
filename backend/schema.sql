@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   student_id  INT REFERENCES users(id) ON DELETE CASCADE,
   section_id  INT REFERENCES sections(id) ON DELETE CASCADE,
   enrolled_at TIMESTAMP DEFAULT NOW(),
+  dropped_at  TIMESTAMP NULL,
   UNIQUE(student_id, section_id)
 );
 

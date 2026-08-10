@@ -14,8 +14,7 @@ import GlassDivider from '@/components/ui/glass-divider';
 import MasteryBar, { tierForCds, TIER_META } from '@/components/ui/mastery-bar';
 import EmptyState from '@/components/ui/empty-state';
 import { Sparkles, ArrowRight } from 'lucide-react';
-import JoinSectionGate from '@/components/join-section-gate';
-import useHasSections from '@/hooks/useHasSections';
+import { useStudentContext } from '@/context/StudentContext';
 import api from '@/services/api';
 
 /* ── Stagger config ──────────────────────────────────────────────── */
@@ -30,20 +29,20 @@ const fadeUp = {
 };
 
 export default function StudentToday() {
-  const { hasSections, checking, recheck } = useHasSections();
+  const { activeSectionId } = useStudentContext();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return;
     let cancelled = false;
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get('/api/student/today');
+        const res = await api.get('/api/student/today', {
+          params: activeSectionId ? { sectionId: activeSectionId } : {},
+        });
         if (!cancelled) setData(res.data);
       } catch (err) {
         if (!cancelled) setError(err.response?.data?.error || 'Failed to load today\'s plan');
@@ -53,29 +52,7 @@ export default function StudentToday() {
     };
     load();
     return () => { cancelled = true; };
-  }, [hasSections, fetchKey]);
-
-  const handleJoined = () => {
-    recheck();
-    setFetchKey((k) => k + 1);
-  };
-
-  if (checking) {
-    return (
-      <StudentDashboardShell
-        breadcrumb={[
-          { label: 'Student', href: '/student/dashboard' },
-          { label: "Today's Plan" },
-        ]}
-      >
-        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading today's plan…</div>
-      </StudentDashboardShell>
-    );
-  }
-
-  if (!hasSections) {
-    return <JoinSectionGate onJoined={handleJoined} />;
-  }
+  }, [activeSectionId]);
 
   if (loading) {
     return (

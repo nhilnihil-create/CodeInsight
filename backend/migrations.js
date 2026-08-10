@@ -289,6 +289,13 @@ async function applySchemaPatches() {
     patches.push(addColumnIfMissing('submissions', 'time_limit_hit', 'BOOLEAN DEFAULT false'));
   }
 
+  // Soft-drop enrollment support: students can leave a section without the
+  // instructor's roster history being destroyed. `dropped_at IS NULL` means
+  // an active enrollment; non-NULL means the student left the section.
+  if (await tableExists('enrollments')) {
+    patches.push(addColumnIfMissing('enrollments', 'dropped_at', 'TIMESTAMP NULL'));
+  }
+
   // Fail-closed: is_verified must default to false so submissions that were
   // never run through the AST verifier are never treated as verified.
   // Idempotent — only alters when the current default differs.

@@ -20,8 +20,7 @@ import GlassPanel, {
 import MasteryBar, { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import StudentDashboardShell from "@/components/student-dashboard-shell";
 import EmptyState from "@/components/ui/empty-state";
-import JoinSectionGate from "@/components/join-section-gate";
-import useHasSections from "@/hooks/useHasSections";
+import { useStudentContext } from "@/context/StudentContext";
 import api from "@/services/api";
 import { cn } from "@/lib/utils";
 
@@ -58,23 +57,23 @@ const fadeUp = {
 };
 
 export default function StudentProgress() {
-  const { hasSections, checking, recheck } = useHasSections();
+  const { activeSectionId } = useStudentContext();
   const [period, setPeriod] = useState("30d");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refetching, setRefetching] = useState(false);
-  const [fetchKey, setFetchKey] = useState(0);
 
   const days = period === "All" ? 365 : parseInt(period.replace("d", ""), 10) || 30;
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return;
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        const res = await api.get(`/api/student/progress?days=${days}`);
+        const params = { days };
+        if (activeSectionId) params.sectionId = activeSectionId;
+        const res = await api.get(`/api/student/progress`, { params });
         if (!cancelled) setData(res.data);
       } catch (err) {
         if (!cancelled) setError(err.response?.data?.error || "Failed to load progress");
@@ -84,30 +83,7 @@ export default function StudentProgress() {
     };
     load();
     return () => { cancelled = true; };
-  }, [hasSections, fetchKey, days]);
-
-  const handleJoined = () => {
-    recheck();
-    setFetchKey((k) => k + 1);
-  };
-
-  if (checking) {
-    return (
-      <StudentDashboardShell
-        breadcrumb={[
-          { label: "Student", href: "/student/dashboard" },
-          { label: "Progress" },
-        ]}
-        subtitle="Mastery, completion, and submissions over the selected window."
-      >
-        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading progress...</div>
-      </StudentDashboardShell>
-    );
-  }
-
-  if (!hasSections) {
-    return <JoinSectionGate onJoined={handleJoined} />;
-  }
+  }, [activeSectionId, days]);
 
   const overallMastery = data?.overallMastery ?? 0;
   const completion = data?.completion;

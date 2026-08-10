@@ -198,8 +198,10 @@ describe('runCheckpoint integrity — run endpoint snapshot persistence', () => 
   });
 
   it('persists run_attempts with behavioral counts and returns a runId', async () => {
-    const { exerciseId } = await seedRunScenario();
+    const { exerciseId, sectionId } = await seedRunScenario();
     const studentId = await createStudent('snapshot');
+    // The /run gate requires an active enrollment in the exercise's section.
+    await seedEnrollment(studentId, sectionId);
 
     const res = await request({
       method: 'POST',
@@ -235,8 +237,10 @@ describe('runCheckpoint integrity — run endpoint snapshot persistence', () => 
   });
 
   it('computes code_growth_delta on a second run as new lineCount - old lineCount', async () => {
-    const { exerciseId } = await seedRunScenario();
+    const { exerciseId, sectionId } = await seedRunScenario();
     const studentId = await createStudent('growth');
+    // The /run gate requires an active enrollment in the exercise's section.
+    await seedEnrollment(studentId, sectionId);
     const token = signToken({
       id: studentId, name: 'RunCheck Student growth', email: 'runcheck.growth@test.com', role: 'student',
     });
@@ -276,8 +280,10 @@ describe('runCheckpoint integrity — behavioral flag upsert', () => {
   });
 
   it('upserts one PASSIVE_BEHAVIOR_LOG flag across two runs and points run_id at the latest run', async () => {
-    const { exerciseId } = await seedRunScenario();
+    const { exerciseId, sectionId } = await seedRunScenario();
     const studentId = await createStudent('flag');
+    // The /run gate requires an active enrollment in the exercise's section.
+    await seedEnrollment(studentId, sectionId);
     const token = signToken({
       id: studentId, name: 'RunCheck Student flag', email: 'runcheck.flag@test.com', role: 'student',
     });

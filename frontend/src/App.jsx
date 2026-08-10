@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
+import { StudentProvider } from './context/StudentContext';
 import { ThemeProvider } from './lib/theme.jsx';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -33,6 +34,7 @@ import StudentProgress from './pages/student/Progress';
 import StudentProfile from './pages/student/Profile';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
+import RequireSection from './components/require-section';
 import NotFound from './pages/NotFound';
 import AdminOverview from './pages/admin/Overview';
 import AdminUsers from './pages/admin/Users';
@@ -205,7 +207,7 @@ function AppContent() {
         {/* Student Routes */}
         <Route path="/student/today" element={
           <ProtectedRoute requiredRole="student">
-            <StudentToday />
+            <RequireSection><StudentToday /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/sections" element={
@@ -215,49 +217,49 @@ function AppContent() {
         } />
         <Route path="/student/recommendations" element={
           <ProtectedRoute requiredRole="student">
-            <StudentRecommendations />
+            <RequireSection><StudentRecommendations /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student" element={
           <ProtectedRoute requiredRole="student">
-            <StudentDashboard />
+            <RequireSection><StudentDashboard /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/exercises" element={
           <ProtectedRoute requiredRole="student">
-            <StudentExerciseList />
+            <RequireSection><StudentExerciseList /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/exercises/:exerciseId" element={
           <ProtectedRoute requiredRole="student">
-            <StudentCodeEditor />
+            <RequireSection><StudentCodeEditor /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/progress" element={
           <ProtectedRoute requiredRole="student">
-            <StudentProgress />
+            <RequireSection><StudentProgress /></RequireSection>
           </ProtectedRoute>
         } />
 
         {/* Design-aligned URL paths (new aliases for design nav parity) */}
         <Route path="/student/dashboard" element={
           <ProtectedRoute requiredRole="student">
-            <StudentDashboard />
+            <RequireSection><StudentDashboard /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/code-editor" element={
           <ProtectedRoute requiredRole="student">
-            <StudentCodeEditor />
+            <RequireSection><StudentCodeEditor /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/code-editor/:exerciseId" element={
           <ProtectedRoute requiredRole="student">
-            <StudentCodeEditor />
+            <RequireSection><StudentCodeEditor /></RequireSection>
           </ProtectedRoute>
         } />
         <Route path="/student/profile" element={
           <ProtectedRoute requiredRole="student">
-            <StudentProfile />
+            <RequireSection><StudentProfile /></RequireSection>
           </ProtectedRoute>
         } />
 
@@ -324,7 +326,9 @@ function App() {
     <ErrorBoundary>
       <SidebarProvider>
         <ThemeProvider>
-          <AppContent />
+          <StudentProvider>
+            <AppContent />
+          </StudentProvider>
         </ThemeProvider>
       </SidebarProvider>
     </ErrorBoundary>

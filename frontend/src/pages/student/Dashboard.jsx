@@ -19,8 +19,7 @@ import GlassPanel, {
 } from "@/components/ui/glass-panel";
 import MasteryBar, { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import StudentDashboardShell from "@/components/student-dashboard-shell";
-import JoinSectionGate from "@/components/join-section-gate";
-import useHasSections from "@/hooks/useHasSections";
+import { useStudentContext } from "@/context/StudentContext";
 import api from "@/services/api";
 
 function formatToday() {
@@ -53,21 +52,21 @@ const fadeUp = {
 };
 
 export default function StudentDashboard() {
-  const { hasSections, checking, recheck } = useHasSections();
+  const { activeSectionId } = useStudentContext();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [fetchKey, setFetchKey] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return;
     let cancelled = false;
     async function load() {
       try {
         setLoading(true);
         setError(null);
-        const res = await api.get("/api/student/dashboard");
+        const res = await api.get("/api/student/dashboard", {
+          params: activeSectionId ? { sectionId: activeSectionId } : {},
+        });
         if (!cancelled) setData(res.data);
       } catch (err) {
         if (!cancelled) setError(err.message);
@@ -77,45 +76,7 @@ export default function StudentDashboard() {
     }
     load();
     return () => { cancelled = true; };
-  }, [hasSections, fetchKey, retryCount]);
-
-  const handleJoined = () => {
-    recheck();
-    setFetchKey((k) => k + 1);
-  };
-
-  // ---------- Checking sections ----------
-  if (checking) {
-    return (
-      <StudentDashboardShell>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <Skeleton className="h-7 w-64" />
-              <Skeleton className="h-4 w-48" />
-            </div>
-            <Skeleton className="h-9 w-24" />
-          </div>
-          <Skeleton className="h-24 w-full rounded-2xl" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-28 w-full rounded-none" />
-            ))}
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Skeleton className="h-64 w-full rounded-2xl" />
-            <Skeleton className="h-64 w-full rounded-2xl" />
-          </div>
-          <Skeleton className="h-48 w-full rounded-2xl" />
-        </div>
-      </StudentDashboardShell>
-    );
-  }
-
-  // ---------- No sections — show join gate ----------
-  if (!hasSections) {
-    return <JoinSectionGate onJoined={handleJoined} />;
-  }
+  }, [activeSectionId, retryCount]);
 
   // ---------- Loading page data ----------
   if (loading) {

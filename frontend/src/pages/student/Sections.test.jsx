@@ -33,6 +33,13 @@ vi.mock('lucide-react', async (importOriginal) => {
   };
 });
 
+// Mock student context
+vi.mock('@/context/StudentContext', () => ({
+  useStudentContext: () => mockContext,
+}));
+
+let mockContext;
+
 import api from '@/services/api';
 import { toast } from 'sonner';
 
@@ -48,11 +55,12 @@ function renderWithProviders(ui) {
 describe('StudentSections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.get.mockResolvedValue({ data: [] });
+    mockContext = { sections: [], loading: false, recheck: vi.fn() };
   });
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   describe('Join Form', () => {
@@ -152,7 +160,6 @@ describe('StudentSections', () => {
   describe('Join Action', () => {
     it('calls API with formatted code on join', async () => {
       api.post.mockResolvedValue({});
-      api.get.mockResolvedValueOnce({ data: [{ id: 1, name: 'CS101', code: 'ABC-123' }] });
       
       renderWithProviders(<StudentSections />);
       
@@ -169,11 +176,11 @@ describe('StudentSections', () => {
       await waitFor(() => {
         expect(api.post).toHaveBeenCalledWith('/api/sections/join', { code: 'ABC-123' });
       });
+      expect(mockContext.recheck).toHaveBeenCalled();
     });
 
     it('shows success toast on successful join', async () => {
       api.post.mockResolvedValue({});
-      api.get.mockResolvedValueOnce({ data: [{ id: 1, name: 'CS101', code: 'ABC-123' }] });
       
       renderWithProviders(<StudentSections />);
       
@@ -190,11 +197,11 @@ describe('StudentSections', () => {
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith('Successfully joined the section!');
       });
+      expect(mockContext.recheck).toHaveBeenCalled();
     });
 
     it('clears input after successful join', async () => {
       api.post.mockResolvedValue({});
-      api.get.mockResolvedValueOnce({ data: [{ id: 1, name: 'CS101', code: 'ABC-123' }] });
       
       renderWithProviders(<StudentSections />);
       
@@ -209,6 +216,7 @@ describe('StudentSections', () => {
       await waitFor(() => {
         expect(input.value).toBe('');
       });
+      expect(mockContext.recheck).toHaveBeenCalled();
     });
 
     it('shows loading state while joining', async () => {
@@ -364,15 +372,13 @@ describe('StudentSections', () => {
 
   describe('Section List', () => {
     it('displays enrolled sections', async () => {
-      api.get.mockResolvedValue({
-        data: [
-          { id: 1, name: 'CS101-A', code: 'ABC-123', term: 'Sem 1' },
-          { id: 2, name: 'CS101-B', code: 'DEF-456', term: 'Sem 2' }
-        ]
-      });
-      
+      mockContext.sections = [
+        { id: 1, name: 'CS101-A', code: 'ABC-123', term: 'Sem 1' },
+        { id: 2, name: 'CS101-B', code: 'DEF-456', term: 'Sem 2' },
+      ];
+
       renderWithProviders(<StudentSections />);
-      
+
       await waitFor(() => {
         expect(screen.getByText('CS101-A')).toBeInTheDocument();
         expect(screen.getByText('CS101-B')).toBeInTheDocument();
@@ -380,13 +386,88 @@ describe('StudentSections', () => {
     });
 
     it('shows empty state when no sections', async () => {
-      api.get.mockResolvedValue({ data: [] });
-      
       renderWithProviders(<StudentSections />);
-      
+
       await waitFor(() => {
         expect(screen.getByText(/not enrolled in any sections/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Leave Section', () => {
+    it('leaves a section after confirming', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mockContext.sections = [{ id: 2, name: 'CS101-B', code: 'DEF-456', term: 'Sem 2' }];
+      api.post.mockResolvedValue({});
+
+      renderWithProviders(<StudentSections />);
+
+      await waitFor(() => {
+        expect(screen.getByText('CS101-B')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /leave/i }));
+
+      await waitFor(() => {
+        expect(api.post).toHaveBeenCalledWith('/api/sections/2/leave');
+      });
+      expect(toast.success).toHaveBeenCalledWith('You left CS101-B');
+      expect(mockContext.recheck).toHaveBeenCalled();
+    });
+
+    it('does not leave when confirmation is declined', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      mockContext.sections = [{ id: 2, name: 'CS101-B', code: 'DEF-456', term: 'Sem 2' }];
+
+      renderWithProviders(<StudentSections />);
+
+      await waitFor(() => {
+        expect(screen.getByText('CS101-B')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /leave/i }));
+
+      expect(api.post).not.toHaveBeenCalled();
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(mockContext.recheck).not.toHaveBeenCalled();
+    });
+
+    it('shows pending state while leaving', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mockContext.sections = [{ id: 2, name: 'CS101-B', code: 'DEF-456', term: 'Sem 2' }];
+      api.post.mockImplementation(() => new Promise(() => {}));
+
+      renderWithProviders(<StudentSections />);
+
+      await waitFor(() => {
+        expect(screen.getByText('CS101-B')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /leave/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/leaving/i)).toBeInTheDocument();
+      });
+      expect(screen.getByRole('button', { name: /leaving/i })).toBeDisabled();
+    });
+
+    it('shows error toast when leave fails with 404', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      mockContext.sections = [{ id: 2, name: 'CS101-B', code: 'DEF-456', term: 'Sem 2' }];
+      api.post.mockRejectedValue({ response: { status: 404, data: {} } });
+
+      renderWithProviders(<StudentSections />);
+
+      await waitFor(() => {
+        expect(screen.getByText('CS101-B')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /leave/i }));
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith('This section is no longer active for you.');
+      });
+      expect(mockContext.recheck).not.toHaveBeenCalled();
     });
   });
 });

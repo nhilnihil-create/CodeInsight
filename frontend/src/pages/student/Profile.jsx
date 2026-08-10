@@ -9,8 +9,7 @@ import GlassPanel, {
   GlassPanelContent,
 } from '@/components/ui/glass-panel';
 import ConceptRadarPanel from '@/components/concept-radar/ConceptRadarPanel';
-import JoinSectionGate from '@/components/join-section-gate';
-import useHasSections from '@/hooks/useHasSections';
+import { useStudentContext } from '@/context/StudentContext';
 import api from '../../services/api';
 
 /* ── Stagger config ──────────────────────────────────────────────── */
@@ -33,22 +32,23 @@ const TIER_LEGEND = [
 ];
 
 export default function StudentProfile() {
-  const { hasSections, checking, recheck } = useHasSections();
+  const { activeSectionId, loading } = useStudentContext();
   const [scores, setScores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchKey, setFetchKey] = useState(0);
+  const [scoresLoading, setScoresLoading] = useState(true);
 
   useEffect(() => {
-    if (hasSections === null || !hasSections) return;
+    if (loading || !activeSectionId) return;
     let active = true;
     const load = async () => {
       try {
-        const res = await api.get('/api/analytics/my-scores');
+        const res = await api.get('/api/analytics/my-scores', {
+          params: { sectionId: activeSectionId },
+        });
         if (active) setScores(res.data || []);
       } catch (err) {
         if (active) console.warn('Failed to fetch scores:', err.message);
       } finally {
-        if (active) setLoading(false);
+        if (active) setScoresLoading(false);
       }
     };
     load();
@@ -60,30 +60,7 @@ export default function StudentProfile() {
       active = false;
       clearInterval(t);
     };
-  }, [hasSections, fetchKey]);
-
-  const handleJoined = () => {
-    recheck();
-    setFetchKey((k) => k + 1);
-  };
-
-  if (checking) {
-    return (
-      <StudentDashboardShell
-        breadcrumb={[
-          { label: 'Student', href: '/student/dashboard' },
-          { label: 'My Concept Profile' },
-        ]}
-        subtitle="Concept mastery and difficulty scores across programming topics."
-      >
-        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading profile...</div>
-      </StudentDashboardShell>
-    );
-  }
-
-  if (!hasSections) {
-    return <JoinSectionGate onJoined={handleJoined} />;
-  }
+  }, [loading, activeSectionId]);
 
   return (
     <StudentDashboardShell
@@ -130,7 +107,7 @@ export default function StudentProfile() {
 
           {/* ── Right Panel: Concept Radar ────────────────────────── */}
           <motion.div variants={fadeUp} className="md:col-span-2">
-            <ConceptRadarPanel scores={scores} loading={loading} />
+            <ConceptRadarPanel scores={scores} loading={scoresLoading} />
           </motion.div>
         </div>
       </motion.div>

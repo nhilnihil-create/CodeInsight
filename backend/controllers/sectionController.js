@@ -51,7 +51,7 @@ exports.list = async (req, res, next) => {
         (SELECT COUNT(*) FROM enrollments e WHERE e.section_id=s.id) AS student_count
         FROM sections s
         JOIN enrollments en ON en.section_id=s.id
-        WHERE en.student_id=$1 ORDER BY s.created_at DESC`;
+        WHERE en.student_id=$1 AND en.dropped_at IS NULL ORDER BY s.created_at DESC`;
       params = [req.user.id];
     }
     const r = await db.query(query, params);
@@ -128,8 +128,11 @@ exports.enroll = async (req, res, next) => {
     if (!ids.length) return res.status(400).json({ message: 'No valid students found' });
     let enrolled = 0;
     for (const sid of ids) {
+      // Upsert so re-enrolling a previously left student reactivates the
+      // enrollment instead of hitting the UNIQUE(student_id, section_id)
+      // constraint. Clearing dropped_at marks the enrollment active again.
       await db.query(
-        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT (student_id, section_id) DO NOTHING;',
+        'INSERT INTO enrollments(student_id,section_id,dropped_at) VALUES($1,$2,NULL) ON CONFLICT (student_id, section_id) DO UPDATE SET dropped_at = NULL;',
         [sid, sectionId]
       );
       enrolled++;
@@ -141,15 +144,14 @@ exports.enroll = async (req, res, next) => {
 exports.unenroll = async (req, res, next) => {
   try {
     const { studentId, id } = req.params;
-    await db.query('DELETE FROM enrollments WHERE student_id=$1 AND section_id=$2', [studentId, id]);
-
-    // Cascade cleanup: remove analytics data for this student in this section
-    // so old section data doesn't persist in student-facing analytics.
-    await db.query('DELETE FROM cds_scores WHERE student_id=$1 AND section_id=$2', [studentId, id]);
-    await db.query('DELETE FROM integrity_flags WHERE student_id=$1 AND section_id=$2', [studentId, id]);
-    await db.query('DELETE FROM alerts WHERE student_id=$1 AND section_id=$2', [studentId, id]);
-    await db.query('DELETE FROM student_concept_metrics WHERE student_id=$1 AND section_id=$2', [studentId, id]);
-    await db.query('DELETE FROM analytics_alerts WHERE student_id=$1 AND section_id=$2', [studentId, id]);
+    // Soft drop: mark the enrollment as dropped instead of deleting it.
+    // The row (and its join history) is preserved; student-facing queries
+    // filter on dropped_at IS NULL. Historical analytics stay in place so
+    // instructor reports don't silently lose data.
+    await db.query(
+      'UPDATE enrollments SET dropped_at = NOW() WHERE student_id=$1 AND section_id=$2',
+      [studentId, id]
+    );
 
     res.json({ message: 'Student removed from section' });
   } catch (err) { next(err); }
@@ -288,9 +290,10 @@ exports.joinSection = async (req, res, next) => {
       }
 
       // Re-check max_size under the lock (defense: race-join at the cap).
+      // Only active enrollments occupy a seat — a student who left frees one.
       if (section.max_size) {
         const cnt = await client.query(
-          'SELECT COUNT(*)::int AS n FROM enrollments WHERE section_id=$1',
+          'SELECT COUNT(*)::int AS n FROM enrollments WHERE section_id=$1 AND dropped_at IS NULL',
           [section.id]
         );
         if (cnt.rows[0].n >= section.max_size) {
@@ -299,26 +302,27 @@ exports.joinSection = async (req, res, next) => {
       }
 
       const existing = await client.query(
-        'SELECT * FROM enrollments WHERE student_id=$1 AND section_id=$2',
+        'SELECT * FROM enrollments WHERE student_id=$1 AND section_id=$2 AND dropped_at IS NULL',
         [req.user.id, section.id]
       );
       if (existing.rows.length) {
         throw Object.assign(new Error('Already enrolled'), { status: 409 });
       }
 
+      // Upsert so a student who left earlier can rejoin: the stale row's
+      // dropped_at is cleared, reactivating the enrollment.
+      const joinInsert = `
+        INSERT INTO enrollments(student_id,section_id,dropped_at) VALUES($1,$2,NULL)
+        ON CONFLICT (student_id, section_id) DO UPDATE SET dropped_at = NULL
+      `;
+
       if (section.join_policy === 'code') {
-        await client.query(
-          'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
-          [req.user.id, section.id]
-        );
+        await client.query(joinInsert, [req.user.id, section.id]);
         await writeAuditLog(section.id, req.user.id, 'student_joined', { code }, client.query.bind(client));
         return { message: 'Joined section', section };
       }
 
-      await client.query(
-        'INSERT INTO enrollments(student_id,section_id) VALUES($1,$2) ON CONFLICT DO NOTHING',
-        [req.user.id, section.id]
-      );
+      await client.query(joinInsert, [req.user.id, section.id]);
       await writeAuditLog(section.id, req.user.id, 'student_requested_to_join', { code }, client.query.bind(client));
       return { message: 'Join request submitted' };
     });
@@ -364,6 +368,26 @@ exports.updateMembership = async (req, res, next) => {
       return res.json({ message: 'Student dropped' });
     }
     res.json({ message: 'Membership updated' });
+  } catch (err) { next(err); }
+};
+
+/**
+ * POST /api/sections/:id/leave
+ * Student-initiated soft leave: sets dropped_at = NOW() so the enrollment is
+ * no longer active in student-facing queries, but the row and its analytics
+ * history are preserved. Rejoining (POST /api/sections/join or an instructor
+ * re-enroll) clears dropped_at and reactivates the enrollment.
+ */
+exports.leaveSection = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const r = await db.query(
+      'UPDATE enrollments SET dropped_at = NOW() WHERE student_id=$1 AND section_id=$2 AND dropped_at IS NULL',
+      [req.user.id, id]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ error: 'Enrollment not found or already left' });
+    await writeAuditLog(id, req.user.id, 'student_left', {});
+    res.json({ message: 'Left section' });
   } catch (err) { next(err); }
 };
 

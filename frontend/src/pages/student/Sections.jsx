@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import StudentDashboardShell from '@/components/student-dashboard-shell';
 import api from '@/services/api';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { useStudentContext } from '@/context/StudentContext';
 
 function getJoinErrorMessage(error) {
   const status = error.response?.status;
@@ -32,27 +33,12 @@ function formatJoinCode(value) {
 }
 
 export default function StudentSections() {
-  const [sections, setSections] = useState([]);
+  const { sections, recheck } = useStudentContext();
+  const visibleSections = (Array.isArray(sections) ? sections : []).filter(s => !s.is_archived);
   const [joinCode, setJoinCode] = useState('');
   const [joining, setJoining] = useState(false);
+  const [leavingId, setLeavingId] = useState(null);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await api.get('/api/sections');
-        if (!cancelled) {
-          const all = Array.isArray(res.data) ? res.data : [];
-          setSections(all.filter(s => !s.is_archived));
-        }
-      } catch {
-        if (!cancelled) setSections([]);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
 
   const handleJoin = async () => {
     setError(null);
@@ -61,16 +47,27 @@ export default function StudentSections() {
       await api.post('/api/sections/join', { code: joinCode });
       toast.success('Successfully joined the section!');
       setJoinCode('');
-      // Refresh sections
-      const res = await api.get('/api/sections');
-      const all = Array.isArray(res.data) ? res.data : [];
-      setSections(all.filter(s => !s.is_archived));
+      await recheck();
     } catch (err) {
       const msg = getJoinErrorMessage(err);
       toast.error(msg);
       setError(msg);
     } finally {
       setJoining(false);
+    }
+  };
+
+  const handleLeave = async (section) => {
+    if (!window.confirm(`Leave "${section.name}"? You can rejoin anytime with the section code.`)) return;
+    setLeavingId(section.id);
+    try {
+      await api.post(`/api/sections/${section.id}/leave`);
+      toast.success(`You left ${section.name}`);
+      await recheck();
+    } catch (err) {
+      toast.error(err.response?.status === 404 ? 'This section is no longer active for you.' : err.response?.data?.error || 'Failed to leave section.');
+    } finally {
+      setLeavingId(null);
     }
   };
 
@@ -88,14 +85,14 @@ export default function StudentSections() {
       ]}
       subtitle="View and manage your enrolled sections."
     >
-      {sections.length === 0 ? (
+      {visibleSections.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
             You're not enrolled in any sections yet. Join one below!
           </CardContent>
         </Card>
       ) : (
-        sections.map(section => (
+        visibleSections.map(section => (
           <Card key={section.id}>
             <CardContent className="p-4 flex items-center justify-between">
               <div>
@@ -104,7 +101,25 @@ export default function StudentSections() {
                   {section.code} &middot; {section.term || 'Active'}
                 </p>
               </div>
-              <Badge variant="outline" className="text-xs">Active</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">Active</Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={leavingId === section.id}
+                  onClick={() => handleLeave(section)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  {leavingId === section.id ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Leaving...
+                    </>
+                  ) : (
+                    'Leave'
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))

@@ -14,8 +14,8 @@ vi.mock('@/services/api', () => ({
 }));
 
 // Enrolled with sections, no loading gate
-vi.mock('@/hooks/useHasSections', () => ({
-  default: () => ({ hasSections: true, checking: false, recheck: vi.fn() }),
+vi.mock('@/context/StudentContext', () => ({
+  useStudentContext: () => ({ hasSections: true, checking: false, activeSectionId: null, recheck: vi.fn() }),
 }));
 
 import api from '@/services/api';
@@ -56,7 +56,7 @@ describe('StudentExercises', () => {
       expect(screen.getByRole('link', { name: 'Review' })).toBeInTheDocument();
     });
     expect(screen.getByRole('link', { name: 'Start' })).toBeInTheDocument();
-    expect(api.get).toHaveBeenCalledWith('/api/student/exercises');
+    expect(api.get).toHaveBeenCalledWith('/api/student/exercises', { params: {} });
   });
 
   it('renders "Start" when isCompleted is absent but status is completed', async () => {

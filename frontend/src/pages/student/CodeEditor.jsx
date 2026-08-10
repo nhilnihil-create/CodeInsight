@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import api from "@/services/api";
+import { useStudentContext } from "@/context/StudentContext";
 import { countTokens } from "@/lib/countTokens";
 import EditorHeader from "./editor/EditorHeader";
 import ResizableWorkbench from "./editor/ResizableWorkbench";
@@ -104,6 +105,11 @@ function createSessionId() {
 export default function StudentCodeEditor() {
   const navigate = useNavigate();
   const { exerciseId } = useParams();
+  const { activeSectionId } = useStudentContext();
+  const sectionParams = useMemo(
+    () => (activeSectionId ? { sectionId: activeSectionId } : {}),
+    [activeSectionId]
+  );
   const [exercise, setExercise] = useState(null);
   const [code, setCode] = useState("");
   const [testResults, setTestResults] = useState(null);
@@ -144,7 +150,7 @@ export default function StudentCodeEditor() {
     setError(null);
     setIsSolved(false);
     api
-      .get(`/api/student/exercises/${id}`)
+      .get(`/api/student/exercises/${id}`, { params: sectionParams })
       .then((r) => {
         if (cancelled) return;
         const ex = r.data;
@@ -155,13 +161,17 @@ export default function StudentCodeEditor() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err.response?.data?.message || err.message || "Failed to load exercise");
+        setError(
+          err.response?.status === 403
+            ? "You are not enrolled in this section."
+            : err.response?.data?.message || err.message || "Failed to load exercise"
+        );
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [exerciseId]);
+  }, [exerciseId, sectionParams]);
 
   useEffect(() => {
     if (!exerciseId) return;
@@ -169,7 +179,7 @@ export default function StudentCodeEditor() {
     setSubmissions([]);
     setHistory([]);
     api
-      .get(`/api/student/exercises/${exerciseId}/attempts`)
+      .get(`/api/student/exercises/${exerciseId}/attempts`, { params: sectionParams })
       .then((r) => {
         if (cancelled) return;
         const totalTests = Array.isArray(exercise?.test_cases) ? exercise.test_cases.length : 0;
@@ -181,7 +191,7 @@ export default function StudentCodeEditor() {
     return () => {
       cancelled = true;
     };
-  }, [exerciseId]);
+  }, [exerciseId, sectionParams]);
 
   // Mirror of the `code` state for the sampling pipeline: interval
   // callbacks must not close over stale state, and the Monaco instance
@@ -381,7 +391,7 @@ export default function StudentCodeEditor() {
         pasteCount: behavioralCounts.current.pastes,
         timeSpentSeconds: activeElapsedSeconds,
         lineCount: code.split('\n').filter((line) => line.trim().length > 0).length,
-      });
+      }, { params: sectionParams });
       const { testResults: rawResults, compilerError, hidden } = r.data;
       setTestResults(transformTestResults(rawResults, compilerError, hidden));
       // The backend persists this run's snapshot (run_attempts), so the
@@ -438,7 +448,7 @@ export default function StudentCodeEditor() {
         tabSwitchCount: behavioralCounts.current.tabSwitches,
         pasteCount: behavioralCounts.current.pastes,
         sessionId: sessionIdRef.current,
-      });
+      }, { params: sectionParams });
       const data = r.data;
       const hidden = data.hiddenTestCount ?? 0;
       const cds = data.liveCDS?.cds ?? data.liveCDS;
@@ -476,7 +486,7 @@ export default function StudentCodeEditor() {
       );
 
       try {
-        const attRes = await api.get(`/api/student/exercises/${exerciseId}/attempts`);
+        const attRes = await api.get(`/api/student/exercises/${exerciseId}/attempts`, { params: sectionParams });
         const totalTests = Array.isArray(exercise?.test_cases) ? exercise.test_cases.length : 0;
         const { submissions: subs, history: hist } = transformAttempts(attRes.data || [], totalTests, 'cpp');
         setSubmissions(subs);

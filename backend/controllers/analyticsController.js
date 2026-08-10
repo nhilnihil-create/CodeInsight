@@ -303,18 +303,25 @@ exports.myScores = async (req, res, next) => {
     // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags.
     // Only real scores count: batch 'Unscored' placeholders (cds IS NULL) for students
     // with no submissions must not surface as concept-profile data.
+    const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
+    const params = [req.user.id];
+    let sectionFilter = '';
+    if (sectionId) {
+      params.push(sectionId);
+      sectionFilter = ` AND en.section_id = $${params.length}`;
+    }
     const r = await db.query(
       `SELECT cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts, cs.computed_at,
               cs.exercise_id, COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title
        FROM cds_scores cs
-       JOIN exercises ex ON ex.id=cs.exercise_id
+       JOIN exercises ex ON ex.id=cs.exercise_id AND cs.section_id = ex.section_id
        JOIN concepts c ON c.id=ex.concept_id
        LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
        LEFT JOIN concepts pt ON pt.id = ect.concept_id
        JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
-       WHERE cs.student_id=$1 AND cs.cds IS NOT NULL
+       WHERE cs.student_id=$1 AND cs.cds IS NOT NULL AND en.dropped_at IS NULL${sectionFilter}
        ORDER BY cs.computed_at DESC`,
-      [req.user.id]
+      params
     );
 
     // If no scores exist, return empty array (frontend shows 'No scores yet')

@@ -1,4 +1,4 @@
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
+import { useStudentContext } from '../context/StudentContext';
+import SectionPicker from './SectionPicker';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -30,7 +32,6 @@ import {
   TooltipArrow,
   TooltipPortal,
 } from '@/components/ui/tooltip';
-import useSections from '@/hooks/useSections';
 
 const spring = { type: 'spring', stiffness: 350, damping: 30 };
 
@@ -68,7 +69,8 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isStudent = user?.role === 'student';
-  const { sections } = useSections();
+  const { sections, activeSectionId } = useStudentContext();
+  const activeSection = sections.find((s) => Number(s.id) === activeSectionId) || null;
 
   const links = user?.role === 'admin' ? adminLinks
     : user?.role === 'instructor' ? instructorLinks
@@ -227,19 +229,11 @@ export default function Sidebar() {
                     My Sections
                   </span>
                 </div>
-                <div className="space-y-1">
-                  {sections.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 bg-white/[0.03]"
-                    >
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400/60 shrink-0" />
-                      <span className="text-[11px] font-medium text-foreground/80 truncate">
-                        {s.name || s.course_code || `Section ${s.id}`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <SectionPicker placeholder="Select section" />
+                <Button asChild variant="outline" size="sm"
+                  className="mt-1.5 w-full text-[11px] text-muted-foreground border-white/[0.08] bg-transparent hover:bg-white/[0.04] hover:text-white">
+                  <Link to="/student/sections"><PlusSquare className="mr-2 h-3 w-3" />Join Section</Link>
+                </Button>
               </motion.div>
             ) : (
               <motion.div
@@ -258,7 +252,9 @@ export default function Sidebar() {
                   </TooltipTrigger>
                   <TooltipPortal>
                     <TooltipContent side="right" sideOffset={12}>
-                      {sections.map((s) => s.name || s.course_code || `Section ${s.id}`).join(', ')}
+                      {activeSection
+                        ? activeSection.name || activeSection.course_code || `Section ${activeSection.id}`
+                        : sections.map((s) => s.name || s.course_code || `Section ${s.id}`).join(', ')}
                       <TooltipArrow />
                     </TooltipContent>
                   </TooltipPortal>
