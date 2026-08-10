@@ -504,7 +504,7 @@ function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
 
             <div>
               <Label className="text-xs text-muted-foreground">Due Date (optional)</Label>
-              <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="text-sm" />
+              <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className="text-sm [color-scheme:dark]" />
             </div>
 
             <div className="flex gap-2">
