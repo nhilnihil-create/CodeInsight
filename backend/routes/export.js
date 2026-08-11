@@ -6,6 +6,7 @@ const { AppError, codes } = require('../lib/AppError');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const exportService = require('../services/exportService');
+const { buildSectionVisualReport } = require('../services/pdfReport');
 
 const sectionIdParam = Joi.object({
   sectionId: Joi.number().integer().positive().required(),
@@ -71,6 +72,43 @@ router.get(
       return res.send(buffer);
     } catch (err) {
       logger.error({ err }, 'Export (legacy) failed');
+      next(err);
+    }
+  }
+);
+
+/**
+ * Visual report (PDF) — GET /api/export/visual-report/:sectionId
+ * Full class report by default; pass ?studentId=N for a single-student
+ * dossier. Must be registered BEFORE /:domain/:sectionId so 'visual-report'
+ * is not parsed as a domain. buildSectionVisualReport resolves the
+ * instructor name internally (cover page), so no extra lookup happens here.
+ */
+router.get(
+  '/visual-report/:sectionId',
+  verifyToken,
+  requireRole('instructor'),
+  validate.params(sectionIdParam),
+  validate.query(Joi.object({ studentId: Joi.number().integer().positive().optional() })),
+  async (req, res, next) => {
+    try {
+      const { sectionId } = req.params;
+      await exportService.assertInstructorOwnsSection(sectionId, req.user.id);
+
+      const buffer = await buildSectionVisualReport(sectionId, {
+        studentId: req.query.studentId,
+      });
+
+      const meta = await exportService.getSectionMeta(sectionId);
+      const filename = exportService.buildExportFilename({
+        sectionName: meta && meta.name,
+        domain: 'visual-report',
+        ext: 'pdf',
+      });
+      exportService.setDownloadHeaders(res, filename, 'application/pdf');
+      return res.send(buffer);
+    } catch (err) {
+      logger.error({ err }, 'Visual report failed');
       next(err);
     }
   }

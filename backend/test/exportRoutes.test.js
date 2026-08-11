@@ -316,6 +316,71 @@ describe('export routes — legacy alias /api/export/section/:sectionId', () => 
   });
 });
 
+describe('export routes — visual report (PDF)', () => {
+  let seeded;
+
+  beforeEach(async () => {
+    seeded = await seedFullScenario({ studentCount: 3 });
+  });
+
+  it('401 when no token is provided', async () => {
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/visual-report/${seeded.sectionId}`,
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('403 when an instructor exports another instructor\'s section', async () => {
+    const { rows } = await testPool.query(
+      `INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, 'hashed_pw', 'instructor') RETURNING id`,
+      ['Foreign Instructor VR', 'foreign.vr@test.com']
+    );
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/visual-report/${seeded.sectionId}`,
+      token: instructorToken(rows[0].id),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('404 for an unknown section', async () => {
+    const res = await request({
+      method: 'GET',
+      path: '/api/export/visual-report/999999999',
+      token: instructorToken(seeded.instructorId),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('200 application/pdf with a .pdf Content-Disposition filename', async () => {
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/visual-report/${seeded.sectionId}`,
+      token: instructorToken(seeded.instructorId),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/pdf');
+    expect(res.buffer.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+
+    const cd = res.headers['content-disposition'];
+    expect(cd).toContain('attachment; filename=');
+    expect(cd).toMatch(/filename="Test Section_visual-report_\d{4}-\d{2}-\d{2}\.pdf"/);
+  });
+
+  it('200 pdf dossier when ?studentId is provided', async () => {
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/visual-report/${seeded.sectionId}?studentId=${seeded.studentIds[0]}`,
+      token: instructorToken(seeded.instructorId),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/pdf');
+    expect(res.buffer.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  });
+});
+
 // ── Server lifecycle ─────────────────────────────────────────────────────────
 
 beforeAll(async () => {

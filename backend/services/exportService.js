@@ -65,11 +65,13 @@ function setDownloadHeaders(res, filename, mimeType) {
 // ── Section meta / ownership ────────────────────────────────────────────────
 
 /**
- * Fetch { name, course_code, instructor_id } for a section, or null.
+ * Fetch { name, course_code, term, semester, school_year, instructor_id }
+ * for a section, or null. The extra term/semester/school_year fields feed
+ * the PDF visual report cover page (backend/services/pdfReport.js).
  */
 async function getSectionMeta(sectionId) {
   const { rows } = await db.query(
-    'SELECT name, course_code, instructor_id FROM sections WHERE id = $1',
+    'SELECT name, course_code, term, semester, school_year, instructor_id FROM sections WHERE id = $1',
     [sectionId]
   );
   return rows.length ? rows[0] : null;
@@ -873,4 +875,14 @@ module.exports = {
   assertInstructorOwnsSection,
   fetchRows,
   formatExport,
+  // Domain fetchers + formatters reused by the PDF report builder
+  // (backend/services/pdfReport.js) so PDF generation never duplicates SQL.
+  fetchRoster,
+  fetchCds,
+  fetchConceptMastery,
+  fetchHeatmap,
+  fetchIntegrity,
+  fetchLongitudinal,
+  formatIsoDate,
+  formatIsoTimestamp,
 };
