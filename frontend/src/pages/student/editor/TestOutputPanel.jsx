@@ -119,7 +119,7 @@ function TestRow({ row }) {
       {/* Name + input / expected */}
       <div className="min-w-0">
         <p className="text-sm font-medium truncate">{name}</p>
-        <p className="text-[11px] font-mono text-muted-foreground">
+        <p className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-words">
           {input ? <span>Input: {input}</span> : null}
           {input && expected ? <span className="mx-1">·</span> : null}
           {expected ? <span>Expected: {expected}</span> : null}

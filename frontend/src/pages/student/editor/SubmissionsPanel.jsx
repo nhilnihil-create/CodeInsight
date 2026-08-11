@@ -137,13 +137,13 @@ function SubmissionsList({ submissions }) {
                   {s.input != null ? (
                     <>
                       <dt className="text-muted-foreground">Input</dt>
-                      <dd className="text-white/80 truncate">{s.input}</dd>
+                      <dd className="text-white/80 whitespace-pre-wrap break-words">{s.input}</dd>
                     </>
                   ) : null}
                   {s.expected != null ? (
                     <>
                       <dt className="text-muted-foreground">Expected</dt>
-                      <dd className="text-white/80 truncate">{s.expected}</dd>
+                      <dd className="text-white/80 whitespace-pre-wrap break-words">{s.expected}</dd>
                     </>
                   ) : null}
                   {s.actual != null ? (
@@ -151,7 +151,7 @@ function SubmissionsList({ submissions }) {
                       <dt className="text-muted-foreground">Got</dt>
                       <dd
                         className={cn(
-                          "truncate",
+                          "whitespace-pre-wrap break-words",
                           s.status === "accepted"
                             ? "text-emerald-400"
                             : "text-destructive",
