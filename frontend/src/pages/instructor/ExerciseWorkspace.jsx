@@ -650,7 +650,8 @@ export default function ExerciseWorkspace() {
           ...blankExercise(),
           title: ex.title || "",
           description: ex.description || "",
-          concept_name: ex.concept_name || "",
+          concept_name: ex.concept_name || ex.concept_tags?.find(t => t.is_primary)?.concept_name || ex.concept_names?.[0] || "",
+          concept_tags: ex.concept_tags || [],
           starter_code: ex.starter_code || STARTER_CODE,
           test_cases: (ex.test_cases || []).map(tc => ({ input: tc.input || "", expected: tc.expected || "", description: tc.description || "", hidden: !!tc.hidden })),
           time_limit_minutes: ex.time_limit_minutes || 45,
@@ -735,6 +736,10 @@ export default function ExerciseWorkspace() {
             }
           }
         } else {
+          // Create contract still requires concept_name (primary); tags ride along.
+          const tagsPayload = [...(item.concept_tags || [])].sort(
+            (a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)
+          );
           const payload = {
             title: item.title,
             description: item.description,
@@ -747,7 +752,7 @@ export default function ExerciseWorkspace() {
             starter_code: item.starter_code || null,
             deadline: deadline || item.deadline || null,
             is_draft: asDraft,
-            concept_tags: item.concept_tags || [],
+            concept_tags: tagsPayload,
           };
 
           for (const sectionId of selectedSections) {
@@ -779,15 +784,19 @@ export default function ExerciseWorkspace() {
 
   const handleUpdateExercise = async () => {
     if (!currentExercise.title.trim()) { toast.error("Enter a title before updating."); return; }
-    if (!currentExercise.concept_name) { toast.error("Select a concept before updating."); return; }
+    const hasPrimary = (currentExercise.concept_tags || []).some(t => t.is_primary) || !!currentExercise.concept_name;
+    if (!hasPrimary) { toast.error("Select a concept before updating."); return; }
     if (!id || id === "new" || id === "workspace") return;
 
     setBusy(true);
     try {
+      // Primary tag first, as shown in the editor (breaking change: no concept_name).
+      const tagsPayload = [...(currentExercise.concept_tags || [])].sort(
+        (a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)
+      );
       const payload = {
         title: currentExercise.title,
         description: currentExercise.description,
-        concept_name: currentExercise.concept_name,
         time_limit_minutes: currentExercise.time_limit_minutes,
         test_cases: (currentExercise.test_cases || []).map(tc => ({
           input: tc.input || "", expected: tc.expected || "",
@@ -796,7 +805,7 @@ export default function ExerciseWorkspace() {
         starter_code: currentExercise.starter_code || null,
         deadline: currentExercise.deadline || null,
         is_draft: false,
-        concept_tags: currentExercise.concept_tags || [],
+        concept_tags: tagsPayload,
       };
       const { data: updated } = await api.put(`/api/exercises/${id}`, payload);
       toast.success("Exercise updated");

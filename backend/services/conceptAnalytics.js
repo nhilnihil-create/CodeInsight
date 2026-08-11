@@ -65,7 +65,7 @@ async function computeCMI(sectionId, dbClient) {
      FROM concepts c
      JOIN exercise_concept_tags ect ON ect.concept_id = c.id
      JOIN exercises e ON e.id = ect.exercise_id
-     WHERE e.section_id = $1 AND ect.is_primary = true`,
+     WHERE e.section_id = $1`,
     [sectionId]
   );
 
@@ -91,19 +91,19 @@ async function computeCMI(sectionId, dbClient) {
     return { updated: 0 };
   }
 
-  // Pre-fetch all exercises tagged with concepts in this section
+  // Pre-fetch all exercises tagged with concepts in this section (all tags, weighted)
   const allExercisesRes = await client.query(
-    `SELECT ect.concept_id, e.id AS exercise_id
+    `SELECT ect.concept_id, e.id AS exercise_id, ect.weight
      FROM exercises e
      JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
-     WHERE e.section_id = $1 AND ect.is_primary = true`,
+     WHERE e.section_id = $1`,
     [sectionId]
   );
 
   const conceptExercises = {};
   for (const row of allExercisesRes.rows) {
     if (!conceptExercises[row.concept_id]) conceptExercises[row.concept_id] = [];
-    conceptExercises[row.concept_id].push(row.exercise_id);
+    conceptExercises[row.concept_id].push({ exercise_id: row.exercise_id, weight: row.weight });
   }
 
   const allExerciseIds = [...new Set(allExercisesRes.rows.map(r => r.exercise_id))];
@@ -155,14 +155,19 @@ async function computeCMI(sectionId, dbClient) {
   const studentSet = new Set(studentIds);
 
   for (const concept of conceptRes.rows) {
-    const exerciseIds = conceptExercises[concept.id];
-    if (!exerciseIds || exerciseIds.length === 0) continue;
+    const tagged = conceptExercises[concept.id];
+    if (!tagged || tagged.length === 0) continue;
 
     for (const studentId of studentSet) {
       try {
-        // Aggregate per-exercise metrics from pre-fetched data
-        const exerciseMetrics = {};
-        for (const eid of exerciseIds) {
+        // Per-exercise mastery, weighted by each tag's weight. Concept CMI is the
+        // weighted average SUM(mastery * w) / SUM(w) with a plain-mean fallback
+        // when the weight sum is 0 (zero-weight guard).
+        let weightedMastery = 0;
+        let weightSum = 0;
+        const masteryValues = [];
+
+        for (const { exercise_id: eid, weight } of tagged) {
           const key = `${studentId}:${eid}`;
           const subs = subMap[key];
           if (!subs || subs.length === 0) continue;
@@ -174,34 +179,29 @@ async function computeCMI(sectionId, dbClient) {
             maxTime = Math.max(maxTime, sub.time_spent_seconds || 0);
           }
 
-          exerciseMetrics[eid] = {
-            total_attempts: totalForExercise,
-            failed_attempts: totalForExercise - correctForExercise,
-            max_time: maxTime,
-          };
+          const failedForExercise = totalForExercise - correctForExercise;
+          const failRate = totalForExercise > 0 ? failedForExercise / totalForExercise : 0;
+
+          // Normalize against this exercise's class-wide stats
+          const classTotal = classStatsByEx[eid]?.total_attempts || 0;
+          const classMaxTime = classStatsByEx[eid]?.max_time || 0;
+
+          const normAttempts = _normalize(totalForExercise, [classTotal]);
+          const normTime = _normalize(maxTime, [classMaxTime]);
+
+          const mastery = 100 * (1 - (0.40 * failRate + 0.35 * normAttempts + 0.25 * normTime));
+          masteryValues.push(mastery);
+          const effWeight = Number(weight) || 1.0;
+          weightedMastery += mastery * effWeight;
+          weightSum += effWeight;
         }
 
-        const metrics = Object.values(exerciseMetrics);
-        if (metrics.length === 0) continue;
+        if (masteryValues.length === 0) continue;
 
-        const totalAttempts = metrics.reduce((s, m) => s + m.total_attempts, 0);
-        const totalFailed = metrics.reduce((s, m) => s + m.failed_attempts, 0);
-        const maxTime = metrics.reduce((s, m) => Math.max(s, m.max_time), 0);
-
-        const failRate = totalAttempts > 0 ? totalFailed / totalAttempts : 0;
-
-        // Normalize using class-wide stats from pre-fetched data
-        const allAttempts = exerciseIds.map(eid => classStatsByEx[eid]?.total_attempts || 0);
-        const allFailed = exerciseIds.map(eid => classStatsByEx[eid]?.failed_attempts || 0);
-        const allTimes = exerciseIds.map(eid => classStatsByEx[eid]?.max_time || 0);
-
-        const normAttempts = _normalize(totalAttempts, allAttempts);
-        const normTime = _normalize(maxTime, allTimes);
-
-        const cmi = Math.round(
-          100 * (1 - (0.40 * failRate + 0.35 * normAttempts + 0.25 * normTime))
-        );
-        const boundedCmi = Math.max(0, Math.min(100, cmi));
+        const cmi = weightSum === 0
+          ? masteryValues.reduce((s, m) => s + m, 0) / masteryValues.length
+          : weightedMastery / weightSum;
+        const boundedCmi = Math.max(0, Math.min(100, Math.round(cmi)));
 
         await client.query(
           `INSERT INTO student_concept_metrics (student_id, concept_id, section_id, cmi, velocity, last_updated)
@@ -242,13 +242,13 @@ async function computeCMI(sectionId, dbClient) {
 async function computeVelocity(sectionId, dbClient) {
   const client = dbClient || db;
 
-  // Get concepts with ≥2 exercises in this section
+  // Get concepts with ≥2 exercises in this section (all tags)
   const conceptRes = await client.query(
     `SELECT c.id, c.name, COUNT(DISTINCT e.id) AS exercise_count
      FROM concepts c
      JOIN exercise_concept_tags ect ON ect.concept_id = c.id
      JOIN exercises e ON e.id = ect.exercise_id
-     WHERE e.section_id = $1 AND ect.is_primary = true
+     WHERE e.section_id = $1
      GROUP BY c.id, c.name
      HAVING COUNT(DISTINCT e.id) >= 2`,
     [sectionId]
@@ -264,12 +264,12 @@ async function computeVelocity(sectionId, dbClient) {
     return { updated: 0 };
   }
 
-  // Pre-fetch all exercises grouped by concept
+  // Pre-fetch all exercises grouped by concept (all tags, weighted)
   const allExercisesRes = await client.query(
-    `SELECT ect.concept_id, e.id AS exercise_id, e.created_at
+    `SELECT ect.concept_id, e.id AS exercise_id, e.created_at, ect.weight
      FROM exercises e
      JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
-     WHERE e.section_id = $1 AND ect.is_primary = true
+     WHERE e.section_id = $1
      ORDER BY e.created_at ASC`,
     [sectionId]
   );
@@ -277,7 +277,7 @@ async function computeVelocity(sectionId, dbClient) {
   const conceptExercises = {};
   for (const row of allExercisesRes.rows) {
     if (!conceptExercises[row.concept_id]) conceptExercises[row.concept_id] = [];
-    conceptExercises[row.concept_id].push({ id: row.exercise_id, created_at: row.created_at });
+    conceptExercises[row.concept_id].push({ id: row.exercise_id, created_at: row.created_at, weight: row.weight });
   }
 
   const allExerciseIds = [...new Set(allExercisesRes.rows.map(r => r.exercise_id))];
@@ -313,6 +313,10 @@ async function computeVelocity(sectionId, dbClient) {
     const exercises = conceptExercises[concept.id];
     if (!exercises || exercises.length < 2) continue;
 
+    // Per-tag weights for this concept's exercises (fallback 1.0)
+    const weightByEx = {};
+    for (const e of exercises) weightByEx[e.id] = Number(e.weight) || 1.0;
+
     const exerciseIdsForConcept = exercises.map(e => e.id);
 
     for (const [studentId, exCmis] of Object.entries(studentCmiMap)) {
@@ -329,8 +333,9 @@ async function computeVelocity(sectionId, dbClient) {
         const baseline = conceptExCmis.slice(0, baselineCount);
         const recent = conceptExCmis.slice(-recentCount);
 
-        const baselineAvg = baseline.reduce((s, e) => s + e.cmi, 0) / baseline.length;
-        const recentAvg = recent.reduce((s, e) => s + e.cmi, 0) / recent.length;
+        // Weight each exercise's contribution by its tag weight
+        const baselineAvg = _weightedMean(baseline.map(e => ({ value: e.cmi, weight: weightByEx[e.exerciseId] })));
+        const recentAvg = _weightedMean(recent.map(e => ({ value: e.cmi, weight: weightByEx[e.exerciseId] })));
 
         const firstDate = new Date(baseline[0].submittedAt);
         const lastDate = new Date(recent[recent.length - 1].submittedAt);
@@ -363,7 +368,7 @@ async function computeVelocity(sectionId, dbClient) {
 /**
  * Compute Concept Risk Score for all concepts in a section.
  *
- * CRS_score = AVG(CDS) for all students on concept-tagged exercises
+ * CRS_score = tag-weighted AVG(CDS) for all students on concept-tagged exercises
  * Classification: critical (>0.70, ≥5 at-risk), high (>0.50, ≥3), medium (>0.31), low (≤0.31)
  *
  * @param {number} sectionId
@@ -373,13 +378,13 @@ async function computeVelocity(sectionId, dbClient) {
 async function computeCRS(sectionId, dbClient) {
   const client = dbClient || db;
 
-  // Get all concepts with exercises in this section
+  // Get all concepts with exercises in this section (all tags)
   const conceptRes = await client.query(
     `SELECT c.id, c.name
      FROM concepts c
      JOIN exercise_concept_tags ect ON ect.concept_id = c.id
      JOIN exercises e ON e.id = ect.exercise_id
-     WHERE e.section_id = $1 AND ect.is_primary = true`,
+     WHERE e.section_id = $1`,
     [sectionId]
   );
 
@@ -390,11 +395,12 @@ async function computeCRS(sectionId, dbClient) {
   let updated = 0;
 
   for (const concept of conceptRes.rows) {
-    // Get exercises tagged with this concept
+    // Get exercises tagged with this concept (any tag — secondary-only concepts
+    // reach the upsert below too)
     const exerciseRes = await client.query(
       `SELECT DISTINCT e.id FROM exercises e
        JOIN exercise_concept_tags ect ON ect.exercise_id = e.id
-       WHERE e.section_id = $1 AND ect.concept_id = $2 AND ect.is_primary = true`,
+       WHERE e.section_id = $1 AND ect.concept_id = $2`,
       [sectionId, concept.id]
     );
 
@@ -402,15 +408,16 @@ async function computeCRS(sectionId, dbClient) {
 
     const exerciseIds = exerciseRes.rows.map(r => r.id);
 
-    // Get average CDS for students who attempted these exercises
+    // Get weighted average CDS for students who attempted these exercises
     const cdsRes = await client.query(
       `SELECT COUNT(DISTINCT cs.student_id) AS student_count,
-              AVG(cs.cds) AS avg_cds,
+              SUM(cs.cds * ect.weight) / NULLIF(SUM(ect.weight), 0) AS avg_cds,
               COUNT(DISTINCT cs.student_id) FILTER (WHERE cs.cds > 0.40) AS at_risk_count
        FROM cds_scores cs
+       JOIN exercise_concept_tags ect ON ect.exercise_id = cs.exercise_id AND ect.concept_id = $2
        WHERE cs.exercise_id = ANY($1)
          AND cs.cds IS NOT NULL`,
-      [exerciseIds]
+      [exerciseIds, concept.id]
     );
 
     if (cdsRes.rows.length === 0) continue;
@@ -698,6 +705,25 @@ function _normalize(value, allValues) {
   if (allValues.length === 0) return 0;
   const max = Math.max(...allValues, 1);
   return Math.min(value / max, 1.0);
+}
+
+/**
+ * Weighted mean of {value, weight} pairs — SUM(v*w)/SUM(w) with a plain-mean
+ * fallback when the weight sum is 0 (zero-weight guard).
+ *
+ * @param {Array<{value: number, weight: number}>} pairs
+ * @returns {number}
+ */
+function _weightedMean(pairs) {
+  let wSum = 0;
+  let acc = 0;
+  for (const p of pairs) {
+    const w = Number(p.weight) || 0;
+    wSum += w;
+    acc += p.value * w;
+  }
+  if (pairs.length === 0) return 0;
+  return wSum === 0 ? pairs.reduce((s, p) => s + p.value, 0) / pairs.length : acc / wSum;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

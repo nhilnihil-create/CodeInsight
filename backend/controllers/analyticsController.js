@@ -17,6 +17,63 @@ const countLabel = (cds) => {
   return 'High';
 };
 
+// Helper: weighted aggregation over per-tag contribution rows.
+// Each row contributes {cds, ner, nrs, nts, weight}; the aggregate is the
+// weighted average SUM(x*w)/SUM(w) with a plain-mean fallback when the
+// weight sum is 0 (zero-weight guard). NULL metric components are excluded
+// from both their numerator and denominator. Returns {cds, ner, nrs, nts,
+// weightSum, count}.
+const weightedStats = (rows) => {
+  const state = {
+    cds: { sum: 0, raw: 0, wSum: 0, n: 0 },
+    ner: { sum: 0, raw: 0, wSum: 0, n: 0 },
+    nrs: { sum: 0, raw: 0, wSum: 0, n: 0 },
+    nts: { sum: 0, raw: 0, wSum: 0, n: 0 },
+  };
+  for (const r of rows) {
+    const w = Number(r.weight) || 0;
+    for (const key of Object.keys(state)) {
+      const v = r[key];
+      if (v === null || v === undefined) continue;
+      const x = Number(v);
+      state[key].sum += x * w;
+      state[key].raw += x;
+      state[key].wSum += w;
+      state[key].n += 1;
+    }
+  }
+  const avg = (s) => (s.n === 0 ? null : s.wSum === 0 ? s.raw / s.n : s.sum / s.wSum);
+  return {
+    cds: avg(state.cds),
+    ner: avg(state.ner),
+    nrs: avg(state.nrs),
+    nts: avg(state.nts),
+    weightSum: state.cds.wSum,
+    count: state.cds.n,
+  };
+};
+
+// Helper: pick the exercise title for an aggregated cell. Prefers the
+// highest-weight contributing exercise; ties favor the primary-tagged one;
+// remaining ties fall back to the last row seen.
+const pickExerciseTitle = (rows) => {
+  let best = null;
+  for (const r of rows) {
+    const w = Number(r.weight) || 0;
+    const p = !!r.is_primary;
+    if (!best) {
+      best = { weight: w, isPrimary: p, title: r.exercise_title };
+    } else if (w > best.weight) {
+      best = { weight: w, isPrimary: p, title: r.exercise_title };
+    } else if (w === best.weight && p === best.isPrimary) {
+      best = { weight: w, isPrimary: p, title: r.exercise_title };
+    } else if (w === best.weight && p && !best.isPrimary) {
+      best = { weight: w, isPrimary: p, title: r.exercise_title };
+    }
+  }
+  return best ? best.title : null;
+};
+
 /** CDS distribution + avg for one exercise in a section (after batch compute). */
 async function fetchExerciseCdsStats(exerciseId, sectionId) {
   const statsRes = await db.query(
@@ -74,31 +131,34 @@ exports.heatmap = async (req, res, next) => {
     `;
     const students = await db.query(studentsQuery, w.params);
 
-    // Get CDS scores using exercise_concept_tags (primary tags only)
-    // This matches Concept Analytics (CMI/CRS/Velocity) concept resolution
+    // Get CDS scores using exercise_concept_tags (all tags, weighted)
+    // A multi-tag exercise yields one row per tag (weighted contribution);
+    // untagged legacy exercises fall back to ex.concept_id with weight 1.0.
     // Only include non-null CDS scores to avoid empty cells
     const sw = heatmapWhere(sectionId, instructorId, 'cs');
     const scoresQuery = `
       SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
-             COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title
+             COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title,
+             COALESCE(ect.weight, 1.0) AS weight,
+             COALESCE(ect.is_primary, true) AS is_primary
       FROM cds_scores cs
       JOIN exercises ex ON ex.id = cs.exercise_id
       JOIN concepts c ON c.id = ex.concept_id
-      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       WHERE ${sw.where}
         AND cs.cds IS NOT NULL
     `;
     const scores = await db.query(scoresQuery, sw.params);
 
-    // Fetch only concepts actually used in this section's exercises (primary tags)
-    // Ordered by name to match taxonomy
+    // Fetch only concepts actually used in this section's exercises (any tag,
+    // with legacy concept_id fallback). Ordered by name to match taxonomy
     const cw = heatmapWhere(sectionId, instructorId, 'ex');
     const conceptsQuery = `
       SELECT DISTINCT COALESCE(pt.name, c.name) AS name
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
-      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
       LEFT JOIN concepts pt ON pt.id = ect.concept_id
       WHERE ${cw.where}
       ORDER BY name
@@ -106,24 +166,37 @@ exports.heatmap = async (req, res, next) => {
     const conceptsRes = await db.query(conceptsQuery, cw.params);
     const conceptsFromDb = conceptsRes.rows.map(r => r.name);
 
+    // Aggregate per (student, concept) as a weighted average of contributions
     const scoreMap = {};
+    const cellRows = {};
     for (const s of scores.rows) {
-      if (!scoreMap[s.student_id]) scoreMap[s.student_id] = {};
-      scoreMap[s.student_id][s.concept_name] = {
-        cds: s.cds, classification: s.classification,
-        exerciseTitle: s.exercise_title, ner: s.ner, nrs: s.nrs, nts: s.nts
-      };
+      if (!cellRows[s.student_id]) cellRows[s.student_id] = {};
+      if (!cellRows[s.student_id][s.concept_name]) cellRows[s.student_id][s.concept_name] = [];
+      cellRows[s.student_id][s.concept_name].push(s);
+    }
+    for (const studentId of Object.keys(cellRows)) {
+      scoreMap[studentId] = {};
+      for (const concept of Object.keys(cellRows[studentId])) {
+        const rows = cellRows[studentId][concept];
+        const stats = weightedStats(rows);
+        scoreMap[studentId][concept] = {
+          cds: stats.cds,
+          classification: countLabel(stats.cds),
+          exerciseTitle: pickExerciseTitle(rows),
+          ner: stats.ner,
+          nrs: stats.nrs,
+          nts: stats.nts,
+        };
+      }
     }
 
     const avgMap = {};
     for (const concept of conceptsFromDb) {
-      const vals = scores.rows
-        .filter(s => s.concept_name===concept && s.cds !== null)
-        .map(s => parseFloat(s.cds));
-      if (vals.length) {
-        const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
+      const stats = weightedStats(scores.rows.filter(s => s.concept_name === concept));
+      if (stats.count) {
+        const avg = stats.cds;
         const cl = countLabel(avg);
-        avgMap[concept] = { avgCDS: Math.round(avg*10000)/10000, classification: cl };
+        avgMap[concept] = { avgCDS: Math.round(avg * 10000) / 10000, classification: cl };
       } else {
         avgMap[concept] = { avgCDS: null, classification: 'Unscored' };
       }
@@ -300,7 +373,9 @@ exports.studentProfile = async (req, res, next) => {
 exports.myScores = async (req, res, next) => {
   try {
     // Return CDS scores for the authenticated student only (scoped to current enrollments)
-    // Uses exercise_concept_tags (primary) with fallback to ex.concept_id for missing tags.
+    // Uses exercise_concept_tags (ALL tags, weighted) with fallback to ex.concept_id
+    // for untagged legacy exercises. Rows are aggregated per concept as a weighted
+    // average of each tagged contribution.
     // Only real scores count: batch 'Unscored' placeholders (cds IS NULL) for students
     // with no submissions must not surface as concept-profile data.
     const sectionId = req.query.sectionId ? parseInt(req.query.sectionId, 10) : null;
@@ -312,11 +387,13 @@ exports.myScores = async (req, res, next) => {
     }
     const r = await db.query(
       `SELECT cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts, cs.computed_at,
-              cs.exercise_id, COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title
+              cs.exercise_id, COALESCE(pt.name, c.name) AS concept_name, ex.title AS exercise_title,
+              COALESCE(ect.weight, 1.0) AS weight,
+              COALESCE(ect.is_primary, true) AS is_primary
        FROM cds_scores cs
        JOIN exercises ex ON ex.id=cs.exercise_id AND cs.section_id = ex.section_id
        JOIN concepts c ON c.id=ex.concept_id
-       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
        LEFT JOIN concepts pt ON pt.id = ect.concept_id
        JOIN enrollments en ON en.section_id = ex.section_id AND en.student_id = cs.student_id
        WHERE cs.student_id=$1 AND cs.cds IS NOT NULL AND en.dropped_at IS NULL${sectionFilter}
@@ -324,8 +401,31 @@ exports.myScores = async (req, res, next) => {
       params
     );
 
-    // If no scores exist, return empty array (frontend shows 'No scores yet')
-    res.json(r.rows || []);
+    // Aggregate per concept: weighted cds/ner/nrs/nts, latest computed_at, best
+    // exercise title (D3). Response keeps the same per-concept shape as before.
+    const grouped = {};
+    for (const row of r.rows) {
+      if (!grouped[row.concept_name]) grouped[row.concept_name] = { rows: [], computed_at: row.computed_at };
+      grouped[row.concept_name].rows.push(row);
+    }
+    const result = Object.keys(grouped).map(concept => {
+      const { rows, computed_at } = grouped[concept];
+      const stats = weightedStats(rows);
+      const title = pickExerciseTitle(rows);
+      const titleRow = rows.find(x => x.exercise_title === title) || rows[0];
+      return {
+        cds: stats.cds,
+        classification: countLabel(stats.cds),
+        ner: stats.ner,
+        nrs: stats.nrs,
+        nts: stats.nts,
+        computed_at,
+        exercise_id: titleRow ? titleRow.exercise_id : null,
+        concept_name: concept,
+        exercise_title: title,
+      };
+    });
+    res.json(result);
   } catch (err) { next(err); }
 };
 
@@ -688,7 +788,7 @@ exports.getSectionHub = async (req, res, next) => {
     const [cdsResult, submissionsResult, masteryResult, atRiskResult, flagsResult, membersResult] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id = $1`, [id]),
       db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments m ON s.student_id = m.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE m.section_id = $1`, [id]),
-      db.query(`SELECT c.name, COALESCE(AVG(cm.cds), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.60) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
+      db.query(`SELECT c.name, COALESCE(SUM(cm.cds * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0), 0) as cds, COUNT(*) FILTER (WHERE cm.cds > 0.60) as at_risk_count FROM cds_scores cm JOIN exercises ex ON cm.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id JOIN concepts c ON c.id = ect.concept_id JOIN enrollments m ON cm.student_id = m.student_id WHERE m.section_id = $1 GROUP BY c.id, c.name ORDER BY cds DESC`, [id]),
       db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments m JOIN users u ON m.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id = $1 WHERE m.section_id = $1 GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.60 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, [id]),
       db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id = $1 AND status = 'flagged'`, [id]),
       db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id = $1`, [id]),
@@ -737,7 +837,7 @@ exports.getCommandCenter = async (req, res, next) => {
     const [cdsRes, submissionsRes, conceptRes, atRiskRes, flagsRes, membersRes] = await Promise.all([
       db.query(`SELECT COALESCE(AVG(cds), 0) as avg_cds, COUNT(*) as n FROM cds_scores WHERE section_id IN (${placeholder})`, sectionIds),
       db.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE submitted_at > NOW() - INTERVAL '7 days') as weekly FROM submissions s JOIN enrollments en ON s.student_id = en.student_id JOIN exercises ex ON s.exercise_id = ex.id WHERE en.section_id IN (${placeholder})`, sectionIds),
-      db.query(`SELECT c.name, COALESCE(AVG(cs.cds), 0) as cds, COUNT(*) FILTER (WHERE cs.cds > 0.60) as at_risk_count FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true JOIN concepts c ON c.id = ect.concept_id JOIN enrollments en ON cs.student_id = en.student_id WHERE en.section_id IN (${placeholder}) GROUP BY c.id, c.name ORDER BY cds DESC`, sectionIds),
+      db.query(`SELECT c.name, COALESCE(SUM(cs.cds * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0), 0) as cds, COUNT(*) FILTER (WHERE cs.cds > 0.60) as at_risk_count FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id JOIN concepts c ON c.id = ect.concept_id JOIN enrollments en ON cs.student_id = en.student_id WHERE en.section_id IN (${placeholder}) GROUP BY c.id, c.name ORDER BY cds DESC`, sectionIds),
       db.query(`SELECT u.id, u.name, COALESCE(AVG(cs.cds), 0) as avg_cds, COUNT(fl.id) as flag_count FROM enrollments en JOIN users u ON en.student_id = u.id LEFT JOIN cds_scores cs ON cs.student_id = u.id LEFT JOIN integrity_flags fl ON fl.student_id = u.id AND fl.section_id IN (${placeholder}) WHERE en.section_id IN (${placeholder}) GROUP BY u.id, u.name HAVING COALESCE(AVG(cs.cds), 0) > 0.60 OR COUNT(fl.id) > 0 ORDER BY COALESCE(AVG(cs.cds), 0) DESC LIMIT 20`, sectionIds),
       db.query(`SELECT COUNT(*) as open_count, COUNT(DISTINCT section_id) as section_count FROM integrity_flags WHERE section_id IN (${placeholder}) AND status = 'flagged'`, sectionIds),
       db.query(`SELECT COUNT(*) FROM enrollments WHERE section_id IN (${placeholder})`, sectionIds),
@@ -988,14 +1088,14 @@ exports.getInstructorDashboard = async (req, res, next) => {
       // 6. Concept averages (for struggling concepts bar) — within period
       // Only concepts with avg CDS > 0.40 (i.e. "developing" tier or worse)
       db.query(
-        `SELECT c.name, COALESCE(AVG(cs.cds), 0)::DOUBLE PRECISION AS cds
+        `SELECT c.name, COALESCE(SUM(cs.cds * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0), 0)::DOUBLE PRECISION AS cds
          FROM cds_scores cs
          JOIN exercises ex ON cs.exercise_id = ex.id
-         JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+         JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
          JOIN concepts c ON c.id = ect.concept_id
          WHERE ${secCond.replace('section_id', 'cs.section_id')} AND cs.computed_at > NOW() - INTERVAL '1 day' * $2
          GROUP BY c.id, c.name
-         HAVING AVG(cs.cds) > 0.40
+         HAVING COALESCE(SUM(cs.cds * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0), 0) > 0.40
          ORDER BY cds DESC
          LIMIT 5`,
         [...secParam, days]
@@ -1830,45 +1930,58 @@ exports.getConceptHeatmap = async (req, res, next) => {
       return res.json({ concepts: [], students: [], scores: [] });
     }
 
-    // Get concepts actually used in this section's exercises (primary tags only)
+    // Get concepts actually used in this section's exercises (all tags)
     // Ordered by name to match taxonomy
     const conceptsRes = await db.query(
       `SELECT DISTINCT c.id, c.name, c.knowledge_area_code, c.slug, c.bloom_level
        FROM concepts c
        JOIN exercise_concept_tags ect ON ect.concept_id = c.id
        JOIN exercises ex ON ex.id = ect.exercise_id
-       WHERE ex.section_id = $1 AND ect.is_primary = true
+       WHERE ex.section_id = $1
        ORDER BY c.name`,
       [sectionId]
     );
 
     // Get CDS scores for students in this section using exercise_concept_tags
+    // (all tags, weighted). A multi-tag exercise yields one row per tag.
     const scoresRes = await db.query(
       `SELECT cs.student_id, cs.cds, cs.classification, cs.ner, cs.nrs, cs.nts,
               c.id AS concept_id, c.name AS concept_name,
-              c.knowledge_area_code, c.slug, c.bloom_level
+              c.knowledge_area_code, c.slug, c.bloom_level,
+              COALESCE(ect.weight, 1.0) AS weight
        FROM cds_scores cs
        JOIN exercises ex ON ex.id = cs.exercise_id
-       JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+       JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
        JOIN concepts c ON c.id = ect.concept_id
        WHERE cs.section_id = $1`,
       [sectionId]
     );
 
-    // Build score map
+    // Build score map — aggregate per (student, concept) as a weighted average
     const scoreMap = {};
+    const cellRows = {};
     for (const s of scoresRes.rows) {
-      if (!scoreMap[s.student_id]) scoreMap[s.student_id] = {};
-      scoreMap[s.student_id][s.concept_name] = {
-        cds: s.cds != null ? parseFloat(s.cds) : null,
-        classification: s.classification,
-        ner: s.ner != null ? parseFloat(s.ner) : null,
-        nrs: s.nrs != null ? parseFloat(s.nrs) : null,
-        nts: s.nts != null ? parseFloat(s.nts) : null,
-        knowledgeAreaCode: s.knowledge_area_code,
-        slug: s.slug,
-        bloomLevel: s.bloom_level,
-      };
+      if (!cellRows[s.student_id]) cellRows[s.student_id] = {};
+      if (!cellRows[s.student_id][s.concept_name]) cellRows[s.student_id][s.concept_name] = [];
+      cellRows[s.student_id][s.concept_name].push(s);
+    }
+    for (const studentId of Object.keys(cellRows)) {
+      scoreMap[studentId] = {};
+      for (const concept of Object.keys(cellRows[studentId])) {
+        const rows = cellRows[studentId][concept];
+        const stats = weightedStats(rows);
+        const first = rows[0];
+        scoreMap[studentId][concept] = {
+          cds: stats.cds,
+          classification: countLabel(stats.cds),
+          ner: stats.ner,
+          nrs: stats.nrs,
+          nts: stats.nts,
+          knowledgeAreaCode: first.knowledge_area_code,
+          slug: first.slug,
+          bloomLevel: first.bloom_level,
+        };
+      }
     }
 
     // Group concepts by knowledge area
@@ -2306,17 +2419,17 @@ exports.getClassConceptRadar = async (req, res, next) => {
     const result = await db.query(`
       SELECT
         c.name AS concept_name,
-        ROUND(AVG(cs.cds)::numeric, 4) AS cds,
-        ROUND(AVG(cs.ner)::numeric, 4) AS ner,
-        ROUND(AVG(cs.nrs)::numeric, 4) AS nrs,
-        ROUND(AVG(cs.nts)::numeric, 4) AS nts,
+        ROUND((SUM(cs.cds * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS cds,
+        ROUND((SUM(cs.ner * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS ner,
+        ROUND((SUM(cs.nrs * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS nrs,
+        ROUND((SUM(cs.nts * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS nts,
         COUNT(DISTINCT cs.student_id) AS student_count,
         COUNT(*) AS attempt_count
       FROM cds_scores cs
       JOIN exercises ex ON cs.exercise_id = ex.id
-      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id AND ect.is_primary = true
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
       LEFT JOIN concepts c ON c.id = ect.concept_id
-      WHERE cs.section_id = $1
+      WHERE cs.section_id = $1 AND c.name IS NOT NULL
       GROUP BY c.name
       ORDER BY c.name
     `, [sectionId]);

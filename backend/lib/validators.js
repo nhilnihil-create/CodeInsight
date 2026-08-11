@@ -44,6 +44,8 @@ const exerciseCreate = Joi.object({
 const exerciseUpdate = Joi.object({
   title: Joi.string().trim().min(1).max(200).optional(),
   description: Joi.string().allow('').max(20000).optional(),
+  concept_name: Joi.string().trim().min(1).max(100).optional(),
+  concept_tags: Joi.array().optional(), // items pass through raw; controller validates/coerces
   time_limit_minutes: Joi.number().integer().min(0).max(600).optional(),
   test_cases: Joi.array().items(testCase).min(1).optional(),
   deadline: Joi.alternatives(Joi.date().iso(), Joi.string().allow(null, ''), Joi.allow(null)).optional(),

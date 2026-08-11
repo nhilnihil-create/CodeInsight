@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { AppError, codes } = require('../lib/AppError');
 const cdsEngine = require('../services/cdsEngine');
 const cdsJobQueue = require('../services/cdsJobQueue');
+const conceptAnalytics = require('../services/conceptAnalytics');
 const executor = require('../services/executor');
 const { withTransaction } = require('../config/db');
 
@@ -9,7 +10,7 @@ const { withTransaction } = require('../config/db');
  * Helper: return an exercise row with all linked concepts (primary + secondary).
  */
 async function getExerciseWithConcepts(id) {
-  const [exRes, conceptsRes] = await Promise.all([
+  const [exRes, conceptsRes, tagsRes] = await Promise.all([
     db.query('SELECT * FROM exercises WHERE id = $1', [id]),
     db.query(
       `SELECT c.id, c.name FROM exercise_concepts ec
@@ -17,11 +18,21 @@ async function getExerciseWithConcepts(id) {
        WHERE ec.exercise_id = $1`,
       [id]
     ),
+    db.query(
+      `SELECT ect.concept_id, c.name AS concept_name, ect.weight, ect.is_primary
+       FROM exercise_concept_tags ect
+       JOIN concepts c ON c.id = ect.concept_id
+       WHERE ect.exercise_id = $1
+       ORDER BY ect.is_primary DESC`,
+      [id]
+    ),
   ]);
   if (!exRes.rows.length) return null;
   const ex = exRes.rows[0];
   ex.concepts = conceptsRes.rows;
   ex.concept_names = conceptsRes.rows.map(c => c.name);
+  // Edit-load tags (primary first). Legacy exercises without tags → [].
+  ex.concept_tags = tagsRes.rows;
   return ex;
 }
 
@@ -76,75 +87,74 @@ exports.validate = async (req, res, next) => {
 };
 
 exports.create = async (req, res, next) => {
+  const { title, description, concept_name, section_id,
+          time_limit_minutes, test_cases, deadline, is_draft,
+          track_ner, track_nrs, track_nts, auto_alert,
+          starter_code, reference_solution, concept_ids, concept_tags } = req.body;
+
   try {
-    const { title, description, concept_name, section_id,
-            time_limit_minutes, test_cases, deadline, is_draft,
-            track_ner, track_nrs, track_nts, auto_alert,
-            starter_code, reference_solution, concept_ids } = req.body;
+    const row = await withTransaction(async (client) => {
+      const cRes = await client.query('SELECT id FROM concepts WHERE name=$1', [concept_name]);
+      if (!cRes.rows.length) throw new AppError('Concept not found', 400, codes.VALIDATION, { field: 'concept_name' });
+      const concept_id = cRes.rows[0].id;
 
-    const cRes = await db.query('SELECT id FROM concepts WHERE name=$1', [concept_name]);
-    if (!cRes.rows.length) throw new AppError('Concept not found', 400, codes.VALIDATION, { field: 'concept_name' });
-    const concept_id = cRes.rows[0].id;
+      const r = await client.query(
+        `INSERT INTO exercises
+         (title, description, concept_id, section_id, created_by, time_limit_minutes,
+          test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
+          starter_code, reference_solution, is_validated)
+         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+        [title, description, concept_id, section_id, req.user.id,
+         time_limit_minutes || 45, JSON.stringify(test_cases), deadline || null,
+         is_draft, track_ner, track_nrs, track_nts, auto_alert,
+         starter_code || null, reference_solution || null,
+         false]
+      );
 
-    const r = await db.query(
-      `INSERT INTO exercises
-       (title, description, concept_id, section_id, created_by, time_limit_minutes,
-        test_cases, deadline, is_draft, track_ner, track_nrs, track_nts, auto_alert,
-        starter_code, reference_solution, is_validated)
-       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
-      [title, description, concept_id, section_id, req.user.id,
-       time_limit_minutes || 45, JSON.stringify(test_cases), deadline || null,
-       is_draft, track_ner, track_nrs, track_nts, auto_alert,
-       starter_code || null, reference_solution || null,
-       false]
-    );
+      const exerciseId = r.rows[0].id;
 
-    // Insert secondary concepts into exercise_concepts junction table
-    const exerciseId = r.rows[0].id;
-
-    // Support both legacy concept_ids (array of names) and new concept_tags (array of {id, weight, is_primary})
-    if (concept_ids && concept_ids.length > 0) {
-      const conceptRows = await db.query('SELECT id, name FROM concepts WHERE name = ANY($1)', [concept_ids]);
-      const values = conceptRows.rows.map((c, i) => `($1, ${concept_id !== c.id ? `$${i + 2}` : 'NULL'})`).filter(v => !v.includes('NULL'));
-      const params = [exerciseId, ...conceptRows.rows.map(c => c.id)];
-      if (params.length > 1) {
-        await db.query(
-          `INSERT INTO exercise_concepts (exercise_id, concept_id)
-           SELECT $1, unnest(ARRAY[${params.slice(1).map((_, i) => `$${i + 2}`).join(',')}])
-           ON CONFLICT DO NOTHING`,
-          params
-        );
+      // Legacy secondary concepts (array of names) → junction table
+      if (concept_ids && concept_ids.length > 0) {
+        const conceptRows = await client.query('SELECT id, name FROM concepts WHERE name = ANY($1)', [concept_ids]);
+        for (const c of conceptRows.rows) {
+          if (c.id === concept_id) continue;
+          await client.query(
+            `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [exerciseId, c.id]
+          );
+        }
       }
-    }
 
-    // NEW: Support concept_tags for multi-tag with weights
-    const { concept_tags } = req.body;
-    if (concept_tags && Array.isArray(concept_tags) && concept_tags.length > 0) {
-      for (const tag of concept_tags) {
-        const tagConceptId = tag.concept_id || tag.id;
-        if (tagConceptId) {
-          await db.query(
+      // New multi-tag rows (weighted, primary flag). Primary = the new concept (Q2).
+      if (Array.isArray(concept_tags)) {
+        for (const tag of concept_tags) {
+          const tagConceptId = tag.concept_id || tag.id;
+          if (!tagConceptId) continue;
+          await client.query(
             `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
-             VALUES ($1, $2, $3, $4) ON CONFLICT (exercise_id, concept_id) DO UPDATE SET weight = $3, is_primary = $4`,
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (exercise_id, concept_id) DO UPDATE SET weight = $3, is_primary = $4`,
             [exerciseId, tagConceptId, tag.weight || 1.0, tag.is_primary || false]
           );
         }
       }
-    }
 
-    // Always ensure primary concept is in the junction table
-    await db.query(
-      `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [exerciseId, concept_id]
-    );
-    // And in exercise_concept_tags
-    await db.query(
-      `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
-       VALUES ($1, $2, 1.0, true) ON CONFLICT (exercise_id, concept_id) DO UPDATE SET is_primary = true`,
-      [exerciseId, concept_id]
-    );
+      // Always ensure primary concept is in the junction table and the tags table
+      await client.query(
+        `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [exerciseId, concept_id]
+      );
+      await client.query(
+        `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+         VALUES ($1, $2, 1.0, true)
+         ON CONFLICT (exercise_id, concept_id) DO UPDATE SET is_primary = true`,
+        [exerciseId, concept_id]
+      );
 
-    res.status(201).json(r.rows[0]);
+      return r.rows[0];
+    });
+
+    res.status(201).json(row);
   } catch (err) { next(err); }
 };
 
@@ -200,47 +210,172 @@ exports.getOne = async (req, res, next) => {
 };
 
 exports.update = async (req, res, next) => {
-  try {
-    const { title, description, concept_name, time_limit_minutes, test_cases, deadline,
-            is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code } = req.body;
+  const { title, description, concept_name, concept_tags, time_limit_minutes, test_cases, deadline,
+          is_draft, track_ner, track_nrs, track_nts, auto_alert, starter_code } = req.body;
 
-    // Build dynamic update
-    const sets = [];
-    const params = [];
-    const addSet = (col, val) => {
-      if (val === undefined) return;
-      params.push(val);
-      sets.push(`${col} = $${params.length}`);
-    };
-    addSet('title', title);
-    addSet('description', description);
-    addSet('concept_name', concept_name);
-    addSet('time_limit_minutes', time_limit_minutes);
-    if (test_cases !== undefined) {
-      params.push(JSON.stringify(test_cases));
-      sets.push(`test_cases = $${params.length}`);
+  try {
+    const result = await withTransaction(async (client) => {
+      // Read current row for auth + tag-change detection
+      const cur = await client.query(
+        'SELECT id, concept_id, section_id, created_by FROM exercises WHERE id = $1',
+        [req.params.id]
+      );
+      if (!cur.rows.length) throw new AppError('Exercise not found', 404, codes.NOT_FOUND);
+      const current = cur.rows[0];
+      if (current.created_by !== req.user.id) {
+        throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
+      }
+      const currentConceptId = current.concept_id;
+
+      // Resolve the primary concept id when concept_name is provided (legacy clients).
+      // Empty/absent concept_name leaves the primary untouched.
+      let newPrimaryId = null;
+      if (concept_name !== undefined && concept_name !== null && String(concept_name).trim() !== '') {
+        const cRes = await client.query('SELECT id FROM concepts WHERE name = $1', [String(concept_name).trim()]);
+        if (!cRes.rows.length) throw new AppError('Concept not found', 400, codes.VALIDATION, { field: 'concept_name' });
+        newPrimaryId = cRes.rows[0].id;
+      }
+
+      let tagsChanged = false;
+      let primaryToSet = null; // concept_id to write, only when it changes
+
+      // Full replace when concept_tags is sent (including empty [] to clear secondaries)
+      if (Array.isArray(concept_tags)) {
+        for (const tag of concept_tags) {
+          if (!tag || (tag.concept_id === undefined && tag.id === undefined)) {
+            throw new AppError('Invalid concept tag: each tag requires a concept_id', 400, codes.VALIDATION);
+          }
+        }
+        await client.query('DELETE FROM exercise_concept_tags WHERE exercise_id = $1', [req.params.id]);
+        for (const tag of concept_tags) {
+          const tagConceptId = tag.concept_id || tag.id;
+          await client.query(
+            `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+             VALUES ($1, $2, $3, $4)`,
+            [req.params.id, tagConceptId, tag.weight || 1.0, tag.is_primary || false]
+          );
+        }
+        // Effective primary: explicit concept_name wins, else the primary/first tag.
+        const primaryTag = concept_tags.find(t => t.is_primary) || concept_tags[0];
+        const primaryFromTags = primaryTag ? Number(primaryTag.concept_id || primaryTag.id) : currentConceptId;
+        const primaryId = newPrimaryId !== null ? Number(newPrimaryId) : primaryFromTags;
+        if (primaryId !== Number(currentConceptId)) primaryToSet = primaryId;
+        // Upsert the primary so exactly one primary always exists
+        await client.query(
+          `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+           VALUES ($1, $2, 1.0, true)
+           ON CONFLICT (exercise_id, concept_id) DO UPDATE SET weight = 1.0, is_primary = true`,
+          [req.params.id, primaryId]
+        );
+        // Sync legacy junction (mirror create): primary + all tag concept ids
+        await client.query('DELETE FROM exercise_concepts WHERE exercise_id = $1', [req.params.id]);
+        await client.query(
+          `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [req.params.id, primaryId]
+        );
+        const tagIds = [...new Set(concept_tags.map(t => t.concept_id || t.id))];
+        for (const tid of tagIds) {
+          if (Number(tid) === Number(primaryId)) continue;
+          await client.query(
+            `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [req.params.id, tid]
+          );
+        }
+        tagsChanged = true;
+      } else if (newPrimaryId !== null && newPrimaryId !== currentConceptId) {
+        // Legacy primary swap (Q2 rule): replace the old primary tag with the new one
+        await client.query(
+          'DELETE FROM exercise_concept_tags WHERE exercise_id = $1 AND is_primary = true',
+          [req.params.id]
+        );
+        await client.query(
+          `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+           VALUES ($1, $2, 1.0, true)
+           ON CONFLICT (exercise_id, concept_id) DO UPDATE SET weight = 1.0, is_primary = true`,
+          [req.params.id, newPrimaryId]
+        );
+        await client.query(
+          `INSERT INTO exercise_concepts (exercise_id, concept_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [req.params.id, newPrimaryId]
+        );
+        primaryToSet = newPrimaryId;
+        tagsChanged = true;
+      }
+
+      // Build dynamic update. NOTE: exercises has no concept_name column — the
+      // legacy `concept_name` field maps to concept_id only (see above).
+      const sets = [];
+      const params = [];
+      const addSet = (col, val) => {
+        if (val === undefined) return;
+        params.push(val);
+        sets.push(`${col} = $${params.length}`);
+      };
+      addSet('title', title);
+      addSet('description', description);
+      addSet('time_limit_minutes', time_limit_minutes);
+      if (test_cases !== undefined) {
+        params.push(JSON.stringify(test_cases));
+        sets.push(`test_cases = $${params.length}`);
+      }
+      addSet('deadline', deadline);
+      addSet('is_draft', is_draft);
+      addSet('track_ner', track_ner);
+      addSet('track_nrs', track_nrs);
+      addSet('track_nts', track_nts);
+      addSet('auto_alert', auto_alert);
+      addSet('starter_code', starter_code);
+      if (primaryToSet !== null) {
+        addSet('concept_id', primaryToSet);
+      }
+      if (sets.length === 0 && !tagsChanged) {
+        throw new AppError('No fields to update', 400, codes.VALIDATION);
+      }
+
+      let row;
+      if (sets.length === 0) {
+        // Tags-only update: the tags were already replaced in-transaction above
+        // and there are no column changes, so skip the UPDATE entirely (an empty
+        // SET list would be a Postgres syntax error) and return the current row.
+        const fullRes = await client.query(
+          'SELECT * FROM exercises WHERE id = $1',
+          [req.params.id]
+        );
+        row = fullRes.rows[0];
+      } else {
+        params.push(req.params.id);
+        params.push(req.user.id);
+        const r = await client.query(
+          `UPDATE exercises SET ${sets.join(', ')}
+           WHERE id=$${params.length - 1} AND created_by=$${params.length}
+           RETURNING *`,
+          params
+        );
+        if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
+        row = r.rows[0];
+      }
+
+      return { row, tagsChanged };
+    });
+
+    // Fire-and-forget recompute after commit (D1): CDS queue job + aggregate metrics
+    if (result.tagsChanged) {
+      cdsJobQueue.enqueueCdsComputation(req.params.id).catch(err =>
+        console.error('[ExerciseUpdate] Failed to enqueue CDS computation:', err.message)
+      );
+      conceptAnalytics.computeAllMetrics(result.row.section_id).catch(err =>
+        console.error('[ExerciseUpdate] Failed to recompute concept metrics:', err.message)
+      );
     }
-    addSet('deadline', deadline);
-    addSet('is_draft', is_draft);
-    addSet('track_ner', track_ner);
-    addSet('track_nrs', track_nrs);
-    addSet('track_nts', track_nts);
-    addSet('auto_alert', auto_alert);
-    addSet('starter_code', starter_code);
-    if (sets.length === 0) {
-      throw new AppError('No fields to update', 400, codes.VALIDATION);
+
+    res.json(result.row);
+  } catch (err) {
+    // Map FK / unique constraint violations from tag inserts to a clean 400
+    if (err && (err.code === '23503' || err.code === '23505')) {
+      return next(new AppError('Invalid concept reference', 400, codes.VALIDATION));
     }
-    params.push(req.params.id);
-    params.push(req.user.id);
-    const r = await db.query(
-      `UPDATE exercises SET ${sets.join(', ')}
-       WHERE id=$${params.length - 1} AND created_by=$${params.length}
-       RETURNING *`,
-      params
-    );
-    if (!r.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
-    res.json(r.rows[0]);
-  } catch (err) { next(err); }
+    next(err);
+  }
 };
 
 exports.close = async (req, res, next) => {
