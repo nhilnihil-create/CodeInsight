@@ -292,6 +292,433 @@ async function fetchIntegrity(sectionId, opts = {}) {
   return rows;
 }
 
+// ── Phase 2: concept mastery / completion / longitudinal domains ────────────
+
+const CONCEPT_MASTERY_COLUMNS = [
+  { key: 'name', header: 'Student Name', width: 25 },
+  { key: 'email', header: 'Email', width: 35 },
+  { key: 'concept', header: 'Concept', width: 30 },
+  { key: 'cmi', header: 'CMI', width: 12, numeric: true },
+  { key: 'velocity', header: 'Velocity', width: 12, numeric: true },
+  { key: 'last_updated', header: 'Last Updated', width: 25, format: formatIsoTimestamp },
+];
+
+/** Concept × student CMI/velocity (mirrors analyticsController.getConceptMasteryReport). */
+async function fetchConceptMastery(sectionId, opts = {}) {
+  let query = `
+    SELECT u.name, u.email, c.name AS concept, scm.cmi, scm.velocity, scm.last_updated
+    FROM student_concept_metrics scm
+    JOIN users u ON u.id = scm.student_id
+    JOIN concepts c ON c.id = scm.concept_id
+    WHERE scm.section_id = $1`;
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    query += ` AND scm.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    query += ` AND scm.last_updated >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    query += ` AND scm.last_updated <= $${values.length}`;
+  }
+  query += ' ORDER BY u.name, c.name';
+  const { rows } = await db.query(query, values);
+  // pg returns DECIMAL as a string; normalize CMI/velocity to numbers.
+  return rows.map((row) => ({
+    ...row,
+    cmi: row.cmi === null || row.cmi === undefined ? null : Number(row.cmi),
+    velocity: row.velocity === null || row.velocity === undefined ? null : Number(row.velocity),
+  }));
+}
+
+const COMPLETION_COLUMNS = [
+  { key: 'exercise', header: 'Exercise', width: 40 },
+  { key: 'on_time', header: 'On-Time (%)', width: 15, numeric: true },
+  { key: 'late', header: 'Late (%)', width: 12, numeric: true },
+  { key: 'missing', header: 'Missing (%)', width: 15, numeric: true },
+];
+
+/**
+ * Per-exercise completion percentages over enrolled students
+ * (mirrors analyticsController.getCompletionReport: on-time/late/missing).
+ */
+async function fetchCompletion(sectionId, opts = {}) {
+  let join = 'LEFT JOIN submissions sub ON sub.exercise_id = ex.id';
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    join += ` AND sub.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    join += ` AND sub.submitted_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    join += ` AND sub.submitted_at <= $${values.length}`;
+  }
+  const { rows } = await db.query(
+    `SELECT ex.title AS exercise,
+            COUNT(DISTINCT sub.student_id) AS submitted,
+            (SELECT COUNT(*) FROM enrollments WHERE section_id = $1) AS total,
+            COUNT(DISTINCT CASE WHEN ex.deadline IS NULL OR sub.submitted_at <= ex.deadline THEN sub.student_id END) AS on_time,
+            COUNT(DISTINCT CASE WHEN ex.deadline IS NOT NULL AND sub.submitted_at > ex.deadline THEN sub.student_id END) AS late
+     FROM exercises ex
+     ${join}
+     WHERE ex.section_id = $1
+     GROUP BY ex.id, ex.title, ex.created_at
+     ORDER BY ex.created_at DESC, ex.id DESC
+     LIMIT 25001`,
+    values
+  );
+  return rows.map((row) => {
+    const total = Number(row.total) || 1;
+    const onTime = Number(row.on_time) || 0;
+    const late = Number(row.late) || 0;
+    const submitted = Number(row.submitted) || 0;
+    const missing = Math.max(0, total - submitted);
+    return {
+      exercise: row.exercise,
+      on_time: Math.round((onTime / total) * 100),
+      late: Math.round((late / total) * 100),
+      missing: Math.round((missing / total) * 100),
+    };
+  });
+}
+
+const LONGITUDINAL_COLUMNS = [
+  { key: 'name', header: 'Student Name', width: 25 },
+  { key: 'email', header: 'Email', width: 35 },
+  { key: 'progression', header: 'Progression', width: 80, format: formatEvidence },
+  { key: 'mastery_velocity', header: 'Mastery Velocity', width: 18 },
+];
+
+/** Per-student CDS progression + mastery velocity (mirrors analyticsController.getSectionLongitudinal). */
+async function fetchLongitudinal(sectionId, opts = {}) {
+  // Date filters live in the LEFT JOIN's ON clause so students with no in-range
+  // scores still appear (mirrors analyticsController.getSectionLongitudinal).
+  let csJoin = 'LEFT JOIN cds_scores cs ON cs.student_id = u.id AND cs.section_id = $1';
+  const values = [sectionId];
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    csJoin += ` AND cs.computed_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    csJoin += ` AND cs.computed_at <= $${values.length}`;
+  }
+  let where = 'WHERE e.section_id = $1';
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    where += ` AND u.id = $${values.length}`;
+  }
+  const query = `
+    SELECT u.id AS student_id, u.name, u.email,
+           cs.cds, cs.classification, cs.computed_at,
+           ex.title AS exercise_title, ex.id AS exercise_id,
+           c.id AS concept_id, c.name AS concept_name
+    FROM users u
+    JOIN enrollments e ON e.student_id = u.id
+    ${csJoin}
+    LEFT JOIN exercises ex ON cs.exercise_id = ex.id
+    LEFT JOIN concepts c ON ex.concept_id = c.id
+    ${where}
+    ORDER BY u.name, cs.computed_at ASC`;
+  const { rows } = await db.query(query, values);
+
+  const studentMap = {};
+  for (const row of rows) {
+    if (!studentMap[row.student_id]) {
+      studentMap[row.student_id] = { name: row.name, email: row.email, progression: [] };
+    }
+    if (row.cds !== null) {
+      studentMap[row.student_id].progression.push({
+        cds: Number(row.cds),
+        classification: row.classification,
+        computed_at: row.computed_at,
+        exercise_title: row.exercise_title,
+        exercise_id: row.exercise_id,
+        concept_id: row.concept_id,
+        concept_name: row.concept_name,
+      });
+    }
+  }
+  return Object.values(studentMap).map((student) => {
+    const { progression } = student;
+    let masteryVelocity = 'stable';
+    if (progression.length >= 2) {
+      const recent = progression.slice(-3);
+      const cdsValues = recent.map((p) => p.cds);
+      const trend = cdsValues[cdsValues.length - 1] - cdsValues[0];
+      if (trend > 0.1) masteryVelocity = 'improving';
+      else if (trend < -0.1) masteryVelocity = 'declining';
+    }
+    return { ...student, mastery_velocity: masteryVelocity };
+  });
+}
+
+// ── Phase 2b: cds / heatmap / behavioral / catalog / settings / alerts ──────
+
+const CDS_COLUMNS = [
+  { key: 'name', header: 'Student Name', width: 25 },
+  { key: 'email', header: 'Email', width: 35 },
+  { key: 'date', header: 'Date', width: 14, format: formatIsoDate },
+  { key: 'cds', header: 'CDS (%)', width: 12, format: formatCdsPercent, numeric: true },
+  { key: 'classification', header: 'Classification', width: 20 },
+];
+
+/**
+ * CDS history — one row per student per exercise score (same source rows as
+ * analyticsController.getSectionLongitudinal, minus the progression grouping).
+ */
+async function fetchCds(sectionId, opts = {}) {
+  let query = `
+    SELECT u.name, u.email, cs.computed_at AS date, cs.cds, cs.classification
+    FROM cds_scores cs
+    JOIN users u ON u.id = cs.student_id
+    WHERE cs.section_id = $1`;
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    query += ` AND cs.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    query += ` AND cs.computed_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    query += ` AND cs.computed_at <= $${values.length}`;
+  }
+  query += ' ORDER BY u.name, cs.computed_at ASC, cs.exercise_id, cs.id LIMIT 25001';
+  const { rows } = await db.query(query, values);
+  // pg returns DECIMAL as a string; normalize cds to a number (0–1) for
+  // numeric cells and raw-fidelity JSON output.
+  return rows.map((row) => ({
+    ...row,
+    cds: row.cds === null || row.cds === undefined ? null : Number(row.cds),
+  }));
+}
+
+const HEATMAP_COLUMNS = [
+  { key: 'name', header: 'Student Name', width: 25 },
+  { key: 'date', header: 'Date', width: 14, format: formatIsoDate },
+  { key: 'events', header: 'Events', width: 12, numeric: true },
+];
+
+/**
+ * Daily submission activity — one row per (student, local calendar date)
+ * with an event count. Date bucketing matches the analytics daily-trend
+ * pattern (submitted_at::date); section scoping mirrors the heatmap
+ * where-clause (exercises join + enrollment guard).
+ */
+async function fetchHeatmap(sectionId, opts = {}) {
+  let query = `
+    SELECT u.name, s.submitted_at::date AS date, COUNT(*)::INTEGER AS events
+    FROM submissions s
+    JOIN users u ON u.id = s.student_id
+    JOIN exercises ex ON ex.id = s.exercise_id
+    WHERE ex.section_id = $1
+      AND s.student_id IN (SELECT student_id FROM enrollments WHERE section_id = $1)`;
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    query += ` AND s.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    query += ` AND s.submitted_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    query += ` AND s.submitted_at <= $${values.length}`;
+  }
+  query += ' GROUP BY u.name, u.id, s.submitted_at::date ORDER BY u.name, s.submitted_at::date LIMIT 25001';
+  const { rows } = await db.query(query, values);
+  return rows;
+}
+
+const BEHAVIORAL_COLUMNS = [
+  { key: 'name', header: 'Student Name', width: 25 },
+  { key: 'event_type', header: 'Event Type', width: 25 },
+  { key: 'timestamp', header: 'Timestamp', width: 25, format: formatIsoTimestamp },
+  { key: 'payload', header: 'Payload', width: 60, format: formatEvidence },
+];
+
+/**
+ * Behavioral telemetry for the section's exercises (tab_switch / paste /
+ * warning_* events logged to behavioral_events by /run and the integrity
+ * warning pipeline). Payload is native JSONB in JSON output and stringified
+ * in CSV/XLSX via formatEvidence.
+ */
+async function fetchBehavioral(sectionId, opts = {}) {
+  let query = `
+    SELECT u.name, be.event_type, be.occurred_at AS timestamp, be.payload
+    FROM behavioral_events be
+    JOIN users u ON u.id = be.student_id
+    JOIN exercises ex ON ex.id = be.exercise_id
+    WHERE ex.section_id = $1
+      AND be.student_id IN (SELECT student_id FROM enrollments WHERE section_id = $1)`;
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    query += ` AND be.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    query += ` AND be.occurred_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    query += ` AND be.occurred_at <= $${values.length}`;
+  }
+  query += ' ORDER BY be.occurred_at DESC, be.id DESC LIMIT 25001';
+  const { rows } = await db.query(query, values);
+  return rows;
+}
+
+const CATALOG_COLUMNS = [
+  { key: 'exercise', header: 'Exercise', width: 40 },
+  { key: 'description', header: 'Description', width: 60 },
+  { key: 'starter_code', header: 'Starter Code', width: 60 },
+  { key: 'time_limit', header: 'Time Limit (sec)', width: 16, numeric: true },
+  { key: 'concept', header: 'Concept/Topic', width: 25 },
+];
+
+/**
+ * Section exercise catalog (title, description, starter code, time limit,
+ * concept). Starter code ships as raw multiline text — the CSV cell round-
+ * trip stress case. Static content: studentId/date filters intentionally
+ * skipped.
+ */
+async function fetchCatalog(sectionId, opts = {}) {
+  const { rows } = await db.query(
+    `SELECT ex.title AS exercise, ex.description, ex.starter_code,
+            ex.time_limit_minutes * 60 AS time_limit,
+            c.name AS concept
+     FROM exercises ex
+     LEFT JOIN concepts c ON c.id = ex.concept_id
+     WHERE ex.section_id = $1
+     ORDER BY ex.title, ex.id
+     LIMIT 25001`,
+    [sectionId]
+  );
+  return rows;
+}
+
+const SETTINGS_COLUMNS = [
+  { key: 'section', header: 'Section', width: 30 },
+  { key: 'course_code', header: 'Course Code', width: 15 },
+  { key: 'term', header: 'Term', width: 15 },
+  { key: 'instructor', header: 'Instructor', width: 25 },
+  { key: 'semester', header: 'Semester', width: 15 },
+  { key: 'join_policy', header: 'Join Policy', width: 15 },
+  { key: 'max_size', header: 'Max Size', width: 12, numeric: true },
+];
+
+/**
+ * One-row settings snapshot of the section's scalar configuration columns
+ * (term/semester/policy/size from the sections row). Static content:
+ * studentId/date filters intentionally skipped.
+ */
+async function fetchSettings(sectionId, opts = {}) {
+  const { rows } = await db.query(
+    `SELECT s.name AS section, s.course_code, s.term, s.semester,
+            s.join_policy, s.max_size, u.name AS instructor
+     FROM sections s
+     LEFT JOIN users u ON u.id = s.instructor_id
+     WHERE s.id = $1
+     LIMIT 25001`,
+    [sectionId]
+  );
+  return rows;
+}
+
+const ALERTS_COLUMNS = [
+  { key: 'name', header: 'Student Name', width: 25 },
+  { key: 'alert_type', header: 'Alert Type', width: 20 },
+  { key: 'severity', header: 'Severity', width: 12 },
+  { key: 'status', header: 'Status', width: 14, format: formatReviewStatus },
+  { key: 'details', header: 'Message/Details', width: 50, format: formatAlertDetails },
+  { key: 'created_at', header: 'Created At', width: 25, format: formatIsoTimestamp },
+];
+
+/** Review lifecycle for alert rows: true → 'reviewed', false → 'unreviewed'. */
+function formatReviewStatus(value) {
+  if (value === null || value === undefined) return '';
+  return value ? 'reviewed' : 'unreviewed';
+}
+
+/** Human-readable alert detail line composed from the raw score row. */
+function formatAlertDetails(value, row) {
+  const parts = [];
+  if (row.cds_score !== null && row.cds_score !== undefined) {
+    parts.push(`CDS ${(Number(row.cds_score) * 100).toFixed(1)}%`);
+  }
+  if (row.concept_name) parts.push(`Concept: ${row.concept_name}`);
+  if (row.exercise_title) parts.push(`Exercise: ${row.exercise_title}`);
+  return parts.join('; ');
+}
+
+/**
+ * Alerts for the section (alerts table, mirroring the dashboard alert query
+ * in analyticsEngine.getDashboardAlerts: severity derived from the same CASE
+ * over classification/cds_score, review status from is_reviewed).
+ */
+async function fetchAlerts(sectionId, opts = {}) {
+  let query = `
+    SELECT u.name,
+           al.classification AS alert_type,
+           CASE
+             WHEN al.classification = 'RETRY_STORM' THEN 'high'
+             WHEN al.classification = 'LEARNING_PLATEAU' THEN 'moderate'
+             WHEN al.cds_score > 0.80 THEN 'critical'
+             WHEN al.cds_score > 0.60 THEN 'high'
+             WHEN al.cds_score > 0.40 THEN 'moderate'
+             ELSE 'low'
+           END AS severity,
+           al.is_reviewed AS status,
+           al.cds_score, al.concept_name, ex.title AS exercise_title,
+           al.created_at
+    FROM alerts al
+    JOIN users u ON u.id = al.student_id
+    JOIN exercises ex ON ex.id = al.exercise_id
+    WHERE al.section_id = $1`;
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    query += ` AND al.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    query += ` AND al.created_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    query += ` AND al.created_at <= $${values.length}`;
+  }
+  query += ` ORDER BY
+      CASE
+        WHEN al.classification = 'RETRY_STORM' THEN 1
+        WHEN al.cds_score > 0.80 THEN 2
+        WHEN al.cds_score > 0.60 THEN 3
+        WHEN al.classification = 'LEARNING_PLATEAU' THEN 4
+        ELSE 5
+      END,
+      al.cds_score DESC NULLS LAST, al.created_at DESC, al.id DESC
+    LIMIT 25001`;
+  const { rows } = await db.query(query, values);
+  // pg returns DECIMAL as a string; normalize cds_score to a number.
+  return rows.map((row) => ({
+    ...row,
+    cds_score: row.cds_score === null || row.cds_score === undefined ? null : Number(row.cds_score),
+  }));
+}
+
+
 const DOMAINS = {
   roster: {
     fetch: fetchRoster,
@@ -308,6 +735,51 @@ const DOMAINS = {
     fetch: fetchIntegrity,
     columns: INTEGRITY_COLUMNS,
     sheetName: 'integrity',
+  },
+  concept_mastery: {
+    fetch: fetchConceptMastery,
+    columns: CONCEPT_MASTERY_COLUMNS,
+    sheetName: 'concept_mastery',
+  },
+  completion: {
+    fetch: fetchCompletion,
+    columns: COMPLETION_COLUMNS,
+    sheetName: 'completion',
+  },
+  longitudinal: {
+    fetch: fetchLongitudinal,
+    columns: LONGITUDINAL_COLUMNS,
+    sheetName: 'longitudinal',
+  },
+  cds: {
+    fetch: fetchCds,
+    columns: CDS_COLUMNS,
+    sheetName: 'cds',
+  },
+  heatmap: {
+    fetch: fetchHeatmap,
+    columns: HEATMAP_COLUMNS,
+    sheetName: 'heatmap',
+  },
+  behavioral: {
+    fetch: fetchBehavioral,
+    columns: BEHAVIORAL_COLUMNS,
+    sheetName: 'behavioral',
+  },
+  catalog: {
+    fetch: fetchCatalog,
+    columns: CATALOG_COLUMNS,
+    sheetName: 'catalog',
+  },
+  settings: {
+    fetch: fetchSettings,
+    columns: SETTINGS_COLUMNS,
+    sheetName: 'settings',
+  },
+  alerts: {
+    fetch: fetchAlerts,
+    columns: ALERTS_COLUMNS,
+    sheetName: 'alerts',
   },
 };
 
