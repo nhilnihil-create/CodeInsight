@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { GripVertical } from 'lucide-react';
 import SectionFilter from '@/components/SectionFilter';
 import useLastSection from '@/hooks/useLastSection';
+import ExportDropdown from '@/components/ui/export-dropdown';
 import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
@@ -386,7 +387,10 @@ export default function InstructorHeatmap() {
             Dense mosaic — CDS struggle index across all concepts. Columns sorted easiest → hardest.
           </p>
         </div>
-        <SectionFilter value={sectionId} onChange={setSectionId} />
+        <div className="flex items-center gap-2">
+          <SectionFilter value={sectionId} onChange={setSectionId} />
+          <ExportDropdown sectionId={sectionId} domain="heatmap" />
+        </div>
       </div>
 
       {/* ── Glass Panel ─────────────────────────────────────────────── */}

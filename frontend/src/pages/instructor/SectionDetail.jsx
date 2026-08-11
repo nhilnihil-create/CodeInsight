@@ -5,13 +5,11 @@ import useLastSection from "@/hooks/useLastSection";
 import {
   MoreHorizontal,
   ArrowRight,
-  Download,
   Copy,
   Users,
   FileText,
   AlertTriangle,
   RefreshCw,
-  FileSpreadsheet,
   RotateCw,
   CheckCircle,
   Check,
@@ -24,6 +22,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import ExportDropdown from "@/components/ui/export-dropdown";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
@@ -118,49 +117,6 @@ export default function SectionDetail() {
     }
   }, [id, refetch]);
 
-  const handleExportCSV = useCallback(async () => {
-    if (!id) return;
-    try {
-      const { data: students } = await api.get(`/api/sections/${id}/students`);
-      const csvRows = students.map((s) =>
-        [
-          `"${(s.name || "").replace(/"/g, '""')}"`,
-          `"${(s.email || "").replace(/"/g, '""')}"`,
-          s.enrolled_at || "",
-        ].join(",")
-      );
-      const csv = ["Name,Email,Enrolled At", ...csvRows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `section-${id}-roster.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Roster exported as CSV");
-    } catch {
-      toast.error("Failed to export roster");
-    }
-  }, [id]);
-
-  const handleExportExcel = useCallback(async () => {
-    if (!id) return;
-    try {
-      const res = await api.get(`/api/sections/${id}/export`, {
-        responseType: "blob",
-      });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `section-${id}-report.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Section exported as Excel");
-    } catch {
-      toast.error("Failed to export section");
-    }
-  }, [id]);
-
   if (isLoading) {
     return (
       <div className="space-y-6 sm:space-y-8">
@@ -245,6 +201,7 @@ export default function SectionDetail() {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <ExportDropdown sectionId={id} domain="roster" formats={["csv", "xlsx"]} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -256,15 +213,6 @@ export default function SectionDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportCSV}>
-                  <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Export CSV (Roster)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportExcel}>
-                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Export Excel (Full Report)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleCopyJoinCode}>
                   <Copy className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Copy join code

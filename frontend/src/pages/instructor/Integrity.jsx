@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { flagTypeLabel } from "@/lib/flagTypes";
 import api from "@/services/api";
 import useLastSection from "@/hooks/useLastSection";
+import ExportDropdown from "@/components/ui/export-dropdown";
 
 function timeAgo(dateStr) {
   if (!dateStr) return "—";
@@ -329,6 +330,7 @@ export default function InstructorIntegrity() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
+          <ExportDropdown sectionId={sectionId} domain="integrity" />
           {error ? (
             <span className="text-xs text-destructive font-medium">{error}</span>
           ) : null}

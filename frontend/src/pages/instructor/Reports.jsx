@@ -17,31 +17,22 @@ import {
 } from "recharts";
 import {
   ArrowRight,
-  Download,
-  ChevronDown,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   RefreshCw,
   AlertTriangle,
-  FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import ExportDropdown from "@/components/ui/export-dropdown";
 import InsightHeader from "@/components/ui/insight-header";
 import EvidenceRow from "@/components/ui/evidence-row";
 import SectionFilter from "@/components/SectionFilter";
 import useLastSection from "@/hooks/useLastSection";
 
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import api from "@/services/api";
 
 /**
@@ -211,19 +202,6 @@ function SortableTable({ columns, rows, sort, onSort, renderCell }) {
   );
 }
 
-// ── Export helpers ────────────────────────────────────────────────────────
-
-function downloadCSV(filename, rows) {
-  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 // ── Main Component ────────────────────────────────────────────────────────
 
 export default function InstructorReports() {
@@ -336,75 +314,20 @@ export default function InstructorReports() {
     setPeriod(next);
   };
 
-  // Export handlers
-  const handleExportCSV = useCallback(() => {
-    const sectionName = `section-${sectionId}`;
-    if (tab === "mastery") {
-      const header = ["Concept", "Current", "Weeks"].concat(masteryData.weeks);
-      const nWeeks = masteryData.weeks.length;
-      const rows = masteryData.concepts.map(c => {
-        const padded = [...c.series];
-        while (padded.length < nWeeks) padded.push("");
-        return [c.name, c.current + "%", "Series", ...padded];
-      });
-      downloadCSV(`mastery-report-${sectionName}.csv`, [header, ...rows]);
-    } else if (tab === "completion") {
-      const header = ["Exercise", "On Time", "Late", "Missing"];
-      const rows = completionData.map(c => [c.exercise, c.on_time + "%", c.late + "%", c.missing + "%"]);
-      downloadCSV(`completion-report-${sectionName}.csv`, [header, ...rows]);
-    } else if (tab === "integrity") {
-      const header = ["Week", "Critical", "High", "Moderate", "Low"];
-      const rows = integrityTimeline.map(t => [t.week, t.critical, t.high, t.moderate, t.low]);
-      downloadCSV(`integrity-report-${sectionName}.csv`, [header, ...rows]);
-    }
-    toast.success("Report exported as CSV");
-  }, [tab, sectionId, masteryData, completionData, integrityTimeline]);
-
-  const handleExportExcel = useCallback(async () => {
-    if (!sectionId) {
-      toast.info("Select a section to export Excel");
-      return;
-    }
-    try {
-      const res = await api.get(`/api/sections/${sectionId}/export`, {
-        responseType: "blob",
-      });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `section-${sectionId}-report.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Report exported as Excel");
-    } catch (err) {
-      console.error("Excel export failed:", err);
-      toast.error("Failed to export Excel report");
-    }
-  }, [sectionId]);
-
-  // Download helper for new export endpoints
-  const downloadEndpointExport = useCallback(async (endpoint, filename) => {
-    if (!activeSectionId) {
-      toast.info("Select a section first");
-      return;
-    }
-    try {
-      const res = await api.get(`/api/export/section/${activeSectionId}`, {
-        params: { format: "csv" },
-      });
-      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${filename}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success(`${filename} exported`);
-    } catch (err) {
-      console.error(`${endpoint} export failed:`, err);
-      toast.error(`Failed to export ${filename}`);
-    }
-  }, [activeSectionId]);
+  /**
+   * Intentional behavior change (Phase 3 export overhaul):
+   * the per-tab Export control used to download ad-hoc client-side CSVs and
+   * the section roster (via /api/sections/:id/export) regardless of the
+   * active tab. It now drives the canonical /api/export/:domain/:sectionId
+   * endpoint, exporting the ACTIVE tab's data — including Excel, which
+   * previously downloaded the roster.
+   */
+  const EXPORT_DOMAIN_BY_TAB = {
+    mastery: "concept_mastery",
+    completion: "completion",
+    integrity: "integrity",
+  };
+  const exportDomain = EXPORT_DOMAIN_BY_TAB[tab] || "concept_mastery";
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -440,29 +363,11 @@ export default function InstructorReports() {
               </button>
             ))}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="font-medium">
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Export
-                <ChevronDown className="ml-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel}>
-                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Export Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadEndpointExport("cds-snapshots", "cds-snapshots")}>
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                CDS Snapshots
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ExportDropdown
+            sectionId={sectionId}
+            domain={exportDomain}
+            formats={["csv", "xlsx"]}
+          />
         </div>
       </div>
 

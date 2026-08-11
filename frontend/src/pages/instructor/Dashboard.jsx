@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Download,
   ArrowRight,
-  ChevronDown,
   ShieldAlert,
   TrendingUp,
   BarChart3,
@@ -20,12 +18,7 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import ExportDropdown from "@/components/ui/export-dropdown";
 import PeriodSelector from "@/components/ui/period-selector";
 import RiskBadge from "@/components/ui/risk-badge";
 import { flagTypeLabel } from "@/lib/flagTypes";
@@ -93,39 +86,6 @@ export default function InstructorDashboard() {
     return () => { cancelled = true; };
   }, [sectionId, days]);
 
-  const handleExportCSV = () => {
-    if (!data?.trend?.length) return;
-    const headers = ["Date", "CDS"];
-    const rows = data.trend.map((r) =>
-      [r.date, r.cds].join(",")
-    );
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `dashboard-trend-${sectionId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleExportExcel = async () => {
-    if (!sectionId) return;
-    try {
-      const res = await api.get(`/api/sections/${sectionId}/export`, {
-        responseType: "blob",
-      });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `section-${sectionId}-report.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Excel export failed:", err);
-    }
-  };
-
   const insight = data?.insight?.summary || "Select a section to view metrics.";
   const kpis = data?.kpis || [];
   const trendData = data?.trend || [];
@@ -169,25 +129,7 @@ export default function InstructorDashboard() {
         <div className="flex items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
           <PeriodSelector value={period} onChange={setPeriod} />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="font-medium text-muted-foreground" disabled={!trendData.length}>
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Export
-                <ChevronDown className="ml-1 h-3 w-3" strokeWidth={1.5} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel}>
-                <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                Export Excel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ExportDropdown sectionId={sectionId} domain="cds" formats={["csv", "xlsx"]} />
         </div>
       </motion.div>
 

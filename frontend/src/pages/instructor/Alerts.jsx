@@ -22,6 +22,7 @@ import DecisionList from "@/components/ui/decision-list";
 import DetailDrawer from "@/components/ui/detail-drawer";
 import SectionFilter from "@/components/SectionFilter";
 import useLastSection from "@/hooks/useLastSection";
+import ExportDropdown from "@/components/ui/export-dropdown";
 import analyticsService from "@/api/analyticsService";
 import { cn } from "@/lib/utils";
 
@@ -234,6 +235,7 @@ export default function InstructorAlerts() {
             <span className="text-xs text-destructive font-medium">{error}</span>
           ) : null}
           <SectionFilter value={sectionId} onChange={setSectionId} />
+          <ExportDropdown sectionId={sectionId} domain="alerts" />
           <Button variant="ghost" size="icon" onClick={() => fetchQueue()} title="Refresh">
             <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
           </Button>

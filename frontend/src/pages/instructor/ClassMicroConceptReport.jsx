@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import ExportDropdown from '@/components/ui/export-dropdown';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
@@ -57,6 +58,7 @@ export default function ClassMicroConceptReport() {
             Aggregated pattern analysis of specific sub-concepts confusing students.
           </p>
         </div>
+        <ExportDropdown sectionId={sectionId} domain="concept_mastery" className="ml-auto" />
       </div>
 
       {concepts.length === 0 ? (

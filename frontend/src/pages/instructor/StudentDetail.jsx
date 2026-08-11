@@ -5,13 +5,13 @@ import {
   MoreHorizontal,
   ArrowLeft,
   ArrowRight,
-  Download,
   UserMinus,
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ExportDropdown from "@/components/ui/export-dropdown";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
@@ -19,7 +19,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
@@ -207,23 +206,6 @@ export default function InstructorStudentDetail() {
     }
   };
 
-  const handleExportSubmissions = () => {
-    if (!submissions.length) return;
-    const csv = [
-      "Exercise,Attempt,Passed,Submitted",
-      ...submissions.map((s) =>
-        [s.exercise_title, s.attempt_number, s.is_correct ? "Yes" : "No", s.submitted_at].join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `student-${id}-submissions.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   if (loading) {
     return (
       <div className="space-y-6 sm:space-y-8">
@@ -298,6 +280,12 @@ export default function InstructorStudentDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <ExportDropdown
+              sectionId={sectionId}
+              domain="submissions"
+              studentId={id}
+              formats={["csv"]}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="More actions">
@@ -305,11 +293,6 @@ export default function InstructorStudentDetail() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportSubmissions}>
-                  <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-                  Export submissions
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive focus:text-destructive">
                   <UserMinus className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
                   Remove from section
