@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildExportUrl, fetchExportBlob, triggerDownload } from './exportApi';
+import {
+  buildExportUrl,
+  buildVisualReportUrl,
+  fetchExportBlob,
+  fetchVisualReportBlob,
+  triggerDownload,
+} from './exportApi';
 
 vi.mock('@/services/api', () => ({
   default: { get: vi.fn() },
@@ -20,6 +26,23 @@ describe('buildExportUrl', () => {
     expect(buildExportUrl('submissions', 3, { format: 'xlsx', studentId: 42 })).toBe(
       '/api/export/submissions/3?format=xlsx&studentId=42'
     );
+  });
+});
+
+describe('buildVisualReportUrl', () => {
+  it('builds the visual report URL for a section', () => {
+    expect(buildVisualReportUrl(7)).toBe('/api/export/visual-report/7');
+  });
+
+  it('appends studentId only when provided', () => {
+    expect(buildVisualReportUrl(7, { studentId: 42 })).toBe(
+      '/api/export/visual-report/7?studentId=42'
+    );
+  });
+
+  it('omits studentId when nullish', () => {
+    expect(buildVisualReportUrl(7, { studentId: null })).toBe('/api/export/visual-report/7');
+    expect(buildVisualReportUrl(7, {})).toBe('/api/export/visual-report/7');
   });
 });
 
@@ -66,6 +89,54 @@ describe('fetchExportBlob', () => {
     const result = await fetchExportBlob('integrity', 9, { format: 'xlsx' });
 
     expect(result.fileName).toBe('export.xlsx');
+  });
+});
+
+describe('fetchVisualReportBlob', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('requests the blob and returns it with the Content-Disposition filename', async () => {
+    const blob = new Blob(['pdf']);
+    api.get.mockResolvedValue({
+      data: blob,
+      headers: {
+        'content-disposition': 'attachment; filename="Test Section_visual-report_2026-08-12.pdf"',
+      },
+    });
+
+    const result = await fetchVisualReportBlob(7);
+
+    expect(api.get).toHaveBeenCalledWith('/api/export/visual-report/7', {
+      responseType: 'blob',
+    });
+    expect(result.blob).toBe(blob);
+    expect(result.fileName).toBe('Test Section_visual-report_2026-08-12.pdf');
+  });
+
+  it('passes studentId through for a per-student dossier', async () => {
+    const blob = new Blob(['pdf']);
+    api.get.mockResolvedValue({
+      data: blob,
+      headers: { 'content-disposition': 'attachment; filename="dossier.pdf"' },
+    });
+
+    const result = await fetchVisualReportBlob(7, { studentId: 42 });
+
+    expect(api.get).toHaveBeenCalledWith('/api/export/visual-report/7?studentId=42', {
+      responseType: 'blob',
+    });
+    expect(result.fileName).toBe('dossier.pdf');
+  });
+
+  it('falls back to visual-report.pdf when the header is missing', async () => {
+    const blob = new Blob(['pdf']);
+    api.get.mockResolvedValue({ data: blob, headers: {} });
+
+    const result = await fetchVisualReportBlob(7);
+
+    expect(result.fileName).toBe('visual-report.pdf');
   });
 });
 

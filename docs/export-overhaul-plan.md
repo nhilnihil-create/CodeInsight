@@ -1,6 +1,6 @@
 # Export Overhaul Plan (CSV / XLSX / PDF) — Refreshed, Execution-Ready
 
-Status: REFRESHED (2026-08-12) against current code state. No implementation started. Plan is execution-ready; review "Open Questions" before beginning Phase 1.
+Status: SHIPPED (2026-08-12) — Phases 1–4 implemented and committed on `CodeInsight-V2`. Phase 5 (async jobs, per-chart PNGs, advanced options UI) remains deferred per plan. See "Shipped" section below for the commit-per-phase log and how the Open Questions resolved.
 
 ## Goal
 
@@ -97,10 +97,31 @@ BullMQ async tier (>25k rows → job + GET /api/export/jobs/:id status + downloa
 3. Drop-in per page, then dedupe: for each page, swap the ad-hoc DropdownMenu+handler block for <ExportDropdown> in the same UI slot, confirm the exported file's column set matches what the old handler produced (Dashboard Date,CDS; Reports mastery/completion/integrity headers; SectionDetail Name,Email,Enrolled At; StudentDetail Exercise,Attempt,Passed,Submitted) — server-side output is strictly better (BOM, escaping, ISO dates) but must not surprise instructors with changed columns — then delete the old handler and its now-unused imports in the same commit (lint will flag dead imports). One commit per page.
 4. Deploy: single backend release after P1–P2; frontend bundle can ship the shared components earlier or with P3 — independent. No feature flags needed since behavior is additive; the only intentional output changes (ISO dates, BOM, ownership 403s) are documented in the deploy note.
 
-## 6. Open questions (review before Phase 1)
+## 6. Shipped (Phases 1–4 on `CodeInsight-V2`)
 
-1. Ownership guard: adding instructor_id verification to export endpoints changes 403 behavior for any cross-section export that exists today — confirm no admin/tooling consumer (e.g., scripts/codenet-scanner.js, backend/ci-inspect.js) relies on exporting other instructors' sections.
-2. CDS representation: locked recommendation is numeric 0–100 with "CDS (%)" header in CSV/XLSX (JSON keeps raw 0–1). Confirm instructors prefer % over raw decimal — Reports.jsx already displays %.
-3. Visual report v1 scope: full class report (≈2 pages/student) vs summary-only first — page count vs the 60-student guard is the trade-off; is 60 the right cap?
-4. Column parity: should Dashboard/Reports CSV columns stay exactly as today (muscle memory) or may the server-side versions add sensible columns (e.g., code, timestamps) — locked plan says parity; flag if parity isn't desired.
-5. pdfkit dependency: MIT license — confirm the team is fine adding one new runtime dependency (the only new dep in the whole plan).
+| Phase | Commit | Scope |
+|---|---|---|
+| P1 — backend export core | `a81c5c6ec1` | `services/csvWriter.js` (RFC 4180 + UTF-8 BOM), `services/exportService.js` (domain registry, filenames, ownership guard `assertInstructorOwnsSection`, 25k-row cap → 413, CSV/XLSX/JSON dispatch), `routes/export.js` canonical + legacy alias, `UploadsController.exportRoster` delegated. 54 backend tests. |
+| P2 — 9 analytics domains | `f63f78f2c2` | Added `cds`, `concept_mastery`, `completion`, `heatmap`, `behavioral`, `catalog`, `settings`, `alerts`, `longitudinal` to the DOMAINS registry, reusing existing analytics SQL. +224 lines of tests. |
+| P3 — frontend shared layer + rewires | `d66bc3743b` | `services/exportApi.js`, `hooks/useExport.js`, `components/ui/export-dropdown.jsx` (+ tests). Rewired 8 pages (Dashboard, Reports, SectionDetail, StudentDetail, Heatmap, Integrity, Alerts, ClassMicroConceptReport). 192 frontend tests. `test/setup.js` PointerEvent polyfill for jsdom 25. |
+| P4 — PDF Section Visual Report | `c4b4a2fc28` | `services/pdfCharts.js` (line/bar/radar/heatmap primitives + `cdsColor` mirroring Heatmap.jsx), `services/pdfReport.js` (`buildSectionVisualReport`, 60-student 413 guard, dossier mode, "No data" empty case), `routes/export.js` `/visual-report/:sectionId` route. pdfkit (MIT) installed. 90 export-suite tests green. |
+| Follow-up — PDF button wiring | (same commit as this doc update) | `components/ui/visual-report-button.jsx` driving the visual-report endpoint; placed on Dashboard + SectionDetail (class report) and StudentDetail (`Dossier (PDF)` with studentId). Frontend 209 tests green. |
+
+### Open-question resolutions (locked during execution)
+1. **Ownership guard** — SHIPPED. `assertInstructorOwnsSection` enforces 403 for foreign sections, 404 for missing. No known admin/tooling consumer of cross-section exports broke (`backend/ci-inspect.js` is an untracked scratch script, not a consumer).
+2. **CDS representation** — SHIPPED per recommendation: numeric 0–100 with "CDS (%)" header in CSV/XLSX; JSON keeps raw 0–1.
+3. **Visual report v1 scope** — SHIPPED full class report (≈2 pages/student, per-student pages capped at top-25 by activity) with the 60-student → 413 `TOO_LARGE` guard. Dossier mode (single student via `studentId`) supported.
+4. **Column parity** — kept. Legacy URLs (`/api/sections/:id/export`, `/api/export/section/:sectionId`) stay byte-compatible in column shape; the documented intentional changes are ISO-8601 dates, UTF-8 BOM, and ownership 403s. Canonical `submissions` domain adds a `Code` column.
+5. **pdfkit dependency** — SHIPPED (MIT, the only new runtime dep).
+
+## 7. Deferred (Phase 5 — not started)
+
+- **BullMQ async tier:** `>25,000-row` exports → job + `GET /api/export/jobs/:id` status polling + download URL, reusing the existing `queues/submissionQueue.js` pattern incl. its synchronous Redis-down fallback. (Sync path in P1 returns 413 `TOO_LARGE` above 25,000 rows today.)
+- **Per-chart PNG downloads:** candidate `@resvg/resvg-js` (prebuilt binaries). Revisit when scoped.
+- **Advanced options UI:** date-range and column-selection in the frontend `ExportDropdown` (today the backend already accepts `startDate`/`endDate`/`studentId` query params; the UI exposes them only where existing pages wired them).
+- **Admin all-sections export:** cross-section aggregate export for admin role (current endpoints are instructor-scoped with ownership guard).
+
+## 8. Open questions that remain (not blockers for Phases 1–4)
+
+- Is the 60-student cap on the visual report the right threshold, or should it scale with compute budget once async jobs land?
+- Once async BullMQ tier ships, do the large-domain imports (`behavioral`, `longitudinal`) move to the job path first?

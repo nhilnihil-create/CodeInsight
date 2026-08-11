@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ExportDropdown from "@/components/ui/export-dropdown";
+import VisualReportButton from "@/components/ui/visual-report-button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
@@ -286,6 +287,7 @@ export default function InstructorStudentDetail() {
               studentId={id}
               formats={["csv"]}
             />
+            <VisualReportButton sectionId={sectionId} studentId={id} label="Dossier (PDF)" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="More actions">

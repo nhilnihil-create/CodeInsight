@@ -6,6 +6,10 @@ import api from '@/services/api';
  * GET /api/export/:domain/:sectionId?format=csv|xlsx|json[&studentId=]
  * Joi-validated and ownership-guarded on the backend; the server sends the
  * download back as a blob with an RFC 5987 Content-Disposition header.
+ *
+ * Visual reports — GET /api/export/visual-report/:sectionId[?studentId=]
+ * application/pdf; omit studentId for the full-class report or pass it for a
+ * single-student dossier.
  */
 
 export function buildExportUrl(domain, sectionId, { format = 'csv', studentId } = {}) {
@@ -13,6 +17,15 @@ export function buildExportUrl(domain, sectionId, { format = 'csv', studentId } 
   // eslint-disable-next-line eqeqeq -- intentional nullish guard (null or undefined)
   if (studentId != null) {
     url += `&studentId=${studentId}`;
+  }
+  return url;
+}
+
+export function buildVisualReportUrl(sectionId, { studentId } = {}) {
+  let url = `/api/export/visual-report/${sectionId}`;
+  // eslint-disable-next-line eqeqeq -- intentional nullish guard (null or undefined)
+  if (studentId != null) {
+    url += `?studentId=${studentId}`;
   }
   return url;
 }
@@ -44,6 +57,14 @@ export async function fetchExportBlob(domain, sectionId, { format = 'csv', stude
   const res = await api.get(url, { responseType: 'blob' });
   const fileName =
     parseContentDisposition(res.headers?.['content-disposition']) || `export.${format}`;
+  return { blob: res.data, fileName };
+}
+
+export async function fetchVisualReportBlob(sectionId, { studentId } = {}) {
+  const url = buildVisualReportUrl(sectionId, { studentId });
+  const res = await api.get(url, { responseType: 'blob' });
+  const fileName =
+    parseContentDisposition(res.headers?.['content-disposition']) || 'visual-report.pdf';
   return { blob: res.data, fileName };
 }
 

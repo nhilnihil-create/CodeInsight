@@ -4,6 +4,7 @@ import useExport from './useExport';
 
 vi.mock('@/services/exportApi', () => ({
   fetchExportBlob: vi.fn(),
+  fetchVisualReportBlob: vi.fn(),
   triggerDownload: vi.fn(),
 }));
 
@@ -11,7 +12,7 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-import { fetchExportBlob, triggerDownload } from '@/services/exportApi';
+import { fetchExportBlob, fetchVisualReportBlob, triggerDownload } from '@/services/exportApi';
 import { toast } from 'sonner';
 
 const BLOB = new Blob(['a,b']);
@@ -20,6 +21,7 @@ describe('useExport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fetchExportBlob.mockResolvedValue({ blob: BLOB, fileName: 'roster_2026-08-12.csv' });
+    fetchVisualReportBlob.mockResolvedValue({ blob: BLOB, fileName: 'visual-report.pdf' });
   });
 
   afterEach(() => {
@@ -113,6 +115,77 @@ describe('useExport', () => {
     expect(toast.error).toHaveBeenCalledWith('Export failed');
     expect(result.current.status).toBe('error');
     expect(result.current.error).toBe('Export failed');
+    expect(triggerDownload).not.toHaveBeenCalled();
+  });
+
+  it('downloads a visual report via the visual-report branch', async () => {
+    fetchVisualReportBlob.mockResolvedValue({
+      blob: BLOB,
+      fileName: 'Test Section_visual-report_2026-08-12.pdf',
+    });
+    const { result } = renderHook(() => useExport());
+
+    await act(async () => {
+      await result.current.startExport({ kind: 'visual-report', sectionId: 7 });
+    });
+
+    expect(fetchExportBlob).not.toHaveBeenCalled();
+    expect(fetchVisualReportBlob).toHaveBeenCalledWith(7, {});
+    expect(triggerDownload).toHaveBeenCalledWith(BLOB, 'Test Section_visual-report_2026-08-12.pdf');
+    expect(toast.success).toHaveBeenCalledWith('Export ready: Test Section_visual-report_2026-08-12.pdf');
+    expect(result.current.status).toBe('done');
+  });
+
+  it('passes studentId through for a per-student dossier', async () => {
+    fetchVisualReportBlob.mockResolvedValue({ blob: BLOB, fileName: 'dossier.pdf' });
+    const { result } = renderHook(() => useExport());
+
+    await act(async () => {
+      await result.current.startExport({ kind: 'visual-report', sectionId: 7, studentId: 42 });
+    });
+
+    expect(fetchVisualReportBlob).toHaveBeenCalledWith(7, { studentId: 42 });
+    expect(triggerDownload).toHaveBeenCalledWith(BLOB, 'dossier.pdf');
+  });
+
+  it('ignores a second visual report while one is loading', async () => {
+    let resolveFetch;
+    fetchVisualReportBlob.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
+    const { result } = renderHook(() => useExport());
+
+    let first;
+    act(() => {
+      first = result.current.startExport({ kind: 'visual-report', sectionId: 3 });
+    });
+    act(() => {
+      result.current.startExport({ kind: 'visual-report', sectionId: 3 });
+    });
+
+    await act(async () => {
+      resolveFetch({ blob: BLOB, fileName: 'visual-report.pdf' });
+      await first;
+    });
+
+    expect(fetchVisualReportBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('toasts the error and sets status error when the visual report fails', async () => {
+    fetchVisualReportBlob.mockRejectedValue(
+      Object.assign(new Error('boom'), { response: { data: { error: 'Report failed' } } })
+    );
+    const { result } = renderHook(() => useExport());
+
+    await act(async () => {
+      await result.current.startExport({ kind: 'visual-report', sectionId: 7 });
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('Report failed');
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toBe('Report failed');
     expect(triggerDownload).not.toHaveBeenCalled();
   });
 });

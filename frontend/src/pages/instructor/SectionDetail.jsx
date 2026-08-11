@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import ExportDropdown from "@/components/ui/export-dropdown";
+import VisualReportButton from "@/components/ui/visual-report-button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import PageBreadcrumb from "@/components/ui/page-breadcrumb";
@@ -202,6 +203,7 @@ export default function SectionDetail() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <ExportDropdown sectionId={id} domain="roster" formats={["csv", "xlsx"]} />
+            <VisualReportButton sectionId={id} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

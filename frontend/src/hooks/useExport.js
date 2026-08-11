@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { fetchExportBlob, triggerDownload } from '@/services/exportApi';
+import {
+  fetchExportBlob,
+  fetchVisualReportBlob,
+  triggerDownload,
+} from '@/services/exportApi';
 
 const RESET_MS = 2000;
 
 /**
  * useExport
  *
- * Orchestrates the canonical export flow for a section-scoped domain:
+ * Orchestrates a section-scoped download flow:
  * fetch blob → trigger download → success toast → brief "done" state.
+ *
+ * Two paths share the same status machine:
+ *  - canonical export: startExport({ domain, sectionId, format, studentId, fileName })
+ *  - visual report:    startExport({ kind: 'visual-report', sectionId, studentId })
  *
  * Returns { startExport, status, error, fileName }.
  * status ∈ 'idle' | 'loading' | 'done' | 'error'.
@@ -32,18 +40,31 @@ export default function useExport() {
   );
 
   const startExport = useCallback(
-    async ({ domain, sectionId, format = 'csv', studentId, fileName: preferredName } = {}) => {
+    async ({
+      kind = 'export',
+      domain,
+      sectionId,
+      format = 'csv',
+      studentId,
+      fileName: preferredName,
+    } = {}) => {
       // eslint-disable-next-line eqeqeq -- intentional nullish guard (null or undefined)
       if (sectionId == null || busyRef.current) return;
       busyRef.current = true;
       setStatus('loading');
       setError(null);
       try {
-        const { blob, fileName: serverFileName } = await fetchExportBlob(domain, sectionId, {
-          format,
-          // eslint-disable-next-line eqeqeq -- intentional nullish guard (null or undefined)
-          ...(studentId != null ? { studentId } : {}),
-        });
+        const { blob, fileName: serverFileName } =
+          kind === 'visual-report'
+            ? await fetchVisualReportBlob(sectionId, {
+                // eslint-disable-next-line eqeqeq -- intentional nullish guard (null or undefined)
+                ...(studentId != null ? { studentId } : {}),
+              })
+            : await fetchExportBlob(domain, sectionId, {
+                format,
+                // eslint-disable-next-line eqeqeq -- intentional nullish guard (null or undefined)
+                ...(studentId != null ? { studentId } : {}),
+              });
         const finalName = preferredName || serverFileName;
         triggerDownload(blob, finalName);
         toast.success(`Export ready: ${finalName}`);

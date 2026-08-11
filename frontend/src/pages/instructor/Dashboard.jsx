@@ -19,6 +19,7 @@ import {
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import ExportDropdown from "@/components/ui/export-dropdown";
+import VisualReportButton from "@/components/ui/visual-report-button";
 import PeriodSelector from "@/components/ui/period-selector";
 import RiskBadge from "@/components/ui/risk-badge";
 import { flagTypeLabel } from "@/lib/flagTypes";
@@ -130,6 +131,7 @@ export default function InstructorDashboard() {
           <SectionFilter value={sectionId} onChange={setSectionId} />
           <PeriodSelector value={period} onChange={setPeriod} />
           <ExportDropdown sectionId={sectionId} domain="cds" formats={["csv", "xlsx"]} />
+          <VisualReportButton sectionId={sectionId} />
         </div>
       </motion.div>
 
