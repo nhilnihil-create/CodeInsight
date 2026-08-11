@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
 const logger = require('../lib/logger');
+const exportService = require('../services/exportService');
 
 /**
  * UploadsController — file-based roster import and export.
@@ -93,43 +94,16 @@ exports.importRoster = async (req, res) => {
 };
 
 // ── Export Roster (XLSX) ──────────────────────────────────────────────────
-exports.exportRoster = async (req, res) => {
+exports.exportRoster = async (req, res, next) => {
   try {
     const sectionId = req.params.id;
-    const students = await db.query(
-      `SELECT u.name, u.email, e.enrolled_at
-       FROM enrollments e
-       JOIN users u ON u.id = e.student_id
-       WHERE e.section_id = $1
-       ORDER BY u.name`,
-      [sectionId]
-    );
+    await exportService.assertInstructorOwnsSection(sectionId, req.user.id);
 
-    const ExcelJS = require('exceljs');
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Roster');
-
-    worksheet.columns = [
-      { header: 'Name', key: 'name', width: 30 },
-      { header: 'Email', key: 'email', width: 40 },
-      { header: 'Enrolled At', key: 'enrolled_at', width: 20 },
-    ];
-
-    students.rows.forEach(s => {
-      worksheet.addRow({
-        name: s.name,
-        email: s.email,
-        enrolled_at: s.enrolled_at ? new Date(s.enrolled_at).toLocaleDateString() : '',
-      });
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="section-${sectionId}-roster.xlsx"`);
+    const { buffer, mimeType, filename } = await exportService.formatExport('roster', sectionId, 'xlsx');
+    exportService.setDownloadHeaders(res, filename, mimeType);
     res.send(buffer);
   } catch (err) {
     logger.error({ err }, 'Export roster failed');
-    res.status(500).json({ error: 'Export failed' });
+    next(err);
   }
 };
