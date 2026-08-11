@@ -74,7 +74,7 @@ describe('InstructorSections', () => {
           student_count: 5,
           integrity_flags_count: 0,
           avg_cds: 0.25,
-          difficulty_distribution: { low: 4, moderate: 1, high: 0 }
+          difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 }
         }]
       });
       
@@ -97,7 +97,7 @@ describe('InstructorSections', () => {
           student_count: 5,
           integrity_flags_count: 0,
           avg_cds: 0.25,
-          difficulty_distribution: { low: 4, moderate: 1, high: 0 }
+          difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 }
         }]
       });
       
@@ -111,8 +111,8 @@ describe('InstructorSections', () => {
     it('shows multiple sections with codes', async () => {
       api.get.mockResolvedValue({
         data: [
-          { id: 1, name: 'CS101-A', course_code: 'CS101', code: 'AAA-111', student_count: 5, integrity_flags_count: 0, avg_cds: 0.25, difficulty_distribution: { low: 4, moderate: 1, high: 0 } },
-          { id: 2, name: 'CS101-B', course_code: 'CS101', code: 'BBB-222', student_count: 3, integrity_flags_count: 0, avg_cds: 0.30, difficulty_distribution: { low: 2, moderate: 1, high: 0 } }
+          { id: 1, name: 'CS101-A', course_code: 'CS101', code: 'AAA-111', student_count: 5, integrity_flags_count: 0, avg_cds: 0.25, difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 } },
+          { id: 2, name: 'CS101-B', course_code: 'CS101', code: 'BBB-222', student_count: 3, integrity_flags_count: 0, avg_cds: 0.30, difficulty_distribution: { excellent: 2, strong: 0, developing: 0, needs_support: 1, critical: 0 } }
         ]
       });
       
@@ -136,7 +136,7 @@ describe('InstructorSections', () => {
           student_count: 5,
           integrity_flags_count: 0,
           avg_cds: 0.25,
-          difficulty_distribution: { low: 4, moderate: 1, high: 0 }
+          difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 }
         }]
       });
       
@@ -163,7 +163,7 @@ describe('InstructorSections', () => {
           student_count: 5,
           integrity_flags_count: 0,
           avg_cds: 0.25,
-          difficulty_distribution: { low: 4, moderate: 1, high: 0 }
+          difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 }
         }]
       });
       
@@ -192,7 +192,7 @@ describe('InstructorSections', () => {
           student_count: 5,
           integrity_flags_count: 0,
           avg_cds: 0.25,
-          difficulty_distribution: { low: 4, moderate: 1, high: 0 }
+          difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 }
         }]
       });
       
@@ -219,7 +219,7 @@ describe('InstructorSections', () => {
           student_count: 5,
           integrity_flags_count: 0,
           avg_cds: 0.25,
-          difficulty_distribution: { low: 4, moderate: 1, high: 0 }
+          difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 }
         }]
       });
       
@@ -263,8 +263,8 @@ describe('InstructorSections', () => {
     it('filters sections by search query', async () => {
       api.get.mockResolvedValue({
         data: [
-          { id: 1, name: 'CS101-A', course_code: 'CS101', code: 'AAA-111', student_count: 5, integrity_flags_count: 0, avg_cds: 0.25, difficulty_distribution: { low: 4, moderate: 1, high: 0 } },
-          { id: 2, name: 'IT201-B', course_code: 'IT201', code: 'BBB-222', student_count: 3, integrity_flags_count: 0, avg_cds: 0.30, difficulty_distribution: { low: 2, moderate: 1, high: 0 } }
+          { id: 1, name: 'CS101-A', course_code: 'CS101', code: 'AAA-111', student_count: 5, integrity_flags_count: 0, avg_cds: 0.25, difficulty_distribution: { excellent: 4, strong: 0, developing: 0, needs_support: 1, critical: 0 } },
+          { id: 2, name: 'IT201-B', course_code: 'IT201', code: 'BBB-222', student_count: 3, integrity_flags_count: 0, avg_cds: 0.30, difficulty_distribution: { excellent: 2, strong: 0, developing: 0, needs_support: 1, critical: 0 } }
         ]
       });
       
@@ -282,6 +282,36 @@ describe('InstructorSections', () => {
         expect(screen.getByText('CS101-A')).toBeInTheDocument();
         expect(screen.queryByText('IT201-B')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Academic Status Labels', () => {
+    it('renders the five academic statuses from the tier distribution', async () => {
+      api.get.mockResolvedValue({
+        data: [
+          { id: 1, name: 'Sec-Excellent', course_code: 'CS1', code: 'E-111', student_count: 1, integrity_flags_count: 0, avg_cds: 0.10, difficulty_distribution: { excellent: 1, strong: 0, developing: 0, needs_support: 0, critical: 0 } },
+          { id: 2, name: 'Sec-Strong', course_code: 'CS1', code: 'S-222', student_count: 1, integrity_flags_count: 0, avg_cds: 0.25, difficulty_distribution: { excellent: 0, strong: 1, developing: 0, needs_support: 0, critical: 0 } },
+          { id: 3, name: 'Sec-Developing', course_code: 'CS1', code: 'D-333', student_count: 1, integrity_flags_count: 0, avg_cds: 0.50, difficulty_distribution: { excellent: 0, strong: 0, developing: 1, needs_support: 0, critical: 0 } },
+          { id: 4, name: 'Sec-Needs-Support', course_code: 'CS1', code: 'N-444', student_count: 1, integrity_flags_count: 0, avg_cds: 0.70, difficulty_distribution: { excellent: 0, strong: 0, developing: 0, needs_support: 1, critical: 0 } },
+          { id: 5, name: 'Sec-Critical', course_code: 'CS1', code: 'C-555', student_count: 1, integrity_flags_count: 0, avg_cds: 0.90, difficulty_distribution: { excellent: 0, strong: 0, developing: 0, needs_support: 0, critical: 1 } },
+        ],
+      });
+
+      renderWithProviders(<InstructorSections />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Sec-Excellent')).toBeInTheDocument();
+      });
+
+      // The five academic statuses, derived from each section's avg CDS
+      for (const label of ['Excellent', 'Strong', 'Developing', 'Needs Support', 'Critical']) {
+        expect(screen.getByText(label)).toBeInTheDocument();
+      }
+
+      // The legacy buckets must not appear anywhere
+      expect(screen.queryByText('Moderate')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+      expect(screen.queryByText('High')).not.toBeInTheDocument();
     });
   });
 });

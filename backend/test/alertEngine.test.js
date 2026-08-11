@@ -11,7 +11,7 @@ jest.mock('../config/db', () => ({
 }));
 
 const db = require('../config/db');
-const { generateAlerts } = require('../services/alertEngine');
+const { generateAlerts, reconcileAlerts } = require('../services/alertEngine');
 
 describe('Alert Engine Test Suite', function() {
   // Reset mocks before each test
@@ -46,16 +46,32 @@ describe('Alert Engine Test Suite', function() {
       );
       expect(db.query).toHaveBeenNthCalledWith(2,
         `INSERT INTO alerts
-       (student_id,exercise_id,section_id,cds_score,classification,concept_name)
-       VALUES($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (student_id,exercise_id) DO NOTHING`,
+         (student_id,exercise_id,section_id,cds_score,classification,concept_name)
+         VALUES($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (student_id,exercise_id) DO UPDATE SET
+           section_id     = EXCLUDED.section_id,
+           cds_score      = EXCLUDED.cds_score,
+           classification = EXCLUDED.classification,
+           concept_name   = EXCLUDED.concept_name,
+           computed_at    = NOW(),
+           dismissed      = false,
+           dismissed_at   = NULL
+         WHERE alerts.classification IN ('High','Prelim-High')`,
         [1, 1, 1, 0.8, 'High', 'Conditionals']
       );
       expect(db.query).toHaveBeenNthCalledWith(3,
         `INSERT INTO alerts
-       (student_id,exercise_id,section_id,cds_score,classification,concept_name)
-       VALUES($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (student_id,exercise_id) DO NOTHING`,
+         (student_id,exercise_id,section_id,cds_score,classification,concept_name)
+         VALUES($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (student_id,exercise_id) DO UPDATE SET
+           section_id     = EXCLUDED.section_id,
+           cds_score      = EXCLUDED.cds_score,
+           classification = EXCLUDED.classification,
+           concept_name   = EXCLUDED.concept_name,
+           computed_at    = NOW(),
+           dismissed      = false,
+           dismissed_at   = NULL
+         WHERE alerts.classification IN ('High','Prelim-High')`,
         [2, 1, 1, 0.75, 'High', 'Conditionals']
       );
 
@@ -105,9 +121,17 @@ describe('Alert Engine Test Suite', function() {
       );
       expect(db.query).toHaveBeenNthCalledWith(2,
         `INSERT INTO alerts
-       (student_id,exercise_id,section_id,cds_score,classification,concept_name)
-       VALUES($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (student_id,exercise_id) DO NOTHING`,
+         (student_id,exercise_id,section_id,cds_score,classification,concept_name)
+         VALUES($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (student_id,exercise_id) DO UPDATE SET
+           section_id     = EXCLUDED.section_id,
+           cds_score      = EXCLUDED.cds_score,
+           classification = EXCLUDED.classification,
+           concept_name   = EXCLUDED.concept_name,
+           computed_at    = NOW(),
+           dismissed      = false,
+           dismissed_at   = NULL
+         WHERE alerts.classification IN ('High','Prelim-High')`,
         [5, 2, 2, 0.9, 'Prelim-High', 'Loops']
       );
 
@@ -125,7 +149,7 @@ describe('Alert Engine Test Suite', function() {
       );
     });
 
-    it('should use INSERT ... ON CONFLICT DO NOTHING to avoid duplicates', async function() {
+    it('should upsert on conflict so existing alerts are re-anchored, not duplicated', async function() {
       // Mock database query to return 1 student with High CDS
       db.query.mockResolvedValueOnce({ rows: [
         { student_id: 1, section_id: 1, cds: 0.8, classification: 'High', concept_name: 'Loops' }
@@ -136,16 +160,73 @@ describe('Alert Engine Test Suite', function() {
 
       const result = await generateAlerts(1, db);
 
-      // Check that the insert query uses ON CONFLICT clause
+      // The upsert re-anchors the existing row (updates CDS data, clears
+      // dismissal) via ON CONFLICT ... DO UPDATE, guarded by the WHERE clause
+      // so micro-concept alerts are never overwritten by a CDS recompute.
       expect(db.query).toHaveBeenNthCalledWith(2,
         `INSERT INTO alerts
-       (student_id,exercise_id,section_id,cds_score,classification,concept_name)
-       VALUES($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (student_id,exercise_id) DO NOTHING`,
+         (student_id,exercise_id,section_id,cds_score,classification,concept_name)
+         VALUES($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (student_id,exercise_id) DO UPDATE SET
+           section_id     = EXCLUDED.section_id,
+           cds_score      = EXCLUDED.cds_score,
+           classification = EXCLUDED.classification,
+           concept_name   = EXCLUDED.concept_name,
+           computed_at    = NOW(),
+           dismissed      = false,
+           dismissed_at   = NULL
+         WHERE alerts.classification IN ('High','Prelim-High')`,
         [1, 1, 1, 0.8, 'High', 'Loops']
       );
 
       assert.strictEqual(result.alertsGenerated, 1);
+    });
+  });
+
+  describe('reconcileAlerts', function() {
+    it('should dismiss active High/Prelim-High alerts for students who no longer qualify', async function() {
+      db.query.mockResolvedValueOnce({ rowCount: 2 });
+
+      await reconcileAlerts(10, db);
+
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query).toHaveBeenNthCalledWith(1,
+        `UPDATE alerts a
+     SET dismissed = true, dismissed_at = NOW()
+     WHERE a.exercise_id = $1
+       AND a.dismissed = false
+       AND a.classification IN ('High','Prelim-High')
+       AND NOT EXISTS (
+         SELECT 1 FROM cds_scores cs
+         WHERE cs.exercise_id = a.exercise_id
+           AND cs.student_id = a.student_id
+           AND cs.classification IN ('High','Prelim-High')
+       )`,
+        [10]
+      );
+    });
+
+    it('should leave alerts for students still classified High untouched', async function() {
+      db.query.mockResolvedValueOnce({ rowCount: 0 });
+
+      await reconcileAlerts(10, db);
+
+      // Only the UPDATE runs; the NOT EXISTS guard means a student whose
+      // latest cds_scores row is still High/Prelim-High is not dismissed.
+      expect(db.query).toHaveBeenCalledTimes(1);
+      const [sql, params] = db.query.mock.calls[0];
+      expect(sql).toContain('NOT EXISTS');
+      expect(sql).toContain("cs.classification IN ('High','Prelim-High')");
+      expect(params).toEqual([10]);
+    });
+
+    it('should propagate database errors', async function() {
+      db.query.mockRejectedValueOnce(new Error('Database connection failed'));
+
+      await assert.rejects(
+        reconcileAlerts(10, db),
+        /Database connection failed/
+      );
     });
   });
 });

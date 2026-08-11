@@ -8,7 +8,7 @@
  */
 
 jest.mock('../config/db', () => ({ query: jest.fn() }));
-jest.mock('../services/alertEngine', () => ({ generateAlerts: jest.fn() }));
+jest.mock('../services/alertEngine', () => ({ generateAlerts: jest.fn(), reconcileAlerts: jest.fn() }));
 
 const db = require('../config/db');
 const alertEngine = require('../services/alertEngine');
@@ -17,6 +17,7 @@ const { computeBatchCDS, calculateLiveCDS, computeClassStats, normalizeWithStats
 beforeEach(() => {
   jest.clearAllMocks();
   alertEngine.generateAlerts.mockResolvedValue(undefined);
+  alertEngine.reconcileAlerts.mockResolvedValue(undefined);
 });
 
 function makeStudent(id, name) {
@@ -427,5 +428,53 @@ describe('CDS State Transition — Mixed Flag Types Parity', () => {
     expect(normA.nrs).toBe(0.00);
     expect(normA.nts).toBe(0.01); // absolute: 30s / (45min * 60)
     expect(normB.nts).toBe(0.02); // absolute: 60s / (45min * 60)
+  });
+});
+
+// ── Test: Intervention queue — alert lifecycle hooks ─────────────────────────
+
+describe('CDS State Transition — Alert Lifecycle Hooks', () => {
+
+  it('calls generateAlerts then reconcileAlerts after a batch computation', async () => {
+    const exerciseId = 10;
+    const students = [makeStudent(1, 'S1')];
+    const subs = [
+      { student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null },
+      { student_id: 1, attempt_number: 2, is_correct: true,  time_spent_seconds: 90, code: 'x', is_verified: true, flag_id: null },
+    ];
+
+    await runBatchCds(exerciseId, students, [], subs);
+
+    expect(alertEngine.generateAlerts).toHaveBeenCalledTimes(1);
+    expect(alertEngine.generateAlerts).toHaveBeenCalledWith(exerciseId, db);
+    expect(alertEngine.reconcileAlerts).toHaveBeenCalledTimes(1);
+    expect(alertEngine.reconcileAlerts).toHaveBeenCalledWith(exerciseId, db);
+
+    // Reconcile must run AFTER alerts are (re)generated so freshly
+    // re-anchored alerts are not immediately dismissed.
+    const genOrder = alertEngine.generateAlerts.mock.invocationCallOrder[0];
+    const recOrder = alertEngine.reconcileAlerts.mock.invocationCallOrder[0];
+    expect(genOrder).toBeLessThan(recOrder);
+  });
+
+  it('rolls back without reconciling when a batch computation fails', async () => {
+    const exerciseId = 999;
+    const students = [makeStudent(1, 'S1')];
+    const subs = [
+      { student_id: 1, attempt_number: 1, is_correct: false, time_spent_seconds: 60, code: 'x', is_verified: true, flag_id: null },
+    ];
+
+    // Only mock the first prep query; the submission query will reject.
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: exerciseId, section_id: 1, time_limit_minutes: 45 }] })
+      .mockResolvedValueOnce({ rows: students })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(new Error('boom'));
+
+    await expect(computeBatchCDS(exerciseId, db)).rejects.toThrow('boom');
+
+    // Alert generation/reconciliation must not run for a failed computation.
+    expect(alertEngine.generateAlerts).not.toHaveBeenCalled();
+    expect(alertEngine.reconcileAlerts).not.toHaveBeenCalled();
   });
 });

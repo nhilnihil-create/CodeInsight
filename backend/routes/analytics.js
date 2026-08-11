@@ -5,7 +5,7 @@ const { verifyToken, requireRole } = require('../middleware/auth');
 
 // Existing endpoints
 router.get('/heatmap/:sectionId',          verifyToken, requireRole('instructor'), ctrl.heatmap);
-router.get('/alerts/:sectionId',           verifyToken, requireRole('instructor'), ctrl.getAlerts);
+router.get('/alerts/:sectionId',           verifyToken, requireRole('instructor'), ctrl.getInterventionQueue);
 router.get('/activity/:sectionId',         verifyToken, requireRole('instructor'), ctrl.recentActivity);
 router.put('/alerts/:alertId/review',      verifyToken, requireRole('instructor'), ctrl.reviewAlert);
 router.get('/live/:exerciseId',            verifyToken, requireRole('instructor'), ctrl.liveRanking);

@@ -353,6 +353,12 @@ CREATE TABLE IF NOT EXISTS alerts (
   concept_name   VARCHAR(100),
   is_reviewed    BOOLEAN DEFAULT false,
   created_at     TIMESTAMP DEFAULT NOW(),
+  -- Intervention-queue lifecycle: computed_at is re-anchored (NOW()) every
+  -- time the CDS alert is regenerated; a row is dismissed (auto-resolved)
+  -- by reconcileAlerts when the student no longer qualifies as High.
+  computed_at    TIMESTAMPTZ DEFAULT NOW(),
+  dismissed      BOOLEAN DEFAULT false,
+  dismissed_at   TIMESTAMPTZ,
   UNIQUE(student_id, exercise_id)
 );
 

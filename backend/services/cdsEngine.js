@@ -297,6 +297,9 @@ try {
   }
 
   await alertEngine.generateAlerts(exerciseId, client);
+  // Auto-resolve alerts for students who no longer qualify as High; must run
+  // after generateAlerts so freshly re-anchored rows stay active.
+  await alertEngine.reconcileAlerts(exerciseId, client);
   if (isPool) await client.query('COMMIT');
 } catch (txErr) {
   if (isPool) await client.query('ROLLBACK');

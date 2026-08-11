@@ -226,6 +226,136 @@ exports.getAlerts = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Intervention queue: per-student AVG CDS from cds_scores, ranked by risk.
+// Filtering is AVG-based (avg CDS > 0.60) so the queue always agrees with the
+// dashboard at-risk banner. Per-student worst-exercise rows are attached as
+// display context only (the exercise/concept each student struggles with most).
+exports.getInterventionQueue = async (req, res, next) => {
+  try {
+    const { sectionId } = req.params;
+    const isAll = sectionId === 'all';
+
+    // Scope guard: numeric section id or 'all' (mirror getInstructorDashboard).
+    if (!isAll && !/^\d+$/.test(String(sectionId))) {
+      return res.status(400).json({ error: 'sectionId must be a numeric section id or "all"' });
+    }
+    const secCond = isAll
+      ? `section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`
+      : `section_id = $1`;
+    const csCond = isAll
+      ? `cs.section_id IN (SELECT id FROM sections WHERE instructor_id = $1)`
+      : `cs.section_id = $1`;
+    const secParam = isAll ? [String(req.user?.id)] : [sectionId];
+
+    if (!isAll) {
+      const sectionRes = await db.query('SELECT id FROM sections WHERE id = $1', [sectionId]);
+      if (!sectionRes.rows.length) {
+        return res.status(404).json({ error: 'Section not found' });
+      }
+    }
+
+    // ── Members: total active students in scope ─────────────────────────
+    const { rows: memberRows } = await db.query(
+      `SELECT COUNT(*)::INTEGER AS total
+       FROM enrollments
+       WHERE ${secCond} AND dropped_at IS NULL`,
+      secParam
+    );
+    const totalStudents = memberRows[0]?.total || 0;
+
+    // ── Query A: per-student average CDS (active students only) ─────────
+    const avgRes = await db.query(
+      `SELECT cs.student_id,
+              u.name AS student_name,
+              AVG(cs.cds)::DOUBLE PRECISION AS avg_cds
+       FROM cds_scores cs
+       JOIN users u        ON u.id = cs.student_id
+       JOIN enrollments en ON en.student_id = cs.student_id
+                          AND en.section_id = cs.section_id
+       WHERE ${csCond} AND en.dropped_at IS NULL AND cs.cds IS NOT NULL
+       GROUP BY cs.student_id, u.name`,
+      secParam
+    );
+
+    // ── Query B: per-student worst exercise (highest CDS) — context only ─
+    const worstRes = await db.query(
+      `SELECT DISTINCT ON (cs.student_id)
+              cs.student_id,
+              cs.exercise_id,
+              e.title           AS exercise_title,
+              c.name            AS concept_name,
+              cs.cds,
+              cs.computed_at    AS computed_at
+       FROM cds_scores cs
+       JOIN exercises e    ON e.id = cs.exercise_id
+       LEFT JOIN concepts c ON c.id = e.concept_id
+       WHERE ${csCond} AND cs.cds IS NOT NULL
+       ORDER BY cs.student_id, cs.cds DESC`,
+      secParam
+    );
+
+    // ── Tier mapping (authoritative CDS thresholds, mirrors tierForCds) ─
+    const tierFor = (cds) => {
+      if (cds === null || cds === undefined || isNaN(cds) || cds === 0) return 'excellent';
+      if (cds <= 0.20) return 'excellent';
+      if (cds <= 0.40) return 'strong';
+      if (cds <= 0.60) return 'developing';
+      if (cds <= 0.80) return 'needs_support';
+      return 'critical';
+    };
+    const TIER_RANK = { critical: 0, needs_support: 1, developing: 2, strong: 3, excellent: 4 };
+    const worstByStudent = new Map(worstRes.rows.map((r) => [r.student_id, r]));
+
+    // Students whose average CDS is High risk (> 0.60) are the queue — the
+    // exact same signal as the dashboard at-risk banner, so the two always
+    // agree. With avg-based filtering the roster can only ever contain the
+    // needs_support and critical tiers ("critical and significant struggle").
+    // Each row carries the worst-exercise row purely as display context.
+    const atRisk = avgRes.rows
+      .map((r) => {
+        const avgCds = parseFloat(r.avg_cds);
+        const worst = worstByStudent.get(r.student_id) || {};
+        return {
+          studentId: r.student_id,
+          studentName: r.student_name,
+          avgCds,
+          exerciseId: worst.exercise_id ?? null,
+          exerciseTitle: worst.exercise_title ?? null,
+          conceptName: worst.concept_name ?? null,
+          worstCds: worst.cds !== undefined && worst.cds !== null ? parseFloat(worst.cds) : null,
+          computedAt: worst.computed_at ?? null,
+          tier: tierFor(avgCds),
+        };
+      })
+      .filter((s) => s.avgCds > 0.60)
+      .sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier] || b.avgCds - a.avgCds);
+
+    // ── Tier distribution (per-student, from AVG CDS, incl. unstarted) ───
+    const tierDistribution = {
+      excellent: 0, strong: 0, developing: 0, needs_support: 0, critical: 0, unstarted: 0,
+    };
+    for (const r of avgRes.rows) {
+      tierDistribution[tierFor(parseFloat(r.avg_cds))] += 1;
+    }
+    tierDistribution.unstarted = Math.max(0, totalStudents - avgRes.rows.length);
+
+    const insight = {
+      atRiskCount: atRisk.length,
+      summary: atRisk.length > 0
+        ? `${atRisk.length} ${atRisk.length === 1 ? 'student is' : 'students are'} at high risk of failing ${isAll ? 'your sections' : 'this section'}.`
+        : `No students currently at high risk${isAll ? ' across your sections' : ' in this section'}.`,
+    };
+
+    res.json({
+      sectionId: isAll ? 'all' : parseInt(sectionId, 10),
+      totalStudents,
+      atRisk,
+      tierDistribution,
+      insight,
+    });
+  } catch (err) { next(err); }
+};
+
 exports.reviewAlert = async (req, res, next) => {
   try {
     await db.query(
@@ -1024,15 +1154,16 @@ exports.getInstructorDashboard = async (req, res, next) => {
       // 2. Current avg CDS (within period)
       db.query(`SELECT COALESCE(AVG(cds), 0)::DOUBLE PRECISION AS avg_cds FROM cds_scores WHERE ${secCond} AND computed_at > NOW() - INTERVAL '1 day' * $2`, [...secParam, days]),
 
-      // 3. At-risk count (avg CDS > 0.50 within period)
+      // 3. At-risk count (avg CDS > 0.60, all-time — not period-windowed so
+      //    the count is stable and comparable week over week)
       db.query(
         `SELECT COUNT(*)::INTEGER AS at_risk FROM (
           SELECT cs.student_id FROM cds_scores cs
-          WHERE ${secCond} AND cs.computed_at > NOW() - INTERVAL '1 day' * $2
+          WHERE ${secCond} AND cs.cds IS NOT NULL
           GROUP BY cs.student_id
           HAVING AVG(cs.cds) > 0.60
         ) sub`,
-        [...secParam, days]
+        secParam
       ),
 
       // 4. Open integrity flag count (last 24h)

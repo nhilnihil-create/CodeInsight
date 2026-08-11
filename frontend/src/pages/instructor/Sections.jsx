@@ -22,18 +22,10 @@ import {
 import { Label } from "@/components/ui/label";
 import InsightHeader from "@/components/ui/insight-header";
 import DecisionList from "@/components/ui/decision-list";
-import RiskBadge from "@/components/ui/risk-badge";
 import CDSPillDelta from "@/components/ui/cds-pill-delta";
+import { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import api from "@/services/api";
 import { toast } from "sonner";
-
-function computeLevel(avgCds) {
-  if (avgCds == null || avgCds === 0) return "na";
-  if (avgCds <= 0.20) return "low";
-  if (avgCds <= 0.40) return "moderate";
-  if (avgCds <= 0.60) return "high";
-  return "critical";
-}
 
 function buildTerm(row) {
   const sem = row.semester || "Sem 1";
@@ -50,11 +42,13 @@ async function fetchSections() {
     term: buildTerm(s),
     code: s.code,
     students: s.student_count ?? 0,
-    atRisk: s.difficulty_distribution?.high ?? 0,
+    atRisk:
+      (s.difficulty_distribution?.needs_support ?? 0) +
+      (s.difficulty_distribution?.critical ?? 0),
     avgCds: s.avg_cds ?? 0,
     cdsDelta: 0,
     flags: s.integrity_flags_count ?? 0,
-    level: computeLevel(s.avg_cds),
+    level: tierForCds(s.avg_cds),
   }));
 }
 
@@ -152,7 +146,13 @@ export default function InstructorSections() {
     meta: `${s.students} students`,
     badge: (
       <div className="flex items-center gap-2">
-        <RiskBadge level={s.level} />
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${TIER_META[s.level].text}`}
+          aria-label={`Mastery level: ${TIER_META[s.level].label}`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${TIER_META[s.level].dot}`} aria-hidden="true" />
+          {TIER_META[s.level].label}
+        </span>
         <CDSPillDelta
           value={s.avgCds}
           delta={s.cdsDelta}

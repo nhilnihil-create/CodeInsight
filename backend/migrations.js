@@ -373,6 +373,15 @@ async function applySchemaPatches() {
     patches.push(addColumnIfMissing('cds_scores', 'visible', 'BOOLEAN DEFAULT true'));
   }
 
+  // Intervention-queue lifecycle columns (see schema.sql `alerts`).
+  // computed_at = last re-anchor timestamp; dismissed/dismissed_at mark
+  // rows auto-resolved by reconcileAlerts.
+  if (await tableExists('alerts')) {
+    patches.push(addColumnIfMissing('alerts', 'computed_at', 'TIMESTAMPTZ DEFAULT NOW()'));
+    patches.push(addColumnIfMissing('alerts', 'dismissed', 'BOOLEAN DEFAULT false'));
+    patches.push(addColumnIfMissing('alerts', 'dismissed_at', 'TIMESTAMPTZ'));
+  }
+
   if (await tableExists('users')) {
     // Bring CHECK constraint in line with migration 006 (adds 'admin').
     // Idempotent: drops the stale constraint, then adds the up-to-date one.

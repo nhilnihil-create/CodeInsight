@@ -56,30 +56,49 @@ exports.list = async (req, res, next) => {
     }
     const r = await db.query(query, params);
     
-    // For instructors, enrich data with difficulty distribution (batched query)
+    // For instructors, enrich data with per-student tier distribution (batched)
     if (req.user.role === 'instructor') {
       const sectionIds = r.rows.map(s => s.id);
       if (sectionIds.length > 0) {
-        const diffQuery = `
-          SELECT 
-            section_id,
-            COUNT(CASE WHEN cs.cds <= 0.40 THEN 1 END) AS low_count,
-            COUNT(CASE WHEN cs.cds > 0.40 AND cs.cds <= 0.80 THEN 1 END) AS elevated_count,
-            COUNT(CASE WHEN cs.cds > 0.80 THEN 1 END) AS critical_count
-          FROM cds_scores cs WHERE cs.section_id = ANY($1)
-          GROUP BY cs.section_id
+        // Per-student average CDS per section (active students only). Students
+        // without any cds_scores (NULL avg) fall into the excellent tier, which
+        // mirrors the locked null/NaN/0 -> 'excellent' convention.
+        const distQuery = `
+          SELECT en.section_id, en.student_id, avg_rows.avg_cds
+          FROM enrollments en
+          LEFT JOIN (
+            SELECT cs.section_id, cs.student_id, AVG(cs.cds)::DOUBLE PRECISION AS avg_cds
+            FROM cds_scores cs
+            WHERE cs.cds IS NOT NULL
+            GROUP BY cs.section_id, cs.student_id
+          ) avg_rows ON avg_rows.section_id = en.section_id
+                     AND avg_rows.student_id = en.student_id
+          WHERE en.section_id = ANY($1) AND en.dropped_at IS NULL
         `;
-        const diffRes = await db.query(diffQuery, [sectionIds]);
-        const diffMap = {};
-        for (const row of diffRes.rows) {
-          diffMap[row.section_id] = {
-            low: parseInt(row.low_count),
-            elevated: parseInt(row.elevated_count),
-            critical: parseInt(row.critical_count)
-          };
+        const distRes = await db.query(distQuery, [sectionIds]);
+
+        // Tier mapping (authoritative CDS thresholds, mirrors frontend tierForCds)
+        const tierFor = (cds) => {
+          if (cds === null || cds === undefined || isNaN(cds) || cds === 0) return 'excellent';
+          if (cds <= 0.20) return 'excellent';
+          if (cds <= 0.40) return 'strong';
+          if (cds <= 0.60) return 'developing';
+          if (cds <= 0.80) return 'needs_support';
+          return 'critical';
+        };
+
+        const distMap = {};
+        for (const row of distRes.rows) {
+          const tier = tierFor(row.avg_cds === null || row.avg_cds === undefined ? null : parseFloat(row.avg_cds));
+          const m = distMap[row.section_id]
+            || (distMap[row.section_id] = { excellent: 0, strong: 0, developing: 0, needs_support: 0, critical: 0 });
+          m[tier] += 1;
         }
         for (const section of r.rows) {
-          section.difficulty_distribution = diffMap[section.id] || { low: 0, elevated: 0, critical: 0 };
+          const d = distMap[section.id]
+            || { excellent: 0, strong: 0, developing: 0, needs_support: 0, critical: 0 };
+          section.difficulty_distribution = d;
+          section.at_risk_count = d.needs_support + d.critical;
         }
       }
     }

@@ -581,10 +581,83 @@ const options = {
       '/api/analytics/alerts/{sectionId}': {
         get: {
           tags: ['Analytics'],
-          summary: 'Get alerts for a section',
+          summary: 'Get intervention queue for a section (per-student average CDS, High risk only)',
+          description:
+            'Returns the live at-risk queue: each student whose average CDS exceeds the High risk ' +
+            'threshold (0.60) — the same signal as the dashboard at-risk banner, so the queue and ' +
+            'banner always agree. Each row also carries the student\'s worst-exercise CDS and ' +
+            'exercise/concept as display context. Includes the per-student tier distribution across ' +
+            'the whole scope and the total active enrollment. Supports sectionId="all" for the ' +
+            'instructor\'s combined sections.',
           security: [{ cookieAuth: [] }],
-          parameters: [{ in: 'path', name: 'sectionId', required: true, schema: { type: 'integer' } }],
-          responses: { 200: { description: 'Array of alerts' } },
+          parameters: [{ in: 'path', name: 'sectionId', required: true, schema: { type: 'string' } }],
+          responses: {
+            200: {
+              description: 'Intervention queue with at-risk students and tier distribution',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      sectionId: { type: ['integer', 'string'], description: 'Resolved section id ("all" when scope is all sections)' },
+                      totalStudents: { type: 'integer', description: 'Active (non-dropped) students in scope' },
+                      atRisk: {
+                        type: 'array',
+                        description: 'Students with average CDS > 0.60, critical first, then highest average CDS',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            studentId: { type: 'integer' },
+                            studentName: { type: 'string' },
+                            avgCds: { type: 'number', description: 'Average CDS across the student\'s scored exercises' },
+                            exerciseId: { type: ['integer', 'null'] },
+                            exerciseTitle: { type: ['string', 'null'] },
+                            conceptName: { type: ['string', 'null'] },
+                            worstCds: { type: ['number', 'null'], description: 'Worst (highest) exercise CDS — display context only; NOT the risk filter' },
+                            computedAt: { type: ['string', 'null'], format: 'date-time' },
+                            tier: { type: 'string', enum: ['needs_support', 'critical'], description: 'Derived from avgCds (average > 0.60 maps to exactly these two tiers)' },
+                          },
+                        },
+                      },
+                      tierDistribution: {
+                        type: 'object',
+                        description: 'Per-student tier counts from average CDS across the whole scope (unstarted = enrolled without any CDS)',
+                        properties: {
+                          excellent: { type: 'integer' },
+                          strong: { type: 'integer' },
+                          developing: { type: 'integer' },
+                          needs_support: { type: 'integer' },
+                          critical: { type: 'integer' },
+                          unstarted: { type: 'integer' },
+                        },
+                      },
+                      insight: {
+                        type: 'object',
+                        properties: {
+                          atRiskCount: { type: 'integer' },
+                          summary: { type: 'string' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            400: { description: 'sectionId is not a numeric section id or "all"' },
+            404: { description: 'Section not found' },
+          },
+        },
+      },
+      '/api/analytics/alerts/{alertId}/review': {
+        put: {
+          tags: ['Analytics'],
+          summary: 'Mark an alert as reviewed (legacy alerts table endpoint, kept for audit)',
+          security: [{ cookieAuth: [] }],
+          parameters: [{ in: 'path', name: 'alertId', required: true, schema: { type: 'integer' } }],
+          responses: {
+            200: { description: 'Alert marked as reviewed' },
+            404: { description: 'Alert not found' },
+          },
         },
       },
       '/api/analytics/student/{studentId}/profile': {
@@ -602,7 +675,51 @@ const options = {
           summary: 'Get instructor dashboard aggregate',
           security: [{ cookieAuth: [] }],
           parameters: [{ in: 'path', name: 'sectionId', required: true, schema: { type: 'integer' } }],
-          responses: { 200: { description: 'Dashboard data' } },
+          responses: {
+            200: {
+              description: 'Dashboard aggregates (scope can be "all" for all sections of the instructor)',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      sectionId: { type: ['integer', 'string'] },
+                      totalStudents: { type: 'integer' },
+                      avgCdsRes: { type: 'object' },
+                      trend: {
+                        type: 'object',
+                        description: 'Weekly average CDS per week for the scope',
+                        properties: { weeks: { type: 'array', items: { type: 'string' } }, avgCds: { type: 'array', items: { type: 'number' } } },
+                      },
+                      conceptMastery: { type: 'object', description: 'Average CDS per concept' },
+                      tierDistribution: {
+                        type: 'object',
+                        description: 'Count of students per mastery tier across the scope',
+                        properties: {
+                          excellent: { type: 'integer' },
+                          strong: { type: 'integer' },
+                          developing: { type: 'integer' },
+                          needs_support: { type: 'integer' },
+                          critical: { type: 'integer' },
+                          unstarted: { type: 'integer' },
+                        },
+                      },
+                      atRiskCount: { type: 'integer', description: 'Students with average CDS > 0.60' },
+                      priorPeriod: { type: 'object', description: 'Week-over-week deltas for avg CDS and at-risk count' },
+                      insight: {
+                        type: 'object',
+                        properties: {
+                          summary: { type: 'string' },
+                          atRiskCount: { type: 'integer' },
+                          recommendedFocus: { type: 'array', items: { type: 'string' } },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       // ── Integrity ───────────────────────────────────────────

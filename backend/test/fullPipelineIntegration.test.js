@@ -176,6 +176,91 @@ describe('Full Pipeline Integration — Submission → CDS → Alert', function(
       strictEqual(parseInt(rows[0].count), 0, `${check.label}: no orphaned rows`);
     }
   });
+
+  it('auto-dismisses alerts for students who no longer qualify as High after recompute', async () => {
+    // 5 valid submitters → PRELIM tier (>= PRELIM_MIN): both struggling
+    // students must exceed CDS 0.80 to be stored as 'Prelim-High'.
+    const scenario = await seedFullScenario({ studentCount: 5, exercise: { timeLimit: 60 } });
+    const cleanIds = scenario.studentIds.slice(0, 3);
+    const [sidNowHigh, sidStillHigh] = scenario.studentIds.slice(3);
+
+    // Clean students: pass quickly → very low CDS, no alerts.
+    for (const sid of cleanIds) {
+      await seedSubmission(sid, scenario.exerciseId, {
+        attemptNumber: 1,
+        isCorrect: true,
+        timeSpent: 30,
+        code: 'int main() { return 0; }',
+        testResults: [{ passed: true }],
+      });
+    }
+
+    // Struggling students: 8 failures + a late pass with a very slow final
+    // attempt. NER=NRS=1.0 (worst in class) and NTS > 0.2 (max_time > 720s)
+    // push CDS over 0.80 → 'Prelim-High'.
+    const profiles = {
+      [sidNowHigh]: { finalTime: 900 },
+      [sidStillHigh]: { finalTime: 840 },
+    };
+    for (const [sid, profile] of Object.entries(profiles)) {
+      for (let attempt = 1; attempt <= 9; attempt++) {
+        const isCorrect = attempt === 9;
+        await seedSubmission(parseInt(sid, 10), scenario.exerciseId, {
+          attemptNumber: attempt,
+          isCorrect,
+          timeSpent: isCorrect ? profile.finalTime : attempt * 30,
+          code: `int main() { return ${attempt}; }`,
+          testResults: [{ passed: isCorrect }],
+        });
+      }
+    }
+
+    // First batch compute: generateAlerts + reconcileAlerts both run inside.
+    await cdsEngine.computeBatchCDS(scenario.exerciseId, testPool);
+
+    const { rows: highRows } = await testPool.query(
+      `SELECT student_id, classification FROM cds_scores
+       WHERE exercise_id = $1 AND classification IN ('High','Prelim-High')
+       ORDER BY student_id`,
+      [scenario.exerciseId]
+    );
+    const highStudents = highRows.map(r => r.student_id);
+    ok(highStudents.includes(sidNowHigh) && highStudents.includes(sidStillHigh),
+      `both struggling students classified High/Prelim-High (got: ${highStudents.join(',')})`);
+
+    const { rows: activeAlerts } = await testPool.query(
+      `SELECT student_id, dismissed FROM alerts
+       WHERE exercise_id = $1 AND student_id = ANY($2::int[])`,
+      [scenario.exerciseId, highStudents]
+    );
+    strictEqual(activeAlerts.length, 2, 'an alert exists per High student');
+    for (const a of activeAlerts) {
+      strictEqual(a.dismissed, false, `alert for student ${a.student_id} starts active`);
+    }
+
+    // Student improves: their 3rd attempt now passes, so the post-solution
+    // cutoff drops most counted failures and their CDS collapses.
+    await testPool.query(
+      `UPDATE submissions SET is_correct = true
+       WHERE student_id = $1 AND exercise_id = $2 AND attempt_number = 3`,
+      [sidNowHigh, scenario.exerciseId]
+    );
+    await cdsEngine.computeBatchCDS(scenario.exerciseId, testPool);
+
+    const { rows: afterRecompute } = await testPool.query(
+      `SELECT a.student_id, a.dismissed, a.dismissed_at
+       FROM alerts a
+       WHERE a.exercise_id = $1 AND a.student_id = ANY($2::int[])`,
+      [scenario.exerciseId, highStudents]
+    );
+    const byStudent = Object.fromEntries(afterRecompute.map(a => [a.student_id, a]));
+
+    ok(byStudent[sidNowHigh] && byStudent[sidNowHigh].dismissed === true,
+      'improved student alert is auto-resolved');
+    ok(byStudent[sidNowHigh].dismissed_at, 'dismissed_at timestamp recorded');
+    strictEqual(byStudent[sidStillHigh].dismissed, false,
+      'still-High student alert remains active');
+  });
 });
 
 describe('Full Pipeline Integration — Edge Cases', function() {

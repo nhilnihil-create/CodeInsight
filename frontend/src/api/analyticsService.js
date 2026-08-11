@@ -119,22 +119,15 @@ const analyticsService = {
   },
 
   /**
-   * Get unreviewed CDS-based alerts for a section (Intervention Queue)
-   * @param {number} sectionId
-   * @returns {Promise<Array>} Array of alert objects with student_name, exercise_title, etc.
+   * Get the live intervention queue for a section (per-student average CDS,
+   * High risk only — avg CDS > 0.60, the same signal as the dashboard banner).
+   * Supports sectionId="all" for the instructor's combined sections.
+   * @param {number|string} sectionId
+   * @returns {Promise<Object>} { sectionId, totalStudents, atRisk, tierDistribution, insight }
    */
-  getSectionAlerts: (sectionId) => {
+  getInterventionQueue: (sectionId) => {
     return api.get(`/api/analytics/alerts/${sectionId}`);
   },
-
-  /**
-   * Mark a CDS-based alert as reviewed
-   * @param {number} alertId
-   * @returns {Promise<Object>}
-   */
-  reviewAlert: (alertId) => {
-    return api.put(`/api/analytics/alerts/${alertId}/review`);
-  }
 };
 
 export default analyticsService;
