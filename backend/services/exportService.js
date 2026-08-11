@@ -300,8 +300,8 @@ const CONCEPT_MASTERY_COLUMNS = [
   { key: 'name', header: 'Student Name', width: 25 },
   { key: 'email', header: 'Email', width: 35 },
   { key: 'concept', header: 'Concept', width: 30 },
-  { key: 'cmi', header: 'CMI', width: 12, numeric: true },
-  { key: 'velocity', header: 'Velocity', width: 12, numeric: true },
+  { key: 'cmi', header: 'Concept Mastery Index', width: 12, numeric: true },
+  { key: 'velocity', header: 'Mastery Velocity', width: 12, numeric: true },
   { key: 'last_updated', header: 'Last Updated', width: 25, format: formatIsoTimestamp },
 ];
 
@@ -473,15 +473,19 @@ const CDS_COLUMNS = [
 ];
 
 /**
- * CDS history — one row per student per exercise score (same source rows as
- * analyticsController.getSectionLongitudinal, minus the progression grouping).
+ * CDS history — one row per student per calendar day (latest score of the
+ * day; null/unscored rows dropped).
  */
 async function fetchCds(sectionId, opts = {}) {
   let query = `
-    SELECT u.name, u.email, cs.computed_at AS date, cs.cds, cs.classification
-    FROM cds_scores cs
-    JOIN users u ON u.id = cs.student_id
-    WHERE cs.section_id = $1`;
+    SELECT t.name, t.email, t.date, t.cds, t.classification
+    FROM (
+      SELECT DISTINCT ON (u.id, cs.computed_at::date)
+             u.name, u.email, cs.computed_at::date AS date, cs.cds, cs.classification
+      FROM cds_scores cs
+      JOIN users u ON u.id = cs.student_id
+      WHERE cs.section_id = $1
+        AND cs.cds IS NOT NULL`;
   const values = [sectionId];
   if (opts.studentId) {
     values.push(opts.studentId);
@@ -495,7 +499,11 @@ async function fetchCds(sectionId, opts = {}) {
     values.push(opts.endDate);
     query += ` AND cs.computed_at <= $${values.length}`;
   }
-  query += ' ORDER BY u.name, cs.computed_at ASC, cs.exercise_id, cs.id LIMIT 25001';
+  query += `
+      ORDER BY u.id, cs.computed_at::date, cs.computed_at DESC, cs.id DESC
+    ) t
+    ORDER BY t.name, t.date
+    LIMIT 25001`;
   const { rows } = await db.query(query, values);
   // pg returns DECIMAL as a string; normalize cds to a number (0–1) for
   // numeric cells and raw-fidelity JSON output.

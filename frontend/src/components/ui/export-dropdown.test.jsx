@@ -42,8 +42,16 @@ describe('ExportDropdown', () => {
     openMenu();
 
     expect(screen.getByText('CSV')).toBeInTheDocument();
-    expect(screen.getByText('Excel')).toBeInTheDocument();
+    expect(screen.getByText('Excel (XLSX)')).toBeInTheDocument();
     expect(screen.getByText('JSON')).toBeInTheDocument();
+    expect(screen.getByText('Spreadsheet-friendly')).toBeInTheDocument();
+    expect(screen.getByText('Formatted workbook')).toBeInTheDocument();
+    expect(screen.getByText('Raw data')).toBeInTheDocument();
+  });
+
+  it('renders the label prop on the trigger button', () => {
+    render(<ExportDropdown sectionId={7} domain="roster" label="Export Roster" />);
+    expect(screen.getByRole('button', { name: /export roster/i })).toBeInTheDocument();
   });
 
   it('is disabled when sectionId is missing', () => {

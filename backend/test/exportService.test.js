@@ -477,7 +477,7 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
   });
 
   describe('concept_mastery domain', () => {
-    it('exports one row per student × concept with CMI, Velocity and ISO Last Updated', async () => {
+    it('exports one row per student × concept with Concept Mastery Index, Mastery Velocity and ISO Last Updated', async () => {
       const { rows: second } = await testPool.query(
         `INSERT INTO concepts (name) VALUES ($1) RETURNING id`, ['Arrays']
       );
@@ -497,17 +497,17 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
       const out = await formatExport('concept_mastery', seeded.sectionId, 'csv');
       const records = parseCsv(out.buffer);
       expect(records).toHaveLength(6);
-      expect(Object.keys(records[0])).toEqual(['Student Name', 'Email', 'Concept', 'CMI', 'Velocity', 'Last Updated']);
+      expect(Object.keys(records[0])).toEqual(['Student Name', 'Email', 'Concept', 'Concept Mastery Index', 'Mastery Velocity', 'Last Updated']);
       // Ordered by student name then concept name, so 'Arrays' precedes 'Loops'.
       const arraysRow = records.find((r) => r.Concept === 'Arrays');
       const loopsRow = records.find((r) => r.Concept === 'Loops');
       expect(arraysRow).toBeDefined();
       expect(loopsRow).toBeDefined();
-      expect(loopsRow.CMI).toBe('0.75');
-      expect(loopsRow.Velocity).toBe('0.1');
+      expect(loopsRow['Concept Mastery Index']).toBe('0.75');
+      expect(loopsRow['Mastery Velocity']).toBe('0.1');
       expect(loopsRow['Last Updated']).toBe('2026-04-01T08:00:00.000Z');
-      expect(arraysRow.CMI).toBe('0.5');
-      expect(arraysRow.Velocity).toBe('-0.2');
+      expect(arraysRow['Concept Mastery Index']).toBe('0.5');
+      expect(arraysRow['Mastery Velocity']).toBe('-0.2');
       expect(arraysRow['Last Updated']).toBe('2026-04-02T08:00:00.000Z');
 
       const jsonOut = await formatExport('concept_mastery', seeded.sectionId, 'json');
@@ -539,7 +539,7 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
 
     it('produces a header-only file for a section without metrics', async () => {
       const out = await formatExport('concept_mastery', seeded.sectionId, 'csv');
-      expect(out.buffer.toString('utf8')).toBe(`${BOM}Student Name,Email,Concept,CMI,Velocity,Last Updated\r\n`);
+      expect(out.buffer.toString('utf8')).toBe(`${BOM}Student Name,Email,Concept,Concept Mastery Index,Mastery Velocity,Last Updated\r\n`);
       expect(parseCsv(out.buffer)).toHaveLength(0);
     });
   });
@@ -700,10 +700,16 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
     });
 
     describe('cds domain', () => {
-      it('exports one row per student per score with 0–1 CDS in JSON and percent in CSV', async () => {
+      it('exports one row per student per day (latest score), dropping null/unscored rows', async () => {
         const { rows: secondExercise } = await testPool.query(
           `INSERT INTO exercises (section_id, concept_id, title, description)
            VALUES ($1, $2, 'Lab 2', 'Second lab for date coverage')
+           RETURNING id`,
+          [seeded.sectionId, seeded.conceptId]
+        );
+        const { rows: thirdExercise } = await testPool.query(
+          `INSERT INTO exercises (section_id, concept_id, title, description)
+           VALUES ($1, $2, 'Lab 3', 'Third lab for same-day coverage')
            RETURNING id`,
           [seeded.sectionId, seeded.conceptId]
         );
@@ -712,6 +718,14 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
           `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
            VALUES ($1, $2, $3, 0.8534, 'proficient', $4)`,
           [seeded.studentIds[0], seeded.exerciseId, seeded.sectionId, '2026-04-01 08:00:00']
+        );
+        // Same-day, later score for student 0 on 2026-04-01 — must win the
+        // DISTINCT ON tiebreak (latest computed_at, latest id), not be a
+        // second per-exercise row.
+        await testPool.query(
+          `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
+           VALUES ($1, $2, $3, 0.6, 'revised', $4)`,
+          [seeded.studentIds[0], thirdExercise[0].id, seeded.sectionId, '2026-04-01 09:00:00']
         );
         await testPool.query(
           `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
@@ -723,6 +737,12 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
            VALUES ($1, $2, $3, 0.9, 'needs_support', $4)`,
           [seeded.studentIds[1], seeded.exerciseId, seeded.sectionId, '2026-04-01 08:00:00']
         );
+        // Null-cds "Unscored" placeholder row — excluded from the daily grain.
+        await testPool.query(
+          `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
+           VALUES ($1, $2, $3, NULL, 'Unscored', $4)`,
+          [seeded.studentIds[1], secondExercise[0].id, seeded.sectionId, '2026-04-09 08:00:00']
+        );
 
         const out = await formatExport('cds', seeded.sectionId, 'csv');
         const records = parseCsv(out.buffer);
@@ -733,8 +753,8 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
         expect(s0).toHaveLength(2);
         expect(s0[0]).toMatchObject({
           Date: '2026-04-01',
-          'CDS (%)': '85.3',
-          Classification: 'proficient',
+          'CDS (%)': '60.0', // the LATEST score of the day wins the DISTINCT ON
+          Classification: 'revised',
         });
         expect(s0[0].Email).toBe('student0@test.com');
         expect(s0[1].Date).toBe('2026-04-08');
@@ -743,11 +763,24 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
         const jsonOut = await formatExport('cds', seeded.sectionId, 'json');
         const parsed = JSON.parse(jsonOut.buffer.toString('utf8'));
         expect(parsed).toHaveLength(3);
-        const raw = parsed.find((r) => r.name === 'Test Student 0' && r.cds === 0.8534);
-        expect(raw).toBeTruthy();
-        expect(typeof raw.cds).toBe('number'); // DECIMAL normalized to 0–1 number
-        expect(raw.classification).toBe('proficient');
-        expect(typeof raw.date).toBe('string'); // ISO-8601 raw fidelity
+        for (const raw of parsed) {
+          expect(raw.cds).not.toBeNull(); // no null placeholder rows
+          expect(raw.classification).not.toBe('Unscored');
+          expect(typeof raw.date).toBe('string'); // ISO-8601 raw fidelity
+        }
+        // ::date returns a local-midnight Date; the JSON ISO instant is
+        // TZ-shifted, but the local calendar day must be the bucketed date.
+        const localDay = (iso) => {
+          const d = new Date(iso);
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        const latest = parsed.find(
+          (r) => r.name === 'Test Student 0' && localDay(r.date) === '2026-04-01'
+        );
+        expect(latest).toBeTruthy();
+        expect(latest.cds).toBe(0.6); // DECIMAL normalized to 0–1 number
+        expect(latest.classification).toBe('revised');
       });
 
       it('supports studentId and date-range filters', async () => {

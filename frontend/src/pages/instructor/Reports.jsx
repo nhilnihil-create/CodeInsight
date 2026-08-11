@@ -327,6 +327,11 @@ export default function InstructorReports() {
     completion: "completion",
     integrity: "integrity",
   };
+  const EXPORT_LABEL_BY_TAB = {
+    mastery: "Export Mastery",
+    completion: "Export Completion",
+    integrity: "Export Integrity",
+  };
   const exportDomain = EXPORT_DOMAIN_BY_TAB[tab] || "concept_mastery";
 
   return (
@@ -367,6 +372,7 @@ export default function InstructorReports() {
             sectionId={sectionId}
             domain={exportDomain}
             formats={["csv", "xlsx"]}
+            label={EXPORT_LABEL_BY_TAB[tab] || "Export Mastery"}
           />
         </div>
       </div>

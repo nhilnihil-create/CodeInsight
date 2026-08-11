@@ -130,7 +130,7 @@ export default function InstructorDashboard() {
         <div className="flex items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
           <PeriodSelector value={period} onChange={setPeriod} />
-          <ExportDropdown sectionId={sectionId} domain="cds" formats={["csv", "xlsx"]} />
+          <ExportDropdown sectionId={sectionId} domain="cds" formats={["csv", "xlsx"]} label="Export CDS" />
           <VisualReportButton sectionId={sectionId} />
         </div>
       </motion.div>

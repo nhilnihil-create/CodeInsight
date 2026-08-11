@@ -286,6 +286,7 @@ export default function InstructorStudentDetail() {
               domain="submissions"
               studentId={id}
               formats={["csv"]}
+              label="Export Submissions"
             />
             <VisualReportButton sectionId={sectionId} studentId={id} label="Dossier (PDF)" />
             <DropdownMenu>

@@ -38,6 +38,7 @@ const {
   cdsDistribution,
   atRiskCount,
   buildHeatmap,
+  hasStudentData,
 } = require('../services/pdfReport');
 
 /** Number of '/Type /Page' objects in a rendered PDF buffer. */
@@ -54,13 +55,12 @@ function pdfText(buffer) {
 }
 
 /**
- * Seed the standard scenario plus enough data for real charts: extra
- * exercises, per-student CDS history, daily submissions, concept metrics
- * and integrity flags.
+ * Give the first `count` students of a seeded scenario the full chart
+ * dataset: 3 CDS scores + 3 submissions + 2 concept metrics each, plus
+ * integrity flags for students 0 and 1. Students beyond `count` stay
+ * data-free (used to prove no-data students add zero pages).
  */
-async function seedRichScenario({ studentCount = 5 } = {}) {
-  const seeded = await seedFullScenario({ studentCount });
-
+async function seedRichStudents(seeded, count) {
   const ex2 = await seedTestExercise(seeded.sectionId, seeded.conceptId, { title: 'Test Exercise 2' });
   const ex3 = await seedTestExercise(seeded.sectionId, seeded.conceptId, { title: 'Test Exercise 3' });
   const exercises = [seeded.exerciseId, ex2, ex3];
@@ -72,7 +72,7 @@ async function seedRichScenario({ studentCount = 5 } = {}) {
     [0.60, 0.65, 0.85],
   ];
 
-  for (let i = 0; i < seeded.studentIds.length; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     const sid = seeded.studentIds[i];
     const values = cdsByStudent[i % cdsByStudent.length];
     for (let j = 0; j < exercises.length; j += 1) {
@@ -107,6 +107,7 @@ async function seedRichScenario({ studentCount = 5 } = {}) {
     { student: 1, type: 'tab_switch', severity: 'low', status: 'reviewed' },
   ];
   for (const spec of flagSpecs) {
+    if (spec.student >= count) continue;
     await testPool.query(
       `INSERT INTO integrity_flags (section_id, exercise_id, student_id, flag_type, severity, status, evidence, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, '{}'::jsonb, $7)`,
@@ -115,6 +116,16 @@ async function seedRichScenario({ studentCount = 5 } = {}) {
   }
 
   return seeded;
+}
+
+/**
+ * Seed the standard scenario plus enough data for real charts: extra
+ * exercises, per-student CDS history, daily submissions, concept metrics
+ * and integrity flags.
+ */
+async function seedRichScenario({ studentCount = 5 } = {}) {
+  const seeded = await seedFullScenario({ studentCount });
+  return seedRichStudents(seeded, studentCount);
 }
 
 describe('pdfReport — pure data shapers', () => {
@@ -157,6 +168,16 @@ describe('pdfReport — pure data shapers', () => {
     expect(hm.colLabels).toEqual(['2026-08-01', '2026-08-02']);
     expect(hm.colorFn(0, 0)).toBe('#be123c'); // 4/4 = 1 → ramp end (rose)
     expect(hm.colorFn(0, 1)).not.toBeNull();
+  });
+
+  it('hasStudentData reports false for an empty report and true when any field carries data', () => {
+    // The predicate's OR-chain yields a falsy value (not strictly `false`)
+    // for an empty report; it is only ever consumed as a boolean gate.
+    expect(hasStudentData({})).toBeFalsy();
+    expect(hasStudentData({ trendValues: [0.5] })).toBe(true);
+    expect(hasStudentData({ radar: { axes: ['Loops'], values: [0.5] } })).toBe(true);
+    expect(hasStudentData({ heatmap: { rowLabels: ['X'], colLabels: ['D'] } })).toBe(true);
+    expect(hasStudentData({ flags: [{}] })).toBe(true);
   });
 });
 
@@ -220,6 +241,31 @@ describe('pdfReport — full class report', () => {
   });
 });
 
+describe('pdfReport — no-data students add zero pages', () => {
+  afterEach(async () => {
+    // clearTestTables omits student_concept_metrics — wipe it here so no
+    // stale concept rows leak into later scenarios.
+    await testPool.query('DELETE FROM student_concept_metrics');
+  });
+
+  it('renders the same page count with or without inactive enrolled students', async () => {
+    // Scenario A: 5 enrolled students, chart data for students 0–2 only
+    // (students 3–4 have ZERO data).
+    const scenarioA = await seedFullScenario({ studentCount: 5 });
+    await seedRichStudents(scenarioA, 3);
+
+    // Scenario B: only the 3 data students, identical inserts.
+    const scenarioB = await seedFullScenario({ studentCount: 3 });
+    await seedRichStudents(scenarioB, 3);
+
+    const pagesA = pageCount(await buildSectionVisualReport(scenarioA.sectionId));
+    const pagesB = pageCount(await buildSectionVisualReport(scenarioB.sectionId));
+    // Arithmetic-free invariant: two extra enrolled students with no data
+    // must contribute exactly zero pages.
+    expect(pagesA).toBe(pagesB);
+  });
+});
+
 describe('pdfReport — dossier mode', () => {
   let seeded;
 
@@ -238,6 +284,15 @@ describe('pdfReport — dossier mode', () => {
   it('includes the student on the page', async () => {
     const buffer = await buildSectionVisualReport(seeded.sectionId, { studentId: seeded.studentIds[0] });
     expect(pdfText(buffer)).toContain('Test Student 0');
+  });
+
+  it('renders cover + a single concise page for an enrolled student with no data', async () => {
+    const inactive = await seedFullScenario({ studentCount: 1 });
+    const buffer = await buildSectionVisualReport(inactive.sectionId, { studentId: inactive.studentIds[0] });
+
+    // cover + 1 collapsed student page — not the two full chart pages.
+    expect(pageCount(buffer)).toBe(2);
+    expect(pdfText(buffer)).toContain('No activity recorded for this student.');
   });
 });
 

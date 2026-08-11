@@ -368,6 +368,22 @@ function buildStudentReport(studentId, { cdsRows, conceptRows, heatmapRows, inte
   };
 }
 
+/**
+ * True when a built student report carries any renderable data: a CDS trend,
+ * concept radar axes, heatmap rows/columns or integrity flags. Used to skip
+ * per-student pages for enrolled students with no activity (they still appear
+ * in the appendix roster counts).
+ */
+function hasStudentData(report) {
+  return (
+    (report.trendValues && report.trendValues.length > 0) ||
+    (report.radar && report.radar.axes && report.radar.axes.length > 0) ||
+    (report.heatmap && report.heatmap.rowLabels && report.heatmap.rowLabels.length > 0) ||
+    (report.heatmap && report.heatmap.colLabels && report.heatmap.colLabels.length > 0) ||
+    (report.flags && report.flags.length > 0)
+  );
+}
+
 // ── Page renderers ──────────────────────────────────────────────────────────
 
 /** Page 1 — cover. */
@@ -498,6 +514,29 @@ function drawClassOverview(doc, { cdsRows, heatmapRows }) {
  * student's integrity flags.
  */
 function drawStudentPages(doc, student, { dossier = false } = {}) {
+  const hasTrend = student.trendValues && student.trendValues.length > 0;
+  const hasRadar = student.radar && student.radar.axes && student.radar.axes.length > 0;
+  const hasHeat =
+    (student.heatmap && student.heatmap.rowLabels && student.heatmap.rowLabels.length > 0) ||
+    (student.heatmap && student.heatmap.colLabels && student.heatmap.colLabels.length > 0);
+  const hasFlags = student.flags && student.flags.length > 0;
+
+  // Enrolled student with no trend/radar/heatmap data: collapse to a single
+  // page — the student's title with either their integrity flags or a
+  // no-activity note. The early return also prevents the dossier branch from
+  // drawing a flags-only student's flags a second time.
+  if (!hasTrend && !hasRadar && !hasHeat) {
+    doc.addPage();
+    let y = pageTitle(doc, student.name, MARGIN);
+    if (hasFlags) {
+      y += 12;
+      y = drawFlagsTable(doc, student.flags, y);
+    } else {
+      doc.text('No activity recorded for this student.', MARGIN, y + 12, { width: CONTENT_WIDTH });
+    }
+    return;
+  }
+
   // Page A — CDS trend.
   doc.addPage();
   let y = pageTitle(doc, student.name, MARGIN);
@@ -764,6 +803,7 @@ async function buildSectionVisualReport(sectionId, { studentId, instructorName }
       integrityRows,
       longitudinalRows,
     });
+    if (!hasStudentData(report)) continue;
     drawStudentPages(doc, report);
   }
 
@@ -789,6 +829,7 @@ module.exports = {
   severityCounts,
   buildHeatmap,
   conceptRadarData,
+  hasStudentData,
   MAX_REPORT_STUDENTS,
   MAX_STUDENT_PAGES,
   HEATMAP_MAX_ROWS,

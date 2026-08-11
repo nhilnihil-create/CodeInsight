@@ -10,9 +10,9 @@ import useExport from "@/hooks/useExport";
 import { cn } from "@/lib/utils";
 
 const FORMAT_LABELS = {
-  csv: "CSV",
-  xlsx: "Excel",
-  json: "JSON",
+  csv: { label: 'CSV', description: 'Spreadsheet-friendly' },
+  xlsx: { label: 'Excel (XLSX)', description: 'Formatted workbook' },
+  json: { label: 'JSON', description: 'Raw data' },
 };
 
 /**
@@ -64,7 +64,11 @@ export default function ExportDropdown({
             onClick={() => startExport({ domain, sectionId, format, studentId, fileName })}
           >
             <Download className="h-3.5 w-3.5 mr-1.5" strokeWidth={1.5} />
-            {FORMAT_LABELS[format] || format}
+            {FORMAT_LABELS[format].label}
+            <span className="ml-2 text-xs text-muted-foreground">
+              <span aria-hidden="true">— </span>
+              {FORMAT_LABELS[format].description}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

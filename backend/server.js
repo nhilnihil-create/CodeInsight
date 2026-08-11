@@ -33,6 +33,7 @@ app.use(cors({
     return cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
+  exposedHeaders: ['Content-Disposition'],
 }));
 
 // Parse JSON with increased payload

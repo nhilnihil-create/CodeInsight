@@ -202,7 +202,7 @@ export default function SectionDetail() {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <ExportDropdown sectionId={id} domain="roster" formats={["csv", "xlsx"]} />
+            <ExportDropdown sectionId={id} domain="roster" formats={["csv", "xlsx"]} label="Export Roster" />
             <VisualReportButton sectionId={id} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
