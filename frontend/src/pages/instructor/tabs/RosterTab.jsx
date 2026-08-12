@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import InsightHeader from "@/components/ui/insight-header";
 import CDSPillDelta from "@/components/ui/cds-pill-delta";
-import RiskBadge from "@/components/ui/risk-badge";
+import { tierForCds, TIER_META } from "@/components/ui/mastery-bar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,14 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import api from "@/services/api";
-
-function computeLevel(cds) {
-  if (cds == null) return "na";
-  if (cds <= 0.20) return "low";
-  if (cds <= 0.40) return "moderate";
-  if (cds <= 0.60) return "high";
-  return "critical";
-}
 
 function timeAgo(dateStr) {
   if (!dateStr) return "—";
@@ -63,7 +55,7 @@ export default function RosterTab({ sectionId, sectionName }) {
           cds,
           flags: s.integrity_flag_count ?? 0,
           last: timeAgo(s.last_active),
-          level: computeLevel(cds),
+          level: tierForCds(cds),
           email: s.email,
         };
       });
@@ -151,7 +143,13 @@ export default function RosterTab({ sectionId, sectionName }) {
                 <span className="text-sm font-medium text-foreground truncate">
                   {r.name}
                 </span>
-                <RiskBadge level={r.level} />
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${TIER_META[r.level].text}`}
+                  aria-label={`Mastery level: ${TIER_META[r.level].label}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${TIER_META[r.level].dot}`} aria-hidden="true" />
+                  {TIER_META[r.level].label}
+                </span>
               </div>
               <div className="text-right">
                 <CDSPillDelta value={r.cds} showDelta={false} />
