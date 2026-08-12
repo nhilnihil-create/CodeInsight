@@ -434,7 +434,9 @@ async function fetchLongitudinal(sectionId, opts = {}) {
   const studentMap = {};
   for (const row of rows) {
     if (!studentMap[row.student_id]) {
-      studentMap[row.student_id] = { name: row.name, email: row.email, progression: [] };
+      // Keep student_id on the row: pdfReport's per-student loop keys on it,
+      // and buildStudentReport matches longitudinal rows by student_id.
+      studentMap[row.student_id] = { student_id: row.student_id, name: row.name, email: row.email, progression: [] };
     }
     if (row.cds !== null) {
       studentMap[row.student_id].progression.push({

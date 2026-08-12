@@ -55,6 +55,51 @@ function pdfText(buffer) {
 }
 
 /**
+ * Decode per-page text (one string per page) from an uncompressed pdfkit PDF.
+ * Pages reference a content stream; each stream's TJ hex runs are decoded.
+ */
+function perPageText(buffer) {
+  const s = buffer.toString('latin1');
+  const objRe = /(\d+)\s+0\s+obj\s*<<([\s\S]*?)>>\s*endobj/g;
+  const contentById = new Map();
+  const pageRefs = [];
+  const order = [];
+  let m;
+  while ((m = objRe.exec(s))) {
+    const id = Number(m[1]);
+    const dict = m[2];
+    order.push(id);
+    const c = dict.match(/\/Contents\s+(\d+)\s+0\s+R/);
+    if (c) contentById.set(id, Number(c[1]));
+    if (/\/Type\s*\/Page[^s]/.test(dict)) pageRefs.push(id);
+  }
+  pageRefs.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const streamFor = (objId) => {
+    const marker = `${objId} 0 obj`;
+    const i = s.indexOf(marker);
+    const st = s.indexOf('\nstream\n', i);
+    const start = st + '\nstream\n'.length;
+    const en = s.indexOf('\nendstream\n', start);
+    return s.slice(start, en);
+  };
+  return pageRefs.map((pid) => {
+    const content = streamFor(contentById.get(pid));
+    const out = [];
+    const tjRe = /\[([^\]]*)\]\s*TJ/g;
+    let mm;
+    while ((mm = tjRe.exec(content))) {
+      const hexes = [...mm[1].matchAll(/<([0-9A-Fa-f]+)>/g)].map((x) => {
+        let t = '';
+        for (let i = 0; i + 1 < x[1].length; i += 2) t += String.fromCharCode(parseInt(x[1].slice(i, i + 2), 16));
+        return t;
+      });
+      out.push(hexes.join(''));
+    }
+    return out.join(' ');
+  });
+}
+
+/**
  * Give the first `count` students of a seeded scenario the full chart
  * dataset: 3 CDS scores + 3 submissions + 2 concept metrics each, plus
  * integrity flags for students 0 and 1. Students beyond `count` stay
@@ -194,6 +239,20 @@ describe('pdfReport — full class report', () => {
     expect(buffer.length).toBeGreaterThan(10000);
     // cover + summary + overview + 2×5 student pages + flags/appendix ≥ 4
     expect(pageCount(buffer)).toBeGreaterThanOrEqual(4);
+  });
+
+  it('renders a distinct per-student page for every data-active student', async () => {
+    // Regression guard: fetchLongitudinal used to drop student_id from its
+    // rows, so every per-student header page rendered the FIRST student
+    // (5 identical pairs instead of one pair per student).
+    const buffer = await buildSectionVisualReport(seeded.sectionId);
+    const headers = perPageText(buffer).filter((t) => t.includes('Current CDS'));
+    const headerNames = headers.map((t) => (t.match(/Test Student \d/) || [''])[0]);
+    expect(headers.length).toBe(5); // one header page per data-active student
+    expect(new Set(headerNames).size).toBe(5); // ...and they are all distinct
+    for (let i = 0; i < 5; i += 1) {
+      expect(headerNames).toContain(`Test Student ${i}`);
+    }
   });
 
   it('rejects sections over 60 students with AppError 413 TOO_LARGE', async () => {
