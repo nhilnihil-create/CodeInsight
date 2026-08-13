@@ -17,6 +17,16 @@ const loginLimiter = PLAYWRIGHT
       message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
     });
 
+const googleAuthLimiter = PLAYWRIGHT
+  ? (req, res, next) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+    });
+
 const registrationLimiter = PLAYWRIGHT
   ? (req, res, next) => next()
   : rateLimit({
@@ -95,6 +105,35 @@ router.post('/register', registrationLimiter, validate.body(v.register), ctrl.re
  *       403: { description: Email not verified }
  */
 router.post('/login',    loginLimiter, validate.body(v.login), ctrl.login);
+
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Sign in / register with a Google ID token (GIS)
+ *     description: Verifies the ID token with google-auth-library against GOOGLE_CLIENT_ID.
+ *       New accounts are created with an auto-derived role (university email → instructor,
+ *       otherwise student) and no password. Existing accounts are linked by email or
+ *       google_id without re-classifying their role.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [credential]
+ *             properties:
+ *               credential: { type: string, description: Google ID token JWT from the GIS button }
+ *               clientId: { type: string, description: Optional; must match GOOGLE_CLIENT_ID when provided }
+ *     responses:
+ *       200: { description: Authenticated, sets ci_token cookie }
+ *       400: { description: Invalid client id }
+ *       401: { description: Invalid Google sign-in token }
+ *       409: { description: Email already registered }
+ *       500: { description: Google sign-in is not configured }
+ */
+router.post('/google', googleAuthLimiter, validate.body(v.googleAuth), ctrl.googleAuth);
 
 /**
  * @swagger

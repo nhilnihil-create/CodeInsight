@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt    = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const db     = require('../config/db');
 const logger = require('../lib/logger');
 const { AppError, codes } = require('../lib/AppError');
@@ -162,6 +163,9 @@ exports.login = async (req, res, next) => {
     if (!result.rows.length) throw new AppError('Invalid credentials', 401, codes.UNAUTHORIZED);
 
     const user = result.rows[0];
+    // Google-only accounts have no password — fail with the same generic
+    // message instead of crashing bcrypt.compare with a NULL hash.
+    if (!user.password_hash) throw new AppError('Invalid credentials', 401, codes.UNAUTHORIZED);
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) throw new AppError('Invalid credentials', 401, codes.UNAUTHORIZED);
 
@@ -172,6 +176,111 @@ exports.login = async (req, res, next) => {
     const safeUser = { id: user.id, name: user.name, email: user.email, role: user.role };
     setAuthCookie(res, safeUser);
     res.json({ user: safeUser });
+  } catch (err) { next(err); }
+};
+
+exports.googleAuth = async (req, res, next) => {
+  try {
+    const { credential, clientId } = req.body;
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      throw new AppError('Google sign-in is not configured', 500, codes.INTERNAL);
+    }
+    if (clientId && clientId !== process.env.GOOGLE_CLIENT_ID) {
+      throw new AppError('Invalid client id', 400, codes.VALIDATION);
+    }
+
+    // The library enforces issuer accounts.google.com + audience on verifyIdToken.
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      logger.warn({ err }, 'Invalid Google sign-in token');
+      throw new AppError('Invalid Google sign-in token', 401, codes.UNAUTHORIZED);
+    }
+
+    // Only verified Google accounts with a string email are accepted.
+    if (!payload || typeof payload.email !== 'string' || payload.email_verified !== true) {
+      logger.warn(
+        { email: payload?.email, email_verified: payload?.email_verified },
+        'Google sign-in rejected: missing or unverified email'
+      );
+      throw new AppError('Invalid Google sign-in token', 401, codes.UNAUTHORIZED);
+    }
+
+    const email = payload.email.toLowerCase();
+    const googleId = payload.sub;
+    const name = (payload.name || email.split('@')[0]).slice(0, 100);
+    const picture = payload.picture ? payload.picture.slice(0, 500) : null;
+
+    // Role is derived server-side from the email domain — never trusted from
+    // the client (the GIS flow sends no role at all).
+    const role = await determineRole(email);
+
+    const user = await db.withTransaction(async (client) => {
+      // 1. Existing account by email → link the Google account, ROLE PRESERVED.
+      const byEmail = await client.query(
+        'SELECT id,name,email,role,email_verified,google_id,provider,avatar_url FROM users WHERE email=$1',
+        [email]
+      );
+      if (byEmail.rows.length) {
+        const updated = await client.query(
+          `UPDATE users
+           SET google_id=$1, provider='google', email_verified=true, avatar_url=COALESCE(avatar_url,$2)
+           WHERE id=$3
+           RETURNING id,name,email,role,email_verified,google_id,provider,avatar_url`,
+          [googleId, picture, byEmail.rows[0].id]
+        );
+        return updated.rows[0];
+      }
+
+      // 2. Existing account by google_id (already linked previously).
+      const byGoogleId = await client.query(
+        'SELECT id,name,email,role,email_verified,google_id,provider,avatar_url FROM users WHERE google_id=$1',
+        [googleId]
+      );
+      if (byGoogleId.rows.length) return byGoogleId.rows[0];
+
+      // 3. New account — password_hash stays NULL (Google-only login).
+      try {
+        const inserted = await client.query(
+          `INSERT INTO users (name,email,password_hash,role,email_verified,google_id,provider,avatar_url)
+           VALUES($1,$2,NULL,$3,true,$4,'google',$5)
+           RETURNING id,name,email,role,email_verified,google_id,provider,avatar_url`,
+          [name, email, role, googleId, picture]
+        );
+        return inserted.rows[0];
+      } catch (insertErr) {
+        // Concurrent-registration race: another request created the row between
+        // our SELECT and INSERT. Re-query by email and link it instead.
+        if (insertErr.code === '23505') {
+          const raced = await client.query(
+            'SELECT id,name,email,role,email_verified,google_id,provider,avatar_url FROM users WHERE email=$1',
+            [email]
+          );
+          if (raced.rows.length) {
+            const updated = await client.query(
+              `UPDATE users
+               SET google_id=$1, provider='google', email_verified=true, avatar_url=COALESCE(avatar_url,$2)
+               WHERE id=$3
+               RETURNING id,name,email,role,email_verified,google_id,provider,avatar_url`,
+              [googleId, picture, raced.rows[0].id]
+            );
+            return updated.rows[0];
+          }
+          throw new AppError('Email already registered', 409, codes.CONFLICT);
+        }
+        throw insertErr;
+      }
+    });
+
+    const response = setAuthCookie(res, user);
+    res.status(200).json(response);
   } catch (err) { next(err); }
 };
 

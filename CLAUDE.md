@@ -12,7 +12,7 @@
 - **Frontend Build**: ✅ Passing (pure desktop, all mobile infra removed)
 - **Testing**: ✅ 905/905 tests passing (54 suites, all green)
 - **Deployment Checklist**: ✅ All items complete
-- **Google OAuth**: ❌ Removed in favor of email OTP-only registration with role selector
+- **Google OAuth**: ✅ Implemented (Google Identity Services, "Continue with Google" on login/register). ID token verified server-side via `google-auth-library`; role auto-detected from email domain; existing email/OTP flows unchanged. See `docs/google-signin.md`
 - **Submission Pipeline**: ✅ Optimized for Cyclic.sh 500MB/10s constraints
 
 ## 🔧 ARCHITECTURAL IMPROVEMENTS (June 22, 2026)

@@ -11,11 +11,14 @@ CREATE TABLE IF NOT EXISTS users (
   id           SERIAL PRIMARY KEY,
   name         VARCHAR(100) NOT NULL,
   email        VARCHAR(100) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
   role                   VARCHAR(20) NOT NULL CHECK (role IN ('student','instructor','admin')),
   email_verified          BOOLEAN DEFAULT false,
   verification_token      VARCHAR(255),
   verification_token_expires TIMESTAMP,
+  google_id               VARCHAR(100) UNIQUE,
+  provider                VARCHAR(20) DEFAULT 'email',
+  avatar_url              VARCHAR(512),
   created_at              TIMESTAMP DEFAULT NOW()
 );
 

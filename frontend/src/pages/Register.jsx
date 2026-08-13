@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import GoogleAuthButton from '@/components/GoogleAuthButton';
 import {
   Card,
   CardContent,
@@ -185,6 +186,14 @@ export default function Register() {
                 <span>{error}</span>
               </div>
             )}
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">OR continue with</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <GoogleAuthButton onError={setError} />
+
             <form onSubmit={handleRequestOtp} className="space-y-3.5">
               <div className="space-y-1.5">
                 <Label htmlFor="name">FULL NAME</Label>

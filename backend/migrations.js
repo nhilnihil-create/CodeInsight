@@ -692,6 +692,39 @@ async function ensureTablesExist() {
       }
     }
 
+    // Google Sign-In (GIS) columns: google_id (linked Google account), provider
+    // (account origin: 'email' by default, 'google' for GIS accounts) and
+    // avatar_url (Google picture). password_hash becomes nullable so Google-only
+    // accounts can exist without a password. All idempotent — safe to run at
+    // every startup. Matches the declarations in schema.sql.
+    if (await tableExists('users')) {
+      try {
+        await addColumnIfMissing('users', 'google_id', 'VARCHAR(100)');
+        await addColumnIfMissing('users', 'provider', "VARCHAR(20) DEFAULT 'email'");
+        await addColumnIfMissing('users', 'avatar_url', 'VARCHAR(512)');
+      } catch (colErr) {
+        console.warn('⚠ Could not add Google Sign-In columns to users table:', colErr.message);
+      }
+
+      // Add UNIQUE constraint to users.google_id (if not already present).
+      // Postgres UNIQUE allows multiple NULLs, so email-only rows are unaffected.
+      try {
+        await db.query(`ALTER TABLE users ADD CONSTRAINT users_google_id_key UNIQUE (google_id)`);
+        console.log('✓ Added UNIQUE constraint to users.google_id');
+      } catch (err) {
+        console.log('✓ users.google_id UNIQUE constraint already exists');
+      }
+
+      // Make password_hash nullable for Google-only accounts. Idempotent no-op
+      // when the column is already nullable.
+      try {
+        await db.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`);
+        console.log('✓ Made users.password_hash nullable');
+      } catch (err) {
+        console.log('✓ users.password_hash already nullable');
+      }
+    }
+
     if (!(await tableExists('token_blacklist'))) {
       await db.query(`
         CREATE TABLE token_blacklist (

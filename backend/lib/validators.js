@@ -145,6 +145,11 @@ const login = Joi.object({
   password: Joi.string().min(1).required(),
 });
 
+const googleAuth = Joi.object({
+  credential: Joi.string().required(),
+  clientId: Joi.string().optional(),
+});
+
 const idParam = Joi.object({ id: id.required() });
 const enrollParams = Joi.object({ id: id.required(), studentId: id.required() });
 
@@ -226,7 +231,7 @@ module.exports = {
   email, password, name, id, role, testCase,
   exerciseCreate, exerciseUpdate,
   sectionCreate, enrollPayload, membershipUpdate, policyUpdate, joinByCode,
-  submitCode, evaluationSubmit, register, requestOtp, verifyOtp, login, idParam, enrollParams,
+  submitCode, evaluationSubmit, register, requestOtp, verifyOtp, login, googleAuth, idParam, enrollParams,
   forgotPassword, resetPassword,
   adminUserCreate, adminUserUpdate, adminSectionUpdate, adminConceptCreate, adminConceptUpdate,
   bulkImportCSV, rosterImportRows,
