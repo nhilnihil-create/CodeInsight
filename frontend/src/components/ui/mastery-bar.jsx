@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  *   - delay      number   animation delay (default 0)
  *   - className  string
  */
-const TIER_BAR = {
+export const TIER_BAR = {
   excellent:     "tier-excellent-bar",
   strong:        "tier-strong-bar",
   developing:    "tier-developing-bar",
@@ -98,3 +98,20 @@ export const NEW_TIER_META = {
   significant:    { dot: "tier-significant-struggle-dot",  text: "tier-significant-struggle-text",  label: "Significant Struggle" },
   critical:       { dot: "tier-critical-blocker-dot",     text: "tier-critical-blocker-text",     label: "Critical Blocker" },
 };
+
+/**
+ * TIER_RANGES
+ * Canonical per-tier CDS → Mastery mapping (display companion to tierForCds).
+ * Keep boundary values in sync with tierForCds thresholds (0.20 / 0.40 / 0.60 / 0.80).
+ *   cdsRange:     CDS difficulty interval (lower = easier)
+ *   difficulty:   CDS difficulty vocabulary shown across portals
+ *   masteryRange: Mastery interval (100% = full mastery) — same scale read in reverse
+ *   fill:         mastery midpoint, used for honest animated bar widths
+ */
+export const TIER_RANGES = [
+  { key: "excellent", cdsRange: "0.00–0.20", difficulty: "Very Low", masteryRange: "80–100%", fill: 90 },
+  { key: "strong", cdsRange: "0.21–0.40", difficulty: "Low", masteryRange: "60–79%", fill: 70 },
+  { key: "developing", cdsRange: "0.41–0.60", difficulty: "Moderate", masteryRange: "40–59%", fill: 50 },
+  { key: "needs_support", cdsRange: "0.61–0.80", difficulty: "Elevated", masteryRange: "20–39%", fill: 30 },
+  { key: "critical", cdsRange: "0.81–1.00", difficulty: "High", masteryRange: "0–19%", fill: 10 },
+];

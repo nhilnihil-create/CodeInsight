@@ -564,3 +564,19 @@
   --tier-color-significant: #fb923c;
   --tier-color-critical: #ef4444;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   LANDING PAGE — token-only utilities & keyframes
+   ══════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Gentle vertical bob for hero logo / badges */
+  .animate-float {
+    animation: float 6s ease-in-out infinite alternate;
+  }
+
+  @keyframes float {
+    from { transform: translateY(0); }
+    to { transform: translateY(-8px); }
+  }
+}
