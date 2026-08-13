@@ -402,10 +402,65 @@ describe('authController.me', function() {
 
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ message: 'query failed' }));
   });
+
+  it('returns user for a valid non-blacklisted cookie token', async function() {
+    process.env.JWT_SECRET = 'test-secret';
+    jwt.verify.mockReturnValue({ id: 1, jti: 'jti-abc' });
+    db.query.mockResolvedValueOnce({ rows: [] }); // blacklist: no hit
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, name: 'Alice', email: 'alice@test.com', role: 'student' }],
+    });
+
+    const req = { cookies: { ci_token: 'some-token' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.me(req, res, next);
+
+    expect(db.query).toHaveBeenNthCalledWith(1,
+      'SELECT 1 FROM token_blacklist WHERE jti = $1 AND expires_at > NOW()',
+      ['jti-abc']
+    );
+    expect(db.query).toHaveBeenNthCalledWith(2,
+      'SELECT id,name,email,role FROM users WHERE id=$1', [1]
+    );
+    expect(res.json).toHaveBeenCalledWith({ id: 1, name: 'Alice', email: 'alice@test.com', role: 'student' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('returns null for a blacklisted token', async function() {
+    process.env.JWT_SECRET = 'test-secret';
+    jwt.verify.mockReturnValue({ id: 1, jti: 'revoked-jti' });
+    db.query.mockResolvedValueOnce({ rows: [{ blacklisted: true }] }); // blacklist: hit
+
+    const req = { cookies: { ci_token: 'revoked-token' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await controller.me(req, res, next);
+
+    expect(db.query).toHaveBeenCalledTimes(1);
+    expect(db.query).toHaveBeenCalledWith(
+      'SELECT 1 FROM token_blacklist WHERE jti = $1 AND expires_at > NOW()',
+      ['revoked-jti']
+    );
+    expect(res.json).toHaveBeenCalledWith(null);
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
 describe('authController.logout', function() {
   beforeEach(() => { jest.clearAllMocks(); });
+
+      function expectClearCookieOptions(res) {
+        expect(res.clearCookie).toHaveBeenCalledTimes(1);
+        expect(res.clearCookie).toHaveBeenCalledWith('ci_token', expect.any(Object));
+        const opts = res.clearCookie.mock.calls[0][1];
+        expect(opts).toEqual(expect.objectContaining({ httpOnly: true, path: '/' }));
+        expect(opts).not.toHaveProperty('maxAge');
+        expect(opts.secure).toBe(process.env.NODE_ENV === 'production');
+        expect(opts.sameSite).toBe(process.env.NODE_ENV === 'production' ? 'None' : 'Lax');
+      }
 
   it('clears the cookie and blacklists token', async function() {
     jwt.verify.mockReturnValue({ jti: 'test-jti', exp: Math.floor(Date.now() / 1000) + 3600 });
@@ -421,7 +476,7 @@ describe('authController.logout', function() {
       'INSERT INTO token_blacklist (jti, expires_at) VALUES ($1, to_timestamp($2)) ON CONFLICT (jti) DO NOTHING',
       ['test-jti', expect.any(Number)]
     );
-    expect(res.clearCookie).toHaveBeenCalledWith('ci_token', { path: '/' });
+    expectClearCookieOptions(res);
     expect(res.json).toHaveBeenCalledWith({ loggedOut: true });
   });
 
@@ -431,7 +486,7 @@ describe('authController.logout', function() {
 
     await controller.logout(req, res);
 
-    expect(res.clearCookie).toHaveBeenCalledWith('ci_token', { path: '/' });
+    expectClearCookieOptions(res);
     expect(res.json).toHaveBeenCalledWith({ loggedOut: true });
   });
 });

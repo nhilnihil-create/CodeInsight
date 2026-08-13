@@ -238,8 +238,17 @@ exports.me = async (req, res, next) => {
       const authHeader = req.headers?.authorization;
       const token = req.cookies?.ci_token || (authHeader && authHeader.split(' ')[1]);
       if (!token) return res.json(null);
-      try { userId = jwt.verify(token, process.env.JWT_SECRET).id; }
-      catch { return res.json(null); }
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.jti) {
+          const blacklisted = await db.query(
+            'SELECT 1 FROM token_blacklist WHERE jti = $1 AND expires_at > NOW()',
+            [decoded.jti]
+          );
+          if (blacklisted.rows.length) return res.json(null);
+        }
+        userId = decoded.id;
+      } catch { return res.json(null); }
     }
 
     const result = await db.query(
@@ -296,7 +305,9 @@ exports.logout = async (req, res, next) => {
         }
       } catch { /* token may already be expired — still clear cookie */ }
     }
-    res.clearCookie('ci_token', { path: '/' });
+    const clearOpts = { ...COOKIE_OPTS };
+    delete clearOpts.maxAge;
+    res.clearCookie('ci_token', clearOpts);
     res.json({ loggedOut: true });
   } catch (err) { next(err); }
 };
