@@ -94,8 +94,12 @@ export default function Sidebar() {
       className={cn(
         'fixed left-0 top-0 z-40 h-full flex flex-col justify-between',
         'bg-[#0E1322]/80 backdrop-blur-xl border-r border-white/[0.04]',
-        'text-sidebar-foreground transition-[width] duration-300 ease-in-out overflow-hidden',
-        isOpen ? 'w-[220px]' : 'w-[70px]'
+        'text-sidebar-foreground transition-[width,transform] duration-300 ease-in-out overflow-hidden',
+        // Below lg the sidebar is an off-canvas drawer (full 220px when open);
+        // at/above lg it is the persistent rail (220px expanded / 70px collapsed).
+        isOpen
+          ? 'translate-x-0 w-[220px]'
+          : '-translate-x-full w-[220px] lg:translate-x-0 lg:w-[70px]'
       )}
     >
       {/* ── Brand Header ─────────────────────────────────── */}
@@ -194,7 +198,7 @@ export default function Sidebar() {
                 key={link.to}
                 to={link.to}
                 end={link.end}
-                className="relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-white/80"
+                className="relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 min-h-11 lg:min-h-0 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-white/80"
               >
                 {isActive && (
                   <motion.div
