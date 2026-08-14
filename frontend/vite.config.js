@@ -63,7 +63,9 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        // 127.0.0.1, not localhost — avoids the WSL2 IPv6 trap (Node resolves
+        // localhost to ::1 while the backend listens on IPv4 only).
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true
       }
     }

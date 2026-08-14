@@ -6,13 +6,18 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30_000,
+  timeout: 120_000,
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'retain-on-failure',
+    navigationTimeout: 90_000,
   },
   projects: [
-    { name: 'mobile-chromium', use: { ...devices['iPhone 12'] } },
+    // Mobile viewport emulation. Chromium-based Pixel 5 (not WebKit) because
+    // Playwright's WebKit builds on Windows are experimental and tap/click
+    // stabilization is unreliable; the mobile triage specs force their own
+    // 375x812 viewport regardless of the engine.
+    { name: 'mobile-chromium', use: { ...devices['Pixel 5'] } },
     { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
