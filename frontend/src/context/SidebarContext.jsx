@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 const SidebarContext = createContext();
 
@@ -34,8 +34,12 @@ export function SidebarProvider({ children }) {
     return () => mql.removeEventListener('change', handleChange);
   }, []);
 
-  const toggleSidebar = () => setIsOpen((prev) => !prev);
-  const setOpen = (open) => setIsOpen(open);
+  // Stable identities: Layout's "close drawer on navigation" effect depends on
+  // setOpen, so an unstable (per-render) identity would re-run that effect and
+  // slam the mobile drawer shut on every render. Memoizing keeps the effect
+  // firing only on actual pathname changes.
+  const toggleSidebar = useCallback(() => setIsOpen((prev) => !prev), []);
+  const setOpen = useCallback((open) => setIsOpen(open), []);
 
   return (
     <SidebarContext.Provider value={{ isOpen, toggleSidebar, setOpen }}>
