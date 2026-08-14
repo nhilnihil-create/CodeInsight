@@ -235,8 +235,9 @@ describe('StudentSections', () => {
       fireEvent.click(button);
       
       await waitFor(() => {
-        expect(screen.getByText(/joining/i)).toBeInTheDocument();
         expect(button).toBeDisabled();
+        // Loading spinner shown instead of text
+        expect(button.querySelector('.animate-spin')).toBeInTheDocument();
       });
     });
   });
@@ -393,7 +394,8 @@ describe('StudentSections', () => {
       renderWithProviders(<StudentSections />);
 
       await waitFor(() => {
-        expect(screen.getByText(/not enrolled in any sections/i)).toBeInTheDocument();
+        // EmptyState component shows the title
+        expect(screen.getAllByText(/no sections yet/i).length).toBeGreaterThan(0);
       });
     });
   });
@@ -450,9 +452,11 @@ describe('StudentSections', () => {
       fireEvent.click(screen.getByRole('button', { name: /leave/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/leaving/i)).toBeInTheDocument();
+        // Loading spinner shown instead of text
+        const leaveButton = screen.getByRole('button', { name: /leave/i });
+        expect(leaveButton.querySelector('.animate-spin')).toBeInTheDocument();
+        expect(leaveButton).toBeDisabled();
       });
-      expect(screen.getByRole('button', { name: /leaving/i })).toBeDisabled();
     });
 
     it('shows error toast when leave fails with 404', async () => {
