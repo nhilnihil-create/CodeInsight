@@ -182,13 +182,6 @@ export default function Register() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="glass-divider-h flex-1" />
-            <span className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">OR continue with</span>
-            <div className="glass-divider-h flex-1" />
-          </div>
-          <GoogleAuthButton onError={setError} />
-
           <form onSubmit={handleRequestOtp} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">FULL NAME</Label>
@@ -292,6 +285,13 @@ export default function Register() {
               )}
             </Button>
           </form>
+
+          <div className="flex items-center gap-3">
+            <div className="glass-divider-h flex-1" />
+            <span className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">OR continue with</span>
+            <div className="glass-divider-h flex-1" />
+          </div>
+          <GoogleAuthButton onError={setError} />
         </CardContent>
         <CardFooter className="flex justify-center border-t p-6">
           <p className="text-xs text-muted-foreground">

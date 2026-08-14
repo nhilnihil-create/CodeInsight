@@ -82,13 +82,6 @@ export default function Login() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="glass-divider-h flex-1" />
-            <span className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">OR continue with</span>
-            <div className="glass-divider-h flex-1" />
-          </div>
-          <GoogleAuthButton onError={setError} />
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email">EMAIL</Label>
@@ -143,6 +136,13 @@ export default function Login() {
               )}
             </Button>
           </form>
+
+          <div className="flex items-center gap-3">
+            <div className="glass-divider-h flex-1" />
+            <span className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">OR continue with</span>
+            <div className="glass-divider-h flex-1" />
+          </div>
+          <GoogleAuthButton onError={setError} />
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3 border-t p-6">
