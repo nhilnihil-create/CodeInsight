@@ -158,44 +158,49 @@ export default function InstructorAlerts() {
     const riskLevel = TIER_RISK_BADGE[tier] || "low";
 
     return (
-      <>
-        <RiskBadge level={riskLevel} />
-
-        <span className="text-sm font-medium truncate min-w-[8rem] text-foreground">
-          {item.studentName}
-        </span>
-
-        <span className="min-w-[8rem] flex items-center gap-1.5">
-          <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", meta.dot)} />
-          <span className={cn("text-[11px] font-medium uppercase tracking-wider", meta.text)}>
-            {meta.label}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 w-full min-w-0">
+        {/* Line 1 (mobile): risk + student + tier + CDS + time */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <RiskBadge level={riskLevel} />
+          <span className="text-sm font-medium truncate text-foreground">
+            {item.studentName}
           </span>
-        </span>
-
-        <span className="text-sm text-muted-foreground truncate min-w-[8rem]">
-          {item.conceptName || "—"}
-        </span>
-
-        <span className="text-sm text-muted-foreground truncate min-w-[10rem] flex-1">
-          {item.exerciseTitle}
-        </span>
-
-        <span className="text-sm font-mono tabular-nums text-foreground font-semibold shrink-0 w-16 text-right">
-          {cds.toFixed(2)}
-        </span>
-
-        <div className="shrink-0 w-20">
-          <MasteryBar percent={Math.round((1 - cds) * 100)} tier={tier} />
+          <span className="hidden sm:inline-flex items-center gap-1.5">
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", meta.dot)} />
+            <span className={cn("text-[11px] font-medium uppercase tracking-wider", meta.text)}>
+              {meta.label}
+            </span>
+          </span>
+          <span className="sm:hidden text-[11px] font-medium uppercase tracking-wider shrink-0">
+            <span className={cn("inline-flex items-center gap-1", meta.text)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", meta.dot)} />
+              {meta.label}
+            </span>
+          </span>
         </div>
 
-        <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0 w-14 text-right">
-          {timeAgo(item.computedAt)}
-        </span>
-
-        <span className="shrink-0 w-24 text-right text-xs font-medium text-primary">
-          Needs attention
-        </span>
-      </>
+        {/* Line 2 (desktop) / Line 1 continued: concept + exercise + CDS + bar + time + action */}
+        <div className="flex items-center gap-2 sm:gap-3 sm:shrink-0">
+          <span className="text-sm text-muted-foreground truncate hidden sm:inline min-w-[6rem]">
+            {item.conceptName || "—"}
+          </span>
+          <span className="text-sm text-muted-foreground truncate hidden md:inline min-w-[8rem]">
+            {item.exerciseTitle}
+          </span>
+          <span className="text-sm font-mono tabular-nums text-foreground font-semibold shrink-0 w-12 sm:w-16 text-right">
+            {cds.toFixed(2)}
+          </span>
+          <div className="shrink-0 w-16 sm:w-20 hidden sm:block">
+            <MasteryBar percent={Math.round((1 - cds) * 100)} tier={tier} />
+          </div>
+          <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
+            {timeAgo(item.computedAt)}
+          </span>
+          <span className="hidden sm:inline text-xs font-medium text-primary shrink-0">
+            Needs attention
+          </span>
+        </div>
+      </div>
     );
   };
 

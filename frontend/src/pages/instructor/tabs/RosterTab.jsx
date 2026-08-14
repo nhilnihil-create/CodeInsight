@@ -100,7 +100,7 @@ export default function RosterTab({ sectionId, sectionName }) {
         insight={`Ranked by CDS — ${flaggedCount} student${flaggedCount === 1 ? "" : "s"} flagged.`}
       />
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {SORTS.map((s) => (
           <button
             key={s.id}
@@ -120,7 +120,7 @@ export default function RosterTab({ sectionId, sectionName }) {
 
       <div className="rounded-lg border border-border bg-card overflow-x-auto">
         {/* Header row */}
-        <div className="grid grid-cols-[1fr_5.5rem_4rem_5.5rem_2.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
+        <div className="hidden sm:grid grid-cols-[1fr_5.5rem_4rem_5.5rem_2.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
           <span className="text-xs font-medium text-muted-foreground">Student</span>
           <span className="text-xs font-medium text-muted-foreground text-right">CDS</span>
           <span className="text-xs font-medium text-muted-foreground text-right">Flags</span>
@@ -133,14 +133,15 @@ export default function RosterTab({ sectionId, sectionName }) {
           {rows.map((r) => (
             <li
               key={r.id}
-              className="grid grid-cols-[1fr_5.5rem_4rem_5.5rem_2.5rem] items-center gap-3 px-4 h-14 hover:bg-muted/40 transition-colors cursor-pointer group"
+              className="grid grid-cols-1 sm:grid-cols-[1fr_5.5rem_4rem_5.5rem_2.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 py-3 sm:py-0 sm:h-14 hover:bg-muted/40 transition-colors cursor-pointer group"
               onClick={() => navigate(`/instructor/students/${r.id}?section=${sectionId}`)}
             >
+              {/* Mobile card line 1: avatar + name + tier + actions */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-7 w-7 shrink-0 rounded-full bg-muted text-xs font-semibold flex items-center justify-center text-muted-foreground">
                   {r.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
                 </div>
-                <span className="text-sm font-medium text-foreground truncate">
+                <span className="text-sm font-medium text-foreground truncate flex-1 min-w-0">
                   {r.name}
                 </span>
                 <span
@@ -150,40 +151,43 @@ export default function RosterTab({ sectionId, sectionName }) {
                   <span className={`h-1.5 w-1.5 rounded-full ${TIER_META[r.level].dot}`} aria-hidden="true" />
                   {TIER_META[r.level].label}
                 </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={`Actions for ${r.name}`}
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => navigate(`/instructor/students/${r.id}?section=${sectionId}`)}>
+                      <ExternalLink className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
+                      Open profile
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <div className="text-right">
-                <CDSPillDelta value={r.cds} showDelta={false} />
+              {/* Mobile card line 2: CDS + flags + last active as chips */}
+              <div className="flex items-center gap-3 pl-10 sm:pl-0 sm:contents">
+                <div className="sm:text-right">
+                  <CDSPillDelta value={r.cds} showDelta={false} />
+                </div>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 text-xs font-mono tabular-nums",
+                    r.flags > 0 ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {r.flags > 0 ? <Flag className="h-3 w-3" strokeWidth={1.5} /> : null}
+                  {r.flags} flag{r.flags !== 1 ? "s" : ""}
+                </span>
+                <span className="text-xs font-mono tabular-nums text-muted-foreground">
+                  {r.last}
+                </span>
               </div>
-              <span
-                className={cn(
-                  "inline-flex items-center justify-end gap-1 text-xs font-mono tabular-nums",
-                  r.flags > 0 ? "text-destructive" : "text-muted-foreground",
-                )}
-              >
-                {r.flags > 0 ? <Flag className="h-3 w-3" strokeWidth={1.5} /> : null}
-                {r.flags}
-              </span>
-              <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                {r.last}
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label={`Actions for ${r.name}`}
-                  >
-                    <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => navigate(`/instructor/students/${r.id}?section=${sectionId}`)}>
-                    <ExternalLink className="h-3.5 w-3.5 mr-2" strokeWidth={1.5} />
-                    Open profile
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </li>
           ))}
         </ul>

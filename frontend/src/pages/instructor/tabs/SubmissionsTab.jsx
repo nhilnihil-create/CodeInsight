@@ -287,7 +287,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
               </div>
               <ul className="divide-y divide-border max-h-[600px] overflow-y-auto">
                 {filteredNonSubmitters.map((s) => (
-                  <li key={s.id} className={cn(GRID_CLASS, "px-4 h-14")}>
+                  <li key={s.id} className={cn(GRID_CLASS, "px-4 sm:h-14")}>
                     <span className="flex items-center gap-2.5 min-w-0">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="text-xs font-semibold text-muted-foreground">
@@ -319,7 +319,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                 {(nonSubmittersData?.perExercise || []).map((ex) => (
                   <li
                     key={ex.id}
-                    className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 h-12"
+                    className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 sm:h-12"
                   >
                     <span className="text-sm text-foreground truncate">{ex.title}</span>
                     <span className="text-sm text-muted-foreground text-right tabular-nums block">
@@ -407,7 +407,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           onClick={() => toggleGroup(key)}
                           className={cn(
                             GRID_CLASS,
-                            "px-4 h-14 hover:bg-muted/40 transition-colors cursor-pointer"
+                            "px-4 sm:h-14 hover:bg-muted/40 transition-colors cursor-pointer"
                           )}
                         >
                           <span className="flex items-center gap-2.5 min-w-0">
@@ -468,7 +468,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                             {g.attempts.map((a) => (
                               <div
                                 key={a.id}
-                                className={cn(GRID_CLASS, "px-4 pl-8 h-11")}
+                                className={cn(GRID_CLASS, "px-4 pl-8 sm:h-11")}
                               >
                                 <span className="text-sm text-foreground font-medium tabular-nums">
                                   #{a.attempt_number}
