@@ -228,8 +228,7 @@ export default function SettingsTab({ sectionId, sectionName, courseCode, onUpda
       </div>
 
       {/* Exercise assignment */}
-      <div className="rounded-lg border border-border bg-card shadow-sm">
-        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+      <div className="rounded-lg border border-border bg-card shadow-sm">          <div className="px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Settings
@@ -255,25 +254,27 @@ export default function SettingsTab({ sectionId, sectionName, courseCode, onUpda
             {exercises.map((ex) => (
               <li
                 key={ex.id}
-                className="grid grid-cols-[1fr_5rem_6rem_3rem] items-center gap-3 px-5 h-14 hover:bg-muted/40 transition-colors"
+                className="flex flex-col sm:grid sm:grid-cols-[1fr_5rem_6rem_3rem] sm:items-center gap-1 sm:gap-3 px-4 sm:px-5 py-3 sm:h-14 hover:bg-muted/40 transition-colors"
               >
                 <span className="text-sm font-medium text-foreground truncate">
                   {ex.title}
                 </span>
-                <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                  {ex.submitted}/{ex.total} submitted
-                </span>
-                <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                  {ex.concept}
-                </span>
-                <button
-                  type="button"
-                  className="h-7 w-7 ml-auto inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={`Unassign ${ex.title}`}
-                  onClick={() => toast.info("Exercise removal coming soon")}
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                </button>
+                <div className="flex items-center gap-2 sm:contents">
+                  <span className="text-xs font-mono tabular-nums text-muted-foreground sm:text-right">
+                    {ex.submitted}/{ex.total} submitted
+                  </span>
+                  <span className="text-xs font-mono tabular-nums text-muted-foreground sm:text-right">
+                    {ex.concept}
+                  </span>
+                  <button
+                    type="button"
+                    className="h-7 w-7 ml-auto sm:ml-0 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Unassign ${ex.title}`}
+                    onClick={() => toast.info("Exercise removal coming soon")}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

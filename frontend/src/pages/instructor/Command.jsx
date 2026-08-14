@@ -139,24 +139,28 @@ export default function InstructorCommand() {
             </CardHeader>
             <CardContent className="space-y-2">
               {data.conceptBars.map(bar => (
-                <div key={bar.concept} className="flex items-center gap-3">
-                  <span className="w-8 text-xs font-mono font-medium">{bar.concept}</span>
-                  <CDSPillDelta
-                    value={bar.cds}
-                    delta={bar.delta}
-                    classification={bar.cds <= 0.20 ? 'very_low' : bar.cds <= 0.40 ? 'low' : bar.cds <= 0.60 ? 'moderate' : bar.cds <= 0.80 ? 'elevated' : 'high'}
-                    trend={bar.trend}
-                  />
-                  <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        'h-full rounded-full',
-                        bar.cds <= 0.20 ? 'bg-[#22C55E]' : bar.cds <= 0.40 ? 'bg-[#14B8A6]' : bar.cds <= 0.60 ? 'bg-[#F59E0B]' : bar.cds <= 0.80 ? 'bg-[#F97316]' : 'bg-[#F43F5E]'
-                      )}
-                      style={{ width: `${(bar.cds / 1) * 100}%` }}
+                <div key={bar.concept} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 text-xs font-mono font-medium">{bar.concept}</span>
+                    <CDSPillDelta
+                      value={bar.cds}
+                      delta={bar.delta}
+                      classification={bar.cds <= 0.20 ? 'very_low' : bar.cds <= 0.40 ? 'low' : bar.cds <= 0.60 ? 'moderate' : bar.cds <= 0.80 ? 'elevated' : 'high'}
+                      trend={bar.trend}
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground">{bar.atRiskCount} at risk</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full',
+                          bar.cds <= 0.20 ? 'bg-[#22C55E]' : bar.cds <= 0.40 ? 'bg-[#14B8A6]' : bar.cds <= 0.60 ? 'bg-[#F59E0B]' : bar.cds <= 0.80 ? 'bg-[#F97316]' : 'bg-[#F43F5E]'
+                        )}
+                        style={{ width: `${(bar.cds / 1) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">{bar.atRiskCount} at risk</span>
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -170,9 +174,9 @@ export default function InstructorCommand() {
             </CardHeader>
             <CardContent className="space-y-2">
               {data.atRiskRoster.map(student => (
-                <div key={student.id} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{student.name}</span>
+                <div key={student.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium truncate">{student.name}</span>
                     <RiskBadge level={student.riskTier === 'critical' ? 'critical' : student.riskTier === 'high' ? 'high' : 'medium'} />
                   </div>
                   <div className="flex items-center gap-1">

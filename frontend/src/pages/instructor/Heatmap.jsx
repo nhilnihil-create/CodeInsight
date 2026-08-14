@@ -387,8 +387,8 @@ export default function InstructorHeatmap() {
             Dense mosaic — CDS struggle index across all concepts. Columns sorted easiest → hardest.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <SectionFilter value={sectionId} onChange={setSectionId} />
+        <div className="flex flex-wrap items-center gap-2">
+          <SectionFilter className="w-full sm:w-auto" value={sectionId} onChange={setSectionId} />
           <ExportDropdown sectionId={sectionId} domain="summary" label="Export" />
         </div>
       </div>
@@ -396,18 +396,18 @@ export default function InstructorHeatmap() {
       {/* ── Glass Panel ─────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-h-0 w-full backdrop-blur-md bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden">
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 flex-shrink-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 border-b border-white/5 flex-shrink-0">
           <span className="text-[11px] font-medium text-white/50 uppercase tracking-wider">
             Student × Concept — Struggle Index
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Input
               placeholder="Search student…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-7 w-40 text-[11px] bg-white/5 border-white/10 text-white/80 placeholder:text-white/30"
+              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 border-white/10 text-white/80 placeholder:text-white/30"
             />
-            <Legend />
+            <div className="hidden sm:block"><Legend /></div>
           </div>
         </div>
 
