@@ -25,7 +25,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
   };
 
   return (
-    <div className="mesh-bg noise-overlay min-h-screen bg-[#0B0F19] text-foreground">
+    <div className="mesh-bg noise-overlay min-h-dvh bg-[#0B0F19] text-foreground">
       <div className="relative z-10 mx-auto max-w-6xl px-6 py-8">
         {/* Top bar */}
         <div className="flex items-center justify-between gap-4 mb-8">

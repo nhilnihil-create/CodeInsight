@@ -52,7 +52,12 @@ export default function GoogleAuthButton({ onError }) {
         size: 'large',
         text: 'continue_with',
         shape: 'rectangular',
-        width: 320,
+        // GIS requires a fixed pixel width. Fit narrow phones (375px viewport
+        // leaves 303px inside the auth card) while keeping 320px on desktop.
+        width: Math.min(
+          320,
+          Math.max(200, typeof window !== 'undefined' ? window.innerWidth - 72 : 320),
+        ),
         locale: 'en',
       });
     };

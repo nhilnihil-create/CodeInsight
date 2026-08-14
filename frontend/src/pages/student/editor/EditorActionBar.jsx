@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 export default function EditorActionBar({ onRun, onSubmit, isRunning, isReviewMode = false }) {
   return (
     <div
-      className="h-14 bg-card border-t border-border flex items-center gap-2 px-3 shrink-0"
+      className="min-h-14 bg-card border-t border-border flex items-center gap-2 px-3 shrink-0 pb-[env(safe-area-inset-bottom)]"
       role="toolbar"
       aria-label="Editor actions"
     >

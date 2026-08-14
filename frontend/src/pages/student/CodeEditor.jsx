@@ -582,7 +582,7 @@ export default function StudentCodeEditor() {
         onBack={handleBack}
       />
 
-      <div className="hidden lg:flex flex-1 w-full overflow-hidden h-[calc(100vh-56px)]">
+      <div className="hidden lg:flex flex-1 w-full overflow-hidden h-[calc(100dvh-56px)]">
         <ResizableWorkbench
           exercise={exercise}
           code={code}

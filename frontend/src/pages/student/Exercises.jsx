@@ -231,12 +231,12 @@ export default function StudentExercises() {
     return (
       <StudentDashboardShell breadcrumb={SHELL_BREADCRUMB} subtitle={SHELL_SUBTITLE}>
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-9 w-full sm:w-64" />
           </div>
           <Skeleton className="h-16 w-full rounded-2xl" />
-          <Skeleton className="h-9 w-96 rounded-xl" />
+          <Skeleton className="h-9 w-full sm:w-96 rounded-xl" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
@@ -275,7 +275,7 @@ export default function StudentExercises() {
       ) : (
         <>
           {/* Page header: title + search */}
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">My Exercises</h1>
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />

@@ -30,7 +30,7 @@ export default function SectionGatePage() {
 
   if (loading) {
     return (
-      <div className="mesh-bg noise-overlay flex min-h-screen items-center justify-center bg-[#0B0F19]">
+      <div className="mesh-bg noise-overlay flex min-h-dvh items-center justify-center bg-[#0B0F19]">
         <div className="flex flex-col items-center justify-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Loading your classes…</p>
@@ -41,7 +41,7 @@ export default function SectionGatePage() {
 
   if (error) {
     return (
-      <div className="mesh-bg noise-overlay flex min-h-screen items-center justify-center bg-[#0B0F19]">
+      <div className="mesh-bg noise-overlay flex min-h-dvh items-center justify-center bg-[#0B0F19]">
         <div className="flex flex-col items-center justify-center gap-3 text-center">
           <h1 className="text-xl font-semibold text-foreground">Couldn't load your classes</h1>
           <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
