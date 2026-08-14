@@ -53,6 +53,7 @@ export default function GoogleAuthButton({ onError }) {
         text: 'continue_with',
         shape: 'rectangular',
         width: 320,
+        locale: 'en',
       });
     };
 

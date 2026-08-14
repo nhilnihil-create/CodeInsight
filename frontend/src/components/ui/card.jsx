@@ -1,12 +1,13 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef(function Card({ className, ...props }, ref) {
+const Card = React.forwardRef(function Card({ variant = "default", className, ...props }, ref) {
   return (
     <div
       ref={ref}
       className={cn(
-        "relative rounded-xl glass-panel noise-overlay",
+        "relative rounded-xl noise-overlay",
+        variant === "dense" ? "glass-panel-dense" : "glass-panel",
         className,
       )}
       {...props}
