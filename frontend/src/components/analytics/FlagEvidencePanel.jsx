@@ -250,7 +250,7 @@ function FlagCard({ flag, isExpanded, onToggle }) {
           )}
 
           {evidenceEntries.length > 0 && (
-            <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
               {evidenceEntries.map(([key, value]) => (
                 <div key={key} className="flex items-baseline gap-1.5 min-w-0">
                   <span className="text-[10px] text-muted-foreground/50 shrink-0">

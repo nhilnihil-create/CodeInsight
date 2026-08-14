@@ -21,6 +21,8 @@ import { useSidebar } from "@/context/SidebarContext";
 import CodeViewer from "./CodeViewer";
 import FlagEvidencePanel from "./FlagEvidencePanel";
 
+const DESKTOP_QUERY = "(min-width: 1024px)";
+
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const ms = Date.now() - new Date(dateStr).getTime();
@@ -58,6 +60,17 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const closeTimer = useRef(null);
+
+  // Responsive: on mobile the sidebar is off-canvas, so left offset is 0.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(DESKTOP_QUERY).matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(DESKTOP_QUERY);
+    const handler = (e) => setIsDesktop(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -109,6 +122,14 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
   }, [open, onClose]);
 
   const current = runs[selectedIdx];
+
+  // Mobile: auto-select latest run when data changes
+  useEffect(() => {
+    if (!isDesktop && runs.length > 0) {
+      setSelectedIdx(runs.length - 1);
+    }
+  }, [isDesktop, runs.length]);
+
   const highFlagCount = flags.filter((f) => f.severity === "high").length;
   const topSeverity =
     highFlagCount > 0
@@ -119,7 +140,8 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
 
   if (!mounted) return null;
 
-  const sidebarLeft = isOpen ? 220 : 70;
+  // On mobile the sidebar drawer is off-canvas → no left offset.
+  const sidebarLeft = isDesktop ? (isOpen ? 220 : 70) : 0;
 
   return (
     <>
@@ -133,37 +155,36 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
         onClick={onClose}
-      />
-
-      {/* Panel */}
+      />        {/* Panel */}
       <div
         className="fixed inset-y-0 right-0 z-50 flex flex-col bg-background border-l border-border shadow-2xl"
         style={{
           left: sidebarLeft,
+          right: 0,
           opacity: visible ? 1 : 0,
           transform: visible ? "translateX(0)" : "translateX(8px)",
           transition: `opacity ${ANIM_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1), transform ${ANIM_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1)`,
         }}
       >
         {/* Header bar */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0 bg-muted/20">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
+        <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border shrink-0 bg-muted/20 gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
             <button
               onClick={onClose}
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-              Back
+              <span className="hidden sm:inline">Back</span>
             </button>
-            <div className="h-4 w-px bg-border" />
+            <div className="h-4 w-px bg-border hidden sm:block" />
             <div className="min-w-0">
               <div className="text-sm font-semibold truncate">
                 {submission?.student_name || "Submission Detail"}
               </div>
               <div className="text-xs text-muted-foreground truncate">
                 {submission?.student_email}
-                <span className="mx-1.5 text-muted-foreground/40">·</span>
-                {submission?.exercise_title}
+                <span className="mx-1.5 text-muted-foreground/40 hidden sm:inline">·</span>
+                <span className="hidden sm:inline">{submission?.exercise_title}</span>
                 {submission?.time_spent_seconds !== null &&
                   submission?.time_spent_seconds !== undefined && (
                   <>
@@ -177,7 +198,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Flags badge */}
             {flags.length > 0 && (
               <button
@@ -206,6 +227,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
 
             <Badge
               variant={submission?.is_correct ? "default" : "destructive"}
+              className="hidden sm:inline-flex"
             >
               {submission?.is_correct ? (
                 <>
@@ -255,8 +277,36 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
           </div>
         ) : (
           <div className="flex flex-1 min-h-0">
-            {/* Timeline sidebar */}
-            <div className="w-56 shrink-0 border-r border-border overflow-y-auto bg-muted/10">
+            {/* Mobile run selector — compact dropdown visible below lg */}
+            {runs.length > 1 && (
+              <div className="lg:hidden flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/10 shrink-0">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                  Run
+                </span>
+                <select
+                  value={selectedIdx}
+                  onChange={(e) => setSelectedIdx(Number(e.target.value))}
+                  className="flex-1 h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {runs.map((run, idx) => {
+                    const runCount = runs.slice(0, idx + 1).filter((r) => !r.is_submission).length;
+                    const submissionCount = runs.slice(0, idx + 1).filter((r) => r.is_submission).length;
+                    return (
+                      <option key={idx} value={idx}>
+                        {run.is_submission
+                          ? `${ordinal(submissionCount)} Submission`
+                          : `Run #${runCount}`}
+                        {run.error_count > 0 ? ` (${run.error_count}E)` : ""}
+                        {run.is_submission && submissionCount === runs.filter((r) => r.is_submission).length ? " • FINAL" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
+            {/* Timeline sidebar — desktop only */}
+            <div className="hidden lg:flex w-56 shrink-0 border-r border-border overflow-y-auto bg-muted/10">
               <div className="px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 bg-muted/10 backdrop-blur-sm">
                 <Clock className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />
                 Run History ({runs.length})
@@ -324,7 +374,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
             </div>
 
             {/* Code + compiler log */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
               <div className="flex-1 min-h-0">
                 {current && (
                   <CodeViewer
@@ -335,7 +385,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
               </div>
 
               {current?.compiler_log && (
-                <div className="border-t border-border shrink-0 max-h-48 overflow-y-auto bg-muted/20">
+                <div className="border-t border-border shrink-0 max-h-32 sm:max-h-48 overflow-y-auto bg-muted/20">
                   <div className="flex items-center gap-1.5 px-5 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 bg-muted/20 backdrop-blur-sm">
                     <Terminal className="h-3 w-3" strokeWidth={1.5} />
                     Compiler Output
