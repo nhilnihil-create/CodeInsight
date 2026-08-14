@@ -104,10 +104,10 @@ export default function StudentSections() {
       ) : (
         visibleSections.map(section => (
           <Card key={section.id}>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">{section.name}</h3>
-                <p className="text-xs text-muted-foreground font-mono">
+            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold truncate">{section.name}</h3>
+                <p className="text-xs text-muted-foreground font-mono truncate">
                   {[section.course_code, section.term || 'Active'].filter(Boolean).join(' · ')}
                 </p>
               </div>
@@ -151,7 +151,7 @@ export default function StudentSections() {
               onChange={handleCodeChange}
               maxLength={7}
               disabled={joining}
-              className="font-mono w-40"
+              className="font-mono w-full max-w-[10rem]"
             />
             <Button size="sm" disabled={joinCode.length < 7 || joining} onClick={handleJoin}>
               {joining ? (

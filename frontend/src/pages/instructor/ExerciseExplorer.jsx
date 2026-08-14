@@ -71,13 +71,13 @@ export default function ExerciseExplorer() {
           <h1 className="text-3xl font-bold tracking-tight">Exercise Explorer</h1>
           <p className="text-muted-foreground">Search and filter exercises by concept, section, or keywords.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link to="/instructor/exercises/bulk-create" className="gap-2">
               <Layers className="w-4 h-4" /> Bulk Create
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link to="/instructor/exercises/new" className="gap-2">
               <Plus className="w-4 h-4" /> Create Exercise
             </Link>

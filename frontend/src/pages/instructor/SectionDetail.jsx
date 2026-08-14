@@ -162,7 +162,7 @@ export default function SectionDetail() {
         />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight break-words">
               {section.name} — {section.course_code}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -201,7 +201,7 @@ export default function SectionDetail() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <ExportDropdown sectionId={id} domain="roster" formats={["csv", "xlsx"]} label="Export Roster" />
             <VisualReportButton sectionId={id} />
             <DropdownMenu>
