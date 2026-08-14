@@ -42,7 +42,7 @@ function initials(name) {
     .join("");
 }
 
-const GRID_CLASS = "grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] items-center gap-3";
+const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] items-start sm:items-center gap-1 sm:gap-3";
 
 export default function SubmissionsTab({ sectionId, initialExerciseId = null }) {
   const [search, setSearch] = useState("");
@@ -231,7 +231,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative flex-1 min-w-0 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
           <Input
             type="text"
@@ -246,7 +246,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
         <select
           value={exerciseFilter}
           onChange={(e) => setExerciseFilter(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full sm:w-auto"
         >
           <option value="">All exercises</option>
           {exerciseOptions.map((ex) => (
@@ -300,7 +300,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                       </span>
                     </span>
                     <span className="text-sm text-muted-foreground truncate"></span>
-                    <span className="text-sm text-muted-foreground text-right tabular-nums"></span>
+                    <span className="text-sm text-muted-foreground text-right tabular-nums sm:block"></span>
                     <span className="text-right"></span>
                     <span className="text-xs font-mono tabular-nums text-muted-foreground text-right"></span>
                     <span className="text-xs font-mono tabular-nums text-muted-foreground text-right"></span>
@@ -311,7 +311,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
+              <div className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40 hidden sm:grid">
                 <span className="text-xs font-medium text-muted-foreground">Exercise</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Not submitted</span>
               </div>
@@ -322,7 +322,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                     className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 h-12"
                   >
                     <span className="text-sm text-foreground truncate">{ex.title}</span>
-                    <span className="text-sm text-muted-foreground text-right tabular-nums">
+                    <span className="text-sm text-muted-foreground text-right tabular-nums block">
                       {ex.non_submitter_count}
                     </span>
                   </li>
@@ -345,7 +345,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
       ) : (
         <>
           {/* Status tabs (latest attempt) */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {[
               { key: "all", label: `All (${groups.length})` },
               { key: "pass", label: "Latest pass" },
@@ -387,7 +387,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="overflow-x-auto">
                 {/* Table header */}
-                <div className={cn(GRID_CLASS, "px-4 h-9 border-b border-border bg-muted/40")}>
+                <div className={cn(GRID_CLASS, "px-4 h-9 border-b border-border bg-muted/40 hidden sm:grid")}>
                   <span className="text-xs font-medium text-muted-foreground">Student</span>
                   <span className="text-xs font-medium text-muted-foreground">Exercise</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
@@ -424,7 +424,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           <span className="text-sm text-muted-foreground truncate">
                             {g.exercise_title}
                           </span>
-                          <span className="text-sm text-muted-foreground text-right tabular-nums">
+                          <span className="text-sm text-muted-foreground text-right tabular-nums sm:block">
                             ×{g.attempt_count}
                           </span>
                           <span className="text-right">
@@ -474,7 +474,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                                   #{a.attempt_number}
                                 </span>
                                 <span className="text-xs text-muted-foreground truncate"></span>
-                                <span className="text-sm text-muted-foreground text-right tabular-nums"></span>
+                                <span className="text-sm text-muted-foreground text-right tabular-nums sm:block"></span>
                                 <span className="text-right">
                                   {a.is_correct ? (
                                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
