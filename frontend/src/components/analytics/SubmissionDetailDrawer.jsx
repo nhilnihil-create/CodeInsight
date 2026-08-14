@@ -386,12 +386,12 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
             )}
 
             {/* Timeline sidebar — desktop only */}
-            <div className="hidden lg:flex w-56 shrink-0 border-r border-border overflow-y-auto bg-muted/10">
-              <div className="px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 bg-muted/10 backdrop-blur-sm">
+            <div className="hidden lg:flex flex-col w-56 shrink-0 border-r border-border overflow-y-auto bg-muted/10">
+              <div className="px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border sticky top-0 bg-muted/10 backdrop-blur-sm shrink-0">
                 <Clock className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />
                 Run History ({runs.length})
               </div>
-              <div className="py-1">
+              <div className="py-1 flex-1 overflow-y-auto">
                 {runs.map((run, idx) => {
                   const runCount = runs.slice(0, idx + 1).filter((r) => !r.is_submission).length;
                   const submissionCount = runs.slice(0, idx + 1).filter((r) => r.is_submission).length;
