@@ -32,6 +32,7 @@ import DecisionList from "@/components/ui/decision-list";
 import { flagTypeLabel } from "@/lib/flagTypes";
 import { formatDateAgo, formatDuration } from "@/lib/format";
 import api from "@/services/api";
+import useLastSection from "@/hooks/useLastSection";
 
 function initials(name) {
   if (!name) return "??";
@@ -66,7 +67,8 @@ const SEVERITY_RISK_LEVEL = { high: "high", medium: "moderate", low: "low", na: 
 export default function InstructorStudentDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const sectionId = searchParams.get("section");
+  const [lastSectionId] = useLastSection();
+  const sectionId = searchParams.get("section") ?? lastSectionId;
   const [sectionName, setSectionName] = useState(null);
   const [tab, setTab] = useState("mastery");
   const [drawerOpen, setDrawerOpen] = useState(false);

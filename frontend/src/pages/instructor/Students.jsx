@@ -100,7 +100,7 @@ export default function InstructorStudents() {
             header: 'Student',
             mobile: 'primary',
             renderCell: (s) => (
-              <Link to={`/instructor/students/${s.id}`} className="hover:underline text-primary font-medium">
+              <Link to={`/instructor/students/${s.id}?section=${sectionId}`} className="hover:underline text-primary font-medium">
                 {s.name}
               </Link>
             ),
@@ -141,7 +141,7 @@ export default function InstructorStudents() {
         ]}
         data={students}
         keyExtractor={(s) => String(s.id)}
-        onRowClick={(s) => navigate(`/instructor/students/${s.id}`)}
+        onRowClick={(s) => navigate(`/instructor/students/${s.id}?section=${sectionId}`)}
         emptyMessage={
           realStudents?.length === 0
             ? 'No students enrolled in this section.'
