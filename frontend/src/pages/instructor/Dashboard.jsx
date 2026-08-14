@@ -127,7 +127,7 @@ export default function InstructorDashboard() {
             Aggregated metrics for this section, updated live.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
           <PeriodSelector value={period} onChange={setPeriod} />
           <ExportDropdown sectionId={sectionId} domain="summary" formats={["csv", "xlsx"]} label="Export" />

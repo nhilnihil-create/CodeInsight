@@ -126,7 +126,7 @@ function ReportBody({ report }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {report.classSummary && <InsightCard icon={TrendingUp} title="Class Summary" text={report.classSummary} />}
         {report.recommendedAction && <InsightCard icon={Target} title="Recommended Action" text={report.recommendedAction} highlight />}
       </div>

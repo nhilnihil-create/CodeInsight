@@ -328,7 +328,7 @@ export default function InstructorIntegrity() {
             Contextual indicators for instructor review. These flags are hypotheses, not verdicts.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
           <ExportDropdown sectionId={sectionId} domain="summary" label="Export" />
           {error ? (

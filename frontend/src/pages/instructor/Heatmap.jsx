@@ -244,7 +244,7 @@ function DraggableColumnHeader({ concept, index, onSwap, totalColumns }) {
     >
       <div className="absolute inset-0 flex items-end justify-center pb-2">
         <div className="origin-bottom-left -rotate-45 translate-x-[30%] whitespace-nowrap">
-          <GripVertical className="w-2.5 h-2.5 opacity-0 group-hover/th:opacity-40 transition-opacity inline-block mr-0.5 -translate-y-px" />
+          <GripVertical className="w-2.5 h-2.5 opacity-100 lg:opacity-0 lg:group-hover/th:opacity-40 transition-opacity inline-block mr-0.5 -translate-y-px" />
           <span className="text-[9px] font-medium">{concept}</span>
         </div>
       </div>

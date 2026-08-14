@@ -118,7 +118,7 @@ export default function RosterTab({ sectionId, sectionName }) {
         ))}
       </div>
 
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         {/* Header row */}
         <div className="grid grid-cols-[1fr_5.5rem_4rem_5.5rem_2.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
           <span className="text-xs font-medium text-muted-foreground">Student</span>

@@ -230,7 +230,7 @@ export default function InstructorAlerts() {
             signal as the dashboard banner — and leave on their own as their CDS improves.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {error ? (
             <span className="text-xs text-destructive font-medium">{error}</span>
           ) : null}

@@ -275,7 +275,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
         <>
           {/* Status tabs don't apply to the non-submitter view */}
           {exerciseFilter ? (
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="rounded-lg border border-border bg-card overflow-x-auto">
               <div className={cn(GRID_CLASS, "px-4 h-9 border-b border-border bg-muted/40")}>
                 <span className="text-xs font-medium text-muted-foreground">Student</span>
                 <span className="text-xs font-medium text-muted-foreground"></span>
