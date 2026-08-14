@@ -34,7 +34,7 @@ export default function MasteryBar({ percent, tier = "strong", delay = 0, classN
   return (
     <div ref={ref} className={cn("h-1.5 w-full rounded-full mastery-track overflow-hidden", className)}>
       <motion.div
-        className={cn("h-full rounded-full", NEW_TIER_BAR[tier] || NEW_TIER_BAR.excellent)}
+        className={cn("h-full rounded-full", TIER_BAR[tier] || TIER_BAR.excellent)}
         initial={{ width: 0 }}
         animate={inView ? { width: `${percent}%` } : { width: 0 }}
         transition={{ duration: 0.9, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -83,6 +83,7 @@ export const TIER_META = {
  * NEW 5-TIER BEHAVIORAL LEGEND SYSTEM
  * Maps mastery percentages to behavioral tiers for student profile display
  */
+/** @deprecated Use TIER_BAR for bar fills. MasteryBar renders the academic CDS system; NEW_TIER_META remains the live behavioral legend. */
 export const NEW_TIER_BAR = {
   excellent:     "tier-excellent-mastery-bar",
   nominal:        "tier-nominal-progress-bar",
