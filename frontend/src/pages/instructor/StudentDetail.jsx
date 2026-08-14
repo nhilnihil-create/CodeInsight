@@ -285,9 +285,16 @@ export default function InstructorStudentDetail() {
           <div className="flex items-center gap-2 shrink-0">
             <ExportDropdown
               sectionId={sectionId}
-              domain="submissions"
+              domain="summary"
               studentId={id}
-              formats={["csv"]}
+              formats={["csv", "xlsx"]}
+              label="Student Summary"
+            />
+            <ExportDropdown
+              sectionId={sectionId}
+              domain="student_attempts"
+              studentId={id}
+              formats={["csv", "xlsx"]}
               label="Export Submissions"
             />
             <VisualReportButton sectionId={sectionId} studentId={id} label="Dossier (PDF)" />

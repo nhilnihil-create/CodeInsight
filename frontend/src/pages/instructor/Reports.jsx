@@ -314,25 +314,9 @@ export default function InstructorReports() {
     setPeriod(next);
   };
 
-  /**
-   * Intentional behavior change (Phase 3 export overhaul):
-   * the per-tab Export control used to download ad-hoc client-side CSVs and
-   * the section roster (via /api/sections/:id/export) regardless of the
-   * active tab. It now drives the canonical /api/export/:domain/:sectionId
-   * endpoint, exporting the ACTIVE tab's data — including Excel, which
-   * previously downloaded the roster.
-   */
-  const EXPORT_DOMAIN_BY_TAB = {
-    mastery: "concept_mastery",
-    completion: "completion",
-    integrity: "integrity",
-  };
-  const EXPORT_LABEL_BY_TAB = {
-    mastery: "Export Mastery",
-    completion: "Export Completion",
-    integrity: "Export Integrity",
-  };
-  const exportDomain = EXPORT_DOMAIN_BY_TAB[tab] || "concept_mastery";
+  // All tabs now export the unified Student Summary via
+  // /api/export/summary/:sectionId — the per-tab domain mapping was removed
+  // so the Export control always downloads the same canonical summary file.
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -370,9 +354,9 @@ export default function InstructorReports() {
           </div>
           <ExportDropdown
             sectionId={sectionId}
-            domain={exportDomain}
+            domain="summary"
             formats={["csv", "xlsx"]}
-            label={EXPORT_LABEL_BY_TAB[tab] || "Export Mastery"}
+            label="Export"
           />
         </div>
       </div>

@@ -235,7 +235,7 @@ export default function InstructorAlerts() {
             <span className="text-xs text-destructive font-medium">{error}</span>
           ) : null}
           <SectionFilter value={sectionId} onChange={setSectionId} />
-          <ExportDropdown sectionId={sectionId} domain="alerts" label="Export Alerts" />
+          <ExportDropdown sectionId={sectionId} domain="summary" label="Export" />
           <Button variant="ghost" size="icon" onClick={() => fetchQueue()} title="Refresh">
             <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
           </Button>

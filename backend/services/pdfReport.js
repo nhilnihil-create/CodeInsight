@@ -18,7 +18,8 @@
  *   5. Integrity flags table + appendix — zebra-striped wrapped table plus a
  *                          per-student roster-count appendix.
  *
- * Dossier mode (opts.studentId): cover + that student's pages + their flags.
+ * Dossier mode (opts.studentId): one compact page for that student + their
+ * integrity flags — no cover page.
  */
 
 const PDFDocument = require('pdfkit');
@@ -31,7 +32,11 @@ const {
   fetchHeatmap,
   fetchIntegrity,
   fetchLongitudinal,
+  fetchSubmissions,
   getSectionMeta,
+  formatPassed,
+  formatCdsPercent,
+  formatMasteryPercent,
   formatIsoDate,
   formatIsoTimestamp,
 } = require('./exportService');
@@ -153,14 +158,14 @@ function kvLine(doc, label, value, y, { labelWidth = 130 } = {}) {
   return y + 16;
 }
 
-/** Labeled stat box. */
-function statBlock(doc, x, y, w, label, value) {
+/** Labeled stat box. Value/label baselines scale with the box height. */
+function statBlock(doc, x, y, w, label, value, h = 52) {
   doc.save();
-  doc.rect(x, y, w, 52).lineWidth(0.8).strokeColor(BORDER).stroke();
+  doc.rect(x, y, w, h).lineWidth(0.8).strokeColor(BORDER).stroke();
   doc.font('Helvetica-Bold').fontSize(18).fillColor(ACCENT);
-  doc.text(String(value), x + 10, y + 10, { width: w - 20 });
+  doc.text(String(value), x + 10, y + Math.round(h * 0.25), { width: w - 20 });
   doc.font('Helvetica').fontSize(8).fillColor(MUTED);
-  doc.text(label, x + 10, y + 34, { width: w - 20 });
+  doc.text(label, x + 10, y + Math.round(h * 0.64), { width: w - 20 });
   doc.restore();
 }
 
@@ -337,7 +342,7 @@ function conceptRadarData(conceptRows, email) {
  * (which carries student_id) and integrity rows; email keys the other
  * fetchers (which carry name/email but no id).
  */
-function buildStudentReport(studentId, { cdsRows, conceptRows, heatmapRows, integrityRows, longitudinalRows }) {
+function buildStudentReport(studentId, { cdsRows, conceptRows, heatmapRows, integrityRows, longitudinalRows, submissions }) {
   const long = longitudinalRows.find((s) => String(s.student_id) === String(studentId)) || null;
   const email =
     (long && long.email) ||
@@ -355,7 +360,7 @@ function buildStudentReport(studentId, { cdsRows, conceptRows, heatmapRows, inte
     studentId,
     name,
     email,
-    trendLabels: progression.map((p) => formatIsoDate(p.computed_at)),
+    trendLabels: progression.map((p) => formatIsoDate(p.computed_at).slice(5)),
     trendValues: progression.map((p) => Number(p.cds)),
     currentCds: progression.length ? Number(progression[progression.length - 1].cds) : null,
     avgCds: progression.length
@@ -365,6 +370,14 @@ function buildStudentReport(studentId, { cdsRows, conceptRows, heatmapRows, inte
     radar: conceptRadarData(conceptRows, email),
     heatmap: buildHeatmap(heatmapRows.filter((r) => r.email === email), { maxRows: 1 }),
     flags: integrityRows.filter((r) => String(r.student_id) === String(studentId)),
+    submissions: (submissions || []).map((r) => ({
+      title: r.title,
+      attempt_number: r.attempt_number,
+      passed: r.passed,
+      cds: r.cds,
+      mastery: r.cds === null || r.cds === undefined ? null : (1 - Number(r.cds)) * 100,
+      submitted: r.submitted,
+    })),
   };
 }
 
@@ -509,11 +522,10 @@ function drawClassOverview(doc, { cdsRows, heatmapRows }) {
 }
 
 /**
- * Per-student pages — two pages each: CDS trend + stats, then concept radar
- * + daily-activity heatmap snippet. Dossier mode additionally appends the
- * student's integrity flags.
+ * Per-student pages (full class report) — two pages each: CDS trend + stats,
+ * then concept radar + daily-activity heatmap snippet.
  */
-function drawStudentPages(doc, student, { dossier = false } = {}) {
+function drawStudentPages(doc, student) {
   const hasTrend = student.trendValues && student.trendValues.length > 0;
   const hasRadar = student.radar && student.radar.axes && student.radar.axes.length > 0;
   const hasHeat =
@@ -523,8 +535,7 @@ function drawStudentPages(doc, student, { dossier = false } = {}) {
 
   // Enrolled student with no trend/radar/heatmap data: collapse to a single
   // page — the student's title with either their integrity flags or a
-  // no-activity note. The early return also prevents the dossier branch from
-  // drawing a flags-only student's flags a second time.
+  // no-activity note.
   if (!hasTrend && !hasRadar && !hasHeat) {
     doc.addPage();
     let y = pageTitle(doc, student.name, MARGIN);
@@ -584,12 +595,195 @@ function drawStudentPages(doc, student, { dossier = false } = {}) {
     rowLabels: hm.rowLabels,
     colLabels: hm.colLabels,
   });
+}
 
-  if (dossier && student.flags.length) {
-    doc.addPage();
-    y = pageTitle(doc, 'Integrity flags', MARGIN);
-    drawFlagsTable(doc, student.flags, y);
+// ── Dossier (single-student PDF) — one dense, easy-to-read page ─────────────
+
+/** Status chip label for the dossier header, from the student's avg CDS. */
+function dossierStatus(student) {
+  if (student.avgCds === null || student.avgCds === undefined) return { label: 'NO DATA', color: SUBTLE };
+  return student.avgCds > AT_RISK_THRESHOLD
+    ? { label: 'AT RISK', color: '#be123c' }
+    : { label: 'ON TRACK', color: ACCENT };
+}
+
+/** Header band: eyebrow, name + status chip, email/student id, section + date. */
+function drawDossierHeader(doc, student, meta, y) {
+  const sectionLabel = (meta && meta.name) || 'Section';
+  const date = formatIsoDate(new Date());
+
+  doc.save();
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(MUTED);
+  doc.text('STUDENT DOSSIER', MARGIN, y, { width: CONTENT_WIDTH });
+  doc.text(`${sectionLabel} · ${date}`, MARGIN, y, { width: CONTENT_WIDTH, align: 'right' });
+  y += 14;
+
+  const status = dossierStatus(student);
+  const chipW = doc.widthOfString(status.label) + 18;
+  const nameW = CONTENT_WIDTH - chipW - 12;
+
+  doc.font('Helvetica-Bold').fontSize(18).fillColor(INK);
+  doc.text(student.name, MARGIN, y, { width: nameW });
+  doc.rect(PAGE_WIDTH - MARGIN - chipW, y + 2, chipW, 16).fill(status.color);
+  doc.font('Helvetica-Bold').fontSize(8).fillColor('#ffffff');
+  doc.text(status.label, PAGE_WIDTH - MARGIN - chipW, y + 5.5, { width: chipW, align: 'center' });
+
+  doc.font('Helvetica').fontSize(9).fillColor(MUTED);
+  const idLine = `${student.email || '—'}` + (student.studentId ? `  ·  Student ID ${student.studentId}` : '');
+  doc.text(idLine, MARGIN, y + 26, { width: nameW });
+  doc.restore();
+  return y + 42;
+}
+
+/** Four compact stat boxes: Current CDS, Avg CDS, Mastery, Trend. */
+function drawDossierStats(doc, student, y) {
+  const stats = [
+    { label: 'Current CDS', value: student.currentCds === null || student.currentCds === undefined ? '—' : Number(student.currentCds).toFixed(2) },
+    { label: 'Average CDS', value: student.avgCds === null || student.avgCds === undefined ? '—' : Number(student.avgCds).toFixed(2) },
+    { label: 'Mastery', value: student.avgCds === null || student.avgCds === undefined ? '—' : `${Math.round((1 - student.avgCds) * 100)}%` },
+    { label: 'Trend', value: student.velocity || '—' },
+  ];
+  const bw = (CONTENT_WIDTH - 3 * 12) / 4;
+  stats.forEach((b, i) => statBlock(doc, MARGIN + i * (bw + 12), y, bw, b.label, b.value, 50));
+  return y + 50 + 12;
+}
+
+/**
+ * Side-by-side CDS trend line chart (left) and concept mastery radar (right)
+ * — fills the page width instead of leaving a half-empty page.
+ */
+function drawDossierCharts(doc, student, y) {
+  const leftW = 310;
+  const rightX = MARGIN + leftW + 16;
+  const rightW = CONTENT_WIDTH - leftW - 16;
+  const chartH = 180;
+
+  doc.save();
+  doc.font('Helvetica-Bold').fontSize(10).fillColor(INK);
+  doc.text('CDS trend', MARGIN, y, { width: leftW });
+  doc.text('Concept mastery', rightX, y, { width: rightW });
+  doc.restore();
+  y += 12;
+
+  renderLineChart(doc, {
+    x: MARGIN,
+    y,
+    w: leftW,
+    h: chartH,
+    series: [student.trendValues],
+    labels: student.trendLabels,
+    color: TREND_COLOR,
+  });
+  renderRadarChart(doc, {
+    axes: student.radar.axes,
+    values: student.radar.values,
+    center: { x: rightX + rightW / 2, y: y + chartH / 2 },
+    radius: 78,
+    color: RADAR_COLOR,
+  });
+  return y + chartH + 12;
+}
+
+const DOSSIER_ATTEMPT_WIDTHS = [150, 55, 50, 55, 60, 145];
+const DOSSIER_ATTEMPT_COLUMNS = ['Exercise', 'Attempt', 'Passed', 'CDS (%)', 'Mastery (%)', 'Submitted'];
+
+/** Compact submissions-and-attempts table for the dossier (identity columns omitted). */
+function drawDossierAttempts(doc, student, y) {
+  const rows = student.submissions || [];
+  if (rows.length === 0) return y;
+
+  y += 4;
+  y = pageTitle(doc, `Submissions & Attempts (${rows.length})`, y);
+  y += drawRow(doc, MARGIN, y, DOSSIER_ATTEMPT_WIDTHS, DOSSIER_ATTEMPT_COLUMNS, { bold: true });
+  rows.forEach((row, i) => {
+    const cells = [
+      row.title,
+      row.attempt_number,
+      formatPassed(row.passed),
+      formatCdsPercent(row.cds),
+      formatMasteryPercent(row.mastery),
+      formatIsoTimestamp(row.submitted),
+    ];
+    if (!fits(y, 20)) {
+      doc.addPage();
+      y = pageTitle(doc, 'Submissions & Attempts', MARGIN);
+      y += drawRow(doc, MARGIN, y, DOSSIER_ATTEMPT_WIDTHS, DOSSIER_ATTEMPT_COLUMNS, { bold: true });
+    }
+    y += drawRow(doc, MARGIN, y, DOSSIER_ATTEMPT_WIDTHS, cells, { zebra: i % 2 === 1 });
+  });
+  return y;
+}
+
+const DOSSIER_FLAG_WIDTHS = [175, 70, 70, 175];
+const DOSSIER_FLAG_COLUMNS = ['Flag Type', 'Severity', 'Status', 'Created At'];
+
+/** Compact integrity-flags table for the dossier (student column omitted). */
+function drawDossierFlags(doc, student, y) {
+  const flags = student.flags || [];
+  if (flags.length === 0) return y;
+
+  y += 2;
+  y = pageTitle(doc, `Integrity flags (${flags.length})`, y);
+  y += drawRow(doc, MARGIN, y, DOSSIER_FLAG_WIDTHS, DOSSIER_FLAG_COLUMNS, { bold: true });
+  flags.forEach((row, i) => {
+    const cells = [row.flag_type, row.severity, row.status, formatIsoTimestamp(row.created_at)];
+    if (!fits(y, 20)) {
+      doc.addPage();
+      y = pageTitle(doc, 'Integrity flags', MARGIN);
+      y += drawRow(doc, MARGIN, y, DOSSIER_FLAG_WIDTHS, DOSSIER_FLAG_COLUMNS, { bold: true });
+    }
+    y += drawRow(doc, MARGIN, y, DOSSIER_FLAG_WIDTHS, cells, { zebra: i % 2 === 1 });
+  });
+  return y;
+}
+
+/**
+ * Small gray footer line pinned to the bottom margin of the dossier page:
+ * left-aligned "Generated <date> · CodeInsight Student Dossier" and
+ * right-aligned "Page 1 of 1". The dossier is designed to fit one page.
+ */
+function drawDossierFooter(doc) {
+  const label = `Generated ${formatIsoDate(new Date())} · CodeInsight Student Dossier`;
+  const page = 'Page 1 of 1';
+  // BOTTOM_Y - 10 keeps y + lineHeight(≈8.1 @ 7pt) below page.maxY() so
+  // pdfkit's auto page-break never fires from this line.
+  const y = BOTTOM_Y - 10;
+  doc.save();
+  doc.font('Helvetica').fontSize(7).fillColor(SUBTLE);
+  doc.text(label, MARGIN, y, { width: CONTENT_WIDTH });
+  doc.text(page, MARGIN, y, { width: CONTENT_WIDTH, align: 'right' });
+  doc.restore();
+}
+
+/**
+ * Single-student dossier — one compact page starting on the current page:
+ * header band, stat boxes, side-by-side trend/radar charts, submissions &
+ * attempts table, then integrity flags. No cover page, no sparse pages.
+ */
+function drawDossierPages(doc, student, meta) {
+  const hasTrend = student.trendValues && student.trendValues.length > 0;
+  const hasRadar = student.radar && student.radar.axes && student.radar.axes.length > 0;
+  const hasHeat =
+    (student.heatmap && student.heatmap.rowLabels && student.heatmap.rowLabels.length > 0) ||
+    (student.heatmap && student.heatmap.colLabels && student.heatmap.colLabels.length > 0);
+  const hasFlags = student.flags && student.flags.length > 0;
+  const hasAttempts = student.submissions && student.submissions.length > 0;
+
+  let y = drawDossierHeader(doc, student, meta, MARGIN + 6);
+
+  if (!hasTrend && !hasRadar && !hasHeat && !hasFlags && !hasAttempts) {
+    doc.save();
+    doc.font('Helvetica').fontSize(10).fillColor(MUTED);
+    doc.text('No activity recorded for this student.', MARGIN, y + 24, { width: CONTENT_WIDTH });
+    doc.restore();
+    return;
   }
+
+  y = drawDossierStats(doc, student, y);
+  y = drawDossierCharts(doc, student, y);
+  y = drawDossierAttempts(doc, student, y);
+  y = drawDossierFlags(doc, student, y);
+  drawDossierFooter(doc);
 }
 
 const FLAG_COLUMNS = ['Student', 'Flag Type', 'Severity', 'Status', 'Created At'];
@@ -712,7 +906,8 @@ async function countSubmissions(sectionId) {
  * Build the section visual report as a PDF Buffer.
  *
  * Full class report by default; pass opts.studentId for a single-student
- * dossier (cover + that student's pages + their integrity flags).
+ * dossier (one compact page — no cover — for that student + their integrity
+ * flags).
  * opts.instructorName is optional — when omitted the name is resolved from
  * the sections.instructor_id (fallback '—').
  *
@@ -746,15 +941,15 @@ async function buildSectionVisualReport(sectionId, { studentId, instructorName }
 
   const instructor = instructorName || (await resolveInstructorName(meta));
   const doc = makeDocument();
-  drawCover(doc, meta, instructor);
 
   if (studentId) {
-    const [cdsRows, conceptRows, heatmapRows, integrityRows, longitudinalRows] = await Promise.all([
+    const [cdsRows, conceptRows, heatmapRows, integrityRows, longitudinalRows, submissions] = await Promise.all([
       fetchCds(sectionId, { studentId }),
       fetchConceptMastery(sectionId, { studentId }),
       fetchHeatmap(sectionId, { studentId }),
       fetchIntegrity(sectionId, { studentId }),
       fetchLongitudinal(sectionId, { studentId }),
+      fetchSubmissions(sectionId, { studentId }),
     ]);
 
     if (longitudinalRows.length === 0) {
@@ -768,12 +963,17 @@ async function buildSectionVisualReport(sectionId, { studentId, instructorName }
       heatmapRows,
       integrityRows,
       longitudinalRows,
+      submissions,
     });
-    drawStudentPages(doc, student, { dossier: true });
+    // Compact single-page dossier (vs. the two sparse pages per student in
+    // the full class report).
+    drawDossierPages(doc, student, meta);
     return collectBuffer(doc);
   }
 
-  // Full class report.
+  // Full class report — cover page, then the class-wide pages.
+  drawCover(doc, meta, instructor);
+
   const [cdsRows, conceptRows, heatmapRows, integrityRows, longitudinalRows, submissionCount] = await Promise.all([
     fetchCds(sectionId),
     fetchConceptMastery(sectionId),
@@ -822,6 +1022,12 @@ async function buildSectionVisualReport(sectionId, { studentId, instructorName }
 
 module.exports = {
   buildSectionVisualReport,
+  // Document/draw helpers exported for the no-DB preview script
+  // (backend/scripts/preview_dossier.js) and the pdfReport tests.
+  makeDocument,
+  collectBuffer,
+  drawCover,
+  drawDossierPages,
   // Pure data shapers, exported for the DB-backed pdfReport tests.
   avgCdsByDate,
   cdsDistribution,

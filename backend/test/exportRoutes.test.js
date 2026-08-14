@@ -195,7 +195,7 @@ describe('export routes — canonical endpoint', () => {
 
     const records = parseCsv(res.buffer);
     expect(records).toHaveLength(3);
-    expect(Object.keys(records[0])).toEqual(['Name', 'Email', 'Enrolled At']);
+    expect(Object.keys(records[0])).toEqual(['Student ID', 'Student Name', 'Student Email', 'Date of Enrollment']);
   });
 
   it('200 xlsx with a single roster sheet', async () => {
@@ -215,8 +215,8 @@ describe('export routes — canonical endpoint', () => {
     const ws = workbook.getWorksheet('roster');
     expect(ws).toBeTruthy();
     expect(ws.actualRowCount).toBe(4); // header + 3 students
-    expect(ws.getRow(1).getCell(1).value).toBe('Name');
-    expect(ws.getRow(1).getCell(3).value).toBe('Enrolled At');
+    expect(ws.getRow(1).getCell(1).value).toBe('Student ID');
+    expect(ws.getRow(1).getCell(4).value).toBe('Date of Enrollment');
   });
 
   it('200 json with raw rows', async () => {
@@ -230,7 +230,7 @@ describe('export routes — canonical endpoint', () => {
     expect(res.headers['content-type']).toContain('application/json');
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toHaveLength(3);
-    expect(Object.keys(res.body[0]).sort()).toEqual(['email', 'enrolled_at', 'name']);
+    expect(Object.keys(res.body[0]).sort()).toEqual(['email', 'enrolled_at', 'name', 'student_id']);
   });
 
   it('defaults to csv when format is omitted', async () => {
@@ -242,6 +242,67 @@ describe('export routes — canonical endpoint', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('text/csv');
     expect(res.buffer.subarray(0, 3)).toEqual(CSV_BOM_BYTES);
+  });
+
+  it('200 csv summary for the unified student summary domain', async () => {
+    await testPool.query(
+      `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
+       VALUES ($1, $2, $3, 0.7, 'moderate', $4)`,
+      [seeded.studentIds[0], seeded.exerciseId, seeded.sectionId, '2026-04-05 08:00:00']
+    );
+
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/summary/${seeded.sectionId}?format=csv`,
+      token: instructorToken(seeded.instructorId),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+    expect(res.headers['content-disposition']).toMatch(/filename="Test Section_summary_\d{4}-\d{2}-\d{2}\.csv"/);
+
+    const records = parseCsv(res.buffer);
+    expect(records).toHaveLength(1);
+    expect(Object.keys(records[0])).toEqual([
+      'Student ID', 'Student Name', 'Student Email', 'CDS (%)', 'Mastery (%)',
+    ]);
+    expect(records[0]['CDS (%)']).toBe('70.0');
+  });
+
+  it('400 when exporting student_attempts without a studentId', async () => {
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/student_attempts/${seeded.sectionId}`,
+      token: instructorToken(seeded.instructorId),
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('studentId');
+  });
+
+  it('200 csv student_attempts for a single student', async () => {
+    await testPool.query(
+      `INSERT INTO submissions
+         (student_id, exercise_id, attempt_number, code, is_correct, time_spent_seconds, test_results, is_verified, cds)
+       VALUES ($1, $2, 1, 'int main() { return 0; }', true, 30, '[]', true, 0.55)`,
+      [seeded.studentIds[0], seeded.exerciseId]
+    );
+
+    const res = await request({
+      method: 'GET',
+      path: `/api/export/student_attempts/${seeded.sectionId}?studentId=${seeded.studentIds[0]}`,
+      token: instructorToken(seeded.instructorId),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/csv');
+    const records = parseCsv(res.buffer);
+    expect(records).toHaveLength(1);
+    expect(Object.keys(records[0])).toEqual([
+      'Exercise', 'Attempt', 'Passed', 'CDS (%)', 'Mastery (%)', 'Submitted',
+    ]);
+    expect(records[0].Exercise).toBe('Test Exercise');
+    expect(records[0]['CDS (%)']).toBe('55.0');
   });
 });
 

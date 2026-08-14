@@ -389,7 +389,7 @@ export default function InstructorHeatmap() {
         </div>
         <div className="flex items-center gap-2">
           <SectionFilter value={sectionId} onChange={setSectionId} />
-          <ExportDropdown sectionId={sectionId} domain="heatmap" label="Export Heatmap" />
+          <ExportDropdown sectionId={sectionId} domain="summary" label="Export" />
         </div>
       </div>
 

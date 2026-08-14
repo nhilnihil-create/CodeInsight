@@ -330,7 +330,7 @@ export default function InstructorIntegrity() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <SectionFilter value={sectionId} onChange={setSectionId} />
-          <ExportDropdown sectionId={sectionId} domain="integrity" label="Export Integrity" />
+          <ExportDropdown sectionId={sectionId} domain="summary" label="Export" />
           {error ? (
             <span className="text-xs text-destructive font-medium">{error}</span>
           ) : null}

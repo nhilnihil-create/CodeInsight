@@ -58,7 +58,7 @@ export default function ClassMicroConceptReport() {
             Aggregated pattern analysis of specific sub-concepts confusing students.
           </p>
         </div>
-        <ExportDropdown sectionId={sectionId} domain="concept_mastery" className="ml-auto" label="Export Mastery" />
+        <ExportDropdown sectionId={sectionId} domain="summary" className="ml-auto" label="Export" />
       </div>
 
       {concepts.length === 0 ? (

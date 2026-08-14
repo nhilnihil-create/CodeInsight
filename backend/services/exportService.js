@@ -109,6 +109,17 @@ function formatCdsPercent(value) {
   return (Number(value) * 100).toFixed(1);
 }
 
+/**
+ * Numeric mastery percent 0–100 ("85.3"), formatted to one decimal. The
+ * value arrives as an already-0–100 percent — the fetchers map
+ * mastery = (1 − cds) × 100 — so it is formatted as-is rather than
+ * re-scaled from a 0–1 fraction.
+ */
+function formatMasteryPercent(value) {
+  if (value === null || value === undefined) return '';
+  return (Number(value)).toFixed(1);
+}
+
 /** Legacy CDS percent string ("85.0%") — legacy alias column. */
 function formatCdsPercentString(value) {
   if (value === null || value === undefined) return '';
@@ -147,20 +158,36 @@ function formatEvidence(value) {
 // ── Domain definitions ──────────────────────────────────────────────────────
 
 const ROSTER_COLUMNS = [
-  { key: 'name', header: 'Name', width: 30 },
-  { key: 'email', header: 'Email', width: 40 },
-  { key: 'enrolled_at', header: 'Enrolled At', width: 20, format: formatIsoDate },
+  { key: 'student_id', header: 'Student ID', width: 12 },
+  { key: 'name', header: 'Student Name', width: 30 },
+  { key: 'email', header: 'Student Email', width: 40 },
+  { key: 'enrolled_at', header: 'Date of Enrollment', width: 20, format: formatIsoDate },
 ];
 
 const SUBMISSIONS_COLUMNS = [
+  { key: 'student_id', header: 'Student ID', width: 12 },
   { key: 'name', header: 'Student Name', width: 25 },
-  { key: 'email', header: 'Email', width: 35 },
+  { key: 'email', header: 'Student Email', width: 35 },
   { key: 'title', header: 'Exercise', width: 30 },
   { key: 'attempt_number', header: 'Attempt', width: 10 },
   { key: 'passed', header: 'Passed', width: 10, format: formatPassed },
   { key: 'cds', header: 'CDS (%)', width: 12, format: formatCdsPercent, numeric: true },
+  { key: 'mastery', header: 'Mastery (%)', width: 12, format: formatMasteryPercent, numeric: true },
   { key: 'submitted', header: 'Submitted', width: 25, format: formatIsoTimestamp },
-  { key: 'code', header: 'Code', width: 60 },
+];
+
+/**
+ * Per-student attempt rows for the dossier export — no identity columns (the
+ * export is scoped to a single studentId), only the exercise and attempt
+ * details. Mirrors the SUBMISSIONS_COLUMNS value formats.
+ */
+const STUDENT_ATTEMPTS_COLUMNS = [
+  { key: 'title', header: 'Exercise', width: 30 },
+  { key: 'attempt_number', header: 'Attempt', width: 10 },
+  { key: 'passed', header: 'Passed', width: 10, format: formatPassed },
+  { key: 'cds', header: 'CDS (%)', width: 12, format: formatCdsPercent, numeric: true },
+  { key: 'mastery', header: 'Mastery (%)', width: 12, format: formatMasteryPercent, numeric: true },
+  { key: 'submitted', header: 'Submitted', width: 25, format: formatIsoTimestamp },
 ];
 
 /**
@@ -179,7 +206,8 @@ const SUBMISSIONS_LEGACY_COLUMNS = [
 ];
 
 const INTEGRITY_COLUMNS = [
-  { key: 'student_name', header: 'Student', width: 25 },
+  { key: 'student_id', header: 'Student ID', width: 12 },
+  { key: 'student_name', header: 'Student Name', width: 25 },
   { key: 'exercise_title', header: 'Exercise', width: 30 },
   { key: 'flag_type', header: 'Flag Type', width: 25 },
   { key: 'severity', header: 'Severity', width: 12 },
@@ -192,10 +220,10 @@ const INTEGRITY_COLUMNS = [
 
 // ── Domain fetchers ─────────────────────────────────────────────────────────
 
-/** Enrolled students in the section (Name, Email, Enrolled At). */
+/** Enrolled students in the section (Student ID, Name, Email, Enrolled At). */
 async function fetchRoster(sectionId, opts = {}) {
   let query = `
-    SELECT u.name, u.email, e.enrolled_at
+    SELECT u.id AS student_id, u.name, u.email, e.enrolled_at
     FROM enrollments e
     JOIN users u ON u.id = e.student_id
     WHERE e.section_id = $1`;
@@ -223,7 +251,7 @@ async function fetchSubmissions(sectionId, opts = {}) {
   let query;
   if (legacy) {
     query = `
-      SELECT u.name, u.email, ex.title, s.attempt_number, s.is_correct AS passed,
+      SELECT u.id AS student_id, u.name, u.email, ex.title, s.attempt_number, s.is_correct AS passed,
              s.cds, s.created_at AS submitted, s.code
       FROM enrollments en
       JOIN users u ON u.id = en.student_id
@@ -232,7 +260,7 @@ async function fetchSubmissions(sectionId, opts = {}) {
       WHERE en.section_id = $1`;
   } else {
     query = `
-      SELECT u.name, u.email, ex.title, s.attempt_number, s.is_correct AS passed,
+      SELECT u.id AS student_id, u.name, u.email, ex.title, s.attempt_number, s.is_correct AS passed,
              s.cds, s.submitted_at AS submitted, s.code
       FROM submissions s
       JOIN users u ON u.id = s.student_id
@@ -256,12 +284,26 @@ async function fetchSubmissions(sectionId, opts = {}) {
   query += ` ORDER BY u.name, ${dateCol}` + (legacy ? '' : ', s.id');
 
   const { rows } = await db.query(query, values);
-  // pg returns DECIMAL as a string; normalize cds to a number (0–1) for
-  // numeric cells and raw-fidelity JSON output.
+  // pg returns DECIMAL as a string; normalize cds to a number (0–1) and
+  // derive the canonical mastery percent for numeric cells and JSON output.
   return rows.map((row) => ({
     ...row,
     cds: row.cds === null || row.cds === undefined ? null : Number(row.cds),
+    mastery: row.cds === null || row.cds === undefined ? null : (1 - Number(row.cds)) * 100,
   }));
+}
+
+/**
+ * Per-student attempt rows for the student_attempts export. The export is
+ * scoped to a single studentId, so unlike fetchSubmissions it is not meant to
+ * list the whole section — reject section-level calls instead of silently
+ * returning every student's rows.
+ */
+async function fetchStudentAttempts(sectionId, opts = {}) {
+  if (!opts.studentId) {
+    throw new AppError('studentId is required for the student_attempts export', 400, codes.VALIDATION);
+  }
+  return fetchSubmissions(sectionId, opts);
 }
 
 /** Integrity flags for the section (mirrors integrityFlagEngine.getFlagsForSection). */
@@ -297,18 +339,21 @@ async function fetchIntegrity(sectionId, opts = {}) {
 // ── Phase 2: concept mastery / completion / longitudinal domains ────────────
 
 const CONCEPT_MASTERY_COLUMNS = [
+  { key: 'student_id', header: 'Student ID', width: 12 },
   { key: 'name', header: 'Student Name', width: 25 },
-  { key: 'email', header: 'Email', width: 35 },
+  { key: 'email', header: 'Student Email', width: 35 },
   { key: 'concept', header: 'Concept', width: 30 },
-  { key: 'cmi', header: 'Concept Mastery Index', width: 12, numeric: true },
-  { key: 'velocity', header: 'Mastery Velocity', width: 12, numeric: true },
-  { key: 'last_updated', header: 'Last Updated', width: 25, format: formatIsoTimestamp },
+  { key: 'mastery', header: 'Mastery (%)', width: 12, numeric: true },
 ];
 
-/** Concept × student CMI/velocity (mirrors analyticsController.getConceptMasteryReport). */
+/**
+ * Concept × student mastery (mirrors analyticsController.getConceptMasteryReport).
+ * CMI (Concept Mastery Index, 0–100) is the per-concept "Mastery (%)" column;
+ * every row carries the unified Student ID / Name / Email identity columns.
+ */
 async function fetchConceptMastery(sectionId, opts = {}) {
   let query = `
-    SELECT u.name, u.email, c.name AS concept, scm.cmi, scm.velocity, scm.last_updated
+    SELECT u.id AS student_id, u.name, u.email, c.name AS concept, scm.cmi AS mastery
     FROM student_concept_metrics scm
     JOIN users u ON u.id = scm.student_id
     JOIN concepts c ON c.id = scm.concept_id
@@ -328,11 +373,10 @@ async function fetchConceptMastery(sectionId, opts = {}) {
   }
   query += ' ORDER BY u.name, c.name';
   const { rows } = await db.query(query, values);
-  // pg returns DECIMAL as a string; normalize CMI/velocity to numbers.
+  // pg returns DECIMAL as a string; normalize mastery (CMI 0–100) to a number.
   return rows.map((row) => ({
     ...row,
-    cmi: row.cmi === null || row.cmi === undefined ? null : Number(row.cmi),
-    velocity: row.velocity === null || row.velocity === undefined ? null : Number(row.velocity),
+    mastery: row.mastery === null || row.mastery === undefined ? null : Number(row.mastery),
   }));
 }
 
@@ -466,17 +510,24 @@ async function fetchLongitudinal(sectionId, opts = {}) {
 
 // ── Phase 2b: cds / heatmap / behavioral / catalog / settings / alerts ──────
 
+/**
+ * Unified per-student summary columns — the canonical shape for class-level
+ * exports (dashboard / reports): Student ID, Student Name, Student Email,
+ * CDS (%), Mastery (%).
+ */
 const CDS_COLUMNS = [
+  { key: 'student_id', header: 'Student ID', width: 12 },
   { key: 'name', header: 'Student Name', width: 25 },
-  { key: 'email', header: 'Email', width: 35 },
-  { key: 'date', header: 'Date', width: 14, format: formatIsoDate },
+  { key: 'email', header: 'Student Email', width: 35 },
   { key: 'cds', header: 'CDS (%)', width: 12, format: formatCdsPercent, numeric: true },
-  { key: 'classification', header: 'Classification', width: 20 },
+  { key: 'mastery', header: 'Mastery (%)', width: 12, format: formatMasteryPercent, numeric: true },
 ];
 
 /**
  * CDS history — one row per student per calendar day (latest score of the
- * day; null/unscored rows dropped).
+ * day; null/unscored rows dropped). Kept for the PDF visual report builder
+ * (backend/services/pdfReport.js), which drives its avg-CDS-by-date chart
+ * and CDS distribution from this fetcher.
  */
 async function fetchCds(sectionId, opts = {}) {
   let query = `
@@ -512,6 +563,44 @@ async function fetchCds(sectionId, opts = {}) {
   return rows.map((row) => ({
     ...row,
     cds: row.cds === null || row.cds === undefined ? null : Number(row.cds),
+  }));
+}
+
+/**
+ * Per-student CDS summary — one row per enrolled student carrying their
+ * LATEST CDS plus the canonical mastery percent (1 − cds) × 100. This is the
+ * unified class-level export the dashboard and reports pages drive.
+ */
+async function fetchCdsSummary(sectionId, opts = {}) {
+  let query = `
+    SELECT DISTINCT ON (u.id)
+           u.id AS student_id, u.name, u.email, cs.cds
+    FROM cds_scores cs
+    JOIN users u ON u.id = cs.student_id
+    WHERE cs.section_id = $1
+      AND cs.cds IS NOT NULL`;
+  const values = [sectionId];
+  if (opts.studentId) {
+    values.push(opts.studentId);
+    query += ` AND cs.student_id = $${values.length}`;
+  }
+  if (opts.startDate) {
+    values.push(opts.startDate);
+    query += ` AND cs.computed_at >= $${values.length}`;
+  }
+  if (opts.endDate) {
+    values.push(opts.endDate);
+    query += ` AND cs.computed_at <= $${values.length}`;
+  }
+  query += `
+    ORDER BY u.id, cs.computed_at DESC, cs.id DESC
+    LIMIT 25001`;
+  const { rows } = await db.query(query, values);
+  // pg returns DECIMAL as a string; normalize cds to 0–1 and derive mastery.
+  return rows.map((row) => ({
+    ...row,
+    cds: row.cds === null || row.cds === undefined ? null : Number(row.cds),
+    mastery: row.cds === null || row.cds === undefined ? null : (1 - Number(row.cds)) * 100,
   }));
 }
 
@@ -764,9 +853,19 @@ const DOMAINS = {
     sheetName: 'longitudinal',
   },
   cds: {
-    fetch: fetchCds,
+    fetch: fetchCdsSummary,
     columns: CDS_COLUMNS,
     sheetName: 'cds',
+  },
+  summary: {
+    fetch: fetchCdsSummary,
+    columns: CDS_COLUMNS,
+    sheetName: 'summary',
+  },
+  student_attempts: {
+    fetch: fetchStudentAttempts,
+    columns: STUDENT_ATTEMPTS_COLUMNS,
+    sheetName: 'attempts',
   },
   heatmap: {
     fetch: fetchHeatmap,
@@ -889,10 +988,16 @@ module.exports = {
   // (backend/services/pdfReport.js) so PDF generation never duplicates SQL.
   fetchRoster,
   fetchCds,
+  fetchCdsSummary,
   fetchConceptMastery,
   fetchHeatmap,
   fetchIntegrity,
   fetchLongitudinal,
+  fetchSubmissions,
+  fetchStudentAttempts,
+  formatPassed,
+  formatCdsPercent,
+  formatMasteryPercent,
   formatIsoDate,
   formatIsoTimestamp,
 };

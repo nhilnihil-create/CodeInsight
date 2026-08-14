@@ -167,10 +167,12 @@ describe('formatExport — format dispatch (stubbed fetch)', () => {
     const records = parseCsv(out.buffer);
     expect(records).toHaveLength(3);
     expect(Object.keys(records[0])).toEqual([
-      'Student Name', 'Email', 'Exercise', 'Attempt', 'Passed', 'CDS (%)', 'Submitted', 'Code',
+      'Student ID', 'Student Name', 'Student Email', 'Exercise', 'Attempt',
+      'Passed', 'CDS (%)', 'Mastery (%)', 'Submitted',
     ]);
-    // Multiline code cell survives the round trip intact.
-    expect(records[0].Code).toBe(MULTILINE_CODE);
+    // The stub rows carry no student_id; code is not a canonical column
+    // (multiline code is preserved in JSON and the legacy shape instead).
+    expect(records[0]['Student ID']).toBe('');
     expect(records[0]['CDS (%)']).toBe('85.0');
     expect(records[0].Passed).toBe('Yes');
     expect(records[0].Submitted).toBe('2026-03-01T12:00:00.000Z');
@@ -182,10 +184,9 @@ describe('formatExport — format dispatch (stubbed fetch)', () => {
     expect(records[1].Passed).toBe('');
     expect(records[1]['CDS (%)']).toBe('');
     expect(records[1].Submitted).toBe('');
-    expect(records[1].Code).toBe('');
   });
 
-  it('builds a single-sheet xlsx with bold frozen header, numeric CDS (%) and multiline cell', async () => {
+  it('builds a single-sheet xlsx with bold frozen header and numeric CDS (%)', async () => {
     DOMAINS.submissions.fetch.mockResolvedValue(ROWS);
     const out = await formatExport('submissions', STUB_ID, 'xlsx');
 
@@ -200,19 +201,19 @@ describe('formatExport — format dispatch (stubbed fetch)', () => {
 
     expect(ws.actualRowCount).toBe(4); // header + 3 data rows
     const header = ws.getRow(1);
-    expect(header.getCell(1).value).toBe('Student Name');
-    expect(header.getCell(6).value).toBe('CDS (%)');
+    expect(header.getCell(1).value).toBe('Student ID');
+    expect(header.getCell(7).value).toBe('CDS (%)');
     expect(header.getCell(1).font.bold).toBe(true);
     expect(ws.views[0].state).toBe('frozen');
     expect(ws.views[0].ySplit).toBe(1);
 
-    // CDS (%) is numeric; Passed is "Yes"/"No"; multiline code preserved.
-    expect(ws.getRow(2).getCell(6).value).toBe(85);
-    expect(ws.getRow(2).getCell(5).value).toBe('Yes');
-    expect(ws.getRow(2).getCell(8).value).toBe(MULTILINE_CODE);
-    expect(ws.getRow(4).getCell(6).value).toBe(40);
-    expect(ws.getRow(4).getCell(5).value).toBe('No');
-    expect(ws.getRow(3).getCell(6).value).toBeFalsy(); // null cds → empty cell
+    // CDS (%) is numeric; Passed is "Yes"/"No"; the code column is not in
+    // the canonical sheet (it is preserved in JSON and the legacy shape).
+    expect(ws.getRow(2).getCell(7).value).toBe(85);
+    expect(ws.getRow(2).getCell(6).value).toBe('Yes');
+    expect(ws.getRow(4).getCell(7).value).toBe(40);
+    expect(ws.getRow(4).getCell(6).value).toBe('No');
+    expect(ws.getRow(3).getCell(7).value).toBeFalsy(); // null cds → empty cell
   });
 
   it('emits raw-fidelity JSON (cds 0–1, booleans, ISO timestamps)', async () => {
@@ -291,7 +292,7 @@ describe('exportService — DB-backed fetchers and ownership', () => {
       const records = parseCsv(out.buffer);
 
       expect(records).toHaveLength(3);
-      expect(Object.keys(records[0])).toEqual(['Name', 'Email', 'Enrolled At']);
+      expect(Object.keys(records[0])).toEqual(['Student ID', 'Student Name', 'Student Email', 'Date of Enrollment']);
 
       const { rows } = await testPool.query(
         'SELECT enrolled_at FROM enrollments WHERE student_id = $1 AND section_id = $2',
@@ -299,7 +300,7 @@ describe('exportService — DB-backed fetchers and ownership', () => {
       );
       const d = new Date(rows[0].enrolled_at);
       const pad = (n) => String(n).padStart(2, '0');
-      expect(records[0]['Enrolled At']).toBe(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      expect(records[0]['Date of Enrollment']).toBe(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
     });
 
     it('produces a header-only file for an empty section', async () => {
@@ -310,14 +311,14 @@ describe('exportService — DB-backed fetchers and ownership', () => {
       const emptySectionId = rows[0].id;
 
       const out = await formatExport('roster', emptySectionId, 'csv');
-      expect(out.buffer.toString('utf8')).toBe(`${BOM}Name,Email,Enrolled At\r\n`);
+      expect(out.buffer.toString('utf8')).toBe(`${BOM}Student ID,Student Name,Student Email,Date of Enrollment\r\n`);
       const records = parseCsv(out.buffer);
       expect(records).toHaveLength(0);
     });
   });
 
   describe('submissions domain', () => {
-    it('returns canonical columns with multiline code and formatted CDS', async () => {
+    it('returns canonical columns with formatted CDS', async () => {
       const { rows: subRows } = await testPool.query(
         `INSERT INTO submissions
            (student_id, exercise_id, attempt_number, code, is_correct, time_spent_seconds, test_results, is_verified, cds)
@@ -332,9 +333,9 @@ describe('exportService — DB-backed fetchers and ownership', () => {
       // Only the one actual submission appears (canonical joins submissions).
       expect(records).toHaveLength(1);
       expect(Object.keys(records[0])).toEqual([
-        'Student Name', 'Email', 'Exercise', 'Attempt', 'Passed', 'CDS (%)', 'Submitted', 'Code',
+        'Student ID', 'Student Name', 'Student Email', 'Exercise', 'Attempt',
+        'Passed', 'CDS (%)', 'Mastery (%)', 'Submitted',
       ]);
-      expect(records[0].Code).toBe(MULTILINE_CODE);
       expect(records[0].Passed).toBe('Yes');
       expect(records[0].Attempt).toBe('2');
       expect(records[0]['CDS (%)']).toBe('85.3');
@@ -380,6 +381,48 @@ describe('exportService — DB-backed fetchers and ownership', () => {
         studentId: seeded.studentIds[1],
       });
       expect(JSON.parse(other.buffer.toString('utf8'))).toHaveLength(0);
+    });
+  });
+
+  describe('student_attempts domain', () => {
+    it('rejects without a studentId', async () => {
+      await expect(formatExport('student_attempts', seeded.sectionId, 'csv')).rejects.toMatchObject({
+        status: 400,
+        code: 'VALIDATION_ERROR',
+      });
+    });
+
+    it("exports the student's attempts with formatted cells and no identity columns", async () => {
+      await testPool.query(
+        `INSERT INTO submissions
+           (student_id, exercise_id, attempt_number, code, is_correct, time_spent_seconds, test_results, is_verified, cds)
+         VALUES ($1, $2, 2, $3, true, 30, '[]', true, 0.7)
+         RETURNING id`,
+        [seeded.studentIds[0], seeded.exerciseId, MULTILINE_CODE]
+      );
+
+      const out = await formatExport('student_attempts', seeded.sectionId, 'csv', {
+        studentId: seeded.studentIds[0],
+      });
+      const records = parseCsv(out.buffer);
+      expect(records).toHaveLength(1);
+      expect(Object.keys(records[0])).toEqual([
+        'Exercise', 'Attempt', 'Passed', 'CDS (%)', 'Mastery (%)', 'Submitted',
+      ]);
+      expect(records[0]['Student ID']).toBeUndefined();
+      expect(records[0].Exercise).toBe('Test Exercise');
+      expect(records[0].Attempt).toBe('2');
+      expect(records[0].Passed).toBe('Yes');
+      expect(records[0]['CDS (%)']).toBe('70.0');
+
+      const jsonOut = await formatExport('student_attempts', seeded.sectionId, 'json', {
+        studentId: seeded.studentIds[0],
+      });
+      const parsed = JSON.parse(jsonOut.buffer.toString('utf8'));
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0].student_id).toBe(seeded.studentIds[0]);
+      expect(parsed[0].title).toBe('Test Exercise');
+      expect(parsed[0].mastery).toBeCloseTo(30, 5); // (1 − 0.7) × 100
     });
   });
 
@@ -477,7 +520,7 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
   });
 
   describe('concept_mastery domain', () => {
-    it('exports one row per student × concept with Concept Mastery Index, Mastery Velocity and ISO Last Updated', async () => {
+    it('exports one row per student × concept with Mastery (%) and raw JSON fidelity', async () => {
       const { rows: second } = await testPool.query(
         `INSERT INTO concepts (name) VALUES ($1) RETURNING id`, ['Arrays']
       );
@@ -497,25 +540,22 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
       const out = await formatExport('concept_mastery', seeded.sectionId, 'csv');
       const records = parseCsv(out.buffer);
       expect(records).toHaveLength(6);
-      expect(Object.keys(records[0])).toEqual(['Student Name', 'Email', 'Concept', 'Concept Mastery Index', 'Mastery Velocity', 'Last Updated']);
+      expect(Object.keys(records[0])).toEqual([
+        'Student ID', 'Student Name', 'Student Email', 'Concept', 'Mastery (%)',
+      ]);
       // Ordered by student name then concept name, so 'Arrays' precedes 'Loops'.
       const arraysRow = records.find((r) => r.Concept === 'Arrays');
       const loopsRow = records.find((r) => r.Concept === 'Loops');
       expect(arraysRow).toBeDefined();
       expect(loopsRow).toBeDefined();
-      expect(loopsRow['Concept Mastery Index']).toBe('0.75');
-      expect(loopsRow['Mastery Velocity']).toBe('0.1');
-      expect(loopsRow['Last Updated']).toBe('2026-04-01T08:00:00.000Z');
-      expect(arraysRow['Concept Mastery Index']).toBe('0.5');
-      expect(arraysRow['Mastery Velocity']).toBe('-0.2');
-      expect(arraysRow['Last Updated']).toBe('2026-04-02T08:00:00.000Z');
+      expect(loopsRow['Mastery (%)']).toBe('0.75'); // raw CMI, no format fn on the column
+      expect(arraysRow['Mastery (%)']).toBe('0.5');
 
       const jsonOut = await formatExport('concept_mastery', seeded.sectionId, 'json');
       const parsed = JSON.parse(jsonOut.buffer.toString('utf8'));
       expect(parsed).toHaveLength(6);
-      expect(parsed.find((r) => r.concept === 'Loops').cmi).toBe(0.75); // raw numeric, not a pg DECIMAL string
-      expect(parsed.find((r) => r.concept === 'Loops').velocity).toBe(0.1);
-      expect(parsed.find((r) => r.concept === 'Arrays').velocity).toBe(-0.2);
+      expect(parsed.find((r) => r.concept === 'Loops').mastery).toBe(0.75); // raw numeric, not a pg DECIMAL string
+      expect(parsed.find((r) => r.concept === 'Arrays').mastery).toBe(0.5);
     });
 
     it('supports studentId/startDate/endDate filters', async () => {
@@ -539,7 +579,7 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
 
     it('produces a header-only file for a section without metrics', async () => {
       const out = await formatExport('concept_mastery', seeded.sectionId, 'csv');
-      expect(out.buffer.toString('utf8')).toBe(`${BOM}Student Name,Email,Concept,Concept Mastery Index,Mastery Velocity,Last Updated\r\n`);
+      expect(out.buffer.toString('utf8')).toBe(`${BOM}Student ID,Student Name,Student Email,Concept,Mastery (%)\r\n`);
       expect(parseCsv(out.buffer)).toHaveLength(0);
     });
   });
@@ -700,36 +740,24 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
     });
 
     describe('cds domain', () => {
-      it('exports one row per student per day (latest score), dropping null/unscored rows', async () => {
+      it('exports one row per student (latest score wins), dropping null/unscored rows', async () => {
         const { rows: secondExercise } = await testPool.query(
           `INSERT INTO exercises (section_id, concept_id, title, description)
            VALUES ($1, $2, 'Lab 2', 'Second lab for date coverage')
            RETURNING id`,
           [seeded.sectionId, seeded.conceptId]
         );
-        const { rows: thirdExercise } = await testPool.query(
-          `INSERT INTO exercises (section_id, concept_id, title, description)
-           VALUES ($1, $2, 'Lab 3', 'Third lab for same-day coverage')
-           RETURNING id`,
-          [seeded.sectionId, seeded.conceptId]
-        );
 
         await testPool.query(
           `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
-           VALUES ($1, $2, $3, 0.8534, 'proficient', $4)`,
-          [seeded.studentIds[0], seeded.exerciseId, seeded.sectionId, '2026-04-01 08:00:00']
-        );
-        // Same-day, later score for student 0 on 2026-04-01 — must win the
-        // DISTINCT ON tiebreak (latest computed_at, latest id), not be a
-        // second per-exercise row.
-        await testPool.query(
-          `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
            VALUES ($1, $2, $3, 0.6, 'revised', $4)`,
-          [seeded.studentIds[0], thirdExercise[0].id, seeded.sectionId, '2026-04-01 09:00:00']
+          [seeded.studentIds[0], seeded.exerciseId, seeded.sectionId, '2026-04-01 09:00:00']
         );
+        // Later score for student 0 — must win the DISTINCT ON tiebreak
+        // (latest computed_at, latest id), not become a second row.
         await testPool.query(
           `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
-           VALUES ($1, $2, $3, 0.4, 'developing', $4)`,
+           VALUES ($1, $2, $3, 0.8534, 'proficient', $4)`,
           [seeded.studentIds[0], secondExercise[0].id, seeded.sectionId, '2026-04-08 08:00:00']
         );
         await testPool.query(
@@ -737,7 +765,7 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
            VALUES ($1, $2, $3, 0.9, 'needs_support', $4)`,
           [seeded.studentIds[1], seeded.exerciseId, seeded.sectionId, '2026-04-01 08:00:00']
         );
-        // Null-cds "Unscored" placeholder row — excluded from the daily grain.
+        // Null-cds "Unscored" placeholder row — excluded by the fetch.
         await testPool.query(
           `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
            VALUES ($1, $2, $3, NULL, 'Unscored', $4)`,
@@ -746,41 +774,30 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
 
         const out = await formatExport('cds', seeded.sectionId, 'csv');
         const records = parseCsv(out.buffer);
-        expect(records).toHaveLength(3);
-        expect(Object.keys(records[0])).toEqual(['Student Name', 'Email', 'Date', 'CDS (%)', 'Classification']);
+        expect(records).toHaveLength(2); // one row per student with a non-null score
+        expect(Object.keys(records[0])).toEqual([
+          'Student ID', 'Student Name', 'Student Email', 'CDS (%)', 'Mastery (%)',
+        ]);
 
-        const s0 = records.filter((r) => r['Student Name'] === 'Test Student 0');
-        expect(s0).toHaveLength(2);
-        expect(s0[0]).toMatchObject({
-          Date: '2026-04-01',
-          'CDS (%)': '60.0', // the LATEST score of the day wins the DISTINCT ON
-          Classification: 'revised',
-        });
-        expect(s0[0].Email).toBe('student0@test.com');
-        expect(s0[1].Date).toBe('2026-04-08');
-        expect(s0[1]['CDS (%)']).toBe('40.0');
+        const s0 = records.find((r) => r['Student Name'] === 'Test Student 0');
+        const s1 = records.find((r) => r['Student Name'] === 'Test Student 1');
+        expect(s0['CDS (%)']).toBe('85.3'); // the LATEST score wins the DISTINCT ON
+        expect(s0['Student Email']).toBe('student0@test.com');
+        expect(s1['CDS (%)']).toBe('90.0');
 
         const jsonOut = await formatExport('cds', seeded.sectionId, 'json');
         const parsed = JSON.parse(jsonOut.buffer.toString('utf8'));
-        expect(parsed).toHaveLength(3);
+        expect(parsed).toHaveLength(2);
         for (const raw of parsed) {
           expect(raw.cds).not.toBeNull(); // no null placeholder rows
           expect(raw.classification).not.toBe('Unscored');
-          expect(typeof raw.date).toBe('string'); // ISO-8601 raw fidelity
+          // Derived mastery percent, checked numerically (the CSV/XLSX cells
+          // apply formatMasteryPercent, which is out of scope here).
+          expect(raw.mastery).toBeCloseTo((1 - raw.cds) * 100, 5);
         }
-        // ::date returns a local-midnight Date; the JSON ISO instant is
-        // TZ-shifted, but the local calendar day must be the bucketed date.
-        const localDay = (iso) => {
-          const d = new Date(iso);
-          const pad = (n) => String(n).padStart(2, '0');
-          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-        };
-        const latest = parsed.find(
-          (r) => r.name === 'Test Student 0' && localDay(r.date) === '2026-04-01'
-        );
-        expect(latest).toBeTruthy();
-        expect(latest.cds).toBe(0.6); // DECIMAL normalized to 0–1 number
-        expect(latest.classification).toBe('revised');
+        const latest = parsed.find((r) => r.name === 'Test Student 0');
+        expect(latest.cds).toBe(0.8534); // DECIMAL normalized to 0–1 number
+        expect(latest.classification).toBe('proficient');
       });
 
       it('supports studentId and date-range filters', async () => {
@@ -800,6 +817,35 @@ describe('exportService — Phase 2 domains (concept_mastery, completion, longit
           endDate: '2026-02-01',
         });
         expect(JSON.parse(outOfRange.buffer.toString('utf8'))).toHaveLength(0);
+      });
+    });
+
+    describe('summary domain', () => {
+      it('exports one row per student with CDS (%) and derived Mastery (%)', async () => {
+        for (const [i, cds] of [[0, 0.7], [1, 0.5], [2, 0.9]]) {
+          await testPool.query(
+            `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification, computed_at)
+             VALUES ($1, $2, $3, $4, 'moderate', $5)`,
+            [seeded.studentIds[i], seeded.exerciseId, seeded.sectionId, cds, '2026-04-05 08:00:00']
+          );
+        }
+
+        const out = await formatExport('summary', seeded.sectionId, 'csv');
+        expect(out.filename).toMatch(/^Test Section_summary_\d{4}-\d{2}-\d{2}\.csv$/);
+        const records = parseCsv(out.buffer);
+        expect(records).toHaveLength(3);
+        expect(Object.keys(records[0])).toEqual([
+          'Student ID', 'Student Name', 'Student Email', 'CDS (%)', 'Mastery (%)',
+        ]);
+        const s0 = records.find((r) => r['Student Name'] === 'Test Student 0');
+        expect(s0['CDS (%)']).toBe('70.0');
+
+        const jsonOut = await formatExport('summary', seeded.sectionId, 'json');
+        const parsed = JSON.parse(jsonOut.buffer.toString('utf8'));
+        expect(parsed).toHaveLength(3);
+        const raw = parsed.find((r) => r.name === 'Test Student 2');
+        expect(raw.cds).toBe(0.9);
+        expect(raw.mastery).toBeCloseTo(10, 5); // (1 − 0.9) × 100
       });
     });
 

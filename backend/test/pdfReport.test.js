@@ -34,6 +34,10 @@ jest.mock('../config/db', () => {
 const { pool: testPool, seedFullScenario, seedTestInstructor, seedTestSection, seedTestExercise, seedSubmission } = require('./setup');
 const {
   buildSectionVisualReport,
+  makeDocument,
+  collectBuffer,
+  drawCover,
+  drawDossierPages,
   avgCdsByDate,
   cdsDistribution,
   atRiskCount,
@@ -336,21 +340,41 @@ describe('pdfReport — dossier mode', () => {
     const full = await buildSectionVisualReport(seeded.sectionId);
     const dossier = await buildSectionVisualReport(seeded.sectionId, { studentId: seeded.studentIds[0] });
 
-    expect(pageCount(dossier)).toBeGreaterThanOrEqual(1);
+    // One dense page (header band + stats + charts + tables) — no cover page.
+    expect(pageCount(dossier)).toBe(1);
     expect(pageCount(dossier)).toBeLessThan(pageCount(full));
   });
 
   it('includes the student on the page', async () => {
     const buffer = await buildSectionVisualReport(seeded.sectionId, { studentId: seeded.studentIds[0] });
-    expect(pdfText(buffer)).toContain('Test Student 0');
+    const text = pdfText(buffer);
+    // The dossier has no cover page — the header band carries the marker
+    // text and the student's name.
+    expect(text).toContain('STUDENT DOSSIER');
+    expect(text).toContain('Test Student 0');
   });
 
-  it('renders cover + a single concise page for an enrolled student with no data', async () => {
+  it('renders the Submissions & Attempts table with the student\'s attempt rows', async () => {
+    // seedRichScenario gives every student one submission per exercise (3 total).
+    const buffer = await buildSectionVisualReport(seeded.sectionId, { studentId: seeded.studentIds[0] });
+    const text = pdfText(buffer);
+    expect(text).toContain('Submissions & Attempts');
+    expect(text).toContain('Test Exercise');
+  });
+
+  it('exposes the document assembly helpers used by the route', () => {
+    expect(typeof makeDocument).toBe('function');
+    expect(typeof collectBuffer).toBe('function');
+    expect(typeof drawCover).toBe('function');
+    expect(typeof drawDossierPages).toBe('function');
+  });
+
+  it('renders a single page for an enrolled student with no data', async () => {
     const inactive = await seedFullScenario({ studentCount: 1 });
     const buffer = await buildSectionVisualReport(inactive.sectionId, { studentId: inactive.studentIds[0] });
 
-    // cover + 1 collapsed student page — not the two full chart pages.
-    expect(pageCount(buffer)).toBe(2);
+    // One dense page (header + no-activity note) — no cover, no extra pages.
+    expect(pageCount(buffer)).toBe(1);
     expect(pdfText(buffer)).toContain('No activity recorded for this student.');
   });
 });
