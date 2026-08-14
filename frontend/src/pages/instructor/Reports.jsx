@@ -586,7 +586,7 @@ function MasteryTab({ data }) {
             <div
               role="radiogroup"
               aria-label="Knowledge Area Group"
-              className="relative inline-flex items-center gap-0 rounded-xl bg-white/[0.04] dark:bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+              className="relative inline-flex flex-wrap items-center justify-center gap-1 rounded-xl bg-white/[0.04] dark:bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
             >
               {KA_GROUPS.map((group) => {
                 const isActive = group.code === activeKA;
@@ -601,7 +601,7 @@ function MasteryTab({ data }) {
                     aria-checked={isActive}
                     onClick={() => setActiveKA(group.code)}
                     className={cn(
-                      "relative z-10 px-4 py-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all duration-200 select-none whitespace-nowrap inline-flex items-center gap-2",
+                      "relative z-10 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all duration-200 select-none whitespace-nowrap inline-flex items-center gap-1.5 sm:gap-2",
                       isActive
                         ? "text-foreground"
                         : "text-muted-foreground/60 hover:text-foreground/70"
@@ -616,7 +616,7 @@ function MasteryTab({ data }) {
                     )}
                     <span className="relative z-10">{group.shortLabel}</span>
                     <span className={cn(
-                      "relative z-10 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[9px] font-bold tabular-nums",
+                      "relative z-10 inline-flex items-center justify-center min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 rounded-full text-[8px] sm:text-[9px] font-bold tabular-nums",
                       isActive
                         ? "bg-white/[0.12] text-foreground/80"
                         : "bg-white/[0.04] text-muted-foreground/40"
