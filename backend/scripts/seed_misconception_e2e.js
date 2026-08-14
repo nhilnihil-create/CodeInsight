@@ -36,12 +36,13 @@ async function seed() {
   // Clean previous E2E misconception data (cascades to exercises, submissions, enrollments)
   await pool.query(`DELETE FROM sections WHERE name = 'E2E Misconception Test'`);
 
-  // Create section
+  // Create section (code is required since the NOT NULL migration;
+  // unique per run so re-seeding never collides)
   const { rows: [section] } = await pool.query(
-    `INSERT INTO sections (name, course_code, instructor_id)
-     VALUES ($1, $2, $3)
+    `INSERT INTO sections (name, course_code, instructor_id, code)
+     VALUES ($1, $2, $3, $4)
      RETURNING id`,
-    ['E2E Misconception Test', 'E2E-MC', instructorId]
+    ['E2E Misconception Test', 'E2E-MC', instructorId, `E2E-MC-${Date.now().toString().slice(-6)}`]
   );
   const sectionId = section.id;
 
