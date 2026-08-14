@@ -244,57 +244,66 @@ export default function InstructorIntegrity() {
     const isSelected = selected.has(item.id);
     const isReviewed = item.status === "reviewed";
     return (
-      <>
-        <span
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          className="shrink-0"
-        >
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={() => toggleSelected(item.id)}
-            aria-label={`Select ${flagTypeLabel(item.flag_type)} for ${item.student_name}`}
-          />
-        </span>
-
-        <RiskBadge level={SEVERITY_RISK_LEVEL[item.severity] || "low"} />
-
-        <span className="text-sm font-medium text-foreground truncate min-w-[10rem]">
-          {flagTypeLabel(item.flag_type)}
-        </span>
-
-        <span className="text-sm text-muted-foreground truncate min-w-[6rem]">
-          {item.student_name}
-        </span>
-
-        <span className="text-sm text-muted-foreground truncate min-w-[10rem] flex-1">
-          {item.exercise_title}
-        </span>
-
-        <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0 w-14 text-right">
-          {timeAgo(item.created_at)}
-        </span>
-
-        {isReviewed ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium shrink-0">
-            <Check className="h-3.5 w-3.5" strokeWidth={2} />
-            Reviewed
-          </span>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="font-medium shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAction(item, "reviewed");
-            }}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 w-full min-w-0">
+        {/* Line 1 (mobile): checkbox + risk + flag type + student */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="shrink-0"
           >
-            Mark Reviewed
-            <Check className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-          </Button>
-        )}
-      </>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => toggleSelected(item.id)}
+              aria-label={`Select ${flagTypeLabel(item.flag_type)} for ${item.student_name}`}
+            />
+          </span>
+
+          <RiskBadge level={SEVERITY_RISK_LEVEL[item.severity] || "low"} />
+
+          <span className="text-sm font-medium text-foreground truncate">
+            {flagTypeLabel(item.flag_type)}
+          </span>
+
+          <span className="text-sm text-muted-foreground truncate hidden sm:inline">
+            {item.student_name}
+          </span>
+        </div>
+
+        {/* Line 2 (mobile) / Line 1 continued (desktop): exercise + time + action */}
+        <div className="flex items-center gap-2 sm:gap-3 pl-7 sm:pl-0 sm:shrink-0">
+          <span className="sm:hidden text-xs text-muted-foreground truncate min-w-0">
+            {item.student_name}
+          </span>
+          <span className="text-sm text-muted-foreground truncate hidden md:inline min-w-[8rem]">
+            {item.exercise_title}
+          </span>
+          <span className="text-xs text-muted-foreground font-mono tabular-nums shrink-0">
+            {timeAgo(item.created_at)}
+          </span>
+
+          {isReviewed ? (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium shrink-0">
+              <Check className="h-3.5 w-3.5" strokeWidth={2} />
+              Reviewed
+            </span>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="font-medium shrink-0 text-xs sm:text-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAction(item, "reviewed");
+              }}
+            >
+              <span className="hidden sm:inline">Mark Reviewed</span>
+              <span className="sm:hidden">Review</span>
+              <Check className="ml-1 h-3.5 w-3.5" strokeWidth={2} />
+            </Button>
+          )}
+        </div>
+      </div>
     );
   };
 
