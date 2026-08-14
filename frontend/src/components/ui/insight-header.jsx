@@ -43,7 +43,7 @@ export default function InsightHeader({
           ) : null}
         </div>
         {(action || secondary) ? (
-          <div className="relative z-10 flex items-center gap-2 shrink-0">
+          <div className="relative z-10 flex flex-wrap items-center gap-2 shrink-0">
             {secondary}
             {action}
           </div>

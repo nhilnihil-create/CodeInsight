@@ -60,7 +60,7 @@ export default function StudentDashboardShell({
                 <p className="text-sm text-muted-foreground">{subtitle}</p>
               ) : null}
               {action ? (
-                <div className="flex items-center gap-2 shrink-0">{action}</div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">{action}</div>
               ) : null}
             </div>
           ) : null}

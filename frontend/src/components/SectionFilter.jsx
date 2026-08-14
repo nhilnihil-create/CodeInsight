@@ -64,7 +64,7 @@ export default function SectionFilter({
         onValueChange={(v) => onChange?.(Number(v))}
         disabled={loading || sections.length === 0}
       >
-        <SelectTrigger className="h-9 min-w-[200px] bg-background text-foreground">
+        <SelectTrigger className="h-9 w-full sm:w-auto sm:min-w-[200px] bg-background text-foreground">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
