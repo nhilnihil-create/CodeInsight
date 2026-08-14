@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronDown,
   Shield,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/format";
@@ -55,6 +56,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [loading, setLoading] = useState(false);
   const [flagsExpanded, setFlagsExpanded] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const { isOpen } = useSidebar();
 
   const [mounted, setMounted] = useState(false);
@@ -123,12 +125,10 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
 
   const current = runs[selectedIdx];
 
-  // Mobile: auto-select latest run when data changes
+  // Close mobile timeline when the drawer closes
   useEffect(() => {
-    if (!isDesktop && runs.length > 0) {
-      setSelectedIdx(runs.length - 1);
-    }
-  }, [isDesktop, runs.length]);
+    if (!open) setTimelineOpen(false);
+  }, [open]);
 
   const highFlagCount = flags.filter((f) => f.severity === "high").length;
   const topSeverity =
@@ -199,6 +199,22 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Run history toggle — mobile only */}
+            {!loading && runs.length > 1 && (
+              <button
+                onClick={() => setTimelineOpen(!timelineOpen)}
+                className={cn(
+                  "lg:hidden inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold transition-all duration-200 border",
+                  timelineOpen
+                    ? "bg-primary/15 border-primary/40 text-primary ring-1 ring-primary/20"
+                    : "border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                )}
+              >
+                <List className="h-3 w-3" strokeWidth={2} />
+                <span className="tabular-nums">{runs.length}</span>
+              </button>
+            )}
+
             {/* Flags badge */}
             {flags.length > 0 && (
               <button
@@ -277,32 +293,96 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
           </div>
         ) : (
           <div className="flex flex-1 min-h-0">
-            {/* Mobile run selector — compact dropdown visible below lg */}
-            {runs.length > 1 && (
-              <div className="lg:hidden flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/10 shrink-0">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-                  Run
-                </span>
-                <select
-                  value={selectedIdx}
-                  onChange={(e) => setSelectedIdx(Number(e.target.value))}
-                  className="flex-1 h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            {/* Mobile timeline slide-in overlay (hamburger-drawer pattern) */}
+            {!isDesktop && timelineOpen && (
+              <>
+                {/* Timeline backdrop */}
+                <div
+                  className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden"
+                  style={{
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    right: 0,
+                  }}
+                  onClick={() => setTimelineOpen(false)}
+                />
+                {/* Timeline panel */}
+                <div
+                  className="fixed inset-y-0 left-0 z-[60] w-72 max-w-[85vw] flex flex-col bg-background border-r border-border shadow-2xl overflow-y-auto lg:hidden"
+                  style={{
+                    transform: timelineOpen ? "translateX(0)" : "translateX(-100%)",
+                    transition: `transform ${ANIM_DURATION}ms cubic-bezier(0.16, 1, 0.3, 1)`,
+                  }}
                 >
-                  {runs.map((run, idx) => {
-                    const runCount = runs.slice(0, idx + 1).filter((r) => !r.is_submission).length;
-                    const submissionCount = runs.slice(0, idx + 1).filter((r) => r.is_submission).length;
-                    return (
-                      <option key={idx} value={idx}>
-                        {run.is_submission
-                          ? `${ordinal(submissionCount)} Submission`
-                          : `Run #${runCount}`}
-                        {run.error_count > 0 ? ` (${run.error_count}E)` : ""}
-                        {run.is_submission && submissionCount === runs.filter((r) => r.is_submission).length ? " • FINAL" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-background z-10">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      <Clock className="h-3 w-3 inline mr-1.5" strokeWidth={1.5} />
+                      Run History ({runs.length})
+                    </span>
+                    <button
+                      onClick={() => setTimelineOpen(false)}
+                      className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-muted transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                  <div className="py-1">
+                    {runs.map((run, idx) => {
+                      const runCount = runs.slice(0, idx + 1).filter((r) => !r.is_submission).length;
+                      const submissionCount = runs.slice(0, idx + 1).filter((r) => r.is_submission).length;
+                      const totalSubmissions = runs.filter((r) => r.is_submission).length;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setSelectedIdx(idx);
+                            setTimelineOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-4 py-3 text-xs transition-colors flex items-start gap-3 border-l-2",
+                            selectedIdx === idx
+                              ? "bg-muted/50 border-l-primary text-foreground"
+                              : "border-l-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                          )}
+                        >
+                          <div className="shrink-0 mt-0.5">
+                            {run.is_submission ? (
+                              <FileCode className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                            ) : run.error_count > 0 ? (
+                              <AlertTriangle className="h-4 w-4 text-warning" strokeWidth={1.5} />
+                            ) : (
+                              <Play className="h-4 w-4 text-emerald-400" strokeWidth={1.5} />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">
+                              {run.is_submission
+                                ? `${ordinal(submissionCount)} Submission`
+                                : `Run #${runCount}`}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-muted-foreground">
+                                {timeAgo(run.run_at)}
+                              </span>
+                              {run.error_count > 0 && (
+                                <span className="text-[10px] text-destructive font-medium">
+                                  {run.error_count}E
+                                </span>
+                              )}
+                              {run.is_submission && (
+                                <span className="text-[10px] text-primary font-medium">
+                                  {ordinal(submissionCount)}{submissionCount === totalSubmissions ? " • FINAL" : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
 
             {/* Timeline sidebar — desktop only */}
@@ -374,7 +454,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
             </div>
 
             {/* Code + compiler log */}
-            <div className="flex-1 flex flex-col min-w-0 min-h-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 relative">
               <div className="flex-1 min-h-0">
                 {current && (
                   <CodeViewer
