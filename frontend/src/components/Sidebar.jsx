@@ -58,7 +58,8 @@ const adminLinks = [
 ];
 
 const studentLinks = [
-  { to: '/student/dashboard', label: 'My Exercises', icon: Terminal, end: true },
+  { to: '/student/dashboard', label: 'Dashboard',    icon: LayoutDashboard, end: true },
+  { to: '/student/exercises', label: 'My Exercises', icon: Terminal },
   { to: '/student/progress',  label: 'My Progress',  icon: TrendingUp },
   { to: '/student/profile',   label: 'My Profile',   icon: User },
 ];
