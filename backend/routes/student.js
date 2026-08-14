@@ -736,6 +736,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     const pendingExercises = allExercises.filter(ex => ex.status === 'pending');
     const dueSoonThreshold = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     const dueCount = pendingExercises.filter(ex => ex.deadline && new Date(ex.deadline) <= dueSoonThreshold).length;
+    const overdueCount = pendingExercises.filter(ex => ex.deadline && new Date(ex.deadline) < new Date()).length;
 
     // Nearest deadline exercise
     const nearestDeadline = pendingExercises
@@ -829,6 +830,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     res.json({
       dueExercises: {
         count: dueCount,
+        overdueCount,
         nearestDeadline: nearestDeadline ? {
           id: nearestDeadline.id,
           title: nearestDeadline.title,

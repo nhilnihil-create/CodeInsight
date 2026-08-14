@@ -21,6 +21,7 @@ import {
 import { useStudentContext } from '@/context/StudentContext';
 import api from '@/services/api';
 import { cn } from '@/lib/utils';
+import { formatDeadlineFromNow } from '@/lib/relative-time';
 import { tierForCds, TIER_META } from '@/components/ui/mastery-bar';
 
 /* ── Stagger config ──────────────────────────────────────────────── */
@@ -90,31 +91,6 @@ function workStatusOf(ex) {
 }
 
 /* ── Pure helpers ────────────────────────────────────────────────── */
-function formatDeadline(deadline, now = Date.now()) {
-  if (deadline == null) return 'No deadline';
-  const time = new Date(deadline).getTime();
-  if (Number.isNaN(time)) return 'No deadline';
-
-  const diff = time - now;
-  if (diff <= 0) {
-    const absMinutes = Math.floor(Math.abs(diff) / 60000);
-    if (absMinutes < 1) return 'Due now';
-    const days = Math.floor(absMinutes / 1440);
-    const hours = Math.floor((absMinutes % 1440) / 60);
-    if (days >= 1) return `Overdue ${days}d`;
-    if (hours >= 1) return `Overdue ${hours}h`;
-    return `Overdue ${absMinutes}m`;
-  }
-
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'Due now';
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.floor((minutes % 1440) / 60);
-  if (days >= 1) return hours > 0 ? `Due in ${days}d ${hours}h` : `Due in ${days}d`;
-  if (hours >= 1) return `Due in ${hours}h`;
-  return `Due in ${minutes}m`;
-}
-
 function countTestCases(test_cases) {
   if (Array.isArray(test_cases)) return test_cases.length;
   if (test_cases && typeof test_cases === 'object') return Object.keys(test_cases).length;
@@ -441,7 +417,7 @@ export default function StudentExercises() {
                           {workStatus !== 'done' ? (
                             <span className="flex items-center gap-1 text-[11px] text-muted-foreground/50 font-mono tabular-nums">
                               <CalendarClock className="h-3 w-3" aria-hidden="true" />
-                              {formatDeadline(ex.deadline)}
+                              {formatDeadlineFromNow(ex.deadline)}
                             </span>
                           ) : <span />}
                           {chip && (

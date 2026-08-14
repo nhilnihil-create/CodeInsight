@@ -9,6 +9,7 @@ import {
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatDurationFromNow } from "@/lib/relative-time";
 import EmptyState from "@/components/ui/empty-state";
 import InsightHeader from "@/components/ui/insight-header";
 import GlassDivider from "@/components/ui/glass-divider";
@@ -134,6 +135,13 @@ export default function StudentDashboard() {
   const weakest = data.weakestConcepts ?? [];
   const recs = data.recommended ?? [];
 
+  // Due-soon banner state (split due vs overdue, human-readable durations).
+  const overdueCount = due?.overdueCount ?? 0;
+  const min = nearest?.minutesUntilDue ?? null;
+  const overdue = (nearest?.minutesUntilDue ?? 0) < 0;
+  const duration = formatDurationFromNow(min);
+  const bannerTone = overdue ? 'rose' : (min !== null && min <= 1440 ? 'amber' : 'emerald');
+
   // Empty-state gate: enrolled but no exercises assigned yet
   const hasAnyData = mastery?.percentage > 0 || completion?.completed > 0 || weakest.length > 0 || recs.length > 0 || dueCount > 0;
   if (!hasAnyData && !nearest) {
@@ -160,9 +168,13 @@ export default function StudentDashboard() {
               {formatToday()}
             </h1>
             <p className="text-xs text-muted-foreground/60 sm:text-sm">
-              {dueCount > 0
-                ? `${dueCount} exercise${dueCount > 1 ? 's' : ''} due this week`
-                : "No exercises due this week"}
+              {overdueCount > 0 && dueCount - overdueCount > 0
+                ? `${dueCount - overdueCount} exercise${(dueCount - overdueCount) > 1 ? 's' : ''} due this week · ${overdueCount} overdue`
+                : overdueCount > 0
+                  ? `${overdueCount} exercise${overdueCount > 1 ? 's' : ''} overdue`
+                  : dueCount > 0
+                    ? `${dueCount} exercise${dueCount > 1 ? 's' : ''} due this week`
+                    : "No exercises due this week"}
             </p>
           </div>
           <Button asChild variant="ghost" size="sm" className="font-medium shrink-0 text-muted-foreground hover:text-foreground">
@@ -179,13 +191,22 @@ export default function StudentDashboard() {
         {nearest ? (
           <motion.section variants={fadeUp}>
             <InsightHeader
-              eyebrow={dueCount > 0 ? "Due soon" : "All clear"}
-              insight={nearest
-                ? `${nearest.title} (${nearest.concept}) is due in ${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'}.`
-                : "You're all caught up on your exercises."}
-              description={nearest
-                ? `~${nearest.minutesUntilDue > 60 ? Math.round(nearest.minutesUntilDue / 60) + 'h' : nearest.minutesUntilDue + ' min'} · Targets: ${nearest.concept}`
-                : "No deadlines approaching."}
+              eyebrow={overdue ? 'Overdue' : dueCount > 0 ? 'Due soon' : 'Next up'}
+              insight={duration === null
+                ? 'No deadline set for this exercise.'
+                : duration === 'now'
+                  ? `${nearest.title} (${nearest.concept}) is due now.`
+                  : overdue
+                    ? `${nearest.title} (${nearest.concept}) is ${duration} overdue.`
+                    : `${nearest.title} (${nearest.concept}) is due in ${duration}.`}
+              description={duration === null
+                ? `Targets: ${nearest.concept}`
+                : duration === 'now'
+                  ? `Due now · Targets: ${nearest.concept}`
+                  : overdue
+                    ? `Overdue by ${duration} · Targets: ${nearest.concept}`
+                    : `Due in ${duration} · Targets: ${nearest.concept}`}
+              tone={bannerTone}
               action={
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                   <Button asChild size="sm" className="bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_24px_rgba(45,212,191,0.4)] transition-shadow duration-300">
