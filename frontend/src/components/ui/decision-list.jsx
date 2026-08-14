@@ -88,7 +88,7 @@ export default function DecisionList({
             ) : null}
 
             {renderRow ? (
-              <div className="min-w-0 flex-1 flex items-center gap-3">
+              <div className="min-w-0 flex-1 flex items-center gap-3 overflow-x-auto">
                 {renderRow(item, { highlighted, selectable })}
               </div>
             ) : (

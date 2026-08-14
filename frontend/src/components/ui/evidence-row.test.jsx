@@ -20,7 +20,7 @@ const makeChips = (count) =>
 describe('EvidenceRow', () => {
   it.each([
     { count: 6, expectedClass: 'lg:grid-cols-3' },
-    { count: 3, expectedClass: 'grid-cols-3' },
+    { count: 3, expectedClass: 'grid-cols-1 sm:grid-cols-3' },
     { count: 4, expectedClass: 'lg:grid-cols-4' },
     { count: 2, expectedClass: 'sm:grid-cols-2' },
     { count: 0, expectedClass: 'grid-cols-1' },
