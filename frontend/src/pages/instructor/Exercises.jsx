@@ -1,21 +1,66 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Lock, Unlock, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
+import {
+  Plus,
+  Lock,
+  Unlock,
+  Trash2,
+  ChevronRight,
+  AlertTriangle,
+  Code2,
+  Calendar,
+  Users,
+  PencilLine,
+  Inbox,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import ExerciseAccordionRow from '@/components/analytics/ExerciseAccordionRow';
 import SectionFilter from '@/components/SectionFilter';
 import useLastSection from '@/hooks/useLastSection';
 import api from '@/services/api';
+import EmptyState from '@/components/ui/empty-state';
+
+/* ── Motion ─────────────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
+
+/* ── Status helpers ─────────────────────────────────────────────── */
+function statusOf(e) {
+  if (e.isDraft) return { label: 'Draft', className: 'bg-white/[0.04] text-muted-foreground border-white/[0.08]' };
+  if (e.closedAt) return { label: 'Closed', className: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
+  return { label: 'Open', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+}
+
+function cdsPctOf(e) {
+  const raw = e.avg_cds ?? e.avgCds;
+  if (raw == null || raw === '' || Number.isNaN(Number(raw))) return null;
+  return Math.round(Number(raw) * 100);
+}
+
+const CDS_COLOR = (pct) =>
+  pct == null ? 'text-muted-foreground'
+  : pct >= 75 ? 'text-rose-400'
+  : pct >= 50 ? 'text-amber-400'
+  : pct >= 25 ? 'text-indigo-300'
+  : 'text-indigo-400';
 
 /**
- * Exercises list — in-row accordion push-down refactor (2026-06-09).
+ * Exercises list — responsive glass-card redesign (2026-08-15).
  *
- * Master table with native <tr> accordion expansion: clicking a row
- * toggles a detail <tr> directly beneath it via colSpan={6}.
- * No fixed overlays, no floating blocks — pure table flow.
+ * Replaces the wide 6-column table that forced horizontal swiping on
+ * mobile with stacked cards: title + status, concept chips, due / progress
+ * / CDS meta, and inline actions. Clicking a card expands an analytics
+ * detail panel (ClassMisconceptionReport) beneath it.
  */
 export default function InstructorExercises() {
   const [sectionId, setSectionId] = useLastSection();
@@ -97,18 +142,19 @@ export default function InstructorExercises() {
     } finally { setBusyId(null); }
   };
 
-  const sectionForDetail = sectionId;
-
   return (
     <div className="space-y-6">
+      {/* ---------- PageHeader ---------- */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Exercises</h1>
-          <p className="text-muted-foreground">Manage programming assignments and test cases.</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Exercises</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {loading ? 'Loading exercises…' : `${exercises.length} exercise${exercises.length === 1 ? '' : 's'} in this section`}
+          </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <SectionFilter value={sectionId} onChange={setSectionId} />
-          <Button asChild>
+          <Button asChild size="sm" className="font-medium">
             <Link to="/instructor/exercises/new" className="gap-2">
               <Plus className="w-4 h-4" /> Create Exercise
             </Link>
@@ -126,114 +172,167 @@ export default function InstructorExercises() {
         </div>
       )}
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>Title</TableHead>
-                <TableHead>Concepts</TableHead>
-                <TableHead>Due</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12">
-                    <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">Loading exercises…</p>
-                  </TableCell>
-                </TableRow>
-              ) : exercises.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                    No exercises found for this selection.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                exercises.map((e) => {
-                  const isClosed = !!e.closedAt;
-                  const isExpanded = expandedId === e.id;
-                  return (
-                    <React.Fragment key={e.id}>
-                      <TableRow
-                        className="cursor-pointer transition-colors hover:bg-muted/40"
-                        onClick={() => toggleExpand(e.id)}
-                      >
-                        <TableCell className="w-8 text-muted-foreground">
-                          <ChevronRight
-                            className={`w-4 h-4 transition-transform duration-200 ${
-                              isExpanded ? 'rotate-90 text-primary' : ''
-                            }`}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{e.title}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 flex-wrap">
-                            {(e.conceptTags || []).map((t) => (
+      {/* ---------- Exercise list ---------- */}
+      {loading ? (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16 text-center">
+          <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading exercises…</p>
+        </div>
+      ) : exercises.length === 0 ? (
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-12">
+          <EmptyState
+            icon={<Code2 />}
+            title="No exercises yet"
+            description="Create your first exercise to start collecting submissions."
+          />
+        </div>
+      ) : (
+        <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-3">
+          {exercises.map((e) => {
+            const isClosed = !!e.closedAt;
+            const isExpanded = expandedId === e.id;
+            const st = statusOf(e);
+            const cdsPct = cdsPctOf(e);
+            const submitted = e.submitted_count ?? '—';
+            const total = e.total_students ?? '—';
+            const due = e.dueDate ? new Date(e.dueDate).toLocaleDateString() : '—';
+
+            return (
+              <motion.div key={e.id} variants={fadeUp} className="group">
+                <div
+                  className={cn(
+                    'rounded-xl border bg-white/[0.02] backdrop-blur-xl transition-colors duration-200 overflow-hidden',
+                    'border-white/[0.06]',
+                    isExpanded ? 'border-teal-400/30' : 'hover:border-white/[0.12]'
+                  )}
+                >
+                  {/* Top accent */}
+                  <div
+                    className={cn(
+                      'h-px w-full bg-gradient-to-r from-transparent via-teal-400/40 to-transparent transition-opacity duration-300',
+                      isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    )}
+                  />
+
+                  {/* Row body — clickable to expand */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleExpand(e.id)}
+                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleExpand(e.id); } }}
+                    className="px-4 py-3.5 sm:px-5 cursor-pointer"
+                  >
+                    {/* Line 1: chevron + title + status */}
+                    <div className="flex items-start gap-2.5">
+                      <ChevronRight
+                        className={cn(
+                          'h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0 transition-transform duration-200',
+                          isExpanded && 'rotate-90 text-teal-400'
+                        )}
+                        strokeWidth={1.5}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className="text-sm font-semibold text-foreground truncate">
+                            {e.title}
+                          </h3>
+                          <Badge
+                            variant="outline"
+                            className={cn('shrink-0 text-[10px] font-mono uppercase tracking-wider', st.className)}
+                          >
+                            {st.label}
+                          </Badge>
+                        </div>
+
+                        {/* Meta chips */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                          {e.conceptTags?.length > 0 ? (
+                            e.conceptTags.map((t) => (
                               <span
                                 key={t}
-                                className="bg-info/10 text-info border-info/20 px-2 py-0.5 rounded text-xs"
+                                className="inline-flex items-center rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 text-[11px] font-medium"
                               >
                                 {t}
                               </span>
-                            ))}
-                            {(!e.conceptTags || e.conceptTags.length === 0) && (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {e.dueDate ? new Date(e.dueDate).toLocaleDateString() : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {e.isDraft ? <Badge variant="outline">Draft</Badge>
-                            : isClosed ? <Badge className="bg-muted text-muted-foreground border-border">Closed</Badge>
-                            : <Badge className="bg-cds-low/10 text-cds-low border-cds-low/15">Open</Badge>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="inline-flex gap-1">
-                            <Button asChild variant="ghost" size="sm">
-                              <Link to={`/instructor/exercises/${e.id}/edit`}>Edit</Link>
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); navigate(`/instructor/sections/${sectionId}?tab=submissions&exercise=${e.id}`); }} title="View submissions" aria-label="View submissions">
-                              View submissions
-                            </Button>
-                            {isClosed ? (
-                              <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleReopen(e); }} disabled={busyId === e.id} title="Reopen exercise" aria-label="Reopen exercise">
-                                <Unlock className="w-3.5 h-3.5" />
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleClose(e); }} disabled={busyId === e.id} title="Close exercise (compute CDS)" aria-label="Close exercise">
-                                <Lock className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={(ev) => { ev.stopPropagation(); handleDelete(e); }} disabled={busyId === e.id} title="Delete exercise" aria-label="Delete exercise" className="text-destructive hover:bg-destructive/10 hover:text-destructive">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60">No concept tagged</span>
+                          )}
 
-                      {/* Accordion detail row — pushes siblings down via native table flow */}
-                      {isExpanded && (
-                        <ExerciseAccordionRow
-                          exercise={e}
-                          sectionId={sectionForDetail}
-                          colSpan={6}
-                        />
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                            <Calendar className="h-3 w-3" strokeWidth={1.5} />
+                            Due {due}
+                          </span>
+
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                            <Users className="h-3 w-3" strokeWidth={1.5} />
+                            {submitted}/{total} submitted
+                          </span>
+
+                          <span className={cn('text-[11px] font-mono tabular-nums', CDS_COLOR(cdsPct))}>
+                            CDS {cdsPct != null ? `${cdsPct}%` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Line 2: actions */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pl-6 sm:pl-7" onClick={(ev) => ev.stopPropagation()}>
+                      <Button asChild variant="ghost" size="sm" className="h-7 px-2.5 text-xs">
+                        <Link to={`/instructor/exercises/${e.id}/edit`}>
+                          <PencilLine className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+                          Edit
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => navigate(`/instructor/sections/${sectionId}?tab=submissions&exercise=${e.id}`)}
+                        title="View submissions"
+                        aria-label="View submissions"
+                      >
+                        <Inbox className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+                        Submissions
+                      </Button>
+                      {isClosed ? (
+                        <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs" onClick={() => handleReopen(e)} disabled={busyId === e.id} title="Reopen exercise" aria-label="Reopen exercise">
+                          <Unlock className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+                          Reopen
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs" onClick={() => handleClose(e)} disabled={busyId === e.id} title="Close exercise (compute CDS)" aria-label="Close exercise">
+                          <Lock className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+                          Close
+                        </Button>
                       )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDelete(e)}
+                        disabled={busyId === e.id}
+                        title="Delete exercise"
+                        aria-label="Delete exercise"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" strokeWidth={1.5} />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Accordion detail panel */}
+                  {isExpanded && (
+                    <div className="border-t border-white/[0.06] bg-[#0D1126]/40">
+                      <ExerciseAccordionRow exercise={e} sectionId={sectionId} />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      )}
     </div>
   );
 }
