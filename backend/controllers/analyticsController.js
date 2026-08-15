@@ -1399,7 +1399,7 @@ exports.getStudentSubmissions = async (req, res, next) => {
     if (sectionId) {
       const subRes = await db.query(
         `SELECT s.id, s.exercise_id, s.attempt_number, s.is_correct, s.time_spent_seconds, s.submitted_at,
-                ex.title AS exercise_title, c.name AS concept_name
+                ex.title AS exercise_title, c.name AS concept_name, ex.deadline
          FROM submissions s
          JOIN exercises ex ON s.exercise_id = ex.id
          JOIN concepts c ON ex.concept_id = c.id
@@ -1411,7 +1411,7 @@ exports.getStudentSubmissions = async (req, res, next) => {
     } else {
       const subRes = await db.query(
         `SELECT s.id, s.exercise_id, s.attempt_number, s.is_correct, s.time_spent_seconds, s.submitted_at,
-                ex.title AS exercise_title, c.name AS concept_name
+                ex.title AS exercise_title, c.name AS concept_name, ex.deadline
          FROM submissions s
          JOIN exercises ex ON s.exercise_id = ex.id
          JOIN concepts c ON ex.concept_id = c.id
@@ -2273,7 +2273,7 @@ exports.getSectionSubmissionGroups = async (req, res, next) => {
 
     const { rows } = await db.query(
       `SELECT s.id, s.student_id, u.name AS student_name, u.email AS student_email,
-              s.exercise_id, ex.title AS exercise_title, c.name AS concept_name,
+              s.exercise_id, ex.title AS exercise_title, c.name AS concept_name, ex.deadline,
               s.attempt_number, s.is_correct, s.code, s.compiler_log,
               s.submitted_at, s.time_spent_seconds,
               (SELECT COUNT(*) FROM integrity_flags f WHERE f.student_id = s.student_id AND f.exercise_id = s.exercise_id AND f.status = 'flagged')::int AS flag_count

@@ -129,6 +129,23 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
     [groups]
   );
 
+  // Late = latest attempt landed after the exercise deadline (deadline now
+  // comes from the submission-groups payload). Done = has attempts, on time.
+  const isLate = (g) =>
+    !!g.deadline &&
+    !!g.latest_submitted_at &&
+    new Date(g.latest_submitted_at).getTime() > new Date(g.deadline).getTime();
+
+  const lateCount = useMemo(
+    () => groups.filter(isLate).length,
+    [groups]
+  );
+
+  const doneCount = useMemo(
+    () => groups.filter((g) => !isLate(g)).length,
+    [groups]
+  );
+
   const totalAttempts = useMemo(
     () => groups.reduce((acc, g) => acc + (g.attempt_count || 0), 0),
     [groups]
@@ -155,6 +172,10 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
       list = list.filter((g) => g.latest_is_correct === false);
     } else if (statusFilter === "flagged") {
       list = list.filter((g) => g.flag_count > 0);
+    } else if (statusFilter === "late") {
+      list = list.filter(isLate);
+    } else if (statusFilter === "done") {
+      list = list.filter((g) => !isLate(g));
     }
 
     return list;
@@ -344,21 +365,30 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
         </>
       ) : (
         <>
-          {/* Status tabs (latest attempt) */}
+          {/* Status tabs (latest attempt + timeliness) */}
           <div className="flex flex-wrap items-center gap-2">
             {[
               { key: "all", label: `All (${groups.length})` },
-              { key: "pass", label: "Latest pass" },
-              { key: "fail", label: "Latest fail" },
+              { key: "done", label: `Done (${doneCount})` },
+              { key: "late", label: `Late (${lateCount})` },
+              { key: "missing", label: "Missing", missing: true },
               { key: "flagged", label: `Flagged (${flaggedCount})` },
             ].map((tab) => (
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setStatusFilter(tab.key)}
+                onClick={() => {
+                  if (tab.missing) {
+                    setShowNonSubmitters(true);
+                    setStatusFilter("all");
+                  } else {
+                    setShowNonSubmitters(false);
+                    setStatusFilter(tab.key);
+                  }
+                }}
                 className={cn(
                   "px-3 py-1 text-sm rounded-md transition-colors",
-                  statusFilter === tab.key
+                  (!tab.missing && statusFilter === tab.key) || (tab.missing && showNonSubmitters)
                     ? tab.key === "flagged"
                       ? "bg-destructive/10 text-destructive border border-destructive/20 font-medium"
                       : "bg-muted text-foreground font-medium"
@@ -427,7 +457,13 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           <span className="text-sm text-muted-foreground text-right tabular-nums sm:block">
                             ×{g.attempt_count}
                           </span>
-                          <span className="text-right">
+                          <span className="flex items-center justify-end gap-1.5">
+                            {isLate(g) && (
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
+                                <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                Late
+                              </Badge>
+                            )}
                             {g.latest_is_correct ? (
                               <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
                                 <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />

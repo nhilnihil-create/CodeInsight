@@ -8,6 +8,11 @@ import {
   UserMinus,
   AlertTriangle,
   RefreshCw,
+  CheckCircle,
+  XCircle,
+  ChevronRight,
+  Clock,
+  Flag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +20,6 @@ import ExportDropdown from "@/components/ui/export-dropdown";
 import VisualReportButton from "@/components/ui/visual-report-button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,9 +32,11 @@ import EvidenceRow from "@/components/ui/evidence-row";
 import RiskBadge from "@/components/ui/risk-badge";
 import { tierForMastery, NEW_TIER_META } from "@/components/ui/mastery-bar";
 import DetailDrawer from "@/components/ui/detail-drawer";
+import SubmissionDetailDrawer from "@/components/analytics/SubmissionDetailDrawer";
 import DecisionList from "@/components/ui/decision-list";
 import { flagTypeLabel } from "@/lib/flagTypes";
 import { formatDateAgo, formatDuration } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import api from "@/services/api";
 import useLastSection from "@/hooks/useLastSection";
 
@@ -64,6 +70,35 @@ function evidenceToString(evidence) {
 
 const SEVERITY_RISK_LEVEL = { high: "high", medium: "moderate", low: "low", na: "na" };
 
+const STATUS_BADGE = {
+  done: {
+    label: "Done",
+    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+    icon: CheckCircle,
+  },
+  late: {
+    label: "Late",
+    cls: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+    icon: Clock,
+  },
+  missing: {
+    label: "Missing",
+    cls: "bg-muted/40 text-muted-foreground border-border",
+    icon: XCircle,
+  },
+};
+
+function StatusBadge({ status }) {
+  const meta = STATUS_BADGE[status] || STATUS_BADGE.missing;
+  const Icon = meta.icon;
+  return (
+    <Badge variant="outline" className={`text-[11px] font-medium ${meta.cls}`}>
+      <Icon className="h-3 w-3 mr-1" strokeWidth={1.5} />
+      {meta.label}
+    </Badge>
+  );
+}
+
 export default function InstructorStudentDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -77,8 +112,12 @@ export default function InstructorStudentDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [subStatusFilter, setSubStatusFilter] = useState("all");
+  const [expandedExercise, setExpandedExercise] = useState(null);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
 
   const [data, setData] = useState(null);
+  const [sectionExercises, setSectionExercises] = useState([]);
 
   useEffect(() => {
     if (!id) return;
@@ -108,6 +147,11 @@ export default function InstructorStudentDetail() {
       api.get(`/api/sections/${sectionId}`).then(res => {
         if (!cancelled) setSectionName(res.data.name);
       }).catch((err) => console.warn('Failed to load section name:', err.message));
+      api.get(`/api/sections/${sectionId}/exercises`).then(res => {
+        if (!cancelled) setSectionExercises(Array.isArray(res.data) ? res.data : []);
+      }).catch(() => {
+        if (!cancelled) setSectionExercises([]);
+      });
     }
     return () => { cancelled = true; };
   }, [id, sectionId, retryCount]);
@@ -175,6 +219,101 @@ export default function InstructorStudentDetail() {
       badge: <RiskBadge level={f.severity} />,
     })),
   [integrityFlags]);
+
+  // ── Submission groups ─────────────────────────────────────────────
+  // One group per exercise. Groups with zero attempts become "missing"
+  // (only when we know the section's full exercise list); "late" when the
+  // latest attempt landed after the exercise deadline.
+  const submissionGroups = useMemo(() => {
+    const byExercise = new Map();
+
+    // Start from the section's exercise list so exercises the student never
+    // attempted still surface as "missing".
+    for (const ex of sectionExercises) {
+      const id = Number(ex.id);
+      if (!byExercise.has(id)) {
+        byExercise.set(id, {
+          exercise_id: id,
+          exercise_title: ex.title || `Exercise #${id}`,
+          deadline: ex.deadline || null,
+          attempts: [],
+          attempt_count: 0,
+          latest_is_correct: null,
+          latest_submitted_at: null,
+          total_time_spent_seconds: 0,
+          flagged: false,
+        });
+      }
+    }
+
+    // Fold in actual submissions (they may reference exercises missing from
+    // the section list if the exercises fetch failed).
+    for (const s of submissions) {
+      const id = Number(s.exercise_id);
+      let g = byExercise.get(id);
+      if (!g) {
+        g = {
+          exercise_id: id,
+          exercise_title: s.exercise_title || `Exercise #${id}`,
+          deadline: s.deadline || null,
+          attempts: [],
+          attempt_count: 0,
+          latest_is_correct: null,
+          latest_submitted_at: null,
+          total_time_spent_seconds: 0,
+          flagged: false,
+        };
+        byExercise.set(id, g);
+      }
+      g.attempts.push(s);
+      g.attempt_count += 1;
+      g.total_time_spent_seconds += (s.time_spent_seconds || 0);
+      if (s.is_correct) g.latest_is_correct = true;
+      const ts = new Date(s.submitted_at).getTime();
+      if (!g.latest_submitted_at || ts > new Date(g.latest_submitted_at).getTime()) {
+        g.latest_submitted_at = s.submitted_at;
+      }
+      if (integrityFlags.some((f) =>
+        f.exercise_title && String(f.exercise_title) === String(s.exercise_title)
+      )) {
+        g.flagged = true;
+      }
+    }
+
+    const groups = Array.from(byExercise.values());
+
+    // Status: missing → late → done (latest attempt vs deadline).
+    for (const g of groups) {
+      g.status =
+        g.attempt_count === 0
+          ? "missing"
+          : g.deadline &&
+              g.latest_submitted_at &&
+              new Date(g.latest_submitted_at).getTime() > new Date(g.deadline).getTime()
+            ? "late"
+            : "done";
+    }
+
+    // Sort: exercises with attempts first (most recent submission first),
+    // then missing ones by deadline.
+    return groups.sort((a, b) => {
+      if (a.attempt_count > 0 && b.attempt_count === 0) return -1;
+      if (a.attempt_count === 0 && b.attempt_count > 0) return 1;
+      if (a.attempt_count === 0 && b.attempt_count === 0) {
+        return (a.deadline || "") < (b.deadline || "") ? -1 : 1;
+      }
+      return (b.latest_submitted_at || "") < (a.latest_submitted_at || "") ? -1 : 1;
+    });
+  }, [submissions, sectionExercises, integrityFlags]);
+
+  const filteredGroups = useMemo(() => {
+    if (subStatusFilter === "all") return submissionGroups;
+    return submissionGroups.filter((g) => g.status === subStatusFilter);
+  }, [submissionGroups, subStatusFilter]);
+
+  const doneCount = submissionGroups.filter((g) => g.status === "done").length;
+  const lateCount = submissionGroups.filter((g) => g.status === "late").length;
+  const missingCount = submissionGroups.filter((g) => g.status === "missing").length;
 
   const activeFlags = integrityFlags.filter((f) => f.status !== "resolved");
 
@@ -373,7 +512,7 @@ export default function InstructorStudentDetail() {
 
         {/* ----- Mastery ----- */}
         <TabsContent value="mastery" className="mt-6">
-          <div className="grid gap-6 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
             <div className="lg:col-span-3 min-h-80">
               <ConceptRadarPanel scores={profile} loading={loading} />
             </div>
@@ -396,36 +535,175 @@ export default function InstructorStudentDetail() {
 
         {/* ----- Submissions ----- */}
         <TabsContent value="submissions" className="mt-6">
-          <ResponsiveTable
-            columns={[
-              { key: 'exercise', header: 'Exercise', mobile: 'primary',
-                renderCell: (s) => <span className="font-medium">{s.exercise_title}</span>,
-              },
-              { key: 'attempt', header: 'Attempt', mobile: 'label',
-                renderCell: (s) => <span className="text-muted-foreground">#{s.attempt_number}</span>,
-              },
-              { key: 'when', header: 'When', mobile: 'label',
-                renderCell: (s) => <span className="text-muted-foreground">{formatDateAgo(s.submitted_at)}</span>,
-              },
-              { key: 'passed', header: 'Passed', mobile: 'label',
-                renderCell: (s) => (
-                  <Badge variant={s.is_correct ? "secondary" : "destructive"} className="font-medium">
-                    {s.is_correct ? "Pass" : "Fail"}
-                  </Badge>
-                ),
-              },
-              { key: 'time', header: 'Time', mobile: 'hidden',
-                renderCell: (s) => (
-                  <span className="font-mono tabular-nums text-xs text-muted-foreground block text-right">
-                    {formatDuration(s.time_spent_seconds)}
-                  </span>
-                ),
-              },
-            ]}
-            data={submissions}
-            keyExtractor={(s) => String(s.id)}
-            emptyMessage="No submissions yet"
-          />
+          {/* Status filter tabs — same semantics as the section submissions tab */}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { key: "all", label: `All (${submissionGroups.length})` },
+              { key: "done", label: `Done (${doneCount})` },
+              { key: "late", label: `Late (${lateCount})` },
+              { key: "missing", label: `Missing (${missingCount})` },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setSubStatusFilter(tab.key)}
+                className={cn(
+                  "px-3 py-1 text-sm rounded-md transition-colors",
+                  subStatusFilter === tab.key
+                    ? "bg-muted text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {filteredGroups.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center mt-6">
+              <p className="text-sm font-semibold text-foreground">No submissions found</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {subStatusFilter === "missing"
+                  ? "No missing exercises — this student attempted every exercise."
+                  : "Submissions will appear here once the student submits exercises."}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border bg-card overflow-hidden mt-6">
+              {/* Desktop header (hidden on mobile — rows render as cards) */}
+              <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_2rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
+                <span className="text-xs font-medium text-muted-foreground">Exercise</span>
+                <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
+                <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
+                <span className="text-xs font-medium text-muted-foreground text-right">Total time</span>
+                <span className="text-xs font-medium text-muted-foreground text-right">Submitted</span>
+                <span className="text-xs font-medium text-muted-foreground"></span>
+              </div>
+              <ul className="divide-y divide-border">
+                {filteredGroups.map((g) => {
+                  const isExpanded = expandedExercise === g.exercise_id;
+                  return (
+                    <li key={g.exercise_id}>
+                      {/* Group row */}
+                      <div
+                        onClick={() => g.attempt_count > 0 && setExpandedExercise(isExpanded ? null : g.exercise_id)}
+                        className={cn(
+                          "grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_2rem] items-start sm:items-center gap-1 sm:gap-3 px-4 py-3 sm:h-14 transition-colors",
+                          g.attempt_count > 0 && "hover:bg-muted/40 cursor-pointer"
+                        )}
+                      >
+                        {/* Exercise + status chips (mobile card) */}
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {g.exercise_title}
+                            </span>
+                            {g.flagged && (
+                              <Flag className="h-3.5 w-3.5 text-destructive shrink-0" strokeWidth={1.5} />
+                            )}
+                          </span>
+                          <span className="flex flex-wrap items-center gap-1.5 mt-1 sm:hidden">
+                            <StatusBadge status={g.status} />
+                            <span className="text-xs text-muted-foreground">×{g.attempt_count}</span>
+                            {g.attempt_count > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatDateAgo(g.latest_submitted_at)}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                        <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
+                          ×{g.attempt_count}
+                        </span>
+                        <span className="hidden sm:flex justify-end">
+                          <StatusBadge status={g.status} />
+                        </span>
+                        <span className="hidden sm:block text-xs font-mono tabular-nums text-muted-foreground text-right">
+                          {formatDuration(g.total_time_spent_seconds)}
+                        </span>
+                        <span className="hidden sm:block text-xs font-mono tabular-nums text-muted-foreground text-right">
+                          {g.attempt_count > 0 ? formatDateAgo(g.latest_submitted_at) : "—"}
+                        </span>
+                        <span className="flex justify-end">
+                          {g.attempt_count > 0 ? (
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                isExpanded && "rotate-90 text-foreground"
+                              )}
+                              strokeWidth={1.5}
+                            />
+                          ) : (
+                            <span className="w-4" />
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Expanded attempts */}
+                      {isExpanded && g.attempt_count > 0 && (
+                        <div className="bg-muted/20 border-l-2 border-l-primary/40">
+                          {g.attempts.map((a) => (
+                            <div
+                              key={a.id}
+                              className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_2rem] items-start sm:items-center gap-1 sm:gap-3 px-4 pl-8 sm:h-11"
+                            >
+                              <span className="text-sm text-foreground font-medium tabular-nums">
+                                #{a.attempt_number}
+                              </span>
+                              <span className="hidden sm:block"></span>
+                              <span className="sm:hidden flex items-center gap-2 mt-0.5">
+                                <Badge
+                                  variant={a.is_correct ? "secondary" : "destructive"}
+                                  className="font-medium text-[11px]"
+                                >
+                                  {a.is_correct ? "Pass" : "Fail"}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDateAgo(a.submitted_at)}
+                                </span>
+                              </span>
+                              <span className="hidden sm:flex justify-end">
+                                <Badge
+                                  variant={a.is_correct ? "secondary" : "destructive"}
+                                  className="font-medium text-[11px]"
+                                >
+                                  {a.is_correct ? "Pass" : "Fail"}
+                                </Badge>
+                              </span>
+                              <span className="hidden sm:flex items-center justify-end gap-1 text-xs font-mono tabular-nums text-muted-foreground">
+                                <Clock className="h-3 w-3" strokeWidth={1.5} />
+                                {formatDuration(a.time_spent_seconds)}
+                              </span>
+                              <span className="hidden sm:block text-xs font-mono tabular-nums text-muted-foreground text-right">
+                                {formatDateAgo(a.submitted_at)}
+                              </span>
+                              <span className="flex justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={(ev) => {
+                                    ev.stopPropagation();
+                                    setSelectedSubmission({
+                                      ...a,
+                                      student_name: student.name,
+                                      student_email: student.email,
+                                    });
+                                  }}
+                                >
+                                  Review
+                                </Button>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </TabsContent>
 
         {/* ----- Integrity ----- */}
@@ -518,6 +796,13 @@ export default function InstructorStudentDetail() {
           </div>
         ) : null}
       </DetailDrawer>
+
+      {/* ---------- Submission Drawer ---------- */}
+      <SubmissionDetailDrawer
+        submission={selectedSubmission}
+        open={!!selectedSubmission}
+        onClose={() => setSelectedSubmission(null)}
+      />
     </div>
   );
 }

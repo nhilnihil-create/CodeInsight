@@ -57,7 +57,7 @@ export default function SegmentedPicker({
       role="radiogroup"
       aria-label="Filter"
       className={cn(
-        "relative inline-flex items-center gap-0 rounded-lg",
+        "relative inline-flex items-center gap-0 rounded-lg max-w-full",
         "bg-white/[0.04] border border-white/[0.06] p-1",
         isSm ? "h-8" : "h-9",
         className
@@ -84,7 +84,7 @@ export default function SegmentedPicker({
               "relative z-10 inline-flex items-center justify-center gap-1.5",
               "font-medium rounded-md transition-colors cursor-pointer",
               "select-none whitespace-nowrap",
-              isSm ? "px-2.5 text-[11px]" : "px-3.5 text-xs",
+              isSm ? "px-1.5 text-[10px] sm:px-2.5 sm:text-[11px]" : "px-2.5 text-[11px] sm:px-3.5 sm:text-xs",
               isActive
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground/80"
