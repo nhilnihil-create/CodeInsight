@@ -137,6 +137,10 @@ export default function StudentCodeEditor() {
   const codeRef = useRef("");
 
   const isCompleted = !!exercise?.isCompleted;
+  // Closed: the exercise was frozen by the instructor (closed_at set). CDS is
+  // finalized; submissions are rejected server-side. The editor stays open for
+  // reading, but Submit is disabled and behavioral telemetry is suppressed.
+  const isClosed = !!exercise?.closed_at;
   // Review mode: the exercise was already completed or solved this session.
   // In review mode the editor is read-only, Run/Submit are inert, and no
   // behavioral telemetry is collected.
@@ -560,6 +564,15 @@ export default function StudentCodeEditor() {
       transition={{ duration: 0.3 }}
       className="flex-1 h-full flex flex-col overflow-hidden bg-[#080C15]"
     >
+      {isClosed && (
+        <div className="bg-slate-500/10 border-b border-slate-500/25 px-4 py-2 flex items-center justify-between text-sm shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-300">🔒 Exercise Closed</span>
+            <span className="text-muted-foreground">— Submissions are no longer accepted. CDS was finalized when the exercise closed.</span>
+          </div>
+        </div>
+      )}
+
       {isCompleted && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-sm shrink-0">
           <div className="flex items-center gap-2">
@@ -578,7 +591,7 @@ export default function StudentCodeEditor() {
         isRunning={isRunning}
         isReviewMode={isReviewMode}
         onRun={handleRun}
-        onSubmit={isReviewMode ? undefined : handleSubmit}
+        onSubmit={isReviewMode || isClosed ? undefined : handleSubmit}
         onBack={handleBack}
       />
 
@@ -616,7 +629,7 @@ export default function StudentCodeEditor() {
           programOutput={testResults?.programOutput ?? ""}
           isReviewMode={isReviewMode}
         />
-        <EditorActionBar onRun={handleRun} onSubmit={isReviewMode ? undefined : handleSubmit} isRunning={isRunning} isReviewMode={isReviewMode} />
+        <EditorActionBar onRun={handleRun} onSubmit={isReviewMode || isClosed ? undefined : handleSubmit} isRunning={isRunning} isReviewMode={isReviewMode} isClosed={isClosed} />
       </div>
 
       {preCheckHints.length > 0 && (

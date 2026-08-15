@@ -38,7 +38,7 @@ router.get('/exercises', verifyToken, requireRole('student'), async (req, res, n
     // (CDS rows exist even for students with no accepted solution).
     const r = await db.query(`
       SELECT ex.id, ex.title, ex.description, c.name AS concept_name,
-             ex.time_limit_minutes, ex.deadline, ex.test_cases,
+             ex.time_limit_minutes, ex.deadline, ex.closed_at, ex.test_cases,
              CASE WHEN s.submitted_at IS NOT NULL THEN 'completed' ELSE 'pending' END AS status,
              (s.submitted_at IS NOT NULL) AS "isCompleted",
              CASE
@@ -47,6 +47,7 @@ router.get('/exercises', verifyToken, requireRole('student'), async (req, res, n
                WHEN s.submitted_at IS NULL AND ex.deadline IS NOT NULL AND ex.deadline < NOW() THEN 'missing'
                ELSE 'todo'
              END AS work_status,
+             (ex.closed_at IS NOT NULL) AS "isClosed",
              cs.cds
       FROM exercises ex
       JOIN concepts c ON c.id = ex.concept_id
@@ -273,6 +274,17 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
     if (sectionId && sectionId !== exercise.section_id) {
       throw new AppError('You are not enrolled in this section', 403, codes.FORBIDDEN);
     }
+
+    // Gate: closed exercises are frozen. CDS was computed at close time and
+    // must not be mutated by post-close submissions — matches the instructor
+    // submit paths (submissionController / submissionWorker).
+    if (exercise.closed_at) {
+      throw new AppError(
+        'This exercise is closed — submissions are no longer accepted. If you need an extension, please contact your instructor.',
+        403,
+        codes.FORBIDDEN
+      );
+    }
     const enrollRes = await db.query(
       'SELECT 1 FROM enrollments WHERE student_id=$1 AND section_id=$2 AND dropped_at IS NULL',
       [req.user.id, exercise.section_id]
@@ -436,6 +448,12 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
 
     // ── Deferred post-processing (CDS, flags, checks run in background) ─
     defer(async () => {
+
+      // Frozen-CDS protection: if the exercise was closed between the request
+      // and this deferred run (e.g. auto-close fired mid-flight), do NOT write
+      // a live CDS row — the frozen batch score must stay authoritative.
+      const frozenCheck = await db.query('SELECT closed_at FROM exercises WHERE id=$1', [exercise.id]);
+      if (frozenCheck.rows.length && frozenCheck.rows[0].closed_at) return;
 
       let liveCDS = null;
       try {

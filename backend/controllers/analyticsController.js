@@ -2273,7 +2273,7 @@ exports.getSectionSubmissionGroups = async (req, res, next) => {
 
     const { rows } = await db.query(
       `SELECT s.id, s.student_id, u.name AS student_name, u.email AS student_email,
-              s.exercise_id, ex.title AS exercise_title, c.name AS concept_name, ex.deadline,
+              s.exercise_id, ex.title AS exercise_title, c.name AS concept_name, ex.deadline, ex.closed_at,
               s.attempt_number, s.is_correct, s.code, s.compiler_log,
               s.submitted_at, s.time_spent_seconds,
               (SELECT COUNT(*) FROM integrity_flags f WHERE f.student_id = s.student_id AND f.exercise_id = s.exercise_id AND f.status = 'flagged')::int AS flag_count
@@ -2303,6 +2303,8 @@ exports.getSectionSubmissionGroups = async (req, res, next) => {
           exercise_id: row.exercise_id,
           exercise_title: row.exercise_title,
           concept_name: row.concept_name,
+          deadline: row.deadline,
+          closed_at: row.closed_at,
           flag_count: row.flag_count,
           attempt_count: 0,
           latest: null,

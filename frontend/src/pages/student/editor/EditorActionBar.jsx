@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
  *
  * Tokens only.
  */
-export default function EditorActionBar({ onRun, onSubmit, isRunning, isReviewMode = false }) {
+export default function EditorActionBar({ onRun, onSubmit, isRunning, isReviewMode = false, isClosed = false }) {
   return (
     <div
       className="min-h-14 bg-card border-t border-border flex items-center gap-2 px-3 shrink-0 pb-[env(safe-area-inset-bottom)]"
@@ -33,7 +33,7 @@ export default function EditorActionBar({ onRun, onSubmit, isRunning, isReviewMo
         </Button>
       ) : (
         <span className="flex-1 inline-flex items-center justify-center text-[10px] font-medium text-muted-foreground">
-          Review Mode
+          {isClosed ? '🔒 Closed — submissions disabled' : 'Review Mode'}
         </span>
       )}
     </div>

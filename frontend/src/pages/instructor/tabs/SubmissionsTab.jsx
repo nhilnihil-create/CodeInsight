@@ -9,6 +9,7 @@ import {
   XCircle,
   ChevronRight,
   Clock,
+  Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,10 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
     !!g.latest_submitted_at &&
     new Date(g.latest_submitted_at).getTime() > new Date(g.deadline).getTime();
 
+  // Closed = the exercise was frozen by the instructor (closed_at set). CDS
+  // was finalized at close; submissions were locked server-side.
+  const isClosed = (g) => !!g.closed_at;
+
   const lateCount = useMemo(
     () => groups.filter(isLate).length,
     [groups]
@@ -143,6 +148,11 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
 
   const doneCount = useMemo(
     () => groups.filter((g) => !isLate(g)).length,
+    [groups]
+  );
+
+  const closedCount = useMemo(
+    () => groups.filter(isClosed).length,
     [groups]
   );
 
@@ -176,6 +186,8 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
       list = list.filter(isLate);
     } else if (statusFilter === "done") {
       list = list.filter((g) => !isLate(g));
+    } else if (statusFilter === "closed") {
+      list = list.filter(isClosed);
     }
 
     return list;
@@ -358,6 +370,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
               { key: "done", label: `Done (${doneCount})` },
               { key: "late", label: `Late (${lateCount})` },
               { key: "missing", label: "Missing", missing: true },
+              { key: "closed", label: `Closed (${closedCount})` },
               { key: "flagged", label: `Flagged (${flaggedCount})` },
             ].map((tab) => (
               <button
@@ -457,6 +470,12 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
 
                           {/* Mobile: status + meta chips */}
                           <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
+                            {isClosed(g) && (
+                              <Badge variant="outline" className="bg-slate-500/10 text-slate-300 border-slate-500/30 text-[11px]">
+                                <Lock className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                Closed
+                              </Badge>
+                            )}
                             {isLate(g) && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
                                 <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
@@ -497,6 +516,12 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                             ×{g.attempt_count}
                           </span>
                           <span className="hidden sm:flex items-center justify-end gap-1.5">
+                            {isClosed(g) && (
+                              <Badge variant="outline" className="bg-slate-500/10 text-slate-300 border-slate-500/30 text-[11px]">
+                                <Lock className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                Closed
+                              </Badge>
+                            )}
                             {isLate(g) && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
                                 <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
