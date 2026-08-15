@@ -1,12 +1,14 @@
 import axios from 'axios';
 
 // The deployed backend runs on Render.com's free tier, which spins down after
-// ~15 min of inactivity. A cold start can take 30–60s while the dyno wakes, so
-// requests need a generous timeout plus a retry-with-backoff — otherwise the
-// first hit after idle hangs forever and charts silently never load.
+// ~15 min of inactivity. A cold start can take 30–60s while the dyno wakes, and
+// Render's proxy can drop the connection (ERR_CONNECTION_CLOSED) during boot,
+// so requests need a generous timeout plus a retry-with-backoff that spans the
+// whole wake-up window — otherwise the first hit after idle fails fast and the
+// UI never recovers.
 export const REQUEST_TIMEOUT_MS = 75_000;
-export const MAX_RETRIES = 2;
-export const RETRY_DELAYS_MS = [3_000, 8_000];
+export const MAX_RETRIES = 5;
+export const RETRY_DELAYS_MS = [3_000, 6_000, 12_000, 20_000, 30_000];
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://127.0.0.1:5000'),
@@ -21,21 +23,30 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Decide whether a failed request is safe and worthwhile to retry.
- * - Only idempotent methods (GET/HEAD) — a retried POST/PUT could double-submit.
- * - Only on timeout / network failure / Render wake-up statuses (502/503/504).
- * - Never on 4xx auth errors (401/403/404…).
+ * - Idempotent methods (GET/HEAD) retry on timeout / network failure /
+ *   Render wake-up statuses (502/503/504).
+ * - The login POST is also retried on the same failures: it is the very first
+ *   request a user makes after the backend sleeps, and a retried login is
+ *   harmless (worst case a fresh session cookie). Never retried on 4xx — a
+ *   401/403 response is a real auth failure, not a cold start.
+ * - All other mutating methods (PUT/PATCH/DELETE…) are never retried — a
+ *   retried submit could double-submit.
  */
 export function isRetryableError(err) {
   const cfg = err?.config;
   if (!cfg) return false;
   const method = String(cfg.method || '').toLowerCase();
-  if (method !== 'get' && method !== 'head') return false;
   const status = err.response?.status;
-  return (
-    err.code === 'ECONNABORTED' || // request timed out
-    !err.response || // network failure (dyno still waking / connection reset)
-    status === 502 || status === 503 || status === 504
-  );
+  const transportFailure = err.code === 'ECONNABORTED' || !err.response;
+  const wakeUpStatus = status === 502 || status === 503 || status === 504;
+
+  if (method === 'get' || method === 'head') {
+    return transportFailure || wakeUpStatus;
+  }
+  if (method === 'post' && String(cfg.url || '').includes('/api/auth/login')) {
+    return transportFailure || wakeUpStatus;
+  }
+  return false;
 }
 
 api.interceptors.response.use(

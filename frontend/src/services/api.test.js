@@ -26,9 +26,21 @@ describe('API cold-start retry policy (isRetryableError)', () => {
   });
 
   it('does not retry mutating methods (POST could double-submit)', () => {
-    expect(isRetryableError({ config: { method: 'post' }, response: { status: 503 } })).toBe(false);
-    expect(isRetryableError({ config: { method: 'put' }, response: { status: 503 } })).toBe(false);
-    expect(isRetryableError({ config: { method: 'delete' }, response: { status: 503 } })).toBe(false);
+    expect(isRetryableError({ config: { method: 'post', url: '/api/submissions' }, response: { status: 503 } })).toBe(false);
+    expect(isRetryableError({ config: { method: 'put', url: '/api/x' }, response: { status: 503 } })).toBe(false);
+    expect(isRetryableError({ config: { method: 'delete', url: '/api/x' }, response: { status: 503 } })).toBe(false);
+    expect(isRetryableError({ config: { method: 'post', url: '/api/submissions' } })).toBe(false); // network failure on a submit
+  });
+
+  it('retries the login POST on cold-start failures (first request after idle)', () => {
+    expect(isRetryableError({ config: { method: 'post', url: '/api/auth/login' }, response: { status: 503 } })).toBe(true);
+    expect(isRetryableError({ config: { method: 'post', url: '/api/auth/login' } })).toBe(true); // connection closed mid-boot
+    expect(isRetryableError({ config: { method: 'post', url: '/api/auth/login' }, code: 'ECONNABORTED' })).toBe(true);
+  });
+
+  it('never retries the login POST on 4xx (real auth failure, not a cold start)', () => {
+    expect(isRetryableError({ config: { method: 'post', url: '/api/auth/login' }, response: { status: 401 } })).toBe(false);
+    expect(isRetryableError({ config: { method: 'post', url: '/api/auth/login' }, response: { status: 400 } })).toBe(false);
   });
 
   it('returns false for malformed errors', () => {
@@ -37,10 +49,16 @@ describe('API cold-start retry policy (isRetryableError)', () => {
     expect(isRetryableError({ config: { method: 'get' } })).toBe(true); // no response at all = network-ish
   });
 
-  it('exposes a generous timeout and bounded retries', () => {
+  it('exposes a generous timeout and bounded retries spanning the cold-start window', () => {
     expect(REQUEST_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000);
-    expect(MAX_RETRIES).toBeGreaterThanOrEqual(1);
+    expect(MAX_RETRIES).toBeGreaterThanOrEqual(3);
     expect(RETRY_DELAYS_MS.length).toBe(MAX_RETRIES);
+    // Delays grow (backoff) and total wait covers Render's ~30–60s wake-up.
+    for (let i = 1; i < RETRY_DELAYS_MS.length; i++) {
+      expect(RETRY_DELAYS_MS[i]).toBeGreaterThan(RETRY_DELAYS_MS[i - 1]);
+    }
+    const totalWait = RETRY_DELAYS_MS.reduce((a, b) => a + b, 0);
+    expect(totalWait).toBeGreaterThanOrEqual(60_000);
   });
 });
 
