@@ -1633,7 +1633,22 @@ exports.getConceptMasteryReport = async (req, res, next) => {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    // Fill in missing weeks with 0 for each concept
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const todayLocal = new Date();
+    todayLocal.setHours(0, 0, 0, 0);
+
+    // Map a measurement date to a week index in the series array (index 0 =
+    // oldest week W-(weeks-1), last index = Now). Bucketing by RANGE (not
+    // exact-date equality) so any score computed mid-week lands in its week
+    // instead of falling through to null.
+    function weekSlotOf(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const local = new Date(y, m - 1, d);
+      const daysAgo = Math.round((todayLocal.getTime() - local.getTime()) / DAY_MS);
+      if (daysAgo < 0) return weeks - 1; // future-dated measurement → Now
+      return (weeks - 1) - Math.min(weeks - 1, Math.floor(daysAgo / 7));
+    }
+
     const weekDates = [];
     for (let i = weeks - 1; i >= 0; i--) {
       const d = new Date();
@@ -1641,30 +1656,38 @@ exports.getConceptMasteryReport = async (req, res, next) => {
       weekDates.push(fmtDate(d));
     }
 
-    // Map slug → concept data for O(1) lookup
+    // Map slug → concept data for O(1) lookup; weekly is a slot-indexed array.
     const conceptMap = {};
     for (const c of conceptRes.rows) {
-      conceptMap[c.slug || c.id] = { id: c.slug || c.id, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', weekly: {} };
+      conceptMap[c.slug || c.id] = { id: c.slug || c.id, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', weekly: Array(weeks).fill(null) };
     }
     const conceptsWithData = new Set();
     for (const r of weeklyRes.rows) {
       const key = r.slug || r.concept_id;
       if (conceptMap[key]) {
-        conceptMap[key].weekly[fmtDate(r.week_date)] = r.mastery;
+        // Rows arrive date-ascending, so the later measurement wins the slot.
+        conceptMap[key].weekly[weekSlotOf(fmtDate(r.week_date))] = r.mastery;
         conceptsWithData.add(key);
       }
     }
 
     // Only concepts that actually appear in this section's CDS data — a
     // concept never touched here must not show as a phantom flat 0% line.
-    // Weeks without data are null (chart gap), never a fake 0% dip.
+    // Weeks before the first measurement stay null (chart gap, never a fake
+    // 0% dip); after the last measurement the value is carried forward so a
+    // concept measured once still draws a visible line up to "Now" instead
+    // of an orphan dot.
     const conceptData = conceptRes.rows
       .filter(c => conceptsWithData.has(c.slug || c.id))
       .map(c => {
         const key = c.slug || c.id;
-        const series = weekDates.map(d => conceptMap[key].weekly[d] ?? null);
-        const lastReal = [...series].reverse().find(v => v != null) ?? 0;
-        return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: lastReal };
+        const series = [...conceptMap[key].weekly];
+        let lastReal = null;
+        for (let i = 0; i < series.length; i++) {
+          if (series[i] != null) lastReal = series[i];
+          else if (lastReal != null) series[i] = lastReal;
+        }
+        return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: lastReal ?? 0 };
       });
 
     const weekLabels = [];

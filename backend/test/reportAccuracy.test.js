@@ -96,4 +96,63 @@ describe('getConceptMasteryReport accuracy', () => {
     assert.ok(loops.series.some((v) => v === null), 'empty weeks must be null');
     assert.strictEqual(loops.current, 62);
   });
+
+  it('buckets mid-week measurements into their week slot and carries the last value forward', async () => {
+    // A measurement made 3 days ago (mid-week, NOT an exact week anchor) must
+    // land in the "Now" slot — previously exact-date equality dropped it to null.
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 1, name: 'Variables', slug: 'variables', knowledge_area_code: 'SDF-FPC' }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          { concept_id: 1, slug: 'variables', concept_name: 'Variables', week_date: threeDaysAgo, mastery: 74 },
+        ],
+      });
+
+    const req = { params: { sectionId: '7' }, query: { weeks: '5' }, user: { id: 1 } };
+    const res = makeRes();
+    await ctrl.getConceptMasteryReport(req, res, jest.fn());
+
+    const { weeks, concepts } = res.json.mock.calls[0][0];
+    assert.strictEqual(weeks.length, 5);
+    assert.strictEqual(weeks[4], 'Now');
+
+    const v = concepts[0];
+    // The mid-week measurement lands in the final (Now) slot.
+    assert.strictEqual(v.series[4], 74);
+    // Earlier weeks stay null (chart gap before the first measurement).
+    assert.ok(v.series.slice(0, 4).every((x) => x === null));
+    assert.strictEqual(v.current, 74);
+  });
+
+  it('carries a W-1 measurement forward to Now so the line is visible', async () => {
+    // One measurement ~8 days ago (W-1 slot) and nothing since: the value must
+    // be carried forward to "Now" — otherwise recharts draws an orphan dot
+    // with no connecting line.
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 1, name: 'Loops', slug: 'loops', knowledge_area_code: 'SDF-PMD' }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          { concept_id: 1, slug: 'loops', concept_name: 'Loops', week_date: eightDaysAgo, mastery: 77 },
+        ],
+      });
+
+    const req = { params: { sectionId: '7' }, query: { weeks: '5' }, user: { id: 1 } };
+    const res = makeRes();
+    await ctrl.getConceptMasteryReport(req, res, jest.fn());
+
+    const { weeks, concepts } = res.json.mock.calls[0][0];
+    const loops = concepts[0];
+    // 8 days ago → W-1 (index 3 of 5); carried forward into index 4 (Now).
+    assert.strictEqual(loops.series[3], 77);
+    assert.strictEqual(loops.series[4], 77);
+    assert.strictEqual(loops.current, 77);
+    // The carried-forward Now value matches the legend/current — no orphan dot.
+    assert.strictEqual(weeks[4], 'Now');
+  });
 });
