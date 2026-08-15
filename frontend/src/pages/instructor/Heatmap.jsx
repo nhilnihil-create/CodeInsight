@@ -275,6 +275,19 @@ export default function InstructorHeatmap() {
     const load = async () => {
       setLoading(true);
       setError(null);
+
+      // useLastSection can still be resolving (localStorage empty → fetching
+      // the first section). Avoid firing /heatmap/null and showing a stale
+      // empty state before the real section id arrives.
+      if (sectionId == null) {
+        setRows([]);
+        setConcepts([]);
+        setRawScores({});
+        setColumnOrder([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await api.get(`/api/analytics/heatmap/${sectionId}`);
         const students = res.data?.students || [];
@@ -296,12 +309,17 @@ export default function InstructorHeatmap() {
           setConcepts(ca);
           setRows(out);
           setRawScores(sr);
+          // Reset drag order together with the new data so the init effect
+          // re-derives columns from THIS section — otherwise the previous
+          // section's columns leak into the new heatmap.
+          setColumnOrder([]);
         }
       } catch (err) {
         if (!dead) {
           setConcepts([]);
           setRows([]);
           setRawScores({});
+          setColumnOrder([]);
           setError(err.response?.data?.message || 'Failed to load heatmap data.');
         }
       } finally {
