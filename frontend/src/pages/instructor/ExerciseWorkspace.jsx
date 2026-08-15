@@ -106,7 +106,7 @@ const STEPS = [
 
 function StepIndicator({ currentStep, canAdvance, onStepClick }) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto pb-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {STEPS.map((s, i) => {
         const done = i < currentStep;
         const active = i === currentStep;
@@ -116,11 +116,14 @@ function StepIndicator({ currentStep, canAdvance, onStepClick }) {
             key={s.key}
             type="button"
             onClick={() => { if (reachable) onStepClick(i); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              active ? "bg-primary text-primary-foreground" :
-              done ? "bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer" :
-              reachable ? "bg-muted/60 text-muted-foreground/70 hover:bg-muted/80 cursor-pointer" :
-              "bg-muted/30 text-muted-foreground/40"
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              active
+                ? "bg-primary text-primary-foreground shadow-[0_0_16px_rgba(45,212,191,0.25)]"
+                : done
+                  ? "bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer"
+                  : reachable
+                    ? "bg-muted/60 text-muted-foreground/70 hover:bg-muted/80 cursor-pointer"
+                    : "bg-muted/30 text-muted-foreground/40"
             }`}
           >
             {done ? <Check className="w-3 h-3" /> : <span className="w-4 h-4 flex items-center justify-center rounded-full border text-[10px]">{i + 1}</span>}
@@ -148,22 +151,22 @@ function TestCaseEditor({ tests, onChange }) {
         </Button>
       </div>
       {tests.map((t, i) => (
-        <Card key={i}>
-          <CardContent className="pt-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium">Test {i + 1}</span>
-                {t.description && (
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">{t.description}</span>
-                )}
+        <Card key={i} variant="dense">
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-semibold">Test {i + 1}</span>
+                <span className="text-[10px] font-mono text-muted-foreground/50 truncate">
+                  {t.description || "No description"}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => update(i, "hidden", !t.hidden)}
                   className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                     t.hidden
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
                       : 'bg-muted/40 border-border/40 text-muted-foreground hover:bg-muted/60'
                   }`}
                 >
@@ -174,46 +177,37 @@ function TestCaseEditor({ tests, onChange }) {
                 </Button>
               </div>
             </div>
-            <div className="space-y-1.5">
-              {t.description && (
-                <Input
-                  value={t.description}
-                  onChange={(e) => update(i, "description", e.target.value)}
-                  className="text-xs"
-                  placeholder="Test description (e.g. Normal input, Edge case: n=0)"
+
+            {/* Description input — always available (was dead behind a button) */}
+            <Input
+              value={t.description}
+              onChange={(e) => update(i, "description", e.target.value)}
+              className="text-xs"
+              placeholder="Test description (e.g. Normal input, Edge case: n=0)"
+            />
+
+            {/* I/O fields — stack on mobile, side-by-side on sm+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Stdin Input</Label>
+                <Textarea
+                  value={t.input}
+                  onChange={(e) => update(i, "input", e.target.value)}
+                  className="text-xs font-mono min-h-[60px] resize-y mt-1"
+                  placeholder={"5\n1 2 3 4 5"}
+                  rows={3}
                 />
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Stdin Input</Label>
-                  <Textarea
-                    value={t.input}
-                    onChange={(e) => update(i, "input", e.target.value)}
-                    className="text-xs font-mono min-h-[60px] resize-y"
-                    placeholder={"5\n1 2 3 4 5"}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Expected Stdout</Label>
-                  <Textarea
-                    value={t.expected}
-                    onChange={(e) => update(i, "expected", e.target.value)}
-                    className="text-xs font-mono min-h-[60px] resize-y"
-                    placeholder={"15"}
-                    rows={3}
-                  />
-                </div>
               </div>
-              {!t.description && (
-                <button
-                  type="button"
-                  onClick={() => update(i, "description", "")}
-                  className="text-[10px] text-primary hover:underline"
-                >
-                  + Add description
-                </button>
-              )}
+              <div className="min-w-0">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Expected Stdout</Label>
+                <Textarea
+                  value={t.expected}
+                  onChange={(e) => update(i, "expected", e.target.value)}
+                  className="text-xs font-mono min-h-[60px] resize-y mt-1"
+                  placeholder={"15"}
+                  rows={3}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -579,23 +573,25 @@ function DatabankBrowser({ onAddToBasket }) {
           <Layers className="w-4 h-4" /> Databank
           <span className="text-xs font-normal text-muted-foreground">— {filtered.length} of {bank.length} exercises</span>
         </CardTitle>
-        <div className="flex gap-2 mt-2">
-          <Input placeholder="Search..." value={query} onChange={e => setQuery(e.target.value)} className="text-sm h-8 flex-1" />
-          <Select value={source} onValueChange={setSource}>
-            <SelectTrigger className="w-28 h-8 text-sm"><SelectValue placeholder="Source" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All ({bank.length})</SelectItem>
-              <SelectItem value="bank">Templates ({bank.filter(e=>e.source==='bank').length})</SelectItem>
-              <SelectItem value="seeded">ITP1 ({bank.filter(e=>e.source==='seeded').length})</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={concept} onValueChange={setConcept}>
-            <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="Concept" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Concepts</SelectItem>
-              {concepts.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+          <Input placeholder="Search..." value={query} onChange={e => setQuery(e.target.value)} className="text-sm h-8 flex-1 min-w-0" />
+          <div className="flex gap-2 shrink-0">
+            <Select value={source} onValueChange={setSource}>
+              <SelectTrigger className="h-8 text-sm flex-1 sm:w-28"><SelectValue placeholder="Source" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({bank.length})</SelectItem>
+                <SelectItem value="bank">Templates ({bank.filter(e=>e.source==='bank').length})</SelectItem>
+                <SelectItem value="seeded">ITP1 ({bank.filter(e=>e.source==='seeded').length})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={concept} onValueChange={setConcept}>
+              <SelectTrigger className="h-8 text-sm flex-1 sm:w-36"><SelectValue placeholder="Concept" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Concepts</SelectItem>
+                {concepts.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0 max-h-64 overflow-y-auto">
@@ -865,20 +861,20 @@ export default function ExerciseWorkspace() {
         {/* Step Indicator */}
         <StepIndicator currentStep={currentStep} canAdvance={canAdvance} onStepClick={setCurrentStep} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {/* Main form */}
-          <div className="lg:col-span-2" id="exercise-form">
+          <div className="lg:col-span-2 xl:col-span-3 min-w-0" id="exercise-form">
             <Card>
-              <CardHeader className="pb-3 border-b border-border">
-                <div className="flex items-center justify-between">
-                  <div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Step {currentStep + 1} of {STEPS.length}
                     </p>
-                    <CardTitle className="text-sm">{STEPS[currentStep]?.label}</CardTitle>
+                    <CardTitle className="text-sm mt-0.5">{STEPS[currentStep]?.label}</CardTitle>
                   </div>
                   {currentExercise.title && (
-                    <Badge variant="outline" className="text-xs">{currentExercise.title}</Badge>
+                    <Badge variant="outline" className="text-xs truncate max-w-[40%]">{currentExercise.title}</Badge>
                   )}
                 </div>
               </CardHeader>
@@ -891,7 +887,7 @@ export default function ExerciseWorkspace() {
                 />
 
                 {/* Navigation */}
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-4 border-t border-white/[0.06]">
                   <Button variant="ghost" disabled={currentStep === 0} onClick={() => setCurrentStep(s => s - 1)}>
                     <ArrowLeft className="w-4 h-4 mr-1" /> Previous
                   </Button>
@@ -908,7 +904,7 @@ export default function ExerciseWorkspace() {
                       <Save className="w-4 h-4 mr-1" /> {busy ? "Saving..." : "Update Exercise"}
                     </Button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" onClick={addToBasket}>
                         <Plus className="w-4 h-4 mr-1" /> Add to Basket
                       </Button>
@@ -928,7 +924,7 @@ export default function ExerciseWorkspace() {
           </div>
 
           {/* Basket sidebar */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 xl:col-span-2 min-w-0">
             <div className="sticky top-6">
               <BasketPanel
                 basket={basket}
