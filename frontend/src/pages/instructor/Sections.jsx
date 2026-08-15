@@ -145,7 +145,7 @@ export default function InstructorSections() {
     subtitle: `${s.course} · ${s.term}`,
     meta: `${s.students} students`,
     badge: (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 justify-end">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${TIER_META[s.level].text}`}
           aria-label={`Mastery level: ${TIER_META[s.level].label}`}

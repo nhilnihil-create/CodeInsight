@@ -71,7 +71,7 @@ export default function DecisionList({
               }
             }}
             className={cn(
-              "flex items-center gap-3 px-4 h-16 transition-all duration-200 ease-out cursor-pointer",
+              "flex flex-wrap items-center gap-x-3 gap-y-1 px-4 min-h-16 py-2.5 transition-all duration-200 ease-out cursor-pointer",
               "hover:bg-slate-900/80 hover:scale-[1.01]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               highlighted && "bg-primary/5 border-l-2 border-primary",
@@ -104,7 +104,7 @@ export default function DecisionList({
                   ) : null}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5 shrink-0 w-full sm:w-auto">
                   {item.meta ? (
                     <span className="text-xs text-muted-foreground font-mono tabular-nums">
                       {item.meta}
