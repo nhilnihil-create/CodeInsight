@@ -296,36 +296,22 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
         <>
           {/* Status tabs don't apply to the non-submitter view */}
           {exerciseFilter ? (
-            <div className="rounded-lg border border-border bg-card overflow-x-auto">
-              <div className={cn(GRID_CLASS, "px-4 h-9 border-b border-border bg-muted/40")}>
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="hidden sm:grid grid-cols-[minmax(0,1fr)] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
                 <span className="text-xs font-medium text-muted-foreground">Student</span>
-                <span className="text-xs font-medium text-muted-foreground"></span>
-                <span className="text-xs font-medium text-muted-foreground text-right"></span>
-                <span className="text-xs font-medium text-muted-foreground text-right"></span>
-                <span className="text-xs font-medium text-muted-foreground text-right"></span>
-                <span className="text-xs font-medium text-muted-foreground text-right"></span>
-                <span className="text-xs font-medium text-muted-foreground"></span>
               </div>
               <ul className="divide-y divide-border max-h-[600px] overflow-y-auto">
                 {filteredNonSubmitters.map((s) => (
-                  <li key={s.id} className={cn(GRID_CLASS, "px-4 sm:h-14")}>
-                    <span className="flex items-center gap-2.5 min-w-0">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs font-semibold text-muted-foreground">
-                          {initials(s.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium text-foreground truncate">{s.name}</span>
-                        <span className="block text-xs text-muted-foreground truncate">{s.email}</span>
-                      </span>
+                  <li key={s.id} className="flex items-center gap-2.5 px-4 py-3 sm:h-14 min-w-0">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="text-xs font-semibold text-muted-foreground">
+                        {initials(s.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-foreground truncate">{s.name}</span>
+                      <span className="block text-xs text-muted-foreground truncate">{s.email}</span>
                     </span>
-                    <span className="text-sm text-muted-foreground truncate"></span>
-                    <span className="text-sm text-muted-foreground text-right tabular-nums sm:block"></span>
-                    <span className="text-right"></span>
-                    <span className="text-xs font-mono tabular-nums text-muted-foreground text-right"></span>
-                    <span className="text-xs font-mono tabular-nums text-muted-foreground text-right"></span>
-                    <span className="flex justify-center"></span>
                   </li>
                 ))}
               </ul>
@@ -432,15 +418,68 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                     const isExpanded = expandedKey === key;
                     return (
                       <li key={key}>
-                        {/* Group row */}
+                        {/* Group row — mobile card / desktop grid */}
                         <div
                           onClick={() => toggleGroup(key)}
                           className={cn(
-                            GRID_CLASS,
-                            "px-4 sm:h-14 hover:bg-muted/40 transition-colors cursor-pointer"
+                            "flex flex-col gap-1.5 px-4 py-3 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] sm:items-center sm:gap-3 sm:h-14 sm:py-0",
+                            "hover:bg-muted/40 transition-colors cursor-pointer"
                           )}
                         >
-                          <span className="flex items-center gap-2.5 min-w-0">
+                          {/* Mobile: student identity + chevron */}
+                          <div className="flex items-center gap-2.5 min-w-0 sm:hidden">
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarFallback className="text-xs font-semibold text-muted-foreground">
+                                {initials(g.student_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium text-foreground truncate">{g.student_name}</span>
+                              <span className="block text-xs text-muted-foreground truncate">{g.student_email}</span>
+                            </span>
+                            {g.flag_count > 0 && (
+                              <Flag className="h-3.5 w-3.5 text-destructive shrink-0" strokeWidth={1.5} />
+                            )}
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0",
+                                isExpanded && "rotate-90 text-foreground"
+                              )}
+                              strokeWidth={1.5}
+                            />
+                          </div>
+
+                          {/* Mobile: exercise + attempts */}
+                          <div className="flex items-center justify-between gap-2 min-w-0 sm:hidden">
+                            <span className="text-sm text-muted-foreground truncate">{g.exercise_title}</span>
+                            <span className="text-sm text-muted-foreground tabular-nums shrink-0">×{g.attempt_count}</span>
+                          </div>
+
+                          {/* Mobile: status + meta chips */}
+                          <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
+                            {isLate(g) && (
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
+                                <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                Late
+                              </Badge>
+                            )}
+                            {g.latest_is_correct ? (
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                                <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                Pass
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[11px]">
+                                <XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                Fail
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">· {formatDuration(g.total_time_spent_seconds)}</span>
+                            <span className="text-xs text-muted-foreground">· {timeAgo(g.latest_submitted_at)}</span>
+                          </div>
+
+                          {/* Desktop cells */}
+                          <span className="hidden sm:flex items-center gap-2.5 min-w-0">
                             <Avatar className="h-8 w-8">
                               <AvatarFallback className="text-xs font-semibold text-muted-foreground">
                                 {initials(g.student_name)}
@@ -451,13 +490,13 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                               <span className="block text-xs text-muted-foreground truncate">{g.student_email}</span>
                             </span>
                           </span>
-                          <span className="text-sm text-muted-foreground truncate">
+                          <span className="hidden sm:block text-sm text-muted-foreground truncate">
                             {g.exercise_title}
                           </span>
-                          <span className="text-sm text-muted-foreground text-right tabular-nums sm:block">
+                          <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
                             ×{g.attempt_count}
                           </span>
-                          <span className="flex items-center justify-end gap-1.5">
+                          <span className="hidden sm:flex items-center justify-end gap-1.5">
                             {isLate(g) && (
                               <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
                                 <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
@@ -476,13 +515,13 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                               </Badge>
                             )}
                           </span>
-                          <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
+                          <span className="hidden sm:block text-xs font-mono tabular-nums text-muted-foreground text-right">
                             {formatDuration(g.total_time_spent_seconds)}
                           </span>
-                          <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
+                          <span className="hidden sm:block text-xs font-mono tabular-nums text-muted-foreground text-right">
                             {timeAgo(g.latest_submitted_at)}
                           </span>
-                          <span className="flex justify-center gap-1">
+                          <span className="hidden sm:flex justify-center gap-1">
                             {g.flag_count > 0 ? (
                               <Flag className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
                             ) : (
@@ -504,14 +543,53 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                             {g.attempts.map((a) => (
                               <div
                                 key={a.id}
-                                className={cn(GRID_CLASS, "px-4 pl-8 sm:h-11")}
+                                className="flex flex-col gap-1 px-4 pl-8 py-2.5 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] sm:items-center sm:gap-3 sm:h-11 sm:py-0"
                               >
-                                <span className="text-sm text-foreground font-medium tabular-nums">
+                                {/* Mobile: attempt + status + Review */}
+                                <div className="flex items-center gap-2 min-w-0 sm:hidden">
+                                  <span className="text-sm text-foreground font-medium tabular-nums shrink-0">
+                                    #{a.attempt_number}
+                                  </span>
+                                  {a.is_correct ? (
+                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                                      <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                      Pass
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[11px]">
+                                      <XCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
+                                      Fail
+                                    </Badge>
+                                  )}
+                                  <span className="flex-1" />
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={(ev) => {
+                                      ev.stopPropagation();
+                                      handleSubmissionClick(a);
+                                    }}
+                                  >
+                                    Review
+                                  </Button>
+                                </div>
+
+                                {/* Mobile: time + submitted */}
+                                <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums text-muted-foreground sm:hidden">
+                                  <Clock className="h-3 w-3" strokeWidth={1.5} />
+                                  {formatDuration(a.time_spent_seconds)}
+                                  <span className="text-muted-foreground/40">·</span>
+                                  {timeAgo(a.submitted_at)}
+                                </div>
+
+                                {/* Desktop cells */}
+                                <span className="hidden sm:block text-sm text-foreground font-medium tabular-nums">
                                   #{a.attempt_number}
                                 </span>
-                                <span className="text-xs text-muted-foreground truncate"></span>
-                                <span className="text-sm text-muted-foreground text-right tabular-nums sm:block"></span>
-                                <span className="text-right">
+                                <span className="hidden sm:block"></span>
+                                <span className="hidden sm:block"></span>
+                                <span className="hidden sm:flex justify-end">
                                   {a.is_correct ? (
                                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
                                       <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
@@ -524,14 +602,14 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                                     </Badge>
                                   )}
                                 </span>
-                                <span className="flex items-center justify-end gap-1 text-xs font-mono tabular-nums text-muted-foreground">
+                                <span className="hidden sm:flex items-center justify-end gap-1 text-xs font-mono tabular-nums text-muted-foreground">
                                   <Clock className="h-3 w-3" strokeWidth={1.5} />
                                   {formatDuration(a.time_spent_seconds)}
                                 </span>
-                                <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
+                                <span className="hidden sm:block text-xs font-mono tabular-nums text-muted-foreground text-right">
                                   {timeAgo(a.submitted_at)}
                                 </span>
-                                <span className="flex justify-center">
+                                <span className="hidden sm:flex justify-center">
                                   <Button
                                     variant="ghost"
                                     size="sm"

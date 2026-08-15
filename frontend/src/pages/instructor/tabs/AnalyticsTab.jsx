@@ -167,7 +167,7 @@ export default function AnalyticsTab({ sectionId }) {
         }
       />
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-card shadow-sm">
           <div className="px-5 py-3 border-b border-border">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -180,14 +180,14 @@ export default function AnalyticsTab({ sectionId }) {
               <p className="text-sm text-muted-foreground text-center py-8">Loading radar…</p>
             ) : radarData.length > 0 ? (
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <SegmentedPicker
                     value={selectedArea}
                     onChange={setSelectedArea}
                     options={pickerOptions}
                     size="sm"
                   />
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 shrink-0">
                     {attemptedConcepts}/{totalConcepts} concepts
                   </span>
                 </div>
