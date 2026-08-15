@@ -66,7 +66,7 @@ describe('getCompletionReport accuracy', () => {
 describe('getConceptMasteryReport accuracy', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('excludes concepts with no CDS data and emits null (not 0) for empty weeks', async () => {
+  it('excludes concepts with no CDS data and emits 0 (not null) for empty weeks', async () => {
     // conceptRes returns the FULL taxonomy (incl. concepts never used here).
     db.query
       .mockResolvedValueOnce({
@@ -91,13 +91,14 @@ describe('getConceptMasteryReport accuracy', () => {
 
     // Arrays and Recursion never appear — no phantom 0% lines.
     assert.deepStrictEqual(concepts.map((c) => c.name), ['Loops']);
-    // Empty weeks are null, current = last real value.
+    // Empty weeks are 0 (continuous curve), current = last real value.
     const loops = concepts[0];
-    assert.ok(loops.series.some((v) => v === null), 'empty weeks must be null');
+    assert.ok(loops.series.every((v) => v === 0 || v === 62), 'weeks are 0 or the measured value');
+    assert.ok(loops.series.includes(62), 'measured week present');
     assert.strictEqual(loops.current, 62);
   });
 
-  it('buckets mid-week measurements into their week slot and carries the last value forward', async () => {
+  it('buckets mid-week measurements into their week slot (range, not exact date)', async () => {
     // A measurement made 3 days ago (mid-week, NOT an exact week anchor) must
     // land in the "Now" slot — previously exact-date equality dropped it to null.
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
@@ -122,15 +123,15 @@ describe('getConceptMasteryReport accuracy', () => {
     const v = concepts[0];
     // The mid-week measurement lands in the final (Now) slot.
     assert.strictEqual(v.series[4], 74);
-    // Earlier weeks stay null (chart gap before the first measurement).
-    assert.ok(v.series.slice(0, 4).every((x) => x === null));
+    // Earlier weeks are 0 so the line curves up from the baseline.
+    assert.ok(v.series.slice(0, 4).every((x) => x === 0));
     assert.strictEqual(v.current, 74);
   });
 
-  it('carries a W-1 measurement forward to Now so the line is visible', async () => {
-    // One measurement ~8 days ago (W-1 slot) and nothing since: the value must
-    // be carried forward to "Now" — otherwise recharts draws an orphan dot
-    // with no connecting line.
+  it('emits 0 for weeks after the last measurement (continuous curve, class-trend style)', async () => {
+    // One measurement ~8 days ago (W-1 slot) and nothing since: missing weeks
+    // are 0, so the chart draws one continuous line from the 0 baseline
+    // through the point — the dashboard Class Trend style, no orphan dot.
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
     db.query
       .mockResolvedValueOnce({
@@ -148,11 +149,12 @@ describe('getConceptMasteryReport accuracy', () => {
 
     const { weeks, concepts } = res.json.mock.calls[0][0];
     const loops = concepts[0];
-    // 8 days ago → W-1 (index 3 of 5); carried forward into index 4 (Now).
+    // 8 days ago → W-1 (index 3 of 5); index 4 (Now) and 0..2 are 0 → the
+    // line is continuous from baseline through the point.
     assert.strictEqual(loops.series[3], 77);
-    assert.strictEqual(loops.series[4], 77);
+    assert.strictEqual(loops.series[4], 0);
+    assert.deepStrictEqual(loops.series.slice(0, 3), [0, 0, 0]);
     assert.strictEqual(loops.current, 77);
-    // The carried-forward Now value matches the legend/current — no orphan dot.
     assert.strictEqual(weeks[4], 'Now');
   });
 });

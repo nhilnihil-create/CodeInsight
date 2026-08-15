@@ -1673,21 +1673,18 @@ exports.getConceptMasteryReport = async (req, res, next) => {
 
     // Only concepts that actually appear in this section's CDS data — a
     // concept never touched here must not show as a phantom flat 0% line.
-    // Weeks before the first measurement stay null (chart gap, never a fake
-    // 0% dip); after the last measurement the value is carried forward so a
-    // concept measured once still draws a visible line up to "Now" instead
-    // of an orphan dot.
+    // Missing weeks are 0 (not null): the trend chart renders a continuous
+    // monotone curve from the 0 baseline through every measured point,
+    // matching the dashboard's Class Trend chart style. A null would break
+    // the line into disconnected segments.
     const conceptData = conceptRes.rows
       .filter(c => conceptsWithData.has(c.slug || c.id))
       .map(c => {
         const key = c.slug || c.id;
-        const series = [...conceptMap[key].weekly];
-        let lastReal = null;
-        for (let i = 0; i < series.length; i++) {
-          if (series[i] != null) lastReal = series[i];
-          else if (lastReal != null) series[i] = lastReal;
-        }
-        return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: lastReal ?? 0 };
+        const weekly = conceptMap[key].weekly;
+        const series = weekDates.map((_, i) => weekly[i] ?? 0);
+        const lastReal = [...weekly].reverse().find(v => v != null) ?? 0;
+        return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: lastReal };
       });
 
     const weekLabels = [];
