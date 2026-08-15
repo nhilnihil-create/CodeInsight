@@ -55,8 +55,8 @@ export default function SectionFilter({
   const triggerValue = value != null ? String(value) : '';
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className={cn('flex items-center gap-2 w-full sm:w-auto sm:min-w-0 min-w-0', className)}>
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground shrink-0">
         Section
       </span>
       <Select
@@ -64,7 +64,7 @@ export default function SectionFilter({
         onValueChange={(v) => onChange?.(Number(v))}
         disabled={loading || sections.length === 0}
       >
-        <SelectTrigger className="h-9 w-full sm:w-auto sm:min-w-[200px] bg-background text-foreground">
+        <SelectTrigger className="h-9 flex-1 min-w-0 w-auto sm:w-auto sm:min-w-[200px] bg-background text-foreground">
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

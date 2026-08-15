@@ -219,7 +219,7 @@ export default function InstructorDashboard() {
           <GlassDivider />
 
           {/* ── Details Grid ─────────────────────────────────────── */}
-          <motion.div variants={fadeUp} className="grid gap-5 md:grid-cols-[1.2fr_1fr]">
+          <motion.div variants={fadeUp} className="grid grid-cols-1 gap-5 md:grid-cols-[1.2fr_1fr]">
             {/* Struggling Concepts — neon bars */}
             <GlassPanel interactive>
               <GlassPanelHeader>
@@ -234,7 +234,7 @@ export default function InstructorDashboard() {
                       const meta = TIER_META[tier];
                       return (
                         <li key={c.name}>
-                          <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[1fr_4.5rem] items-center gap-3 px-5 py-3.5">
+                          <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-3 px-5 py-3.5">
                             <div className="min-w-0 space-y-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-sm font-medium text-foreground truncate">{c.name}</span>
