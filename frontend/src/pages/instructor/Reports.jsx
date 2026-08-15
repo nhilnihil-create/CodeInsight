@@ -528,12 +528,14 @@ function MasteryTab({ data }) {
     }
   }, [data.concepts, groupConcepts.length, activeKA]);
 
-  // Build chart data with Number().toFixed(2) coercion for all values
+  // Build chart data. Keep nulls as null so recharts draws a gap for weeks
+  // with no data (a missing week is not a 0% mastery dip).
   const chartData = useMemo(() =>
     data.weeks.map((week, i) => {
       const row = { week };
       for (const c of groupConcepts) {
-        row[c.id] = Number(Number(c.series[i] ?? 0).toFixed(2));
+        const v = c.series[i];
+        row[c.id] = v == null ? null : Number(Number(v).toFixed(2));
       }
       return row;
     }),
@@ -542,15 +544,19 @@ function MasteryTab({ data }) {
 
   const tableRows = useMemo(() =>
     applySort(
-      groupConcepts.map(c => ({
-        id: c.id,
-        name: c.name,
-        current: Number(Number(c.current).toFixed(2)),
-        delta: c.series.length >= 2
-          ? Number((c.series[c.series.length - 1] - c.series[0]).toFixed(2))
-          : 0,
-        series: c.series.map(v => Number(Number(v).toFixed(2))),
-      })),
+      groupConcepts.map(c => {
+        const real = c.series.filter(v => v != null);
+        const delta = real.length >= 2
+          ? Number((real[real.length - 1] - real[0]).toFixed(2))
+          : 0;
+        return {
+          id: c.id,
+          name: c.name,
+          current: c.current == null ? null : Number(Number(c.current).toFixed(2)),
+          delta,
+          series: c.series.map(v => (v == null ? null : Number(Number(v).toFixed(2)))),
+        };
+      }),
       sort,
     ),
     [groupConcepts, sort]
@@ -732,13 +738,13 @@ function MasteryTab({ data }) {
                 );
               }
               if (col.key === "sparkline") {
-                const hasData = row.series.some(v => v > 0);
+                const hasData = row.series.some(v => v != null);
                 if (!hasData) return <span className="text-[10px] text-muted-foreground/40">no data</span>;
                 const idx = groupConcepts.findIndex(c => c.id === row.id);
                 return <Sparkline data={row.series} width={64} height={20} color={getConceptColor(row.id, idx)} />;
               }
               if (col.key === "current") {
-                return <span className="text-sm font-mono tabular-nums">{Number(row.current).toFixed(2)}%</span>;
+                return <span className="text-sm font-mono tabular-nums">{row.current == null ? "—" : `${Number(row.current).toFixed(2)}%`}</span>;
               }
               if (col.key === "delta") {
                 const positive = row.delta > 0;
@@ -791,6 +797,7 @@ function CompletionTab({ data }) {
                 <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} formatter={(value) => [`${value}%`]} />
                 <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
                 <Bar dataKey="on_time" name="On time" stackId="status" fill="hsl(var(--success))" isAnimationActive={false} />
+                <Bar dataKey="late" name="Late" stackId="status" fill="hsl(var(--warning))" isAnimationActive={false} />
                 <Bar dataKey="missing" name="Missing" stackId="status" fill="hsl(var(--destructive))" isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
@@ -807,6 +814,7 @@ function CompletionTab({ data }) {
             columns={[
               { key: "exercise", label: "Exercise", align: "left" },
               { key: "on_time", label: "On time", align: "right" },
+              { key: "late", label: "Late", align: "right" },
               { key: "missing", label: "Missing", align: "right" },
             ]}
             sort={sort}

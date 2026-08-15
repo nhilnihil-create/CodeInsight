@@ -1607,11 +1607,23 @@ exports.getConceptMasteryReport = async (req, res, next) => {
   try {
     // Use slug as unique ID to avoid collisions (substring causes "AR" for Arrays & "AR" for other concepts)
     const conceptRes = await db.query('SELECT id, name, slug, knowledge_area_code FROM concepts ORDER BY id');
+    // Tag-aware aggregation, mirroring the heatmap: each cds_scores row
+    // contributes to every exercise_concept_tags tag (weighted), falling back
+    // to ex.concept_id for untagged legacy exercises. Mastery = (1 - CDS).
     const weeklyRes = await db.query(
-      `SELECT c.id AS concept_id, c.name AS concept_name, c.slug, cs.computed_at::DATE AS week_date, ROUND(AVG(1 - cs.cds) * 100)::INTEGER AS mastery
-       FROM cds_scores cs JOIN exercises ex ON cs.exercise_id = ex.id JOIN concepts c ON ex.concept_id = c.id
+      `SELECT COALESCE(pt.id, c.id) AS concept_id,
+              COALESCE(pt.slug, c.slug) AS slug,
+              COALESCE(pt.name, c.name) AS concept_name,
+              cs.computed_at::DATE AS week_date,
+              ROUND((SUM((1 - cs.cds) * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0)) * 100)::INTEGER AS mastery
+       FROM cds_scores cs
+       JOIN exercises ex ON cs.exercise_id = ex.id
+       JOIN concepts c ON c.id = ex.concept_id
+       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
+       LEFT JOIN concepts pt ON pt.id = ect.concept_id
        WHERE ${secCond} AND cs.computed_at > NOW() - ($2 || ' weeks')::INTERVAL
-       GROUP BY c.id, c.name, c.slug, cs.computed_at::DATE ORDER BY c.id, cs.computed_at::DATE`,
+       GROUP BY COALESCE(pt.id, c.id), COALESCE(pt.slug, c.slug), COALESCE(pt.name, c.name), cs.computed_at::DATE
+       ORDER BY COALESCE(pt.slug, c.slug), cs.computed_at::DATE`,
       sectionId === 'all' ? [String(instructorId), String(weeks)] : [sectionId, String(weeks)]
     );
 
@@ -1634,18 +1646,26 @@ exports.getConceptMasteryReport = async (req, res, next) => {
     for (const c of conceptRes.rows) {
       conceptMap[c.slug || c.id] = { id: c.slug || c.id, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', weekly: {} };
     }
+    const conceptsWithData = new Set();
     for (const r of weeklyRes.rows) {
       const key = r.slug || r.concept_id;
       if (conceptMap[key]) {
         conceptMap[key].weekly[fmtDate(r.week_date)] = r.mastery;
+        conceptsWithData.add(key);
       }
     }
 
-    const conceptData = conceptRes.rows.map(c => {
-      const key = c.slug || c.id;
-      const series = weekDates.map(d => conceptMap[key].weekly[d] ?? 0);
-      return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: series.length ? series[series.length - 1] : 0 };
-    });
+    // Only concepts that actually appear in this section's CDS data — a
+    // concept never touched here must not show as a phantom flat 0% line.
+    // Weeks without data are null (chart gap), never a fake 0% dip.
+    const conceptData = conceptRes.rows
+      .filter(c => conceptsWithData.has(c.slug || c.id))
+      .map(c => {
+        const key = c.slug || c.id;
+        const series = weekDates.map(d => conceptMap[key].weekly[d] ?? null);
+        const lastReal = [...series].reverse().find(v => v != null) ?? 0;
+        return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: lastReal };
+      });
 
     const weekLabels = [];
     for (let i = weeks - 1; i >= 0; i--) weekLabels.push(i === 0 ? 'Now' : `W-${i}`);
@@ -1672,14 +1692,22 @@ exports.getCompletionReport = async (req, res, next) => {
     : `SELECT COUNT(*) FROM enrollments WHERE section_id = $1`;
 
   try {
+    // A student who submitted both before AND after the deadline must count in
+    // exactly ONE bucket, otherwise on_time + late exceeds submitted. Each
+    // student is bucketed by their EARLIEST submission: if the first attempt
+    // landed before (or on) the deadline they are on-time; if the first attempt
+    // was after the deadline they are late.
     const exercises = await db.query(
       `SELECT e.id, e.title, e.deadline,
-         COUNT(DISTINCT sub.student_id) AS submitted,
          (${enrollCond}) AS total,
-         COUNT(DISTINCT CASE WHEN e.deadline IS NULL OR sub.submitted_at <= e.deadline THEN sub.student_id END) AS on_time,
-         COUNT(DISTINCT CASE WHEN e.deadline IS NOT NULL AND sub.submitted_at > e.deadline THEN sub.student_id END) AS late
+         COUNT(DISTINCT sub.student_id) AS submitted,
+         COUNT(DISTINCT CASE WHEN e.deadline IS NULL OR sub.first_submitted_at <= e.deadline THEN sub.student_id END) AS on_time,
+         COUNT(DISTINCT CASE WHEN e.deadline IS NOT NULL AND sub.first_submitted_at > e.deadline THEN sub.student_id END) AS late
        FROM exercises e
-       LEFT JOIN submissions sub ON sub.exercise_id = e.id
+       LEFT JOIN (
+         SELECT exercise_id, student_id, MIN(submitted_at) AS first_submitted_at
+         FROM submissions GROUP BY exercise_id, student_id
+       ) sub ON sub.exercise_id = e.id
        WHERE ${secCond}
        GROUP BY e.id ORDER BY e.created_at DESC`,
       sectionId === 'all' ? [String(instructorId)] : [sectionId]
@@ -1691,7 +1719,9 @@ exports.getCompletionReport = async (req, res, next) => {
       const late = parseInt(ex.late) || 0;
       const submitted = parseInt(ex.submitted) || 0;
       const missing = Math.max(0, total - submitted);
-      return { exercise: ex.title, on_time: Math.round((onTime / total) * 100), late: Math.round((late / total) * 100), missing: Math.round((missing / total) * 100) };
+      // Mutual exclusivity guard: on_time + late can never exceed submitted.
+      const lateSafe = Math.min(late, Math.max(0, submitted - onTime));
+      return { exercise: ex.title, on_time: Math.round((onTime / total) * 100), late: Math.round((lateSafe / total) * 100), missing: Math.round((missing / total) * 100) };
     });
 
     res.json(data);
@@ -1730,7 +1760,8 @@ exports.getIntegrityTrends = async (req, res, next) => {
       const now = new Date();
       const diffWeeks = Math.floor((now - weekDate) / (7 * 24 * 3600000));
       const idx = weeks - 1 - diffWeeks;
-      const sev = (row.severity || '').toLowerCase();
+      // DB stores 'medium'; the frontend chart buckets are keyed 'moderate'.
+      const sev = ((row.severity || '').toLowerCase() === 'medium' ? 'moderate' : (row.severity || '').toLowerCase());
       if (idx >= 0 && idx < weeks && timeline[idx][sev] != null) timeline[idx][sev] = row.cnt;
     }
 
@@ -2551,7 +2582,7 @@ exports.getClassConceptRadar = async (req, res, next) => {
     const { sectionId } = req.params;
     const result = await db.query(`
       SELECT
-        c.name AS concept_name,
+        COALESCE(pt.name, c.name) AS concept_name,
         ROUND((SUM(cs.cds * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS cds,
         ROUND((SUM(cs.ner * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS ner,
         ROUND((SUM(cs.nrs * COALESCE(ect.weight, 1.0)) / NULLIF(SUM(COALESCE(ect.weight, 1.0)), 0))::numeric, 4) AS nrs,
@@ -2560,11 +2591,12 @@ exports.getClassConceptRadar = async (req, res, next) => {
         COUNT(*) AS attempt_count
       FROM cds_scores cs
       JOIN exercises ex ON cs.exercise_id = ex.id
+      JOIN concepts c ON c.id = ex.concept_id
       LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
-      LEFT JOIN concepts c ON c.id = ect.concept_id
-      WHERE cs.section_id = $1 AND c.name IS NOT NULL
-      GROUP BY c.name
-      ORDER BY c.name
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
+      WHERE cs.section_id = $1
+      GROUP BY COALESCE(pt.name, c.name)
+      ORDER BY COALESCE(pt.name, c.name)
     `, [sectionId]);
     res.json({ concepts: result.rows });
   } catch (err) { next(err); }

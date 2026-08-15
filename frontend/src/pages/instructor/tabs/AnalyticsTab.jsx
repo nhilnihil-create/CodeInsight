@@ -63,7 +63,9 @@ export default function AnalyticsTab({ sectionId }) {
         conceptMap[name] = { name, values: [], ids: new Set() };
       }
       if (ex.avg_cds != null) {
-        conceptMap[name].values.push(ex.avg_cds);
+        // avg_cds arrives as a Postgres NUMERIC string (e.g. "0.35"); coerce to
+        // Number or reduce() below would string-concatenate and yield NaN.
+        conceptMap[name].values.push(Number(ex.avg_cds));
         conceptMap[name].ids.add(ex.id);
       }
     });
@@ -95,7 +97,7 @@ export default function AnalyticsTab({ sectionId }) {
       (student.progression || []).forEach((entry) => {
         const date = entry.computed_at ? entry.computed_at.slice(0, 10) : "unknown";
         if (!weeklyMap[date]) weeklyMap[date] = { cds: [], scores: [] };
-        if (entry.cds != null) weeklyMap[date].cds.push(entry.cds);
+        if (entry.cds != null) weeklyMap[date].cds.push(Number(entry.cds));
       });
     });
     return Object.entries(weeklyMap)
