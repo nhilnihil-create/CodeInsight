@@ -1,8 +1,25 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Layers, Plus, LogOut } from 'lucide-react';
+import { Layers, Plus, LogOut, BookOpen, Hash, Calendar, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+
+/* ── Stagger config ─────────────────────────────────────────────── */
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
+
+function termOf(section) {
+  const sem = section.semester || section.term || '';
+  const year = section.school_year || '';
+  return [sem, year].filter(Boolean).join(' · ');
+}
 
 /**
  * SectionPickerPage
@@ -28,19 +45,19 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
     <div className="mesh-bg noise-overlay min-h-dvh bg-[#0B0F19] text-foreground">
       <div className="relative z-10 mx-auto max-w-6xl px-6 py-8">
         {/* Top bar */}
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center">
+        <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center shadow-[0_0_24px_rgba(45,212,191,0.25)]">
               <Layers className="h-5 w-5 text-slate-950" strokeWidth={2} />
             </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">My Classes</h1>
-              <p className="text-xs text-muted-foreground">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight">My Classes</h1>
+              <p className="text-xs text-muted-foreground truncate">
                 {sections.length} class{sections.length !== 1 ? 'es' : ''} · pick one to continue
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               onClick={onJoin}
               size="sm"
@@ -62,33 +79,65 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
         </div>
 
         {/* Class cards */}
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {sections.map((section) => (
-            <motion.button
-              key={section.id}
-              type="button"
-              onClick={() => onSelected(section)}
-              whileHover={{ scale: 1.015, borderColor: "rgba(255,255,255,0.12)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-              className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl text-left transition-colors duration-200 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {/* Gradient banner header */}
-              <div className="h-24 bg-gradient-to-r from-teal-500/80 to-emerald-500/80 flex items-end px-5 pb-3">
-                <span className="text-sm font-semibold text-slate-950 truncate">
-                  {section.name || section.course_code || `Section ${section.id}`}
-                </span>
-              </div>
-              <div className="px-5 py-4 space-y-1">
-                {(section.course_code || section.term) && (
-                  <p className="text-xs font-mono text-muted-foreground/70 truncate">
-                    {[section.course_code, section.term].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground/50">Open class</p>
-              </div>
-            </motion.button>
-          ))}
-        </div>
+        {sections.length > 0 ? (
+          <motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {sections.map((section) => {
+              const title = section.name || section.course_code || `Section ${section.id}`;
+              const term = termOf(section);
+              return (
+                <motion.button
+                  key={section.id}
+                  type="button"
+                  onClick={() => onSelected(section)}
+                  variants={fadeUp}
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.985 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl text-left transition-colors duration-200 hover:border-teal-400/30 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {/* Top accent */}
+                  <div className="h-px w-full bg-gradient-to-r from-transparent via-teal-400/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  <div className="flex items-center gap-3.5 px-4 py-4 sm:px-5">
+                    {/* Gradient icon */}
+                    <div className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-teal-400/20 to-emerald-500/20 border border-teal-400/20 flex items-center justify-center">
+                      <BookOpen className="h-5 w-5 text-teal-400" strokeWidth={1.5} />
+                    </div>
+
+                    {/* Info */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5">
+                        {section.course_code && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                            <Hash className="h-3 w-3" strokeWidth={1.5} />
+                            {section.course_code}
+                          </span>
+                        )}
+                        {term && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                            <Calendar className="h-3 w-3" strokeWidth={1.5} />
+                            {term}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enter affordance */}
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:text-teal-400 group-hover:translate-x-0.5"
+                      strokeWidth={1.5}
+                    />
+                  </div>
+                </motion.button>
+              );
+            })}
+          </motion.div>
+        ) : (
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16 text-center">
+            <p className="text-sm text-muted-foreground">No classes yet — join one to get started.</p>
+          </div>
+        )}
       </div>
     </div>
   );
