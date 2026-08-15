@@ -41,9 +41,9 @@ async function seed() {
   await pool.query(`DELETE FROM sections WHERE name = 'E2E Common Errors Test'`);
 
   const { rows: [section] } = await pool.query(
-    `INSERT INTO sections (name, course_code, instructor_id)
-     VALUES ($1, $2, $3) RETURNING id`,
-    ['E2E Common Errors Test', 'E2E-CE', instructorId]
+    `INSERT INTO sections (name, course_code, instructor_id, code)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    ['E2E Common Errors Test', 'E2E-CE', instructorId, `E2E-CE-${Date.now().toString().slice(-6)}`]
   );
   const sectionId = section.id;
 

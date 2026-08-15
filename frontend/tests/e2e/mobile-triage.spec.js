@@ -32,14 +32,14 @@ test('instructor sees top-3 at-risk students in < 10s (acceptance §13.1)', asyn
 test('student sees next action in < 3s (acceptance §13.2)', async ({ page }) => {
   await login(page, 'maria@student.psu.edu', 'password123');
   // Fresh contexts have no active section, so the section-picker gate shows
-  // after login. Wait for a class card; if the gate appears, pick the first
-  // class to enter the student app.
-  const gate = page.getByRole('button', { name: /Open class/ }).first();
+  // after login. Wait for the "My Classes" heading; if the gate appears, pick
+  // the first class card to enter the student app.
+  const gate = page.getByRole('heading', { name: 'My Classes' });
   const gateShown = await gate.waitFor({ state: 'visible', timeout: 15000 })
     .then(() => true)
     .catch(() => false);
   if (gateShown) {
-    await gate.click();
+    await page.locator('div.grid button').first().click();
     await page.waitForURL((url) => !url.pathname.includes('select-section'), { timeout: 15000 });
   }
   // Warm-up pass: Vite lazy-compiles the Today route modules on first load,

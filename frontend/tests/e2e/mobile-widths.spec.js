@@ -16,12 +16,14 @@ async function login(page, email, password) {
 
 // ── Section gate helper (student) ────────────────────────────────────
 async function dismissSectionGate(page) {
-  const gate = page.getByRole('button', { name: /Open class/ }).first();
+  // The gate is the "My Classes" class-card picker. If present, pick the
+  // first card to enter the student app.
+  const gate = page.getByRole('heading', { name: 'My Classes' });
   const gateShown = await gate.waitFor({ state: 'visible', timeout: 10000 })
     .then(() => true)
     .catch(() => false);
   if (gateShown) {
-    await gate.click();
+    await page.locator('div.grid button').first().click();
     await page.waitForURL((url) => !url.pathname.includes('select-section'), { timeout: 15000 });
   }
 }

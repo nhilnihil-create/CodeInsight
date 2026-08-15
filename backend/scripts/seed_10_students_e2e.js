@@ -38,11 +38,12 @@ async function seed() {
     studentIds.push(s.id);
   }
 
-  // Create section
+  // Create section (code is required since the NOT NULL migration; unique
+  // per run so re-seeding never collides)
   const { rows: [section] } = await pool.query(
-    `INSERT INTO sections (name, course_code, instructor_id)
-     VALUES ($1, $2, $3) RETURNING id`,
-    ['E2E 10 Student Test', 'E2E-10', instructorId]
+    `INSERT INTO sections (name, course_code, instructor_id, code)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    ['E2E 10 Student Test', 'E2E-10', instructorId, `E2E-10-${Date.now().toString().slice(-6)}`]
   );
   const sectionId = section.id;
 
