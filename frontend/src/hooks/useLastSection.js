@@ -32,18 +32,34 @@ export default function useLastSection() {
   useEffect(() => {
     if (ready) return;
     let cancelled = false;
-    api.get('/api/sections')
-      .then(({ data }) => {
-        if (cancelled) return;
-        const list = Array.isArray(data) ? data : [];
-        const first = list.length > 0 ? list[0].id : null;
-        setSectionId(first);
-        if (first != null) persist(first);
-        setReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) setReady(true);
-      });
+    let attempt = 0;
+
+    // Cold-start resilience: the deployed backend (Render free tier) can take
+    // 30–60s to wake. Retry with backoff a few times before giving up so the
+    // page doesn't sit at "Select a section" forever after a single failed fetch.
+    const load = () => {
+      if (cancelled) return;
+      api.get('/api/sections')
+        .then(({ data }) => {
+          if (cancelled) return;
+          const list = Array.isArray(data) ? data : [];
+          const first = list.length > 0 ? list[0].id : null;
+          setSectionId(first);
+          if (first != null) persist(first);
+          setReady(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          attempt += 1;
+          if (attempt < 3) {
+            setTimeout(load, attempt * 2000); // 2s, 4s, 6s backoff
+          } else {
+            setReady(true);
+          }
+        });
+    };
+
+    load();
     return () => { cancelled = true; };
   }, [ready]);
 
