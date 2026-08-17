@@ -1,4 +1,7 @@
-# Mobile UI Refactor Plan — Instructor & Student Pages
+> **DEPRECATED — June 2026**: All mobile infrastructure has been removed from CodeInsight V2.
+> This document is retained for historical reference only. CodeInsight is now a pure desktop application.
+
+# Mobile UI Refactor Plan — Instructor & Student Pages (OBSOLETE)
 
 **Goal**: Make every instructor and student page fit comfortably on all viewport widths (320px phones → 375px → 768px tablets → 1024px+ desktop), eliminating elements that overflow to the right or get squeezed on slim screens.
 

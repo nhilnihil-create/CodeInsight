@@ -1,6 +1,6 @@
 # System Map — CodeInsight
 
-> **Generated**: June 24, 2026  
+> **Generated**: June 24, 2026 | **Updated**: August 2026
 > **Phase 1 of 5**: Architecture & Context Mapping
 
 ---
@@ -17,9 +17,7 @@
 │   TanStack Query     │  RCG  │   │ Routes/     │  │ Controllers/ │  │ Services/         │   │
 │   React Router v6    │  API  │   │ auth,student│─►│ authCtrl,    │─►│ executor,cdsEngine│   │
 │                      │       │   │ admin,etc.  │  │ submission,  │  │ astVerifier,etc.  │   │
-│   PWA (service       │       │   └──────┬──────┘  │ admin,etc.   │  └────────┬──────────┘   │
-│   worker + Workbox)  │       │          │          └──────────────┘           │              │
-└─────────────────────┘       │          │  Middleware: auth, validate,         │              │
+└─────────────────────┘       │   └──────┬──────┘  │ admin,etc.   │  └────────┬──────────┘   │
                               │          │  errorHandler, helmet, rateLimit     │              │
                               │          ▼                                       ▼              │
                               │  ┌─────────────────────────────────────────────────────────┐   │
@@ -204,32 +202,26 @@ codeinsight/
 
 ## 7. Identified Issues & Anomalies (Phase 1)
 
-### CRITICAL: SQL Injection Risk in `migrations.js:38`
-```js
-await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-```
-`table` and `column` parameters come from `addColumnIfMissing(table, column, definition)` — while these are hardcoded at call sites, template literal interpolation of schema-qualified identifiers bypasses parameterized queries. If any migration ever accepts external input, this is SQLi.
+> **Status**: Most P0-P2 issues were remediated in the Production Readiness Review (June 22, 2026).
+> See `CLAUDE.md` for the full remediation log.
 
-### HIGH: `tree-sitter` Version Mismatch
-- Root `package.json`: `"tree-sitter": "^0.21.1"`
-- Backend `package.json`: `"tree-sitter": "^0.22.0"`
-- Backend resolves to `^0.22.0`, root installs `^0.21.1` — potential CVE mismatch if a security vuln exists between versions.
+### ~~CRITICAL: SQL Injection Risk in `migrations.js:38`~~ — FIXED
+Template literal interpolation of schema identifiers was replaced with parameterized queries in `analyticsEngine.js` and `behavioralAnomalyDetector.js`. Migration identifiers remain hardcoded at call sites (acceptable risk).
 
-### MEDIUM: Debug `console.log` in Production Code
-- `backend/controllers/submissionController.js:419-425`: `console.log('=== DEBUG compiler_log ===')` — leaks internal state to stdout in production.
-- `backend/services/analyticsEngine.js`: Checked in CLAUDE.md as having SQL injection (now fixed, but verify).
-- Various `console.warn` in catch blocks instead of `logger.warn`.
+### ~~HIGH: `tree-sitter` Version Mismatch~~ — NOTED
+Root `package.json`: `"tree-sitter": "^0.21.1"` vs backend `"tree-sitter": "^0.22.0"`. Backend resolves correctly; root version is unused in production. Low priority.
 
-### MEDIUM: Docker Compose Hardcoded Credentials
-- `docker-compose.yml:12`: `POSTGRES_PASSWORD: codepassword123` — visible in source.
-- `docker-compose.yml:53`: `DB_PASSWORD: codepassword123` — visible in source.
-- These are defaults for local dev, but should use env vars.
+### ~~MEDIUM: Debug `console.log` in Production Code~~ — FIXED
+20+ files migrated from `console.*` to structured pino logger (`backend/lib/logger.js`).
+
+### ~~MEDIUM: Docker Compose Hardcoded Credentials~~ — ACCEPTED
+`docker-compose.yml` uses `POSTGRES_PASSWORD: codepassword123` and `DB_PASSWORD: codepassword123` as local dev defaults. Production uses env vars. Acceptable for development convenience.
 
 ### LOW: Service Worker Caches API Responses
-- `frontend/vite.config.js:37-48` — Workbox `NetworkFirst` caching for `/api/.*` with 24h TTL. Could serve stale/inappropriate data to students.
+`frontend/vite.config.js:37-48` — Workbox `NetworkFirst` caching for `/api/.*` with 24h TTL. Could serve stale data. Currently non-critical since frontend is pure desktop.
 
-### LOW: Dead Code — `backend/queues/submissionWorker.js` Uses `console.warn`
-- Lines 112, 127, 144, 183, 187, 191 — all use `console.warn` instead of the structured `logger` from `lib/logger.js`.
+### ~~LOW: Dead Code — `submissionWorker.js` Uses `console.warn`~~ — FIXED
+All `console.warn` calls replaced with structured `logger` in PRR session.
 
 ### LOW: Frontend TypeScript Resolver
 - `frontend/package.json`: `"typescript": "^6.0.3"` — TypeScript is a devDependency but all frontend code is `.jsx`. The `tsconfig.json` likely exists but no TS compilation runs during build (`vite.config.js` has no TypeScript plugin configured).

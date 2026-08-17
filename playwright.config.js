@@ -1,7 +1,7 @@
 /**
  * playwright.config.js
  *
- * Root E2E config for Tier B: CodeInsight V2 classroom workflow tests.
+ * Root E2E config for CodeInsight V2 classroom workflow tests.
  * Spins up both Vite frontend (port 5173) and Express backend (port 5000).
  * RAM-capped to prevent OOM during full test sweeps.
  *
@@ -31,7 +31,7 @@ module.exports = defineConfig({
       timeout: 60000,
     },
     {
-      // Backend already running with simulation data — reuse it
+      // Backend must be running before E2E tests start
       command: 'echo "Backend already running"',
       url: 'http://127.0.0.1:5000/api/health',
       reuseExistingServer: true,
@@ -51,14 +51,6 @@ module.exports = defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-    },
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 13'] },
     },
   ],
 

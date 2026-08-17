@@ -1,10 +1,13 @@
-# CodeInsight — Mobile-Friendly UI/UX Design
+> **DEPRECATED — June 2026**: All mobile infrastructure has been removed from CodeInsight V2.
+> This document is retained for historical reference only. CodeInsight is now a pure desktop application.
+
+# CodeInsight — Mobile-Friendly UI/UX Design (OBSOLETE)
 
 **Date:** 2026-06-05
-**Status:** Design approved; ready for implementation planning
+**Status:** ~~Design approved; ready for implementation planning~~ **CANCELLED — mobile removed**
 **Companion visual mockups:** `.superpowers/brainstorm/102506-1780640635/content/section-{1,2,3,4}-*.html`
 **Companion desktop spec:** `docs/superpowers/specs/2026-06-05-codeinsight-redesign-design.md` (681 lines, approved earlier)
-**Implementation plan:** `docs/superpowers/plans/2026-06-05-codeinsight-mobile.md`
+**Implementation plan:** `docs/superpowers/plans/2026-06-05-codeinsight-mobile.md` (also obsolete)
 
 ---
 

@@ -1,8 +1,13 @@
 # CodeInsight Mobile v1 — Implementation Plan
 
+> **DEPRECATED — June 2026**: All mobile infrastructure has been removed from CodeInsight V2.
+> This document is retained for historical reference only. CodeInsight is now a pure desktop application.
+
+# CodeInsight Mobile v1 — Implementation Plan (OBSOLETE)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make CodeInsight usable on a phone (width < 640 px) as a triage surface — instructor sees top-3 at-risk students in < 10 s, student sees next action in < 3 s, admin completes ISO/IEC 25010 evaluation in < 4 min — without sacrificing the analytics-first stance, by adding a layout-config-driven mobile shell with 24 mobile components and 14 mobile pages.
+**Goal:** ~~Make CodeInsight usable on a phone (width < 640 px)~~ **CANCELLED — mobile removed from CodeInsight V2**
 
 **Architecture:** Single `Layout` root component resolves `mode = mobile | tablet | desktop` from viewport once. A `useLayoutConfig(role, mode)` hook returns a JSON config that the shell renders verbatim — no `if (role === ...)` branches inside the mobile pages. Mobile components adapt via the `mode` prop (passed down through context) and never instantiates a D3 SVG larger than 200×200 px. State derivation (NoData / LowConfidence / Healthy) happens client-side from existing API responses; no new endpoints, no backend changes.
 
