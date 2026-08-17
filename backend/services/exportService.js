@@ -574,7 +574,7 @@ async function fetchCds(sectionId, opts = {}) {
 async function fetchCdsSummary(sectionId, opts = {}) {
   let query = `
     SELECT DISTINCT ON (u.id)
-           u.id AS student_id, u.name, u.email, cs.cds
+           u.id AS student_id, u.name, u.email, cs.cds, cs.classification
     FROM cds_scores cs
     JOIN users u ON u.id = cs.student_id
     WHERE cs.section_id = $1

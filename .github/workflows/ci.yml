@@ -62,6 +62,9 @@ jobs:
         run: PGPASSWORD=codepassword123 psql -h localhost -U codeuser -d codeinsight_test -f schema.sql
         working-directory: backend
 
+      - name: Pre-pull sandbox image
+        run: docker pull gcc:14-bookworm
+
       - name: Run backend tests
         run: npm run test:ci
         working-directory: backend
