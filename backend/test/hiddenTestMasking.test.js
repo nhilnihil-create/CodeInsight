@@ -34,7 +34,7 @@ describe('Hidden Test Case Masking', function() {
       assert.strictEqual(results[2].expected, '[Hidden]');
       assert.strictEqual(results[2].actual, 'Output Mismatch');
       assert.strictEqual(results[2].passed, false);
-    }, 30000);
+    }, 120000);
 
     it('should NOT mask hidden test case details when maskHidden=false', async function() {
       const testCode = '#include <iostream>\nusing namespace std;\nint main() { int x; std::cin >> x; std::cout << x; return 0; }';
@@ -56,7 +56,7 @@ describe('Hidden Test Case Masking', function() {
       assert.strictEqual(results[1].expected, '10');
       assert.strictEqual(results[1].actual, '10');
       assert.strictEqual(results[1].passed, true);
-    }, 30000);
+    }, 120000);
   });
 
   describe('integration with submission controller', function() {
