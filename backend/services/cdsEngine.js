@@ -272,7 +272,7 @@ try {
         ON CONFLICT (student_id,exercise_id)
         DO UPDATE SET ner=EXCLUDED.ner,nrs=EXCLUDED.nrs,nts=EXCLUDED.nts,cds=EXCLUDED.cds,
           classification=EXCLUDED.classification,has_flagged_attempts=EXCLUDED.has_flagged_attempts,
-          integrity_flag_count=EXCLUDED.integrity_flag_count,source='batch',visible=true,computed_at=NOW()`,
+          integrity_flag_count=EXCLUDED.integrity_flag_count,source='batch',visible=true,computed_at=cds_scores.computed_at`,
       scoreParams
     );
   }

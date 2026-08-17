@@ -680,7 +680,7 @@ exports.submit = async (req, res) => {
           INSERT INTO cds_scores (student_id, exercise_id, section_id, ner, nrs, nts, cds, classification, has_flagged_attempts, integrity_flag_count, source, visible, computed_at)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'live', false, NOW())
           ON CONFLICT (student_id, exercise_id)
-          DO UPDATE SET ner=$4, nrs=$5, nts=$6, cds=$7, classification=$8, has_flagged_attempts=$9, integrity_flag_count=$10, source='live', visible=false, computed_at=NOW()
+          DO UPDATE SET ner=$4, nrs=$5, nts=$6, cds=$7, classification=$8, has_flagged_attempts=$9, integrity_flag_count=$10, source='live', visible=false, computed_at=cds_scores.computed_at
         `, [
           studentId, exerciseId, exercise.section_id,
           liveCDS.ner || 0, liveCDS.nrs || 0, liveCDS.nts || 0,

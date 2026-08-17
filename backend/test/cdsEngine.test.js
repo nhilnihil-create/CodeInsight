@@ -560,7 +560,7 @@ describe('CDS Engine — Snapshot Immutability (INSERT-only pattern)', function(
       (student_id,exercise_id,section_id,ner,nrs,nts,cds,classification,has_flagged_attempts,integrity_flag_count,source,visible,computed_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'batch',true,NOW())
       ON CONFLICT (student_id,exercise_id)
-      DO UPDATE SET ner=$4,nrs=$5,nts=$6,cds=$7,classification=$8,has_flagged_attempts=$9,integrity_flag_count=$10,source='batch',visible=true,computed_at=NOW()`;
+      DO UPDATE SET ner=$4,nrs=$5,nts=$6,cds=$7,classification=$8,has_flagged_attempts=$9,integrity_flag_count=$10,source='batch',visible=true,computed_at=cds_scores.computed_at`;
 
     expect(upsertSQL).toContain('ON CONFLICT');
     expect(upsertSQL).toContain('DO UPDATE');
