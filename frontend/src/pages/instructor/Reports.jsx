@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -219,6 +219,11 @@ export default function InstructorReports() {
   const [masteryData, setMasteryData] = useState({ weeks: [], concepts: [] });
   const [masteryLoading, setMasteryLoading] = useState(false);
 
+  // Mastery knowledge-area group selection lives here (not inside
+  // MasteryTab) so it survives the loading remount when the period changes.
+  const [activeKA, setActiveKA] = useState(KA_GROUPS[0].code);
+  const userPickedKA = useRef(false);
+
   // Completion data
   const [completionData, setCompletionData] = useState([]);
   const [completionLoading, setCompletionLoading] = useState(false);
@@ -249,7 +254,7 @@ export default function InstructorReports() {
     if (!activeSectionId) { setMasteryData({ weeks: [], concepts: [] }); return; }
     setMasteryLoading(true);
     try {
-      const { data } = await api.get(`/api/analytics/reports/${activeSectionId}/concept-mastery?weeks=5`);
+      const { data } = await api.get(`/api/analytics/reports/${activeSectionId}/concept-mastery?weeks=${period}`);
       setMasteryData(data);
     } catch (err) {
       console.error("Concept mastery fetch error:", err);
@@ -257,7 +262,7 @@ export default function InstructorReports() {
     } finally {
       setMasteryLoading(false);
     }
-  }, [activeSectionId]);
+  }, [activeSectionId, period]);
 
   const fetchCompletion = useCallback(async () => {
     if (!activeSectionId) { setCompletionData([]); return; }
@@ -277,7 +282,7 @@ export default function InstructorReports() {
     if (!activeSectionId) { setIntegrityTimeline([]); setIntegrityBreakdown([]); return; }
     setIntegrityLoading(true);
     try {
-      const { data } = await api.get(`/api/analytics/reports/${activeSectionId}/integrity-trends?weeks=5`);
+      const { data } = await api.get(`/api/analytics/reports/${activeSectionId}/integrity-trends?weeks=${period}`);
       setIntegrityTimeline(data.timeline || []);
       setIntegrityBreakdown(data.breakdown || []);
       setIntegrityWeeks(data.weeks || []);
@@ -288,7 +293,7 @@ export default function InstructorReports() {
     } finally {
       setIntegrityLoading(false);
     }
-  }, [activeSectionId]);
+  }, [activeSectionId, period]);
 
   // Fetch all report data when section or period changes
   const refreshAll = useCallback(() => {
@@ -313,6 +318,26 @@ export default function InstructorReports() {
   const handlePeriodChange = (next) => {
     setPeriod(next);
   };
+
+  // On the first load of a section's data, if the default group (Procedural)
+  // has no concepts, auto-select the first group that does. Runs only when
+  // the dataset is fresh and the user has not explicitly picked a group, so
+  // it never overrides a manual selection.
+  const prevMasteryConcepts = useRef(null);
+  useEffect(() => {
+    const freshData = prevMasteryConcepts.current !== masteryData.concepts;
+    prevMasteryConcepts.current = masteryData.concepts;
+    if (!freshData || userPickedKA.current) return;
+    const activeHasData = (KA_CONCEPT_MEMBERSHIP[activeKA] || []).some(id =>
+      masteryData.concepts.some(c => c.id === id)
+    );
+    if (!activeHasData) {
+      const firstWithData = KA_GROUPS.find(g =>
+        masteryData.concepts.some(c => (KA_CONCEPT_MEMBERSHIP[g.code] || []).includes(c.id))
+      );
+      if (firstWithData) setActiveKA(firstWithData.code);
+    }
+  }, [masteryData.concepts, activeKA]);
 
   // All tabs now export the unified Student Summary via
   // /api/export/summary/:sectionId — the per-tab domain mapping was removed
@@ -432,7 +457,14 @@ export default function InstructorReports() {
                 <p className="text-sm text-muted-foreground">Loading mastery data…</p>
               </div>
             ) : (
-              <MasteryTab data={masteryData} />
+              <MasteryTab
+                data={masteryData}
+                activeKA={activeKA}
+                onKAChange={(code) => {
+                  userPickedKA.current = true;
+                  setActiveKA(code);
+                }}
+              />
             )
           ) : (
             <EmptyTab message="Select a section to view concept mastery data." />
@@ -506,27 +538,14 @@ function Sparkline({ data, width = 64, height = 20, color = "hsl(var(--primary))
  * Only concepts belonging to the selected group are plotted.
  * All series values are coerced through Number().toFixed(2) for safe interpolation.
  */
-function MasteryTab({ data }) {
+function MasteryTab({ data, activeKA, onKAChange }) {
   const { sort, onSort } = useSort({ key: "current", dir: "asc" });
-  const [activeKA, setActiveKA] = useState(KA_GROUPS[0].code);
 
   // Determine which concepts belong to the active knowledge area
   const groupConcepts = useMemo(() => {
     const memberIds = new Set(KA_CONCEPT_MEMBERSHIP[activeKA] || []);
     return data.concepts.filter(c => memberIds.has(c.id));
   }, [data.concepts, activeKA]);
-
-  // Auto-select the first group that has data
-  useEffect(() => {
-    if (groupConcepts.length === 0) {
-      const firstWithData = KA_GROUPS.find(g =>
-        data.concepts.some(c => (KA_CONCEPT_MEMBERSHIP[g.code] || []).includes(c.id))
-      );
-      if (firstWithData && firstWithData.code !== activeKA) {
-        setActiveKA(firstWithData.code);
-      }
-    }
-  }, [data.concepts, groupConcepts.length, activeKA]);
 
   // Build chart data. Keep nulls as null so recharts draws a gap for weeks
   // with no data (a missing week is not a 0% mastery dip).
@@ -605,7 +624,7 @@ function MasteryTab({ data }) {
                     type="button"
                     role="radio"
                     aria-checked={isActive}
-                    onClick={() => setActiveKA(group.code)}
+                    onClick={() => onKAChange(group.code)}
                     className={cn(
                       "relative z-10 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all duration-200 select-none whitespace-nowrap inline-flex items-center gap-1.5 sm:gap-2",
                       isActive
