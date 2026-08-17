@@ -1673,31 +1673,17 @@ exports.getConceptMasteryReport = async (req, res, next) => {
 
     // Only concepts that actually appear in this section's CDS data — a
     // concept never touched here must not show as a phantom flat 0% line.
-    // Week fill rules, matching the dashboard's Class Trend chart style:
-    //   • weeks BEFORE the first real measurement → 0 (the curve starts from
-    //     the 0 baseline and rises into the first point),
-    //   • weeks AFTER the last real measurement (e.g. "Now" when nothing was
-    //     computed this week yet) → null, so the line ENDS at the last real
-    //     point instead of fabricating a trailing value — a duplicated point
-    //     or a phantom 0% dip at "Now",
-    //   • mid-gap weeks between measurements → 0, keeping the curve
-    //     continuous rather than breaking it into disconnected segments.
+    // Any week with no measurement → 0, exactly like the dashboard's Class
+    // Trend chart (which COALESCEs empty days to 0): the curve rises from
+    // the 0 baseline into measured points and falls back to 0 when a week
+    // has no new data, so a stale line never just stops mid-chart.
     const conceptData = conceptRes.rows
       .filter(c => conceptsWithData.has(c.slug || c.id))
       .map(c => {
         const key = c.slug || c.id;
         const weekly = conceptMap[key].weekly;
-        const firstReal = weekly.findIndex(v => v != null);
-        let lastRealIdx = -1;
-        for (let i = 0; i < weekly.length; i++) if (weekly[i] != null) lastRealIdx = i;
-        const series = weekDates.map((_, i) => {
-          if (weekly[i] != null) return weekly[i];
-          if (lastRealIdx === -1) return null;          // defensive: no data at all
-          if (i < firstReal) return 0;                  // before any data → baseline
-          if (i > lastRealIdx) return null;             // after last data → line ends
-          return 0;                                     // mid-gap → keep curve continuous
-        });
-        const lastReal = lastRealIdx >= 0 ? weekly[lastRealIdx] : 0;
+        const series = weekDates.map((_, i) => weekly[i] ?? 0);
+        const lastReal = [...weekly].reverse().find(v => v != null) ?? 0;
         return { id: key, name: c.name, slug: c.slug, knowledgeAreaCode: c.knowledge_area_code || 'UNCATEGORIZED', series, current: lastReal };
       });
 
