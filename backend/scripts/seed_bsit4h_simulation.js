@@ -1,6 +1,9 @@
 /**
  * Seed script: BSIT-4H Simulation (21 students + new exercise + varied submissions)
  *
+ * NOTE: for the full months-long analytics demo (every report surface populated
+ * with backdated, coherent data) use scripts/seed_bsit4h_months.js instead.
+ *
  * Creates:
  *   20 new students with realistic personas
  *   Enrolls all 21 (including existing Nihil) in section 66
