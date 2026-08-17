@@ -128,10 +128,11 @@ describe('getConceptMasteryReport accuracy', () => {
     assert.strictEqual(v.current, 74);
   });
 
-  it('emits 0 for weeks after the last measurement (continuous curve, class-trend style)', async () => {
-    // One measurement ~8 days ago (W-1 slot) and nothing since: missing weeks
-    // are 0, so the chart draws one continuous line from the 0 baseline
-    // through the point — the dashboard Class Trend style, no orphan dot.
+  it('ends the line at the last real measurement — no fabricated trailing week', async () => {
+    // One measurement ~8 days ago (W-1 slot) and nothing since. Weeks before
+    // it are 0 (baseline), but the week AFTER it (Now) is null: the chart
+    // must NOT fabricate a trailing point at "Now" (which previously either
+    // duplicated the W-1 value via carry-forward or drew a phantom 0% dip).
     const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
     db.query
       .mockResolvedValueOnce({
@@ -149,12 +150,42 @@ describe('getConceptMasteryReport accuracy', () => {
 
     const { weeks, concepts } = res.json.mock.calls[0][0];
     const loops = concepts[0];
-    // 8 days ago → W-1 (index 3 of 5); index 4 (Now) and 0..2 are 0 → the
-    // line is continuous from baseline through the point.
+    // 8 days ago → W-1 (index 3 of 5); 0..2 are the 0 baseline; Now (index 4)
+    // is null so the curve ends at the real point.
     assert.strictEqual(loops.series[3], 77);
-    assert.strictEqual(loops.series[4], 0);
+    assert.strictEqual(loops.series[4], null);
     assert.deepStrictEqual(loops.series.slice(0, 3), [0, 0, 0]);
     assert.strictEqual(loops.current, 77);
     assert.strictEqual(weeks[4], 'Now');
+  });
+
+  it('keeps mid-gap weeks continuous at 0 but never fabricates a trailing week', async () => {
+    // Measurements at W-4 (29 days ago) and W-1 (8 days ago), nothing in
+    // between and nothing since: the mid-gap weeks are 0 (continuous curve),
+    // but the trailing Now week is null (line ends at the W-1 point).
+    const twentyNineDaysAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 1, name: 'Loops', slug: 'loops', knowledge_area_code: 'SDF-PMD' }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          { concept_id: 1, slug: 'loops', concept_name: 'Loops', week_date: twentyNineDaysAgo, mastery: 40 },
+          { concept_id: 1, slug: 'loops', concept_name: 'Loops', week_date: eightDaysAgo, mastery: 77 },
+        ],
+      });
+
+    const req = { params: { sectionId: '7' }, query: { weeks: '5' }, user: { id: 1 } };
+    const res = makeRes();
+    await ctrl.getConceptMasteryReport(req, res, jest.fn());
+
+    const loops = res.json.mock.calls[0][0].concepts[0];
+    assert.strictEqual(loops.series[0], 40);
+    assert.strictEqual(loops.series[1], 0); // mid-gap: continuous
+    assert.strictEqual(loops.series[2], 0); // mid-gap: continuous
+    assert.strictEqual(loops.series[3], 77);
+    assert.strictEqual(loops.series[4], null); // trailing Now: line ends
+    assert.strictEqual(loops.current, 77);
   });
 });
