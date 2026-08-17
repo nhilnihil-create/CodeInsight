@@ -39,7 +39,9 @@ export default function AnalyticsTab({ sectionId }) {
     queryKey: ["analytics-longitudinal", sectionId],
     queryFn: async () => {
       const { data } = await api.get(`/api/analytics/sections/${sectionId}/longitudinal`);
-      return data;
+      // The endpoint returns { sectionId, students: [...] } — normalize to the
+      // student array the trend builder expects (accept both shapes defensively).
+      return Array.isArray(data) ? data : (data?.students || []);
     },
     enabled: !!sectionId,
   });
