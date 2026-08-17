@@ -14,7 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import InsightHeader from "@/components/ui/insight-header";
 import SubmissionDetailDrawer from "@/components/analytics/SubmissionDetailDrawer";
@@ -43,7 +42,10 @@ function initials(name) {
     .join("");
 }
 
-const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] items-start sm:items-center gap-1 sm:gap-3";
+// 7 columns: Student | Exercise | Attempts | Status | Total time | Submitted | actions
+// Status is 6.5rem (vs 5.5rem) and wraps so Closed/Late/Pass badges never
+// spill into the Attempts column.
+const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_6.5rem_5rem_7rem_2rem] items-start sm:items-center gap-1 sm:gap-2";
 
 export default function SubmissionsTab({ sectionId, initialExerciseId = null }) {
   const [search, setSearch] = useState("");
@@ -294,14 +296,6 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
           <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
         </Button>
 
-        {/* Non-submitters toggle */}
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-          <Switch
-            checked={showNonSubmitters}
-            onCheckedChange={setShowNonSubmitters}
-          />
-          Show students without submissions
-        </label>
       </div>
 
       {showNonSubmitters ? (
@@ -435,8 +429,8 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                         <div
                           onClick={() => toggleGroup(key)}
                           className={cn(
-                            "flex flex-col gap-1.5 px-4 py-3 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] sm:items-center sm:gap-3 sm:h-14 sm:py-0",
-                            "hover:bg-muted/40 transition-colors cursor-pointer"
+                            GRID_CLASS,
+                            "px-4 py-3 sm:min-h-14 sm:py-2.5 hover:bg-muted/40 transition-colors cursor-pointer"
                           )}
                         >
                           {/* Mobile: student identity + chevron */}
@@ -515,7 +509,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
                             ×{g.attempt_count}
                           </span>
-                          <span className="hidden sm:flex items-center justify-end gap-1.5">
+                          <span className="hidden sm:flex flex-wrap items-center justify-end gap-1.5">
                             {isClosed(g) && (
                               <Badge variant="outline" className="bg-slate-500/10 text-slate-300 border-slate-500/30 text-[11px]">
                                 <Lock className="h-3 w-3 mr-1" strokeWidth={1.5} />
@@ -568,7 +562,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                             {g.attempts.map((a) => (
                               <div
                                 key={a.id}
-                                className="flex flex-col gap-1 px-4 pl-8 py-2.5 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_5.5rem_5rem_7rem_2rem] sm:items-center sm:gap-3 sm:h-11 sm:py-0"
+                                className={cn(GRID_CLASS, "px-4 pl-8 py-2.5 sm:h-11 sm:py-0")}
                               >
                                 {/* Mobile: attempt + status + Review */}
                                 <div className="flex items-center gap-2 min-w-0 sm:hidden">
