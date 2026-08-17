@@ -37,10 +37,16 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'codeinsight',
   user: process.env.DB_USER || 'codeuser',
   password: process.env.DB_PASSWORD || 'codepassword123',
+  ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}),
 });
 
-const SECTION_NAME = 'BSIT - 4H';
-const COURSE_CODE = 'CS1234';
+// Override the section name via env (e.g. run against the live DB with a
+// fresh section name so an existing "BSIT - 4H" is never touched):
+//   SEED_SECTION_NAME='BSIT - 4H (Months Demo)' node scripts/seed_bsit4h_months.js
+const SECTION_NAME = process.env.SEED_SECTION_NAME || 'BSIT - 4H';
+const COURSE_CODE = process.env.SEED_COURSE_CODE || 'CS1234';
+// sections.code is UNIQUE — pass a distinct join code when using a fresh name.
+const JOIN_CODE = process.env.SEED_SECTION_CODE || 'BSIT4H';
 const PASSWORD = 'password123';
 
 // ── Deterministic PRNG (fixed seed → byte-identical data every run) ──────────
@@ -348,7 +354,7 @@ async function main() {
       const r = await client.query(
         `INSERT INTO sections (name, course_code, code, instructor_id, term, semester, join_policy)
          VALUES ($1, $2, $3, $4, '1st Semester 2026-2027', '1st', 'code') RETURNING id`,
-        [SECTION_NAME, COURSE_CODE, 'BSIT4H', instructorId]
+        [SECTION_NAME, COURSE_CODE, JOIN_CODE, instructorId]
       );
       sectionId = r.rows[0].id;
       console.log(`Created section ${SECTION_NAME} (id=${sectionId})`);
