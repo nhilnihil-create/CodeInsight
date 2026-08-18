@@ -1,0 +1,4 @@
+{
+  "preloadedSkills": [],
+  "startupScript": "bun install"
+}

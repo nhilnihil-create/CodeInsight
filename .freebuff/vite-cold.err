@@ -1,0 +1,45 @@
+[2m1:02:14 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:02:15 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:02:15 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:02:23 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:02:23 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:02 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:02 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:11 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:12 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:12 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:20 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:03:20 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/me[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:15:37 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/login[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:15:44 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/login[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)
+[2m1:15:46 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/login[39m
+Error: connect ECONNREFUSED 127.0.0.1:5000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1645:16)

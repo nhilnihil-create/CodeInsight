@@ -1,0 +1,14 @@
+
+> codeinsight-frontend@1.0.0 dev
+> vite
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m5326[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.100.6:[1m5173[22m/[39m
+[2m7:49:24 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/instructor/Reports.jsx, /src/index.css[22m
+[2m7:49:43 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/instructor/Reports.jsx, /src/index.css[22m
+[2m7:49:48 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/instructor/Reports.jsx, /src/index.css[22m
+[2m7:52:44 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/instructor/Reports.jsx, /src/index.css[22m
+[2m7:52:52 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/instructor/Reports.jsx, /src/index.css[22m
