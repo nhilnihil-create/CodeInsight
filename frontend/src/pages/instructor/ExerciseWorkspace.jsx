@@ -823,9 +823,13 @@ export default function ExerciseWorkspace() {
             concept_tags: tagsPayload,
           };
 
-          for (const sectionId of selectedSections) {
+          const targetSections = (asDraft && selectedSections.length === 0) ? [null] : selectedSections;
+          for (const sectionId of targetSections) {
             try {
-              const { data: created } = await api.post("/api/exercises", { ...payload, section_id: Number(sectionId) });
+              const { data: created } = await api.post("/api/exercises", {
+                ...payload,
+                section_id: sectionId != null ? Number(sectionId) : null,
+              });
               totalPublished++;
               if (item._draftId) consumedDraftIds.add(item._draftId);
             } catch (err) {

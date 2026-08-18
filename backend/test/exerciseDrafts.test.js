@@ -55,6 +55,9 @@ app.use(express.json());
 app.use('/api/exercises', require('../routes/exercises'));
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
+  if (err && err.isJoi) {
+    return res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Invalid request body' });
+  }
   res.status(err.status || 500).json({ message: err.message || 'Internal Server Error' });
 });
 
@@ -254,5 +257,65 @@ describe('GET /api/exercises/drafts', () => {
     expect(res.body[0].id).toBe(id3);
     expect(res.body[1].id).toBe(id2);
     expect(res.body[2].id).toBe(id1);
+  });
+});
+
+describe('POST /api/exercises (draft creation)', () => {
+  beforeEach(async () => {
+    await clearTestTables();
+  });
+
+  const validPayload = {
+    title: 'Draft Exercise',
+    concept_name: 'Loops',
+    test_cases: [{ input: '1', expected: '1', description: '' }],
+  };
+
+  it('creates a draft without section_id → 201, is_draft=true, section_id=null', async () => {
+    const instructorId = await seedTestInstructor();
+    await seedTestConcept(); // ensures 'Loops' concept exists
+
+    const token = signToken({
+      id: instructorId, name: 'Test Instructor', email: 'instructor@test.com', role: 'instructor',
+    });
+
+    // POST with is_draft: true, NO section_id
+    const res = await request({
+      method: 'POST',
+      path: '/api/exercises',
+      token,
+      body: { ...validPayload, is_draft: true },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.is_draft).toBe(true);
+    expect(res.body.section_id).toBeNull();
+    expect(res.body.created_by).toBe(instructorId);
+    expect(res.body.title).toBe('Draft Exercise');
+
+    // Verify it appears in drafts list
+    const draftsRes = await request({ method: 'GET', path: '/api/exercises/drafts', token });
+    expect(draftsRes.status).toBe(200);
+    expect(draftsRes.body).toHaveLength(1);
+    expect(draftsRes.body[0].id).toBe(res.body.id);
+  });
+
+  it('rejects non-draft publish without section_id → 400', async () => {
+    const instructorId = await seedTestInstructor();
+    await seedTestConcept();
+
+    const token = signToken({
+      id: instructorId, name: 'Test Instructor', email: 'instructor@test.com', role: 'instructor',
+    });
+
+    // POST with is_draft omitted (defaults false), NO section_id
+    const res = await request({
+      method: 'POST',
+      path: '/api/exercises',
+      token,
+      body: { ...validPayload },
+    });
+
+    expect(res.status).toBe(400);
   });
 });

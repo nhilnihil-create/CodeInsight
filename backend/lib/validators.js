@@ -27,7 +27,11 @@ const exerciseCreate = Joi.object({
   title: Joi.string().trim().min(1).max(200).required(),
   description: Joi.string().allow('').max(20000).default(''),
   concept_name: Joi.string().trim().min(1).max(100).required(),
-  section_id: id.required(),
+  section_id: Joi.when('is_draft', {
+    is: true,
+    then: Joi.number().integer().positive().allow(null).optional(),
+    otherwise: id.required(),
+  }),
   time_limit_minutes: Joi.number().integer().min(0).max(600).default(45),
   test_cases: Joi.array().items(testCase).min(1).required(),
   deadline: Joi.alternatives(Joi.date().iso(), Joi.string().allow(null, ''), Joi.allow(null)).optional(),
