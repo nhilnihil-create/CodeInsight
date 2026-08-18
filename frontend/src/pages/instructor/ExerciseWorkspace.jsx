@@ -779,7 +779,7 @@ export default function ExerciseWorkspace() {
   const handleUseSaved = async (draft) => {
     try {
       const { data: cloned } = await api.post(`/api/exercises/${draft.id}/clone`);
-      setCurrentExercise({
+      const exercise = {
         ...blankExercise(),
         _editId: cloned.id,
         title: cloned.title || "",
@@ -800,12 +800,21 @@ export default function ExerciseWorkspace() {
         })),
         time_limit_minutes: cloned.time_limit_minutes || 45,
         deadline: cloned.deadline ? cloned.deadline.slice(0, 10) : "",
+      };
+      // Add directly to basket (deduplicate by _editId)
+      setBasket(prev => {
+        const idx = prev.findIndex(b => b._editId === exercise._editId);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = exercise;
+          return next;
+        }
+        return [...prev, exercise];
       });
       setCurrentStep(STEPS.length - 1);
       setCanAdvance(STEPS.length - 1);
       setDraftsOpen(false);
-      toast.success(`"${draft.title}" loaded — add to basket`);
-      document.getElementById("exercise-form")?.scrollIntoView({ behavior: "smooth" });
+      toast.success(`"${draft.title}" added to basket`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to use saved exercise");
     }
