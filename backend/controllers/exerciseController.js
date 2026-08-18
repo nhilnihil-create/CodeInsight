@@ -194,6 +194,64 @@ exports.list = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.listDrafts = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'instructor') {
+      throw new AppError('Instructor access required', 403, codes.FORBIDDEN);
+    }
+
+    const mainRes = await db.query(
+      `SELECT ex.*,
+              c.name AS concept_name,
+              COALESCE(
+                ARRAY_AGG(DISTINCT sc.name) FILTER (WHERE sc.name IS NOT NULL),
+                ARRAY[]::TEXT[]
+              ) AS secondary_concepts
+       FROM exercises ex
+       JOIN concepts c ON c.id = ex.concept_id
+       LEFT JOIN exercise_concepts ec ON ec.exercise_id = ex.id
+       LEFT JOIN concepts sc ON sc.id = ec.concept_id AND sc.id != ex.concept_id
+       WHERE ex.created_by = $1
+         AND ex.is_draft = true
+       GROUP BY ex.id, c.id
+       ORDER BY ex.created_at DESC`,
+      [req.user.id]
+    );
+
+    const rows = mainRes.rows;
+
+    if (rows.length === 0) {
+      return res.json(rows);
+    }
+
+    const exerciseIds = rows.map(r => r.id);
+    const tagsRes = await db.query(
+      `SELECT ect.exercise_id, ect.concept_id, c.name AS concept_name, ect.weight, ect.is_primary
+       FROM exercise_concept_tags ect
+       JOIN concepts c ON c.id = ect.concept_id
+       WHERE ect.exercise_id = ANY($1)`,
+      [exerciseIds]
+    );
+
+    const tagsByExercise = {};
+    for (const tag of tagsRes.rows) {
+      if (!tagsByExercise[tag.exercise_id]) tagsByExercise[tag.exercise_id] = [];
+      tagsByExercise[tag.exercise_id].push({
+        concept_id: tag.concept_id,
+        concept_name: tag.concept_name,
+        weight: tag.weight,
+        is_primary: tag.is_primary,
+      });
+    }
+
+    for (const row of rows) {
+      row.concept_tags = tagsByExercise[row.id] || [];
+    }
+
+    res.json(rows);
+  } catch (err) { next(err); }
+};
+
 exports.getOne = async (req, res, next) => {
   try {
     const exercise = await getExerciseWithConcepts(req.params.id);

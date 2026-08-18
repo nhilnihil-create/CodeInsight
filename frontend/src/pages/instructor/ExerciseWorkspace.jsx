@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Plus, Trash2, Layers, Check, AlertCircle, X, ArrowRight, ArrowLeft, Download, Upload, Zap, TrendingUp, ShieldAlert } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Layers, Check, AlertCircle, X, ArrowRight, ArrowLeft, Download, Upload, Zap, TrendingUp, ShieldAlert, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -635,6 +635,9 @@ export default function ExerciseWorkspace() {
   const [currentStep, setCurrentStep] = useState(0);
   const [canAdvance, setCanAdvance] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [drafts, setDrafts] = useState([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [draftsLoading, setDraftsLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -694,6 +697,14 @@ export default function ExerciseWorkspace() {
           return next;
         }
       }
+      if (currentExercise._draftId) {
+        const idx = prev.findIndex(b => b._draftId === currentExercise._draftId);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...currentExercise };
+          return next;
+        }
+      }
       return [...prev, { ...currentExercise }];
     });
     toast.success(`"${currentExercise.title}" added to basket`);
@@ -704,6 +715,66 @@ export default function ExerciseWorkspace() {
 
   const clearBasket = () => { setBasket([]); toast.info("Basket cleared"); };
 
+  /* ── Drafts ─────────────────────────────────────────────────────── */
+
+  const fetchDrafts = async () => {
+    setDraftsLoading(true);
+    try {
+      const res = await api.get("/api/exercises/drafts");
+      setDrafts(res.data || []);
+    } catch {
+      setDrafts([]);
+    } finally {
+      setDraftsLoading(false);
+    }
+  };
+
+  const toggleDrafts = () => {
+    if (!draftsOpen) fetchDrafts();
+    setDraftsOpen(prev => !prev);
+  };
+
+  const handleUseDraft = (draft) => {
+    setCurrentExercise({
+      ...blankExercise(),
+      _draftId: draft.id,
+      title: draft.title || "",
+      description: draft.description || "",
+      concept_name: draft.concept_name || "",
+      concept_tags: (draft.concept_tags || []).map(t => ({
+        concept_id: t.concept_id,
+        concept_name: t.concept_name,
+        weight: t.weight,
+        is_primary: t.is_primary,
+      })),
+      starter_code: draft.starter_code || STARTER_CODE,
+      test_cases: (draft.test_cases || []).map(tc => ({
+        input: tc.input || "",
+        expected: tc.expected || "",
+        description: tc.description || "",
+        hidden: !!tc.hidden,
+      })),
+      time_limit_minutes: draft.time_limit_minutes || 45,
+      deadline: draft.deadline ? draft.deadline.slice(0, 10) : "",
+    });
+    setCurrentStep(0);
+    setCanAdvance(STEPS.length - 1);
+    setDraftsOpen(false);
+    toast.info(`"${draft.title}" loaded from drafts — edit and add to basket`);
+    document.getElementById("exercise-form")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleDeleteDraft = async (draft) => {
+    if (!confirm(`Delete draft "${draft.title}"?`)) return;
+    try {
+      await api.delete(`/api/exercises/${draft.id}`);
+      setDrafts(prev => prev.filter(d => d.id !== draft.id));
+      toast.success("Draft deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete draft");
+    }
+  };
+
   /* ── Publish / Draft ────────────────────────────────────────────── */
 
   const handlePublish = async (items, selectedSections, deadline, asDraft) => {
@@ -712,6 +783,7 @@ export default function ExerciseWorkspace() {
     try {
       let totalPublished = 0;
       const errors = [];
+      const consumedDraftIds = new Set();
 
       for (const item of items) {
         if (item.bankId) {
@@ -755,6 +827,7 @@ export default function ExerciseWorkspace() {
             try {
               const { data: created } = await api.post("/api/exercises", { ...payload, section_id: Number(sectionId) });
               totalPublished++;
+              if (item._draftId) consumedDraftIds.add(item._draftId);
             } catch (err) {
               errors.push(`${item.title}: ${err.response?.data?.message || err.message}`);
             }
@@ -764,6 +837,19 @@ export default function ExerciseWorkspace() {
 
       if (errors.length > 0) {
         toast.error(`${errors.length} failed: ${errors.slice(0, 2).join(", ")}${errors.length > 2 ? "…" : ""}`);
+      }
+
+      // Delete consumed drafts (only when publish succeeded, not asDraft)
+      if (!asDraft) {
+        for (const item of items) {
+          if (item._draftId && consumedDraftIds.has(item._draftId)) {
+            try {
+              await api.delete(`/api/exercises/${item._draftId}`);
+            } catch {
+              // Best-effort: draft deletion failure is non-critical
+            }
+          }
+        }
       }
 
       setBasket([]);
@@ -856,10 +942,67 @@ export default function ExerciseWorkspace() {
               {isEdit ? "Modify an existing exercise." : "Build exercises step by step, add to basket, then publish."}
             </p>
           </div>
+          {!isEdit && (
+            <Button variant="ghost" size="sm" onClick={toggleDrafts} className="ml-auto">
+              <FileText className="w-4 h-4 mr-1.5" />
+              View Drafts
+              {drafts.length > 0 && (
+                <Badge variant="secondary" className="text-xs ml-1.5">{drafts.length}</Badge>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Step Indicator */}
         <StepIndicator currentStep={currentStep} canAdvance={canAdvance} onStepClick={setCurrentStep} />
+
+        {/* Drafts Panel */}
+        {draftsOpen && (
+          <Card className="border-white/[0.08] bg-white/[0.02] backdrop-blur-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <FileText className="w-4 h-4" /> Your Drafts
+                  <Badge variant="secondary" className="text-xs">{drafts.length}</Badge>
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setDraftsOpen(false)} className="h-6 w-6 p-0">
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {draftsLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Loading drafts…</p>
+              ) : drafts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No draft exercises yet.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                  {drafts.map(d => (
+                    <div key={d.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/30 hover:bg-muted/30 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{d.title || "Untitled"}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">{d.concept_name || "—"}</Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(d.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => handleUseDraft(d)} className="h-7 text-xs">
+                          <ArrowRight className="w-3 h-3 mr-1" /> Use Draft
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteDraft(d)} className="h-7 w-7 p-0">
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-6">
           {/* Main form */}

@@ -11,6 +11,7 @@ router.get('/bank/:id',    verifyToken,                                ctrl.getB
 router.get('/databank',    verifyToken,                                ctrl.getDatabank);
 router.post('/bulk-publish', verifyToken, requireRole('instructor'),   validate.body(v.bulkPublish), ctrl.bulkPublish);
 router.post('/validate',     verifyToken, requireRole('instructor'),   validate.body(v.exerciseValidate), ctrl.validate);
+router.get('/drafts',       verifyToken, requireRole('instructor'),   ctrl.listDrafts);
 router.post('/',           verifyToken, requireRole('instructor'),     validate.body(v.exerciseCreate), ctrl.create);
 router.get('/',            verifyToken,                                ctrl.list);
 router.get('/:id',         verifyToken,                                validate.params(v.idParam), ctrl.getOne);
