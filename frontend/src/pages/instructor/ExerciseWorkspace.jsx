@@ -776,13 +776,38 @@ export default function ExerciseWorkspace() {
     }
   };
 
-  const handleClone = async (draft) => {
+  const handleUseSaved = async (draft) => {
     try {
-      await api.post(`/api/exercises/${draft.id}/clone`);
-      toast.success(`"${draft.title}" cloned as saved exercise`);
-      fetchDrafts();
+      const { data: cloned } = await api.post(`/api/exercises/${draft.id}/clone`);
+      setCurrentExercise({
+        ...blankExercise(),
+        _editId: cloned.id,
+        title: cloned.title || "",
+        description: cloned.description || "",
+        concept_name: draft.concept_name || "",
+        concept_tags: (draft.concept_tags || []).map(t => ({
+          concept_id: t.concept_id,
+          concept_name: t.concept_name,
+          weight: t.weight,
+          is_primary: t.is_primary,
+        })),
+        starter_code: cloned.starter_code || STARTER_CODE,
+        test_cases: (cloned.test_cases || []).map(tc => ({
+          input: tc.input || "",
+          expected: tc.expected || "",
+          description: tc.description || "",
+          hidden: !!tc.hidden,
+        })),
+        time_limit_minutes: cloned.time_limit_minutes || 45,
+        deadline: cloned.deadline ? cloned.deadline.slice(0, 10) : "",
+      });
+      setCurrentStep(STEPS.length - 1);
+      setCanAdvance(STEPS.length - 1);
+      setDraftsOpen(false);
+      toast.success(`"${draft.title}" loaded — add to basket`);
+      document.getElementById("exercise-form")?.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to clone");
+      toast.error(err.response?.data?.message || "Failed to use saved exercise");
     }
   };
 
@@ -1029,8 +1054,8 @@ export default function ExerciseWorkspace() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="sm" onClick={() => handleClone(d)} className="h-7 text-xs">
-                          <ArrowRight className="w-3 h-3 mr-1" /> Clone to Section
+                        <Button variant="ghost" size="sm" onClick={() => handleUseSaved(d)} className="h-7 text-xs">
+                          <ArrowRight className="w-3 h-3 mr-1" /> Use
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteDraft(d)} className="h-7 w-7 p-0">
                           <Trash2 className="w-3 h-3 text-destructive" />
