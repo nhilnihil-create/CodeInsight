@@ -641,7 +641,7 @@ exports.clone = async (req, res, next) => {
           src.title, src.description, src.concept_id,
           section_id != null ? Number(section_id) : null,
           req.user.id,
-          src.time_limit_minutes, src.test_cases,
+          src.time_limit_minutes, JSON.stringify(src.test_cases),
           src.track_ner, src.track_nrs, src.track_nts, src.auto_alert,
           src.starter_code, src.reference_solution,
         ]
