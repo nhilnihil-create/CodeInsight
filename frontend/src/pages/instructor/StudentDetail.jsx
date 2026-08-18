@@ -571,7 +571,7 @@ export default function InstructorStudentDetail() {
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden mt-6">
               {/* Desktop header (hidden on mobile — rows render as cards) */}
-              <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_2rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
+              <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_4.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
                 <span className="text-xs font-medium text-muted-foreground">Exercise</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
@@ -588,7 +588,7 @@ export default function InstructorStudentDetail() {
                       <div
                         onClick={() => g.attempt_count > 0 && setExpandedExercise(isExpanded ? null : g.exercise_id)}
                         className={cn(
-                          "grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_2rem] items-start sm:items-center gap-1 sm:gap-3 px-4 py-3 sm:h-14 transition-colors",
+                          "grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_4.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 py-3 sm:h-14 transition-colors",
                           g.attempt_count > 0 && "hover:bg-muted/40 cursor-pointer"
                         )}
                       >
@@ -645,7 +645,7 @@ export default function InstructorStudentDetail() {
                           {g.attempts.map((a) => (
                             <div
                               key={a.id}
-                              className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_2rem] items-start sm:items-center gap-1 sm:gap-3 px-4 pl-8 sm:h-11"
+                              className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_4.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 pl-8 sm:h-11"
                             >
                               <span className="text-sm text-foreground font-medium tabular-nums">
                                 #{a.attempt_number}

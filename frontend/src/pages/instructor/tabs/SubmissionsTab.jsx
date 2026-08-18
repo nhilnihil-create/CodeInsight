@@ -44,8 +44,9 @@ function initials(name) {
 
 // 7 columns: Student | Exercise | Attempts | Status | Total time | Submitted | actions
 // Status is 6.5rem (vs 5.5rem) and wraps so Closed/Late/Pass badges never
-// spill into the Attempts column.
-const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_6.5rem_5rem_7rem_2rem] items-start sm:items-center gap-1 sm:gap-2";
+// spill into the Attempts column. The actions column is 4.5rem so the
+// "Review" button in expanded attempt rows never overlaps the Submitted date.
+const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_6.5rem_5rem_7rem_4.5rem] items-start sm:items-center gap-1 sm:gap-2";
 
 export default function SubmissionsTab({ sectionId, initialExerciseId = null }) {
   const [search, setSearch] = useState("");
