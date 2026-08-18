@@ -784,6 +784,10 @@ export default function ExerciseWorkspace() {
       let totalPublished = 0;
       const errors = [];
       const consumedDraftIds = new Set();
+      // Track network-error items on draft saves — the server may have
+      // processed the request even though the response didn't arrive
+      // (Render cold-start / proxy timeout).
+      const networkMisses = [];
 
       for (const item of items) {
         if (item.bankId) {
@@ -834,8 +838,33 @@ export default function ExerciseWorkspace() {
               if (item._draftId) consumedDraftIds.add(item._draftId);
             } catch (err) {
               errors.push(`${item.title}: ${err.response?.data?.message || err.message}`);
+              // No HTTP response = network / timeout — server may still have saved it
+              if (asDraft && !err.response) {
+                networkMisses.push({ item, errIdx: errors.length - 1 });
+              }
             }
           }
+        }
+      }
+
+      // ── Draft recovery: verify network-error saves server-side ─────────
+      if (networkMisses.length > 0) {
+        try {
+          const res = await api.get("/api/exercises/drafts");
+          const savedDrafts = res.data || [];
+          const recoveredIdx = new Set();
+          for (const { item, errIdx } of networkMisses) {
+            if (savedDrafts.some(d => d.title === item.title)) {
+              totalPublished++;
+              recoveredIdx.add(errIdx);
+            }
+          }
+          // Remove recovered errors (splice backwards to preserve indices)
+          for (const idx of [...recoveredIdx].sort((a, b) => b - a)) {
+            errors.splice(idx, 1);
+          }
+        } catch {
+          // Recovery fetch failed — leave original errors as-is
         }
       }
 
@@ -857,7 +886,9 @@ export default function ExerciseWorkspace() {
       }
 
       setBasket([]);
-      toast.success(asDraft ? `${totalPublished} saved as draft` : `${totalPublished} published`);
+      if (totalPublished > 0) {
+        toast.success(asDraft ? `${totalPublished} saved as draft` : `${totalPublished} published`);
+      }
       setTimeout(() => navigate("/instructor/exercises"), 1000);
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
