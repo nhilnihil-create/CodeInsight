@@ -309,7 +309,22 @@ test.describe.serial('Academic Integrity Full UI Workflow', () => {
     // Wait for join to succeed
     await studentPage.waitForTimeout(2000);
 
-    // Navigate to exercises page
+    // After joining, RequireSection needs activeSectionId to be set.
+    // Navigate to the section picker and select the section so the
+    // StudentContext sets activeSectionId before we hit /student/exercises.
+    await studentPage.goto('/student/select-section');
+    await studentPage.waitForLoadState('networkidle');
+
+    // Click the section card (renders as a <motion.button> with the section name)
+    const sectionCard = studentPage.locator('button').filter({ hasText: SHARED.sectionName }).first();
+    await sectionCard.waitFor({ state: 'visible', timeout: 10000 });
+    await sectionCard.click();
+
+    // Wait for redirect after selection (back to dashboard or exercises)
+    await studentPage.waitForLoadState('networkidle');
+    await studentPage.waitForTimeout(500);
+
+    // Now navigate to exercises page — activeSectionId is set, RequireSection passes
     await studentPage.goto('/student/exercises');
     await studentPage.waitForLoadState('networkidle');
 
