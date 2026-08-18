@@ -407,8 +407,14 @@ int main() {
     }
 
     // 2. The exercises list now shows "Review" instead of "Start"
+    //    The completed exercise has work_status='done', so it lives under the
+    //    "Done" tab (default active tab is "To-do"). Click "Done" first.
     await studentPage.goto('/student/exercises');
     await studentPage.waitForLoadState('networkidle');
+    const doneTab = studentPage.getByRole('tab', { name: /done/i });
+    await doneTab.waitFor({ state: 'visible', timeout: 10000 });
+    await doneTab.click();
+    await studentPage.waitForTimeout(300);
     const reviewLink = studentPage.locator('a').filter({ hasText: 'Review' });
     await expect(reviewLink.first()).toBeVisible({ timeout: 15000 });
 
