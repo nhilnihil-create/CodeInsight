@@ -73,7 +73,7 @@ export function ResponsiveTable({ columns, data, keyExtractor, onRowClick, empty
                     if (col.renderMobileCell) {
                       return (
                         <Fragment key={col.key}>
-                          <TableCell className={cn('sm:hidden', visibilityClass)}>
+                          <TableCell className="sm:hidden">
                             {col.renderMobileCell(item)}
                           </TableCell>
                           <TableCell className={cn('hidden sm:table-cell', visibilityClass)}>
