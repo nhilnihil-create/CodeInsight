@@ -616,6 +616,61 @@ exports.remove = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+exports.clone = async (req, res, next) => {
+  try {
+    const { section_id } = req.body || {};
+    const cloned = await withTransaction(async (client) => {
+      // 1. Fetch source (must own it)
+      const srcRes = await client.query(
+        'SELECT * FROM exercises WHERE id = $1 AND created_by = $2',
+        [req.params.id, req.user.id]
+      );
+      if (!srcRes.rows.length) throw new AppError('Exercise not found or not authorized', 404, codes.NOT_FOUND);
+      const src = srcRes.rows[0];
+
+      // 2. Deep-copy exercise row (always saved as draft/template, deadline cleared)
+      const insRes = await client.query(
+        `INSERT INTO exercises
+         (title, description, concept_id, section_id, created_by,
+          time_limit_minutes, test_cases, deadline, is_draft,
+          track_ner, track_nrs, track_nts, auto_alert,
+          starter_code, reference_solution, is_validated)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,true,$8,$9,$10,$11,$12,$13,$14,false)
+         RETURNING *`,
+        [
+          src.title, src.description, src.concept_id,
+          section_id != null ? Number(section_id) : null,
+          req.user.id,
+          src.time_limit_minutes, src.test_cases,
+          src.track_ner, src.track_nrs, src.track_nts, src.auto_alert,
+          src.starter_code, src.reference_solution,
+        ]
+      );
+      const newId = insRes.rows[0].id;
+
+      // 3. Copy exercise_concept_tags
+      await client.query(
+        `INSERT INTO exercise_concept_tags (exercise_id, concept_id, weight, is_primary)
+         SELECT $1, concept_id, weight, is_primary
+         FROM exercise_concept_tags WHERE exercise_id = $2`,
+        [newId, src.id]
+      );
+
+      // 4. Copy exercise_concepts junction
+      await client.query(
+        `INSERT INTO exercise_concepts (exercise_id, concept_id)
+         SELECT $1, concept_id
+         FROM exercise_concepts WHERE exercise_id = $2`,
+        [newId, src.id]
+      );
+
+      return insRes.rows[0];
+    });
+
+    res.status(201).json(cloned);
+  } catch (err) { next(err); }
+};
+
 // ── Databank: Combined Bank + Seeded Exercises ──────────────────────────────
 
 /**

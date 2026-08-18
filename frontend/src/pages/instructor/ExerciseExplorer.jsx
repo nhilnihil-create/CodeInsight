@@ -165,7 +165,7 @@ export default function ExerciseExplorer() {
               renderCell: (e) => {
                 const isClosed = !!e.closed_at;
                 const isDraft = e.is_draft;
-                return isDraft ? <Badge variant="outline">Draft</Badge>
+                return isDraft ? <Badge variant="outline">Saved</Badge>
                   : isClosed ? <Badge className="bg-muted text-muted-foreground border-border">Closed</Badge>
                   : <Badge className="bg-cds-low/10 text-cds-low border-cds-low/15">Open</Badge>;
               },

@@ -36,7 +36,7 @@ const fadeUp = {
 
 /* ── Status helpers ─────────────────────────────────────────────── */
 function statusOf(e) {
-  if (e.isDraft) return { label: 'Draft', className: 'bg-white/[0.04] text-muted-foreground border-white/[0.08]' };
+  if (e.isDraft) return { label: 'Saved', className: 'bg-white/[0.04] text-muted-foreground border-white/[0.08]' };
   if (e.closedAt) return { label: 'Closed', className: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
   return { label: 'Open', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
 }

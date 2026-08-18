@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Plus, Trash2, Layers, Check, AlertCircle, X, ArrowRight, ArrowLeft, Download, Upload, Zap, TrendingUp, ShieldAlert, FileText } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Layers, Check, AlertCircle, X, ArrowRight, ArrowLeft, Upload, Zap, TrendingUp, ShieldAlert, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -509,7 +509,7 @@ function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
                 disabled={basket.length === 0}
                 className="flex-1"
               >
-                <Download className="w-3.5 h-3.5 mr-1" /> Draft
+                <Save className="w-3.5 h-3.5 mr-1" /> Save
               </Button>
               <Button
                 size="sm"
@@ -775,6 +775,16 @@ export default function ExerciseWorkspace() {
     }
   };
 
+  const handleClone = async (draft) => {
+    try {
+      await api.post(`/api/exercises/${draft.id}/clone`);
+      toast.success(`"${draft.title}" cloned as saved exercise`);
+      fetchDrafts();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to clone");
+    }
+  };
+
   /* ── Publish / Draft ────────────────────────────────────────────── */
 
   const handlePublish = async (items, selectedSections, deadline, asDraft) => {
@@ -783,10 +793,6 @@ export default function ExerciseWorkspace() {
     try {
       let totalPublished = 0;
       const errors = [];
-      const consumedDraftIds = new Set();
-      // Track network-error items on draft saves — the server may have
-      // processed the request even though the response didn't arrive
-      // (Render cold-start / proxy timeout).
       const networkMisses = [];
 
       for (const item of items) {
@@ -835,7 +841,6 @@ export default function ExerciseWorkspace() {
                 section_id: sectionId != null ? Number(sectionId) : null,
               });
               totalPublished++;
-              if (item._draftId) consumedDraftIds.add(item._draftId);
             } catch (err) {
               errors.push(`${item.title}: ${err.response?.data?.message || err.message}`);
               // No HTTP response = network / timeout — server may still have saved it
@@ -872,22 +877,9 @@ export default function ExerciseWorkspace() {
         toast.error(`${errors.length} failed: ${errors.slice(0, 2).join(", ")}${errors.length > 2 ? "…" : ""}`);
       }
 
-      // Delete consumed drafts (only when publish succeeded, not asDraft)
-      if (!asDraft) {
-        for (const item of items) {
-          if (item._draftId && consumedDraftIds.has(item._draftId)) {
-            try {
-              await api.delete(`/api/exercises/${item._draftId}`);
-            } catch {
-              // Best-effort: draft deletion failure is non-critical
-            }
-          }
-        }
-      }
-
       setBasket([]);
       if (totalPublished > 0) {
-        toast.success(asDraft ? `${totalPublished} saved as draft` : `${totalPublished} published`);
+        toast.success(asDraft ? `${totalPublished} saved` : `${totalPublished} published`);
       }
       setTimeout(() => navigate("/instructor/exercises"), 1000);
     } catch (err) {
@@ -980,7 +972,7 @@ export default function ExerciseWorkspace() {
           {!isEdit && (
             <Button variant="ghost" size="sm" onClick={toggleDrafts} className="ml-auto">
               <FileText className="w-4 h-4 mr-1.5" />
-              View Drafts
+              View Saved
               {drafts.length > 0 && (
                 <Badge variant="secondary" className="text-xs ml-1.5">{drafts.length}</Badge>
               )}
@@ -997,7 +989,7 @@ export default function ExerciseWorkspace() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> Your Drafts
+                   <FileText className="w-4 h-4" /> Your Saved Exercises
                   <Badge variant="secondary" className="text-xs">{drafts.length}</Badge>
                 </CardTitle>
                 <Button variant="ghost" size="sm" onClick={() => setDraftsOpen(false)} className="h-6 w-6 p-0">
@@ -1007,9 +999,9 @@ export default function ExerciseWorkspace() {
             </CardHeader>
             <CardContent className="pt-0">
               {draftsLoading ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Loading drafts…</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Loading saved exercises…</p>
               ) : drafts.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No draft exercises yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No saved exercises yet.</p>
               ) : (
                 <div className="space-y-1.5 max-h-64 overflow-y-auto">
                   {drafts.map(d => (
@@ -1024,8 +1016,8 @@ export default function ExerciseWorkspace() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="sm" onClick={() => handleUseDraft(d)} className="h-7 text-xs">
-                          <ArrowRight className="w-3 h-3 mr-1" /> Use Draft
+                        <Button variant="ghost" size="sm" onClick={() => handleClone(d)} className="h-7 text-xs">
+                          <ArrowRight className="w-3 h-3 mr-1" /> Clone to Section
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteDraft(d)} className="h-7 w-7 p-0">
                           <Trash2 className="w-3 h-3 text-destructive" />

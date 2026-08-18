@@ -17,6 +17,7 @@ router.get('/',            verifyToken,                                ctrl.list
 router.get('/:id',         verifyToken,                                validate.params(v.idParam), ctrl.getOne);
 router.put('/:id',         verifyToken, requireRole('instructor'),     validate.params(v.idParam), validate.body(v.exerciseUpdate), ctrl.update);
 router.post('/:id/close',  verifyToken, requireRole('instructor'),     validate.params(v.idParam), ctrl.close);
+router.post('/:id/clone', verifyToken, requireRole('instructor'), ctrl.clone);
 router.post('/:id/reopen', verifyToken, requireRole('instructor'),     validate.params(v.idParam), ctrl.reopen);
 router.delete('/:id',      verifyToken, requireRole('instructor'),     validate.params(v.idParam), ctrl.remove);
 
