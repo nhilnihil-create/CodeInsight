@@ -296,6 +296,7 @@ jobs:
           PORT: 5000
           NODE_ENV: test
           CORS_ORIGINS: http://localhost:5173
+          PLAYWRIGHT: 1
 
       - name: Run E2E tests (Chromium)
         run: npx playwright test --config=playwright.config.js --project=chromium
