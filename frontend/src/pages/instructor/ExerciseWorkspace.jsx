@@ -722,7 +722,8 @@ export default function ExerciseWorkspace() {
     try {
       const res = await api.get("/api/exercises/drafts");
       setDrafts(res.data || []);
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch drafts:", err?.response?.data || err.message || err);
       setDrafts([]);
     } finally {
       setDraftsLoading(false);
@@ -877,11 +878,23 @@ export default function ExerciseWorkspace() {
         toast.error(`${errors.length} failed: ${errors.slice(0, 2).join(", ")}${errors.length > 2 ? "…" : ""}`);
       }
 
-      setBasket([]);
       if (totalPublished > 0) {
         toast.success(asDraft ? `${totalPublished} saved` : `${totalPublished} published`);
       }
-      setTimeout(() => navigate("/instructor/exercises"), 1000);
+
+      if (asDraft) {
+        // Stay on workspace — clear basket, open drafts panel so user sees saved exercises
+        setBasket([]);
+        if (totalPublished > 0) {
+          setDraftsOpen(true);
+          // Small delay to let DB commit, then fetch
+          setTimeout(() => fetchDrafts(), 300);
+        }
+      } else {
+        // Publish — navigate to exercise list after brief delay
+        setBasket([]);
+        setTimeout(() => navigate("/instructor/exercises"), 1000);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
     } finally {
