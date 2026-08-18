@@ -151,6 +151,43 @@ exports.heatmap = async (req, res, next) => {
     `;
     const scores = await db.query(scoresQuery, sw.params);
 
+    // Blank-cell reasons: for each (student, concept) with null CDS,
+    // surface the classification + exercise title so instructors can
+    // distinguish "not submitted" from "flagged pending review."
+    const bw = heatmapWhere(sectionId, instructorId, 'cs');
+    const blankReasonsQuery = `
+      SELECT cs.student_id,
+             COALESCE(pt.name, c.name) AS concept_name,
+             CASE
+               WHEN BOOL_OR(cs.classification = 'Flagged-Pending') THEN 'Flagged-Pending'
+               ELSE 'Unscored'
+             END AS classification,
+             (ARRAY_AGG(ex.title
+               ORDER BY CASE WHEN cs.classification = 'Flagged-Pending' THEN 0 ELSE 1 END,
+                        ex.id
+             ))[1] AS exercise_title
+      FROM cds_scores cs
+      JOIN exercises ex ON ex.id = cs.exercise_id
+      JOIN concepts c ON c.id = ex.concept_id
+      LEFT JOIN exercise_concept_tags ect ON ect.exercise_id = ex.id
+      LEFT JOIN concepts pt ON pt.id = ect.concept_id
+      WHERE ${bw.where}
+        AND cs.cds IS NULL
+        AND cs.classification IN ('Unscored', 'Flagged-Pending')
+      GROUP BY cs.student_id, COALESCE(pt.name, c.name)
+    `;
+    const blankReasonsRes = await db.query(blankReasonsQuery, bw.params);
+
+    // Build blankReasons map: { [studentId]: { [concept]: { classification, exerciseTitle } } }
+    const blankReasons = {};
+    for (const r of blankReasonsRes.rows) {
+      if (!blankReasons[r.student_id]) blankReasons[r.student_id] = {};
+      blankReasons[r.student_id][r.concept_name] = {
+        classification: r.classification,
+        exerciseTitle: r.exercise_title,
+      };
+    }
+
     // Fetch only concepts actually used in this section's exercises (any tag,
     // with legacy concept_id fallback). Ordered by name to match taxonomy
     const cw = heatmapWhere(sectionId, instructorId, 'ex');
@@ -206,7 +243,8 @@ exports.heatmap = async (req, res, next) => {
       students: students.rows,
       concepts: conceptsFromDb,
       scores: scoreMap,
-      classAverages: avgMap
+      classAverages: avgMap,
+      blankReasons,
     });
   } catch (err) { next(err); }
 };

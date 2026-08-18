@@ -144,7 +144,9 @@ function Cell({ cds, onHover, onLeave }) {
 
 function PortalTooltip({ x, y, data, visible }) {
   if (!visible || !data) return null;
-  const color = cdsColor(data.cds);
+
+  const isBlank = data.cds == null;
+  const color = isBlank ? { text: 'text-slate-500', label: 'No Data' } : cdsColor(data.cds);
 
   return createPortal(
     <div
@@ -155,46 +157,73 @@ function PortalTooltip({ x, y, data, visible }) {
                  text-xs leading-relaxed min-w-[180px] select-none"
       style={{ left: x + 18, top: y - 14 }}
     >
-      {/* Concept Title */}
+      {/* Concept + Student */}
       <div className="font-semibold text-white/90 text-[11px] mb-1">{data.concept}</div>
       <div className="text-white/40 text-[10px] mb-2">{data.student}</div>
 
-      {/* CDS Struggle Index */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="font-mono tabular-nums font-semibold text-white/90 text-sm">
-          {Number(data.cds).toFixed(2)}
-        </span>
-        <span className={cn(
-          'text-[9px] px-1.5 py-[1px] rounded-full font-medium',
-          'bg-white/[0.08] border border-white/[0.08]',
-          color.text,
-        )}>
-          {color.label}
-        </span>
-      </div>
-
-      {/* Underlying Metrics */}
-      {data.raw && (
-        <div className="space-y-1 pt-2 border-t border-white/[0.08]">
-          <div className="flex justify-between gap-6">
-            <span className="text-white/40 text-[10px]">NER</span>
-            <span className="font-mono tabular-nums text-white/70 text-[10px]">
-              {Number(data.raw.ner).toFixed(2)}
+      {isBlank ? (
+        /* ── Blank cell: No Data badge + reason ── */
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-white/60 text-sm">—</span>
+            <span className="text-[9px] px-1.5 py-[1px] rounded-full font-medium
+                           bg-white/[0.08] border border-white/[0.08] text-slate-500">
+              No Data
             </span>
           </div>
-          <div className="flex justify-between gap-6">
-            <span className="text-white/40 text-[10px]">NRS</span>
-            <span className="font-mono tabular-nums text-white/70 text-[10px]">
-              {Number(data.raw.nrs).toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between gap-6">
-            <span className="text-white/40 text-[10px]">NTS</span>
-            <span className="font-mono tabular-nums text-white/70 text-[10px]">
-              {Number(data.raw.nts).toFixed(2)}
-            </span>
-          </div>
+          {data.blankReason && (
+            <div className="space-y-0.5 pt-1 border-t border-white/[0.08]">
+              <div className="text-white/60 text-[10px]">
+                {data.blankReason.classification === 'Flagged-Pending'
+                  ? 'Flagged — pending review'
+                  : 'Not scored'}
+              </div>
+              {data.blankReason.exerciseTitle && (
+                <div className="text-white/30 text-[9px] italic">
+                  {data.blankReason.exerciseTitle}
+                </div>
+              )}
+            </div>
+          )}
         </div>
+      ) : (
+        /* ── Colored cell: existing rendering ── */
+        <>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-mono tabular-nums font-semibold text-white/90 text-sm">
+              {Number(data.cds).toFixed(2)}
+            </span>
+            <span className={cn(
+              'text-[9px] px-1.5 py-[1px] rounded-full font-medium',
+              'bg-white/[0.08] border border-white/[0.08]',
+              color.text,
+            )}>
+              {color.label}
+            </span>
+          </div>
+          {data.raw && (
+            <div className="space-y-1 pt-2 border-t border-white/[0.08]">
+              <div className="flex justify-between gap-6">
+                <span className="text-white/40 text-[10px]">NER</span>
+                <span className="font-mono tabular-nums text-white/70 text-[10px]">
+                  {Number(data.raw.ner).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-6">
+                <span className="text-white/40 text-[10px]">NRS</span>
+                <span className="font-mono tabular-nums text-white/70 text-[10px]">
+                  {Number(data.raw.nrs).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-6">
+                <span className="text-white/40 text-[10px]">NTS</span>
+                <span className="font-mono tabular-nums text-white/70 text-[10px]">
+                  {Number(data.raw.nts).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>,
     document.body,
@@ -261,6 +290,7 @@ export default function InstructorHeatmap() {
   const [rows, setRows] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [rawScores, setRawScores] = useState({});
+  const [blankReasons, setBlankReasons] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -283,6 +313,7 @@ export default function InstructorHeatmap() {
         setRows([]);
         setConcepts([]);
         setRawScores({});
+        setBlankReasons({});
         setColumnOrder([]);
         setLoading(false);
         return;
@@ -293,6 +324,7 @@ export default function InstructorHeatmap() {
         const students = res.data?.students || [];
         const sr = res.data?.scores || {};
         const ca = res.data?.concepts || [];
+        const br = res.data?.blankReasons || {};
         const names = {};
         for (const s of students) names[s.id] = s.name;
 
@@ -309,6 +341,7 @@ export default function InstructorHeatmap() {
           setConcepts(ca);
           setRows(out);
           setRawScores(sr);
+          setBlankReasons(br);
           // Reset drag order together with the new data so the init effect
           // re-derives columns from THIS section — otherwise the previous
           // section's columns leak into the new heatmap.
@@ -319,6 +352,7 @@ export default function InstructorHeatmap() {
           setConcepts([]);
           setRows([]);
           setRawScores({});
+          setBlankReasons({});
           setColumnOrder([]);
           setError(err.response?.data?.message || 'Failed to load heatmap data.');
         }
@@ -374,11 +408,11 @@ export default function InstructorHeatmap() {
   }, [rows, search]);
 
   /* ── Tooltip handlers ──────────────────────────────────────────────── */
-  const handleCellHover = useCallback((e, studentName, concept, cds, raw) => {
+  const handleCellHover = useCallback((e, studentName, concept, cds, raw, blankReason) => {
     setTooltip({
       x: e.clientX,
       y: e.clientY,
-      data: { student: studentName, concept, cds, raw },
+      data: { student: studentName, concept, cds, raw, blankReason },
       visible: true,
     });
   }, []);
@@ -523,8 +557,9 @@ export default function InstructorHeatmap() {
                                   e,
                                   row.name,
                                   c,
-                                  val != null ? Number(val).toFixed(2) : '—',
-                                  detail ? { ner: detail.ner, nrs: detail.nrs, nts: detail.nts } : null,
+                                  val != null ? Number(val).toFixed(2) : null,
+                                  val != null && detail ? { ner: detail.ner, nrs: detail.nrs, nts: detail.nts } : null,
+                                  blankReasons[row.studentId]?.[c] || null,
                                 )}
                                 onLeave={handleCellLeave}
                               />

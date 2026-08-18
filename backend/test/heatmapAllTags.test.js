@@ -85,6 +85,14 @@ async function seedCds(studentId, exerciseId, sectionId, cds) {
   );
 }
 
+async function seedCdsNull(studentId, exerciseId, sectionId, classification) {
+  await testPool.query(
+    `INSERT INTO cds_scores (student_id, exercise_id, section_id, cds, classification)
+     VALUES ($1, $2, $3, NULL, $4)`,
+    [studentId, exerciseId, sectionId, classification]
+  );
+}
+
 function mockRes() {
   return {
     status: jest.fn().mockReturnThis(),
@@ -281,5 +289,89 @@ describe('heatmap weighted all-tags', function() {
     // Arrays: (0.7*1 + 0.4*1) / 2 = 0.55
     assert.ok(close(body.classAverages['Arrays'].avgCDS, 0.55, 0.001),
       `Arrays avgCDS expected 0.55, got ${body.classAverages['Arrays'].avgCDS}`);
+  });
+
+  it('returns blankReasons for null-CDS Flagged-Pending and Unscored cells', async function() {
+    const instructorId = await seedTestInstructor();
+    const sectionId = await seedTestSection(instructorId);
+    const loops = await seedTestConcept();
+    const arrays = await seedConceptByName('Arrays');
+
+    // E1: tagged to Arrays (will have non-null CDS for all students)
+    const e1 = await seedTestExercise(sectionId, arrays, { title: 'Array Exercise' });
+    await seedTag(e1, arrays, 1.0, true);
+
+    // E2: tagged to Loops (will have null CDS for both students)
+    const e2 = await seedTestExercise(sectionId, loops, { title: 'Loop Exercise' });
+    await seedTag(e2, loops, 1.0, true);
+
+    const s1 = await seedStudent('Flagged Student', 'flagged@test.com');
+    const s2 = await seedStudent('Unscored Student', 'unscored@test.com');
+    await seedEnrollment(s1, sectionId);
+    await seedEnrollment(s2, sectionId);
+
+    // Both students have non-null CDS on the Arrays exercise (so they appear in grid)
+    await seedCds(s1, e1, sectionId, 0.5);
+    await seedCds(s2, e1, sectionId, 0.3);
+
+    // s1 has Flagged-Pending on the Loops exercise
+    await seedCdsNull(s1, e2, sectionId, 'Flagged-Pending');
+    // s2 has Unscored on the Loops exercise
+    await seedCdsNull(s2, e2, sectionId, 'Unscored');
+
+    const body = await callHeatmap(sectionId, instructorId);
+
+    // Both students appear in the grid
+    const studentIds = body.students.map(st => st.id);
+    assert.ok(studentIds.includes(s1), 's1 should appear');
+    assert.ok(studentIds.includes(s2), 's2 should appear');
+
+    // Their Loops cells are blank — absent from scores (cds IS NOT NULL filter)
+    assert.ok(!body.scores[s1]?.['Loops'],
+      's1 Loops should not appear in scores (null CDS)');
+    assert.ok(!body.scores[s2]?.['Loops'],
+      's2 Loops should not appear in scores (null CDS)');
+
+    // blankReasons exist for both students on Loops
+    assert.ok(body.blankReasons[s1], 's1 should have blankReasons');
+    assert.ok(body.blankReasons[s1]['Loops'], 's1 should have blankReason for Loops');
+    assert.strictEqual(body.blankReasons[s1]['Loops'].classification, 'Flagged-Pending',
+      's1 Loops should be Flagged-Pending');
+    assert.strictEqual(body.blankReasons[s1]['Loops'].exerciseTitle, 'Loop Exercise',
+      's1 Loops exercise title should be Loop Exercise');
+
+    assert.ok(body.blankReasons[s2], 's2 should have blankReasons');
+    assert.ok(body.blankReasons[s2]['Loops'], 's2 should have blankReason for Loops');
+    assert.strictEqual(body.blankReasons[s2]['Loops'].classification, 'Unscored',
+      's2 Loops should be Unscored');
+
+    // Their Arrays cells are still colored (non-null CDS)
+    assert.ok(close(body.scores[s1]['Arrays'].cds, 0.5, 0.001),
+      's1 Arrays should have non-null CDS');
+    assert.ok(close(body.scores[s2]['Arrays'].cds, 0.3, 0.001),
+      's2 Arrays should have non-null CDS');
+
+    // No blankReasons for Arrays (those cells are colored)
+    const s1ArraysReason = body.blankReasons[s1]?.['Arrays'];
+    assert.ok(!s1ArraysReason, 's1 should not have blankReason for Arrays');
+  });
+
+  it('does not include blankReasons entries for colored cells', async function() {
+    const instructorId = await seedTestInstructor();
+    const sectionId = await seedTestSection(instructorId);
+    const loops = await seedTestConcept();
+
+    const e = await seedTestExercise(sectionId, loops, { title: 'No Blank Ex' });
+    await seedTag(e, loops, 1.0, true);
+
+    const s1 = await seedStudent('All Colored', 'colored@test.com');
+    await seedEnrollment(s1, sectionId);
+    await seedCds(s1, e, sectionId, 0.45);
+
+    const body = await callHeatmap(sectionId, instructorId);
+
+    assert.ok(body.blankReasons, 'blankReasons should exist in response');
+    assert.ok(Object.keys(body.blankReasons).length === 0 || !body.blankReasons[s1],
+      'no blankReasons for a student with all colored cells');
   });
 });
