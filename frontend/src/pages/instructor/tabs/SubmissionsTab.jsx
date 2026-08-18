@@ -299,9 +299,48 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
 
       </div>
 
+      {/* Status tabs (latest attempt + timeliness) — always rendered so the
+          "Missing" filter behaves like a tab instead of hiding the tab row. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { key: "all", label: `All (${groups.length})` },
+          { key: "done", label: `Done (${doneCount})` },
+          { key: "late", label: `Late (${lateCount})` },
+          { key: "missing", label: "Missing", missing: true },
+          { key: "closed", label: `Closed (${closedCount})` },
+          { key: "flagged", label: `Flagged (${flaggedCount})` },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => {
+              if (tab.missing) {
+                setShowNonSubmitters(true);
+                setStatusFilter("all");
+              } else {
+                setShowNonSubmitters(false);
+                setStatusFilter(tab.key);
+              }
+            }}
+            className={cn(
+              "px-3 py-1 text-sm rounded-md transition-colors",
+              (!tab.missing && statusFilter === tab.key) || (tab.missing && showNonSubmitters)
+                ? tab.key === "flagged"
+                  ? "bg-destructive/10 text-destructive border border-destructive/20 font-medium"
+                  : "bg-muted text-foreground font-medium"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
+            )}
+          >
+            {tab.key === "flagged" && (
+              <Flag className="h-3 w-3 inline mr-1" strokeWidth={1.5} />
+            )}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {showNonSubmitters ? (
         <>
-          {/* Status tabs don't apply to the non-submitter view */}
           {exerciseFilter ? (
             <div className="rounded-lg border border-border bg-card overflow-hidden">
               <div className="hidden sm:grid grid-cols-[minmax(0,1fr)] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
@@ -358,45 +397,6 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
         </>
       ) : (
         <>
-          {/* Status tabs (latest attempt + timeliness) */}
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              { key: "all", label: `All (${groups.length})` },
-              { key: "done", label: `Done (${doneCount})` },
-              { key: "late", label: `Late (${lateCount})` },
-              { key: "missing", label: "Missing", missing: true },
-              { key: "closed", label: `Closed (${closedCount})` },
-              { key: "flagged", label: `Flagged (${flaggedCount})` },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                  if (tab.missing) {
-                    setShowNonSubmitters(true);
-                    setStatusFilter("all");
-                  } else {
-                    setShowNonSubmitters(false);
-                    setStatusFilter(tab.key);
-                  }
-                }}
-                className={cn(
-                  "px-3 py-1 text-sm rounded-md transition-colors",
-                  (!tab.missing && statusFilter === tab.key) || (tab.missing && showNonSubmitters)
-                    ? tab.key === "flagged"
-                      ? "bg-destructive/10 text-destructive border border-destructive/20 font-medium"
-                      : "bg-muted text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground border border-transparent"
-                )}
-              >
-                {tab.key === "flagged" && (
-                  <Flag className="h-3 w-3 inline mr-1" strokeWidth={1.5} />
-                )}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           {/* Grouped submissions table */}
           {filtered.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-card/50 py-12 px-6 text-center">
