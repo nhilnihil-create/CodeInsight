@@ -635,7 +635,7 @@ exports.clone = async (req, res, next) => {
           time_limit_minutes, test_cases, deadline, is_draft,
           track_ner, track_nrs, track_nts, auto_alert,
           starter_code, reference_solution, is_validated)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,true,$8,$9,$10,$11,$12,$13,$14,false)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,true,$8,$9,$10,$11,$12,$13,false)
          RETURNING *`,
         [
           src.title, src.description, src.concept_id,
