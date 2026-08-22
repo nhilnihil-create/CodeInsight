@@ -70,3 +70,20 @@ frontend/.vercel/
 
 # Scratch logs from dev/diagnostic sessions
 backend/tmp_logs/
+
+# ---- AI agents: personal state, sessions, plans, caches (policy: keep shared skills/settings tracked) ----
+.opencode/
+.omo/
+.freebuff/
+.claude/
+.cursor/
+.cursorrules
+.windsurf/
+.aider*
+.continue/
+.codeium/
+.specstory/
+.superpowers/
+.playwright-mcp/
+AGENTS.md
+.github/copilot-instructions.md
