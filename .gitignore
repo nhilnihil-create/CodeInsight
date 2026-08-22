@@ -23,8 +23,25 @@ Thumbs.db
 *.sql
 prototype_backup.sql
 
-# Claude
+# ── AI agents: personal state, sessions, plans, caches ──────────────
+# NOTE: shared project AI settings stay intentionally TRACKED:
+#   .agents/ (skills), .config/opencode/ (agents+commands),
+#   opencode.json, skills-lock.json, CLAUDE.md, GEMINI.md
 .claude/
+.opencode/
+.omo/
+.freebuff/
+.cursor/
+.cursorrules
+.windsurf/
+.aider*
+.continue/
+.codeium/
+.specstory/
+.superpowers/
+.playwright-mcp/
+AGENTS.md
+.github/copilot-instructions.md
 
 # Documentation/Reference (keep only essential docs)
 ARCHITECTURE_DECISION.md
@@ -45,9 +62,6 @@ RRL_CHAPTER_2_COMPLETE_UPDATED.md
 RRL_EVALUATION_AND_REFINEMENT.md
 RRL_QUICK_REFINEMENT_GUIDE.md
 SESSION_SUMMARY.md
-
-# Misc
-gemini.md
 
 # CodeNet dataset (too large for git)
 data/Project_CodeNet_C++1000/
