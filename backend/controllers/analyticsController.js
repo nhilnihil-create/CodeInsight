@@ -1599,11 +1599,11 @@ exports.getReportSummary = async (req, res, next) => {
     const mastery = masteryRes.rows[0]?.pct ?? 0;
     const completion = completionRes.rows[0]?.pct ?? 0;
     const atRisk = atRiskRes.rows[0]?.pct ?? 0;
-    const flagsRate = parseFloat(flagRes.rows[0]?.rate) ?? 0;
+    const flagsRate = parseFloat(flagRes.rows[0]?.rate) || 0;
     const priorMastery = priorMasteryRes.rows[0]?.pct ?? 0;
     const priorCompletion = priorCompletionRes.rows[0]?.pct ?? 0;
     const priorAtRisk = priorAtRiskRes.rows[0]?.pct ?? 0;
-    const priorFlagsRate = parseFloat(priorFlagRes.rows[0]?.rate) ?? 0;
+    const priorFlagsRate = parseFloat(priorFlagRes.rows[0]?.rate) || 0;
 
     const makeSeries = (rows, key, fallback) => {
       const vals = rows.map(r => r[key] ?? 0);
