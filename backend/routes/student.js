@@ -105,6 +105,15 @@ router.get('/exercises/:id', verifyToken, requireRole('student'), async (req, re
     `, [req.params.id, req.user.id]);
     ex.isCompleted = completedRes.rows.length > 0;
     ex.completedAt = ex.isCompleted ? completedRes.rows[0].submitted_at : null;
+
+    const lastSubmissionRes = await db.query(`
+      SELECT code FROM submissions
+      WHERE exercise_id = $1 AND student_id = $2
+      ORDER BY submitted_at DESC, id DESC
+      LIMIT 1
+    `, [req.params.id, req.user.id]);
+    ex.last_submission_code = lastSubmissionRes.rows[0]?.code || null;
+
     res.json(ex);
   } catch (err) { next(err); }
 });

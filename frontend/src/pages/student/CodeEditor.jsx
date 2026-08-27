@@ -160,7 +160,7 @@ export default function StudentCodeEditor() {
         const ex = r.data;
         const transformed = transformExercise(ex);
         setExercise(transformed);
-        setCode(ex.starter_code || "");
+        setCode(ex.last_submission_code || ex.starter_code || "");
         setLoading(false);
       })
       .catch((err) => {
