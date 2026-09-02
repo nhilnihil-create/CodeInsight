@@ -796,9 +796,11 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
     // 3. Stats — exercise completion (activity metric, not mastery)
     const statsParams = [studentId];
     let statsSectionFilter = '';
+    let statsSubquerySectionFilter = '';
     if (sectionId) {
       statsParams.push(sectionId);
       statsSectionFilter = ` AND ex.section_id = $${statsParams.length}`;
+      statsSubquerySectionFilter = ` AND en2.section_id = $${statsParams.length}`;
     }
     const statsRes = await db.query(`
       SELECT
@@ -808,7 +810,7 @@ router.get('/dashboard', verifyToken, requireRole('student'), async (req, res, n
          JOIN exercises ex2 ON s.exercise_id = ex2.id
          JOIN enrollments en2 ON en2.section_id = ex2.section_id
           WHERE s.student_id = $1 AND s.is_correct = true
-            AND en2.student_id = $1 AND en2.dropped_at IS NULL
+            AND en2.student_id = $1 AND en2.dropped_at IS NULL${statsSubquerySectionFilter}
         ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
@@ -1470,9 +1472,11 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
     // 2b. Exercise completion percentage (activity, not mastery)
     const completionParams = [studentId];
     let completionSectionFilter = '';
+    let completionSubquerySectionFilter = '';
     if (sectionId) {
       completionParams.push(sectionId);
       completionSectionFilter = ` AND ex.section_id = $${completionParams.length}`;
+      completionSubquerySectionFilter = ` AND en2.section_id = $${completionParams.length}`;
     }
     const completionRes = await db.query(`
       SELECT COUNT(DISTINCT ex.id)::int AS total,
@@ -1481,7 +1485,7 @@ router.get('/progress', verifyToken, requireRole('student'), async (req, res, ne
               JOIN exercises ex2 ON s.exercise_id = ex2.id
               JOIN enrollments en2 ON en2.section_id = ex2.section_id
               WHERE s.student_id = $1 AND s.is_correct = true
-                 AND en2.student_id = $1 AND en2.dropped_at IS NULL
+                 AND en2.student_id = $1 AND en2.dropped_at IS NULL${completionSubquerySectionFilter}
              ) AS completed
       FROM exercises ex
       JOIN enrollments en ON en.section_id = ex.section_id
