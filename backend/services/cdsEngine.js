@@ -101,7 +101,11 @@ const students = await db.query(
 );
 
 // GAP #8: Fetch students with integrity flags that exclude from normalization
-// HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics
+// HARDCODING and BLANK_TEMPLATE submissions should not affect class statistics.
+// Note (hardcoding policy): run-originated HARDCODING rows are dismissed at
+// submit time when the submitted code itself is clean (see routes/student.js
+// "Run-hardcoding forgiveness"), so by close time only submit-originated
+// HARDCODING — plus any BLANK_TEMPLATE — remains flagged here.
 const excludedRes = await db.query(
   `SELECT DISTINCT student_id FROM integrity_flags
    WHERE exercise_id=$1

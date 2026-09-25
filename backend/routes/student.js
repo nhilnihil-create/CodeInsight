@@ -580,6 +580,10 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
       }
 
       // ── Academic Integrity Checks ──────────────────────────────────────
+      // Tracks whether the SUBMITTED code itself hardcodes, so run-time
+      // experimentation can be forgiven below (hardcoding policy).
+      let academicEvalOk = false;
+      let submittedHardcoding = false;
       try {
         const academicFlags = await academicIntegrityEngine.evaluateIntegrity({
           code,
@@ -594,6 +598,8 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
           },
           exercise,
         });
+        academicEvalOk = true;
+        submittedHardcoding = academicFlags.some((f) => f.type === 'HARDCODING');
         for (const flag of academicFlags) {
           await integrityFlagEngine.createFlag({
             sectionId: exercise.section_id,
@@ -609,6 +615,28 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
         }
       } catch (integrityError) {
         logger.warn({ err: integrityError }, 'Academic integrity check failed');
+      }
+
+      // ── Run-hardcoding forgiveness (HARDCODING policy) ────────────────
+      // A HARDCODING flag from /run experimentation must NOT suppress CDS
+      // when the submitted code itself is clean. Dismiss run-originated
+      // (run_id set) flagged HARDCODING rows so the close-time exclusion
+      // query no longer matches them. Deliberately scoped: submit-originated
+      // HARDCODING and every other flag type (incl. BLANK_TEMPLATE) are
+      // untouched. Runs only when the submit evaluation succeeded.
+      if (academicEvalOk && !submittedHardcoding) {
+        try {
+          await db.query(
+            `UPDATE integrity_flags
+             SET status = 'dismissed'
+             WHERE exercise_id = $1 AND student_id = $2
+               AND flag_type = 'HARDCODING' AND status = 'flagged'
+               AND run_id IS NOT NULL`,
+            [exercise.id, req.user.id]
+          );
+        } catch (dismissErr) {
+          logger.warn({ err: dismissErr }, 'Run-hardcoding dismiss failed');
+        }
       }
 
       // ── Behavioral Anomaly Detection ──────────────────────────────────
