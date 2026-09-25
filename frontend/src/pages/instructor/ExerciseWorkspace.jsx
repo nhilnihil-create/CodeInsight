@@ -1011,10 +1011,7 @@ export default function ExerciseWorkspace() {
       description: entry.description || "",
       concept_name: entry.concept || "",
       starter_code: entry.starter_code || STARTER_CODE,
-      test_cases: (entry.test_cases || []).map(tc => ({
-        input: tc.input || "", expected: tc.expected || "",
-        description: tc.description || "", hidden: !!tc.hidden,
-      })),
+      test_cases: (entry.test_cases || []).map(toEditorTestCase),
       time_limit_minutes: entry.sequence_order === 1 ? 30 : entry.sequence_order === 2 ? 45 : 60,
       deadline: "",
     });
