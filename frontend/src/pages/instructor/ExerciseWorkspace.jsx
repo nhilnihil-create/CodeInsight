@@ -687,7 +687,7 @@ export default function ExerciseWorkspace() {
           concept_name: ex.concept_name || ex.concept_tags?.find(t => t.is_primary)?.concept_name || ex.concept_names?.[0] || "",
           concept_tags: ex.concept_tags || [],
           starter_code: ex.starter_code || STARTER_CODE,
-          test_cases: (ex.test_cases || []).map(tc => ({ input: tc.input || "", expected: tc.expected || "", description: tc.description || "", hidden: !!tc.hidden })),
+          test_cases: (ex.test_cases || []).map(toEditorTestCase),
           time_limit_minutes: ex.time_limit_minutes || 45,
           deadline: ex.deadline ? ex.deadline.slice(0, 10) : "",
           _editId: ex.id,
@@ -860,7 +860,13 @@ export default function ExerciseWorkspace() {
       const networkMisses = [];
 
       for (const item of items) {
-        if (item.bankId) {
+        // Bulk-publish is for Publish only: it requires section(s) and always
+        // creates non-draft exercises. Drafts (Save) — including databank/bank
+        // templates — go through the custom create path below, which supports
+        // section_id=null + is_draft=true. Previously a bank item with no
+        // section selected hit an empty loop: zero requests, zero toasts, and
+        // the basket was still cleared — the "Save did nothing" bug.
+        if (item.bankId && !asDraft) {
           const timeLimitOverrides = {};
           if (item.time_limit_minutes) timeLimitOverrides[item.bankId] = item.time_limit_minutes;
 
@@ -943,9 +949,12 @@ export default function ExerciseWorkspace() {
       }
 
       if (asDraft) {
-        // Stay on workspace — clear basket, open drafts panel so user sees saved exercises
-        setBasket([]);
+        // Stay on workspace — only clear the basket when something actually
+        // saved, so a failed save never destroys the user's work (the basket
+        // is persisted to localStorage, so clearing it on failure would wipe
+        // it even across refreshes).
         if (totalPublished > 0) {
+          setBasket([]);
           setDraftsOpen(true);
           // Small delay to let DB commit, then fetch + verify the list isn't empty
           setTimeout(async () => {
@@ -956,9 +965,12 @@ export default function ExerciseWorkspace() {
           }, 300);
         }
       } else {
-        // Publish — navigate to exercise list after brief delay
-        setBasket([]);
-        setTimeout(() => navigate("/instructor/exercises"), 1000);
+        // Publish — navigate to exercise list after brief delay (only when
+        // everything succeeded, so failed items stay in the basket).
+        if (totalPublished > 0 && errors.length === 0) {
+          setBasket([]);
+          setTimeout(() => navigate("/instructor/exercises"), 1000);
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
