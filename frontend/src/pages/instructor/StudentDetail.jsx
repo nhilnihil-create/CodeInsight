@@ -99,6 +99,22 @@ function StatusBadge({ status }) {
   );
 }
 
+// CDS tier text colors — mirrors Heatmap.jsx CDS_TIERS (high CDS = struggling).
+function cdsTierText(cds) {
+  const v = Number(cds);
+  if (cds === null || cds === undefined || Number.isNaN(v)) return "text-muted-foreground";
+  if (v <= 0.20) return "text-slate-500";
+  if (v <= 0.40) return "text-emerald-400";
+  if (v <= 0.60) return "text-amber-400";
+  if (v <= 0.80) return "text-orange-400";
+  return "text-rose-400";
+}
+
+function formatCds(cds) {
+  const v = Number(cds);
+  return Number.isNaN(v) ? "—" : v.toFixed(2);
+}
+
 export default function InstructorStudentDetail() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -209,6 +225,7 @@ export default function InstructorStudentDetail() {
   [conceptMastery]);
 
   const flagCount = integrityFlags.length;
+
   const flagItems = useMemo(() =>
     integrityFlags.map((f) => ({
       id: f.id,
@@ -219,6 +236,16 @@ export default function InstructorStudentDetail() {
       badge: <RiskBadge level={f.severity} />,
     })),
   [integrityFlags]);
+
+  // CDS per exercise (keyed by exercise_id) for the submissions table.
+  const cdsByExercise = useMemo(() => {
+    const map = new Map();
+    for (const s of cdsScores) {
+      const key = Number(s.exercise_id);
+      if (!Number.isNaN(key) && !map.has(key)) map.set(key, s);
+    }
+    return map;
+  }, [cdsScores]);
 
   // ── Submission groups ─────────────────────────────────────────────
   // One group per exercise. Groups with zero attempts become "missing"
@@ -283,7 +310,11 @@ export default function InstructorStudentDetail() {
     const groups = Array.from(byExercise.values());
 
     // Status: missing → late → done (latest attempt vs deadline).
+    // Attach this student's CDS for the exercise (null when unscored).
     for (const g of groups) {
+      const c = cdsByExercise.get(Number(g.exercise_id));
+      g.cds = c?.cds ?? null;
+      g.cds_classification = c?.classification ?? null;
       g.status =
         g.attempt_count === 0
           ? "missing"
@@ -304,7 +335,7 @@ export default function InstructorStudentDetail() {
       }
       return (b.latest_submitted_at || "") < (a.latest_submitted_at || "") ? -1 : 1;
     });
-  }, [submissions, sectionExercises, integrityFlags]);
+  }, [submissions, sectionExercises, integrityFlags, cdsByExercise]);
 
   const filteredGroups = useMemo(() => {
     if (subStatusFilter === "all") return submissionGroups;
@@ -571,8 +602,9 @@ export default function InstructorStudentDetail() {
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden mt-6">
               {/* Desktop header (hidden on mobile — rows render as cards) */}
-              <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_4.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
+              <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_4rem_3.5rem_5rem_5rem_6rem_4.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
                 <span className="text-xs font-medium text-muted-foreground">Exercise</span>
+                <span className="text-xs font-medium text-muted-foreground text-right">CDS</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Total time</span>
@@ -588,7 +620,7 @@ export default function InstructorStudentDetail() {
                       <div
                         onClick={() => g.attempt_count > 0 && setExpandedExercise(isExpanded ? null : g.exercise_id)}
                         className={cn(
-                          "grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_4.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 py-3 sm:h-14 transition-colors",
+                          "grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_4rem_3.5rem_5rem_5rem_6rem_4.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 py-3 sm:h-14 transition-colors",
                           g.attempt_count > 0 && "hover:bg-muted/40 cursor-pointer"
                         )}
                       >
@@ -605,6 +637,9 @@ export default function InstructorStudentDetail() {
                           <span className="flex flex-wrap items-center gap-1.5 mt-1 sm:hidden">
                             <StatusBadge status={g.status} />
                             <span className="text-xs text-muted-foreground">×{g.attempt_count}</span>
+                            <span className={cn("text-xs tabular-nums", cdsTierText(g.cds))}>
+                              CDS {g.cds !== null && g.cds !== undefined ? formatCds(g.cds) : "—"}
+                            </span>
                             {g.attempt_count > 0 && (
                               <span className="text-xs text-muted-foreground">
                                 {formatDateAgo(g.latest_submitted_at)}
@@ -612,6 +647,16 @@ export default function InstructorStudentDetail() {
                             )}
                           </span>
                         </span>
+                        {g.cds !== null && g.cds !== undefined ? (
+                          <span
+                            title={g.cds_classification ? `CDS ${formatCds(g.cds)} · ${g.cds_classification}` : `CDS ${formatCds(g.cds)}`}
+                            className={cn("hidden sm:block text-sm tabular-nums text-right font-medium", cdsTierText(g.cds))}
+                          >
+                            {formatCds(g.cds)}
+                          </span>
+                        ) : (
+                          <span className="hidden sm:block text-sm text-muted-foreground text-right">—</span>
+                        )}
                         <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
                           ×{g.attempt_count}
                         </span>
@@ -645,11 +690,12 @@ export default function InstructorStudentDetail() {
                           {g.attempts.map((a) => (
                             <div
                               key={a.id}
-                              className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_3.5rem_5rem_5rem_6rem_4.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 pl-8 sm:h-11"
+                              className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.6fr)_4rem_3.5rem_5rem_5rem_6rem_4.5rem] items-start sm:items-center gap-1 sm:gap-3 px-4 pl-8 sm:h-11"
                             >
                               <span className="text-sm text-foreground font-medium tabular-nums">
                                 #{a.attempt_number}
                               </span>
+                              <span className="hidden sm:block"></span>
                               <span className="hidden sm:block"></span>
                               <span className="sm:hidden flex items-center gap-2 mt-0.5">
                                 <Badge

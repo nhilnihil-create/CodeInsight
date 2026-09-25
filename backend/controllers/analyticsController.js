@@ -1461,7 +1461,7 @@ exports.getStudentSubmissions = async (req, res, next) => {
     }
 
     const cdsRes = await db.query(
-      `SELECT cs.cds, cs.ner, cs.nrs, cs.nts, cs.classification, cs.computed_at,
+      `SELECT cs.exercise_id, cs.cds, cs.ner, cs.nrs, cs.nts, cs.classification, cs.computed_at,
               c.name AS concept_name, ex.title AS exercise_title
        FROM cds_scores cs
        JOIN exercises ex ON cs.exercise_id = ex.id
@@ -2365,11 +2365,13 @@ exports.getSectionSubmissionGroups = async (req, res, next) => {
               s.exercise_id, ex.title AS exercise_title, c.name AS concept_name, ex.deadline, ex.closed_at,
               s.attempt_number, s.is_correct, s.code, s.compiler_log,
               s.submitted_at, s.time_spent_seconds,
+              cs.cds AS cds, cs.classification AS cds_classification,
               (SELECT COUNT(*) FROM integrity_flags f WHERE f.student_id = s.student_id AND f.exercise_id = s.exercise_id AND f.status = 'flagged')::int AS flag_count
        FROM submissions s
        JOIN users u ON s.student_id = u.id
        JOIN exercises ex ON s.exercise_id = ex.id
        JOIN concepts c ON ex.concept_id = c.id
+       LEFT JOIN cds_scores cs ON cs.student_id = s.student_id AND cs.exercise_id = s.exercise_id AND cs.section_id = $1 AND cs.visible IS DISTINCT FROM false
        ${where}
        ORDER BY s.submitted_at ASC, s.attempt_number ASC NULLS LAST, s.id ASC`,
       params
@@ -2395,6 +2397,8 @@ exports.getSectionSubmissionGroups = async (req, res, next) => {
           deadline: row.deadline,
           closed_at: row.closed_at,
           flag_count: row.flag_count,
+          cds: null,
+          cds_classification: null,
           attempt_count: 0,
           latest: null,
           latest_is_correct: null,
@@ -2409,6 +2413,12 @@ exports.getSectionSubmissionGroups = async (req, res, next) => {
       group.attempt_count += 1;
       group.total_time_spent_seconds += (row.time_spent_seconds ?? 0);
       if (row.is_correct) group.best_status = true;
+      // CDS is per (student, exercise) — every row in the group carries the
+      // same joined value; keep the first non-null one.
+      if ((group.cds === null || group.cds === undefined) && row.cds !== null && row.cds !== undefined) {
+        group.cds = row.cds;
+        group.cds_classification = row.cds_classification;
+      }
 
       const cur = group.latest;
       if (

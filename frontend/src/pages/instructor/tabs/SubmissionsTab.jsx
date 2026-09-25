@@ -42,11 +42,27 @@ function initials(name) {
     .join("");
 }
 
-// 7 columns: Student | Exercise | Attempts | Status | Total time | Submitted | actions
+// CDS tier text colors — mirrors Heatmap.jsx CDS_TIERS (high CDS = struggling).
+function cdsTierText(cds) {
+  const v = Number(cds);
+  if (cds === null || cds === undefined || Number.isNaN(v)) return "text-muted-foreground";
+  if (v <= 0.20) return "text-slate-500";
+  if (v <= 0.40) return "text-emerald-400";
+  if (v <= 0.60) return "text-amber-400";
+  if (v <= 0.80) return "text-orange-400";
+  return "text-rose-400";
+}
+
+function formatCds(cds) {
+  const v = Number(cds);
+  return Number.isNaN(v) ? "—" : v.toFixed(2);
+}
+
+// 8 columns: Student | Exercise | CDS | Attempts | Status | Total time | Submitted | actions
 // Status is 6.5rem (vs 5.5rem) and wraps so Closed/Late/Pass badges never
 // spill into the Attempts column. The actions column is 4.5rem so the
 // "Review" button in expanded attempt rows never overlaps the Submitted date.
-const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_3.5rem_6.5rem_5rem_7rem_4.5rem] items-start sm:items-center gap-1 sm:gap-2";
+const GRID_CLASS = "grid grid-cols-1 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_3.5rem_6.5rem_5rem_7rem_4.5rem] items-start sm:items-center gap-1 sm:gap-2";
 
 export default function SubmissionsTab({ sectionId, initialExerciseId = null }) {
   const [search, setSearch] = useState("");
@@ -414,6 +430,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                 <div className={cn(GRID_CLASS, "px-4 h-9 border-b border-border bg-muted/40 hidden sm:grid")}>
                   <span className="text-xs font-medium text-muted-foreground">Student</span>
                   <span className="text-xs font-medium text-muted-foreground">Exercise</span>
+                  <span className="text-xs font-medium text-muted-foreground text-right">CDS</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Total time</span>
@@ -490,6 +507,9 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                             )}
                             <span className="text-xs text-muted-foreground">· {formatDuration(g.total_time_spent_seconds)}</span>
                             <span className="text-xs text-muted-foreground">· {timeAgo(g.latest_submitted_at)}</span>
+                            <span className={cn("text-xs tabular-nums", cdsTierText(g.cds))}>
+                              · CDS {g.cds !== null && g.cds !== undefined ? formatCds(g.cds) : "—"}
+                            </span>
                           </div>
 
                           {/* Desktop cells */}
@@ -507,6 +527,16 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           <span className="hidden sm:block text-sm text-muted-foreground truncate">
                             {g.exercise_title}
                           </span>
+                          {g.cds !== null && g.cds !== undefined ? (
+                            <span
+                              title={g.cds_classification ? `CDS ${formatCds(g.cds)} · ${g.cds_classification}` : `CDS ${formatCds(g.cds)}`}
+                              className={cn("hidden sm:block text-sm tabular-nums text-right font-medium", cdsTierText(g.cds))}
+                            >
+                              {formatCds(g.cds)}
+                            </span>
+                          ) : (
+                            <span className="hidden sm:block text-sm text-muted-foreground text-right">—</span>
+                          )}
                           <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
                             ×{g.attempt_count}
                           </span>
@@ -607,6 +637,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                                 <span className="hidden sm:block text-sm text-foreground font-medium tabular-nums">
                                   #{a.attempt_number}
                                 </span>
+                                <span className="hidden sm:block"></span>
                                 <span className="hidden sm:block"></span>
                                 <span className="hidden sm:block"></span>
                                 <span className="hidden sm:flex justify-end">
