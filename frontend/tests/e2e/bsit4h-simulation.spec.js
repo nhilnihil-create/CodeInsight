@@ -17,7 +17,9 @@
  *   5. Student    → learner's own progress
  *
  * Prereq (once, or after a DB reset):
- *   cd backend && node scripts/seed_bsit4h_months.js
+ *   cd backend && node scripts/seed_bsit4h_months.js --wipe
+ * (The --wipe flag is required when the section already exists — the seed
+ * refuses to delete the section's exercises/submissions without it.)
  *
  * Run (backend on :5000 with PLAYWRIGHT=1 to bypass the login rate limiter,
  * Vite dev on :5173):

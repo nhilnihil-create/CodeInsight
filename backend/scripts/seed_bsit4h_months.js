@@ -20,11 +20,17 @@
  *     months of history. Snapshots + High-CDS alerts are written to mirror the
  *     batch engine's outputs.
  *
- * Deterministic: fixed PRNG seed → identical data on every run. Idempotent:
- * re-running wipes and rebuilds only this section's data.
+ * Deterministic: fixed PRNG seed → identical data on every run.
  *
- * Run:
+ * DESTRUCTIVE GUARD: re-running against an EXISTING section wipes and
+ * rebuilds that section's data (ALL exercises, submissions, scores, flags
+ * and enrollments — including instructor-created content). The wipe requires
+ * explicit opt-in (see step 3 in main()).
+ *
+ * Run (fresh section — safe, no wipe):
  *   node scripts/seed_bsit4h_months.js
+ * Run (re-seed an existing section — WIPES its data first):
+ *   node scripts/seed_bsit4h_months.js --wipe
  */
 require('dotenv').config({ path: __dirname + '/../.env', quiet: true });
 const { Pool } = require('pg');
@@ -360,7 +366,19 @@ async function main() {
       console.log(`Created section ${SECTION_NAME} (id=${sectionId})`);
     }
 
-    // 3. Wipe any previous demo data for this section (FK-safe order)
+    // 3. Wipe any previous demo data for this section (FK-safe order).
+    // DESTRUCTIVE GUARD: this deletes EVERY exercise, submission, score,
+    // flag and enrollment in the section — including instructor-created
+    // content. A teammate re-running this seed is the classic way saved
+    // exercises "mysteriously disappear", so require explicit opt-in.
+    const allowWipe = process.argv.includes('--wipe') || process.env.SEED_ALLOW_WIPE === 'yes';
+    if (sec && !allowWipe) {
+      throw new Error(
+        `Refusing to wipe existing section "${SECTION_NAME}" (id=${sectionId}) without opt-in. ` +
+        `This seed deletes ALL exercises, submissions, CDS scores, flags and enrollments in that section. ` +
+        `Re-run with the --wipe flag to proceed, or set SEED_SECTION_NAME to a fresh section name so the live section is never touched.`
+      );
+    }
     await client.query(`DELETE FROM integrity_flags WHERE section_id=$1`, [sectionId]);
     await client.query(`DELETE FROM alerts WHERE section_id=$1`, [sectionId]);
     await client.query(`DELETE FROM cds_scores WHERE section_id=$1`, [sectionId]);
