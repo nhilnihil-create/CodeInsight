@@ -78,19 +78,6 @@ export default function AdminOverview() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-sm">Evaluation</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <p className="text-xs text-muted-foreground">
-            {counts.evaluations || 0} ISO/IEC 25010 evaluation responses recorded.
-            {' '}
-            <a className="text-primary underline" href="/admin/evaluation">View / export →</a>
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
