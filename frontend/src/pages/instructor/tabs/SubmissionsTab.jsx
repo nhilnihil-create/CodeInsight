@@ -359,6 +359,16 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
         <>
           {exerciseFilter ? (
             <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/40">
+                <button
+                  type="button"
+                  onClick={() => setExerciseFilter("")}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="Back to per-exercise overview"
+                >
+                  ← All exercises
+                </button>
+              </div>
               <div className="hidden sm:grid grid-cols-[minmax(0,1fr)] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
                 <span className="text-xs font-medium text-muted-foreground">Student</span>
               </div>
@@ -388,11 +398,16 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                 {(nonSubmittersData?.perExercise || []).map((ex) => (
                   <li
                     key={ex.id}
-                    className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 sm:h-12"
+                    onClick={() => setExerciseFilter(String(ex.id))}
+                    title={`View students missing ${ex.title}`}
+                    className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 px-4 sm:h-12 py-3 sm:py-0 hover:bg-muted/40 transition-colors cursor-pointer"
                   >
                     <span className="text-sm text-foreground truncate">{ex.title}</span>
-                    <span className="text-sm text-muted-foreground text-right tabular-nums block">
-                      {ex.non_submitter_count}
+                    <span className="flex items-center justify-end gap-1 min-w-0">
+                      <span className="text-sm text-muted-foreground tabular-nums">
+                        {ex.non_submitter_count}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.5} />
                     </span>
                   </li>
                 ))}
