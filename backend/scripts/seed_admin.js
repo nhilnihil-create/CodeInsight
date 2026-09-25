@@ -25,12 +25,13 @@ const db = require('../config/db');
   try {
     const hash = await bcrypt.hash(password, 10);
     const r = await db.query(
-      `INSERT INTO users (name, email, password_hash, role)
-       VALUES ($1, $2, $3, 'admin')
+      `INSERT INTO users (name, email, password_hash, role, email_verified)
+       VALUES ($1, $2, $3, 'admin', true)
        ON CONFLICT (email) DO UPDATE
          SET name = EXCLUDED.name,
              password_hash = EXCLUDED.password_hash,
-             role = 'admin'
+             role = 'admin',
+             email_verified = true
        RETURNING id, name, email, role`,
       [name, email, hash]
     );
