@@ -430,7 +430,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                 <div className={cn(GRID_CLASS, "px-4 h-9 border-b border-border bg-muted/40 hidden sm:grid")}>
                   <span className="text-xs font-medium text-muted-foreground">Student</span>
                   <span className="text-xs font-medium text-muted-foreground">Exercise</span>
-                  <span className="text-xs font-medium text-muted-foreground text-right">CDS</span>
+                  <span className="text-xs font-medium text-muted-foreground text-center">CDS</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
                   <span className="text-xs font-medium text-muted-foreground text-right">Total time</span>
@@ -530,12 +530,12 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           {g.cds !== null && g.cds !== undefined ? (
                             <span
                               title={g.cds_classification ? `CDS ${formatCds(g.cds)} · ${g.cds_classification}` : `CDS ${formatCds(g.cds)}`}
-                              className={cn("hidden sm:block text-sm tabular-nums text-right font-medium", cdsTierText(g.cds))}
+                              className={cn("hidden sm:block text-sm tabular-nums text-center font-medium", cdsTierText(g.cds))}
                             >
                               {formatCds(g.cds)}
                             </span>
                           ) : (
-                            <span className="hidden sm:block text-sm text-muted-foreground text-right">—</span>
+                            <span className="hidden sm:block text-sm text-muted-foreground text-center">—</span>
                           )}
                           <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
                             ×{g.attempt_count}

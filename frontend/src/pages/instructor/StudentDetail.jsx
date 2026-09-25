@@ -604,7 +604,7 @@ export default function InstructorStudentDetail() {
               {/* Desktop header (hidden on mobile — rows render as cards) */}
               <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_4rem_3.5rem_5rem_5rem_6rem_4.5rem] items-center gap-3 px-4 h-9 border-b border-border bg-muted/40">
                 <span className="text-xs font-medium text-muted-foreground">Exercise</span>
-                <span className="text-xs font-medium text-muted-foreground text-right">CDS</span>
+                <span className="text-xs font-medium text-muted-foreground text-center">CDS</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Attempts</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Status</span>
                 <span className="text-xs font-medium text-muted-foreground text-right">Total time</span>
@@ -650,12 +650,12 @@ export default function InstructorStudentDetail() {
                         {g.cds !== null && g.cds !== undefined ? (
                           <span
                             title={g.cds_classification ? `CDS ${formatCds(g.cds)} · ${g.cds_classification}` : `CDS ${formatCds(g.cds)}`}
-                            className={cn("hidden sm:block text-sm tabular-nums text-right font-medium", cdsTierText(g.cds))}
+                            className={cn("hidden sm:block text-sm tabular-nums text-center font-medium", cdsTierText(g.cds))}
                           >
                             {formatCds(g.cds)}
                           </span>
                         ) : (
-                          <span className="hidden sm:block text-sm text-muted-foreground text-right">—</span>
+                          <span className="hidden sm:block text-sm text-muted-foreground text-center">—</span>
                         )}
                         <span className="hidden sm:block text-sm text-muted-foreground text-right tabular-nums">
                           ×{g.attempt_count}
