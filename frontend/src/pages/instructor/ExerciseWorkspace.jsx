@@ -93,6 +93,41 @@ function blankExercise() {
   };
 }
 
+/* ── Test-case field normalization ───────────────────────────────────────
+ * Exercises in the wild use three names for the expected output
+ * (`expected` | `expectedOutput` | `expected_output`) and three flags for
+ * visibility (`hidden` | `is_hidden` | `isVisible`). The backend executor
+ * accepts all of them, so the workspace must preserve them across
+ * save → View Saved → Use → re-save round-trips instead of dropping
+ * everything except `{input, expected, hidden}`.
+ */
+const mergeExpected = (tc) =>
+  tc.expected ?? tc.expectedOutput ?? tc.expected_output ?? tc.output ?? "";
+const isHiddenTc = (tc) =>
+  !!(tc.hidden ?? tc.is_hidden ?? (tc.isVisible === false));
+// Payload for POST/PUT /api/exercises — only Joi-allowed keys.
+const toApiTestCase = (tc) => {
+  const hid = isHiddenTc(tc);
+  const exp = mergeExpected(tc);
+  return {
+    input: tc.input ?? tc.stdin ?? "",
+    expected: exp,
+    expectedOutput: exp,
+    description: tc.description || "",
+    hidden: hid,
+    isVisible: !hid,
+    validationType: tc.validationType || tc.validation_type || "exact",
+  };
+};
+// Editor shape for TestCaseEditor (round-trippable).
+const toEditorTestCase = (tc) => ({
+  input: tc.input ?? tc.stdin ?? "",
+  expected: mergeExpected(tc),
+  description: tc.description || "",
+  hidden: isHiddenTc(tc),
+  validationType: tc.validationType || tc.validation_type || "exact",
+});
+
 /* ── Step Wizard ───────────────────────────────────────────────────────── */
 
 const STEPS = [
@@ -721,10 +756,14 @@ export default function ExerciseWorkspace() {
     setDraftsLoading(true);
     try {
       const res = await api.get("/api/exercises/drafts");
-      setDrafts(res.data || []);
+      const data = res.data || [];
+      setDrafts(data);
+      return data;
     } catch (err) {
       console.error("Failed to fetch drafts:", err?.response?.data || err.message || err);
       setDrafts([]);
+      toast.error(err.response?.data?.message || "Could not load saved exercises — check backend connection");
+      return [];
     } finally {
       setDraftsLoading(false);
     }
@@ -749,12 +788,7 @@ export default function ExerciseWorkspace() {
         is_primary: t.is_primary,
       })),
       starter_code: draft.starter_code || STARTER_CODE,
-      test_cases: (draft.test_cases || []).map(tc => ({
-        input: tc.input || "",
-        expected: tc.expected || "",
-        description: tc.description || "",
-        hidden: !!tc.hidden,
-      })),
+      test_cases: (draft.test_cases || []).map(toEditorTestCase),
       time_limit_minutes: draft.time_limit_minutes || 45,
       deadline: draft.deadline ? draft.deadline.slice(0, 10) : "",
     });
@@ -792,12 +826,7 @@ export default function ExerciseWorkspace() {
           is_primary: t.is_primary,
         })),
         starter_code: cloned.starter_code || STARTER_CODE,
-        test_cases: (cloned.test_cases || []).map(tc => ({
-          input: tc.input || "",
-          expected: tc.expected || "",
-          description: tc.description || "",
-          hidden: !!tc.hidden,
-        })),
+        test_cases: (cloned.test_cases || []).map(toEditorTestCase),
         time_limit_minutes: cloned.time_limit_minutes || 45,
         deadline: cloned.deadline ? cloned.deadline.slice(0, 10) : "",
       };
@@ -858,10 +887,7 @@ export default function ExerciseWorkspace() {
             description: item.description,
             concept_name: item.concept_name,
             time_limit_minutes: item.time_limit_minutes,
-            test_cases: (item.test_cases || []).map(tc => ({
-              input: tc.input || "", expected: tc.expected || "",
-              description: tc.description || "", hidden: !!tc.hidden,
-            })),
+            test_cases: (item.test_cases || []).map(toApiTestCase),
             starter_code: item.starter_code || null,
             deadline: deadline || item.deadline || null,
             is_draft: asDraft,
@@ -921,8 +947,13 @@ export default function ExerciseWorkspace() {
         setBasket([]);
         if (totalPublished > 0) {
           setDraftsOpen(true);
-          // Small delay to let DB commit, then fetch
-          setTimeout(() => fetchDrafts(), 300);
+          // Small delay to let DB commit, then fetch + verify the list isn't empty
+          setTimeout(async () => {
+            const data = await fetchDrafts();
+            if (data.length === 0) {
+              toast.warning("Saved on the server, but the saved list came back empty — open DevTools → Network → GET /api/exercises/drafts and check its status/body.");
+            }
+          }, 300);
         }
       } else {
         // Publish — navigate to exercise list after brief delay
@@ -954,10 +985,7 @@ export default function ExerciseWorkspace() {
         title: currentExercise.title,
         description: currentExercise.description,
         time_limit_minutes: currentExercise.time_limit_minutes,
-        test_cases: (currentExercise.test_cases || []).map(tc => ({
-          input: tc.input || "", expected: tc.expected || "",
-          description: tc.description || "", hidden: !!tc.hidden,
-        })),
+        test_cases: (currentExercise.test_cases || []).map(toApiTestCase),
         starter_code: currentExercise.starter_code || null,
         deadline: currentExercise.deadline || null,
         is_draft: false,

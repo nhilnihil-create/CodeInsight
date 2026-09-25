@@ -207,12 +207,12 @@ exports.listDrafts = async (req, res, next) => {
                 ARRAY_AGG(DISTINCT sc.name) FILTER (WHERE sc.name IS NOT NULL),
                 ARRAY[]::TEXT[]
               ) AS secondary_concepts
-       FROM exercises ex
-       JOIN concepts c ON c.id = ex.concept_id
-       LEFT JOIN exercise_concepts ec ON ec.exercise_id = ex.id
-       LEFT JOIN concepts sc ON sc.id = ec.concept_id AND sc.id != ex.concept_id
-       WHERE ex.created_by = $1
-         AND ex.is_draft = true
+        FROM exercises ex
+        LEFT JOIN concepts c ON c.id = ex.concept_id
+        LEFT JOIN exercise_concepts ec ON ec.exercise_id = ex.id
+        LEFT JOIN concepts sc ON sc.id = ec.concept_id AND sc.id != ex.concept_id
+        WHERE ex.created_by = $1
+          AND ex.is_draft = true
        GROUP BY ex.id, c.id
        ORDER BY ex.created_at DESC`,
       [req.user.id]

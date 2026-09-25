@@ -43,6 +43,14 @@ const exerciseCreate = Joi.object({
   starter_code: Joi.string().allow('', null).max(20000).optional(),
   reference_solution: Joi.string().allow('', null).max(20000).optional(),
   concept_ids: Joi.array().items(Joi.string().trim().min(1).max(100)).optional(), // secondary concepts
+  concept_tags: Joi.array().items(
+    Joi.object({
+      concept_id: Joi.number().integer().positive().optional(),
+      id: Joi.number().integer().positive().optional(),
+      weight: Joi.number().min(0).max(10).optional(),
+      is_primary: Joi.boolean().optional(),
+    }).unknown(true)
+  ).optional(), // weighted multi-tags (primary flag); extras like concept_name pass through
 });
 
 const exerciseUpdate = Joi.object({

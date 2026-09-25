@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeInsight V2 — Complete System Architecture (Light Theme)</title>
+<style>
+  /* ── Print / page setup ─────────────────────────────────────────────── */
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: #ffffff;
+    color: #111827;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Canvas ─────────────────────────────────────────────────────────── */
+  .canvas {
+    width: 1587px;            /* A3 landscape @ 96dpi */
+    height: 1123px;
+    margin: 0 auto;
+    padding: 24px 28px;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Header ────────────────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, #0891b2, #7c3aed, #059669);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .header .sub {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 400;
+  }
+  .header .verified {
+    font-size: 11px;
+    color: #059669;
+    border: 1px solid #05966955;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #05966911;
+    white-space: nowrap;
+  }
+
+  /* ── Swimlanes ─────────────────────────────────────────────────────── */
+  .lane {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f8f9fb;
+    padding: 8px 10px 10px;
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .lane-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lane-title .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    display: inline-block;
+  }
+  .lane-title .count {
+    font-size: 10px;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ── Cards ─────────────────────────────────────────────────────────── */
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 7px 10px;
+    min-width: 120px;
+    flex: 1 1 auto;
+  }
+  .card h3 {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #111827;
+  }
+  .card ul {
+    list-style: none;
+    font-size: 10.5px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+  .card ul li::before {
+    content: "· ";
+    color: #4b5563;
+  }
+  .card .badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .badge.cyan   { background: #0891b222; color: #0891b2; border: 1px solid #0891b255; }
+  .badge.violet { background: #7c3aed22; color: #7c3aed; border: 1px solid #7c3aed55; }
+  .badge.emerald{ background: #05966922; color: #059669; border: 1px solid #05966955; }
+  .badge.amber  { background: #d9770622; color: #d97706; border: 1px solid #d9770655; }
+  .badge.rose   { background: #e11d4822; color: #e11d48; border: 1px solid #e11d4855; }
+  .badge.sky    { background: #0284c722; color: #0284c7; border: 1px solid #0284c755; }
+  .badge.gray   { background: #6b728022; color: #6b7280; border: 1px solid #6b728055; }
+
+  /* ── Accent borders per lane ───────────────────────────────────────── */
+  .lane.cyan   { border-left: 3px solid #0891b2; }
+  .lane.violet { border-left: 3px solid #7c3aed; }
+  .lane.emerald{ border-left: 3px solid #059669; }
+  .lane.amber  { border-left: 3px solid #d97706; }
+  .lane.rose   { border-left: 3px solid #e11d48; }
+  .lane.sky    { border-left: 3px solid #0284c7; }
+
+  /* ── Legend ────────────────────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    gap: 22px;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: #6b7280;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-line {
+    width: 34px; height: 0;
+    border-top-width: 2px;
+    border-top-style: solid;
+    display: inline-block;
+  }
+  .legend-line.dashed { border-top-style: dashed; }
+  .legend-line.dotted { border-top-style: dotted; }
+
+  /* ── Footnote ──────────────────────────────────────────────────────── */
+  .footnote {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #6b7280;
+    text-align: right;
+  }
+
+  /* ── Arrow overlay ─────────────────────────────────────────────────── */
+  .arrow-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1587px; height: 1123px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .arrow-overlay text {
+    font-size: 9px;
+    fill: #6b7280;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+</style>
+</head>
+<body>
+<div class="canvas" id="canvas">
+
+  <!-- ══════════════════════ HEADER ══════════════════════ -->
+  <div class="header">
+    <div>
+      <h1>CodeInsight V2 — Complete System Architecture (Light Theme)</h1>
+      <div class="sub">Pampanga State University · CCS · Academic Integrity &amp; Concept Difficulty Scoring Platform</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="badge sky">Light</span>
+      <div class="verified">✓ verified 2026-09-07 — 12 routes / 12 controllers / 31 services / 15 lib / 30 tables</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 1 — CLIENT TIER ══════════════════════ -->
+  <div class="lane cyan">
+    <div class="lane-title"><span class="dot" style="background:#0891b2"></span>Lane 1 · Client Tier — React 18 SPA <span class="count">frontend/ · Vite 5 · Tailwind v4 · shadcn/ui (Radix)</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>Code Editor</h3>
+        <ul>
+          <li>Monaco editor <span class="badge cyan">@monaco-editor/react</span></li>
+          <li>C++ syntax highlighting</li>
+          <li>Editor prefs context</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Role-Based Pages</h3>
+        <ul>
+          <li>Admin (9) <span class="badge gray">Overview·Users·Sections·Exercises·Concepts·Flags·Evaluation·Audit·Settings</span></li>
+          <li>Instructor (18) <span class="badge gray">Dashboard·Heatmap·Reports·Integrity·Students·Sections·Alerts·Workspace·…</span></li>
+          <li>Student (11) <span class="badge gray">CodeEditor·Dashboard·Exercises·Progress·Recommendations·Today·Profile·Sections</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Contexts</h3>
+        <ul>
+          <li>AuthContext</li>
+          <li>EditorPrefsContext</li>
+          <li>SidebarContext</li>
+          <li>StudentContext</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Hooks</h3>
+        <ul>
+          <li>useAdaptiveN · useSections</li>
+          <li>useLastSection · useHasSections</li>
+          <li>useExport · useAnalyticsTheme</li>
+          <li>use-toast</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Data Layer</h3>
+        <ul>
+          <li>TanStack Query v5 <span class="badge cyan">@tanstack/react-query</span></li>
+          <li>axios API client <span class="badge cyan">services/api.js</span></li>
+          <li>React Router v6 <span class="badge cyan">react-router-dom</span></li>
+          <li>87 components · recharts · d3</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 2 — API GATEWAY / MIDDLEWARE ══════════════════════ -->
+  <div class="lane rose">
+    <div class="lane-title"><span class="dot" style="background:#e11d48"></span>Lane 2 · API Gateway / Middleware <span class="count">backend/server.js · 3 middleware modules</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>Security Headers</h3>
+        <ul>
+          <li>helmet <span class="badge rose">CSP·HSTS·X-Content-Type-Options</span></li>
+          <li>CORS allowlist <span class="badge rose">CORS_ORIGINS env</span></li>
+          <li>cookie-parser</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Request Logging</h3>
+        <ul>
+          <li>pino-http <span class="badge rose">structured JSON</span></li>
+          <li>quietReqLogger</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Rate Limiting</h3>
+        <ul>
+          <li>express-rate-limit <span class="badge rose">10 req/min submit</span></li>
+          <li>60 req/min behavioral</li>
+          <li>5/15min auth</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Auth Middleware</h3>
+        <ul>
+          <li>verifyToken <span class="badge rose">JWT + token_blacklist</span></li>
+          <li>requireRole / requireAnyRole</li>
+          <li>bcryptjs password hashing</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Validation &amp; Errors</h3>
+        <ul>
+          <li>joi validate <span class="badge rose">middleware/validate.js</span></li>
+          <li>errorHandler <span class="badge rose">no err.detail leak</span></li>
+          <li>notFoundHandler</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>API Docs</h3>
+        <ul>
+          <li>Swagger UI <span class="badge sky">/api/docs</span></li>
+          <li>swagger-jsdoc spec</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 3 — ROUTES / CONTROLLERS ══════════════════════ -->
+  <div class="lane violet">
+    <div class="lane-title"><span class="dot" style="background:#7c3aed"></span>Lane 3 · Application Routes → Controllers <span class="count">12 routes → 12 controllers</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>Auth</h3>
+        <ul>
+          <li>routes/auth.js</li>
+          <li>authController.js</li>
+          <li>register·login·logout·verify-email·OTP·Google OAuth</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Sections / Enrollments</h3>
+        <ul>
+          <li>routes/sections.js</li>
+          <li>sectionController · sectionsController · enrollmentsController</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Exercises</h3>
+        <ul>
+          <li>routes/exercises.js</li>
+          <li>exerciseController.js</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Student</h3>
+        <ul>
+          <li>routes/student.js</li>
+          <li>submissionController.js</li>
+          <li>submit·run·submit-async·behavioral-events</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Submissions</h3>
+        <ul>
+          <li>routes/submissions.js</li>
+          <li>submissionController.js</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Analytics / Integrity</h3>
+        <ul>
+          <li>routes/analytics.js · routes/integrity.js</li>
+          <li>analyticsController · integrityController</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Admin / Config</h3>
+        <ul>
+          <li>routes/admin.js · routes/adminConfig.js</li>
+          <li>adminController · adminConfigController</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Evaluation / Export / Search</h3>
+        <ul>
+          <li>routes/evaluation.js · export.js · search.js</li>
+          <li>evaluationController · UploadsController</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 4 — SERVICES / ENGINES ══════════════════════ -->
+  <div class="lane violet">
+    <div class="lane-title"><span class="dot" style="background:#7c3aed"></span>Lane 4 · Services / Engines <span class="count">31 services</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>Execution</h3>
+        <ul>
+          <li>executor <span class="badge rose">Docker↔native</span></li>
+          <li>streamMatcher · runCheckpoint</li>
+          <li>preSubmissionCheck</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Intelligence</h3>
+        <ul>
+          <li>cdsEngine · astVerifier</li>
+          <li>academicIntegrityEngine</li>
+          <li>integrityFlagEngine</li>
+          <li>behavioralAnomalyDetector</li>
+          <li>microConceptEngine · microConceptTaxonomy</li>
+          <li>codeGrowthAnomaly · codeGrowthRateDetector</li>
+          <li>errorClusterer · errorNormalizer · errorReporter</li>
+          <li>badPatterns · candidateValidator</li>
+          <li>misconceptionRuleMiner · conceptAnalytics</li>
+          <li>verificationRulesService</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Analytics / Reporting</h3>
+        <ul>
+          <li>analyticsEngine · alertEngine</li>
+          <li>exportService · csvWriter</li>
+          <li>pdfReport · pdfCharts</li>
+          <li>longitudinalReportEngine</li>
+          <li>classMisconceptionReport</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Scheduler</h3>
+        <ul>
+          <li>autoCloseService <span class="badge amber">node-schedule · 5min</span></li>
+          <li>cdsJobQueue <span class="badge amber">DB-backed</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 5 — CROSS-CUTTING LIB ══════════════════════ -->
+  <div class="lane violet">
+    <div class="lane-title"><span class="dot" style="background:#7c3aed"></span>Lane 5 · Cross-Cutting lib <span class="count">15 modules</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>Core Utilities</h3>
+        <ul>
+          <li>logger <span class="badge violet">pino</span></li>
+          <li>background <span class="badge violet">defer()</span></li>
+          <li>cache <span class="badge violet">TTL</span></li>
+          <li>concurrency <span class="badge violet">runWithLimit</span></li>
+          <li>AppError</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Domain</h3>
+        <ul>
+          <li>treeSitter <span class="badge violet">singleton parser</span></li>
+          <li>domainValidator</li>
+          <li>validators</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Pipeline &amp; Flags</h3>
+        <ul>
+          <li>submissionPipeline <span class="badge violet">sync/async unified</span></li>
+          <li>integrityFlags <span class="badge violet">FLAG_TYPES·SEVERITY</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Auth / Email</h3>
+        <ul>
+          <li>otpStore</li>
+          <li>email <span class="badge sky">Brevo active</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Insight Scoring</h3>
+        <ul>
+          <li>impactTag <span class="badge gray">lib</span></li>
+          <li>insightTemplates <span class="badge gray">lib</span></li>
+          <li>wilsonScore <span class="badge gray">lib</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 6 — ASYNC / QUEUE ══════════════════════ -->
+  <div class="lane amber">
+    <div class="lane-title"><span class="dot" style="background:#d97706"></span>Lane 6 · Async / Queue <span class="count">queues/ · 2 files</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>BullMQ Submission Queue</h3>
+        <ul>
+          <li>submissionQueue.js <span class="badge amber">Queue 'submissions'</span></li>
+          <li>submissionWorker.js <span class="badge amber">concurrency 3</span></li>
+          <li>attempts 2 · exponential backoff</li>
+          <li>removeOnComplete 1h · removeOnFail 24h</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Redis (ioredis)</h3>
+        <ul>
+          <li>Redis 7 <span class="badge amber">ioredis</span></li>
+          <li>BullMQ broker</li>
+          <li>OTP store</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Sync Fallback</h3>
+        <ul>
+          <li><span class="badge amber">SYNC FALLBACK</span> when Redis down</li>
+          <li>submissions process synchronously</li>
+          <li>queueReady flag in /api/ready</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>DB-Backed Job Queue</h3>
+        <ul>
+          <li>cds_job_queue table <span class="badge amber">FOR UPDATE SKIP LOCKED</span></li>
+          <li>polling every 1s</li>
+          <li>5-min notification dedup</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 7 — DATA ══════════════════════ -->
+  <div class="lane emerald">
+    <div class="lane-title"><span class="dot" style="background:#059669"></span>Lane 7 · Data <span class="count">PostgreSQL Neon · 30 tables in 8 clusters · Redis 7</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>Auth / Security <span class="badge emerald">4 tables</span></h3>
+        <ul>
+          <li>users · token_blacklist</li>
+          <li>otp_codes · audit_log</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Sections / Enrollment <span class="badge emerald">3 tables</span></h3>
+        <ul>
+          <li>sections · enrollments</li>
+          <li>section_memberships</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Concepts / Exercises <span class="badge emerald">6 tables</span></h3>
+        <ul>
+          <li>concepts · exercises</li>
+          <li>exercise_concepts · exercise_concept_tags</li>
+          <li>concept_dependencies · exercise_bank</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Submissions <span class="badge emerald">2 tables</span></h3>
+        <ul>
+          <li>submissions · run_attempts</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>CDS / Scoring <span class="badge emerald">3 tables</span></h3>
+        <ul>
+          <li>cds_scores · cds_snapshots</li>
+          <li>cds_job_queue</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Integrity / Alerts <span class="badge emerald">4 tables</span></h3>
+        <ul>
+          <li>alerts · integrity_flags</li>
+          <li>analytics_alerts · verification_logs</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Behavioral / Audit <span class="badge emerald">5 tables</span></h3>
+        <ul>
+          <li>behavioral_events · code_snapshots</li>
+          <li>performance_logs · section_audit_log</li>
+          <li>auto_close_log</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Metrics / Evaluation <span class="badge emerald">3 tables</span></h3>
+        <ul>
+          <li>student_concept_metrics</li>
+          <li>section_concept_metrics</li>
+          <li>evaluation_responses</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Redis 7</h3>
+        <ul>
+          <li>BullMQ queue broker</li>
+          <li>OTP store</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LANE 8 — EXTERNAL + INFRA ══════════════════════ -->
+  <div class="lane sky">
+    <div class="lane-title"><span class="dot" style="background:#0284c7"></span>Lane 8 · External Integrations + DevOps <span class="count">Google OAuth · Brevo · Swagger · Docker · CI/CD</span></div>
+    <div class="cards">
+      <div class="card">
+        <h3>External Integrations</h3>
+        <ul>
+          <li>Google OAuth <span class="badge sky">google-auth-library</span></li>
+          <li>Brevo email <span class="badge sky">@getbrevo/brevo · ACTIVE</span></li>
+          <li>resend / nodemailer <span class="badge gray">installed · INACTIVE</span></li>
+          <li>Swagger UI <span class="badge sky">/api/docs</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Sandbox / Executor</h3>
+        <ul>
+          <li>Docker gcc:14-bookworm <span class="badge rose">pinned image</span></li>
+          <li>native g++ fallback <span class="badge rose">when Docker unavailable</span></li>
+          <li>ASAN <span class="badge rose">-fsanitize=address</span></li>
+          <li>cppcheck static analysis</li>
+          <li>isSafe guard <span class="badge rose">blocked syscalls</span></li>
+          <li>hidden-test masking <span class="badge rose">[Hidden]</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Docker / Compose</h3>
+        <ul>
+          <li>Dockerfile <span class="badge sky">multi-stage · node:22-alpine</span></li>
+          <li>docker-compose.yml <span class="badge sky">postgres:16 · redis:7-alpine · backend</span></li>
+          <li>non-root user · HEALTHCHECK</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Deployment</h3>
+        <ul>
+          <li>render.yaml <span class="badge sky">Neon · Upstash</span></li>
+          <li>cyclic.json <span class="badge sky">Cyclic.sh</span></li>
+          <li>PM2 <span class="badge sky">ecosystem.config.js · cluster 2</span></li>
+          <li>systemd unit · backup.sh</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>CI/CD</h3>
+        <ul>
+          <li>GitHub Actions <span class="badge sky">ubuntu-22.04</span></li>
+          <li>npm audit in CI</li>
+          <li>Playwright e2e</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ LEGEND ══════════════════════ -->
+  <div class="legend">
+    <div class="legend-item"><span class="legend-line" style="border-top-color:#0891b2"></span>HTTP / REST (solid cyan)</div>
+    <div class="legend-item"><span class="legend-line dashed" style="border-top-color:#d97706"></span>Async / Queue (dashed amber)</div>
+    <div class="legend-item"><span class="legend-line dotted" style="border-top-color:#e11d48"></span>Sandbox / Executor (dotted rose)</div>
+    <div class="legend-item"><span class="legend-line dashed" style="border-top-color:#0284c7"></span>Outbound / External (dashed sky)</div>
+    <div class="legend-item"><span class="legend-line" style="border-top-color:#059669"></span>Data / DB (solid emerald)</div>
+  </div>
+
+  <div class="footnote">
+    CodeInsight V2 · verified 2026-09-07 · 12 routes / 12 controllers / 31 services / 15 lib / 30 tables · SYSTEM_MAP.md superseded
+  </div>
+
+  <!-- ══════════════════════ ARROW OVERLAY (SVG) ══════════════════════ -->
+  <svg class="arrow-overlay" viewBox="0 0 1587 1123" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr-cyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#0891b2"/>
+      </marker>
+      <marker id="arr-amber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#d97706"/>
+      </marker>
+      <marker id="arr-rose" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#e11d48"/>
+      </marker>
+      <marker id="arr-sky" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#0284c7"/>
+      </marker>
+      <marker id="arr-emerald" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#059669"/>
+      </marker>
+    </defs>
+
+    <!-- HTTP: Client → API Gateway -->
+    <line x1="790" y1="120" x2="790" y2="205" stroke="#0891b2" stroke-width="2" marker-end="url(#arr-cyan)"/>
+    <text x="800" y="165" fill="#0891b2">HTTP /api/*</text>
+
+    <!-- HTTP: Gateway → Routes/Controllers -->
+    <line x1="790" y1="330" x2="790" y2="415" stroke="#0891b2" stroke-width="2" marker-end="url(#arr-cyan)"/>
+    <text x="800" y="375" fill="#0891b2">dispatch</text>
+
+    <!-- HTTP: Controllers → Services -->
+    <line x1="790" y1="540" x2="790" y2="625" stroke="#0891b2" stroke-width="2" marker-end="url(#arr-cyan)"/>
+    <text x="800" y="585" fill="#0891b2">invoke</text>
+
+    <!-- Services → lib -->
+    <line x1="790" y1="750" x2="790" y2="835" stroke="#0891b2" stroke-width="2" marker-end="url(#arr-cyan)"/>
+    <text x="800" y="795" fill="#0891b2">use</text>
+
+    <!-- Async: Services → Queue -->
+    <line x1="1200" y1="700" x2="1200" y2="860" stroke="#d97706" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arr-amber)"/>
+    <text x="1210" y="790" fill="#d97706">defer() / enqueue</text>
+
+    <!-- Async: Queue → Redis -->
+    <line x1="1350" y1="900" x2="1350" y2="960" stroke="#d97706" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arr-amber)"/>
+    <text x="1360" y="935" fill="#d97706">BullMQ</text>
+
+    <!-- Data: Services → PostgreSQL -->
+    <line x1="400" y1="700" x2="400" y2="960" stroke="#059669" stroke-width="2" marker-end="url(#arr-emerald)"/>
+    <text x="410" y="840" fill="#059669">pg pool</text>
+
+    <!-- Sandbox: Executor → Docker -->
+    <line x1="150" y1="700" x2="150" y2="960" stroke="#e11d48" stroke-width="2" stroke-dasharray="2,3" marker-end="url(#arr-rose)"/>
+    <text x="160" y="840" fill="#e11d48">docker run</text>
+
+    <!-- Outbound: External → Google/Brevo -->
+    <line x1="60" y1="700" x2="60" y2="960" stroke="#0284c7" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arr-sky)"/>
+    <text x="70" y="840" fill="#0284c7">OAuth / email</text>
+  </svg>
+
+</div>
+</body>
+</html>

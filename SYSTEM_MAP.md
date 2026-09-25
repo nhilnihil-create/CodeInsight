@@ -1,38 +1,72 @@
 # System Map — CodeInsight
 
-> **Generated**: June 24, 2026 | **Updated**: August 2026
+> **Generated**: June 24, 2026 | **Updated**: September 7, 2026
 > **Phase 1 of 5**: Architecture & Context Mapping
+>
+> ⚠️ **SUPERSEDED (2026-09-07)**: This map is stale in several places. For the complete, verified architecture diagram see
+> **`docs/architecture/codeinsight-v2-architecture.html`** (and `.png`). Key corrections:
+> - **Email provider is Brevo** (`@getbrevo/brevo`), NOT Nodemailer. Resend/nodemailer are installed but **inactive**.
+> - **Database has 30 tables** (8 clusters), not 12.
+> - **Controllers = 12** (not 14); **Services = 31** (not 20+); **lib = 15** modules.
+> - Missing modules `impactTag`, `insightTemplates`, `wilsonScore` are present in `backend/lib/`.
+> - Light-theme print variant: `docs/architecture/codeinsight-v2-architecture-light.html` (+ `.png`).
 
 ---
 
 ## 1. High-Level Architecture
 
 ```
-┌─────────────────────┐       ┌────────────────────────────────────────────────────────────┐
-│    Frontend (SFP)    │       │                     Backend (Express.js)                     │
-│   /frontend/         │       │   /backend/                                                  │
-│   React 18 + Vite    │◄─────►│   Node 22 + Express ^4.21.0                                  │
-│   Tailwind v4 +      │       │                                                              │
-│   shadcn/ui (Radix)  │  HTTP │   ┌────────────┐  ┌──────────────┐  ┌───────────────────┐   │
-│   TanStack Query     │  RCG  │   │ Routes/     │  │ Controllers/ │  │ Services/         │   │
-│   React Router v6    │  API  │   │ auth,student│─►│ authCtrl,    │─►│ executor,cdsEngine│   │
-│                      │       │   │ admin,etc.  │  │ submission,  │  │ astVerifier,etc.  │   │
-└─────────────────────┘       │   └──────┬──────┘  │ admin,etc.   │  └────────┬──────────┘   │
-                              │          │  errorHandler, helmet, rateLimit     │              │
-                              │          ▼                                       ▼              │
-                              │  ┌─────────────────────────────────────────────────────────┐   │
-                              │  │                    lib/                                     │   │
-                              │  │  logger(pino)  background(defer)  cache  concurrency        │   │
-                              │  │  treeSitter  domainValidator  otpStore  submissionPipeline  │   │
-                              │  │  integrityFlags  validators  AppError  email                │   │
-                              │  └─────────────────────────────────────────────────────────┘   │
-                              │                                                              │
-                              │  ┌───────────┐   ┌───────────┐   ┌──────────────────────┐    │
-                              │  │ PostgreSQL │◄──│   Redis   │◄──│  BullMQ (Queue)      │    │
-                              │  │   (Neon)   │   │  (ioredis)│   │  submissionWorker.js │    │
-                              │  └───────────┘   └───────────┘   └──────────────────────┘    │
-                              └────────────────────────────────────────────────────────────┘
+┌─ Lane 1 ─ Client Tier ───────────────────────────────────────────────────────────────────────────┐
+│React 18 SPA (frontend/, Vite 5, Tailwind v4, shadcn/ui, Monaco,                                  │
+│TanStack Query, Router v6)                                                                        │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                        │ ──── HTTP /api/*                                        │
+│                                                ▼                                                 │
+┌─ Lane 2 ─ API Gateway / Middleware ──────────────────────────────────────────────────────────────┐
+│server.js · helmet · CORS · rateLimit · verifyToken                                               │
+│(JWT + token_blacklist) · joi · errorHandler · pino-http                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                         │ ──── dispatch                                          │
+│                                                ▼                                                 │
+┌─ Lane 3 ─ Routes → Controllers ──────────────────────────────────────────────────────────────────┐
+│12 routes → 12 controllers                                                                        │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                          │ ──── invoke                                           │
+│                                                ▼                                                 │
+┌─ Lane 4 ─ Services / Engines ────────────────────────────────────────────────────────────────────┐
+│31 services: executor, cdsEngine, astVerifier,                                                    │
+│academicIntegrityEngine, integrityFlagEngine, etc.                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                            │ ──── use                                            │
+│                                                ▼                                                 │
+┌─ Lane 5 ─ Cross-Cutting lib ─────────────────────────────────────────────────────────────────────┐
+│15 modules: impactTag, insightTemplates, wilsonScore,                                             │
+│logger, background, cache, concurrency, treeSitter,                                               │
+│domainValidator, otpStore, submissionPipeline, etc.                                               │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                     │ ──── defer() / enqueue                                     │
+│                                                ▼                                                 │
+┌─ Lane 6 ─ Async / Queue ─────────────────────────────────────────────────────────────────────────┐
+│submissionQueue + submissionWorker (2 files) · Redis 7                                            │
+│cds_job_queue FOR UPDATE SKIP LOCKED · sync fallback                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+│                                     │ ──── pg pool / BullMQ                                      │
+│                                                ▼                                                 │
+┌─ Lane 7 ─ Data ──────────────────────────────────────────────────────────────────────────────────┐
+│PostgreSQL Neon · 30 tables in 8 clusters · Redis 7                                               │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Lane 8 ─ External + DevOps ─────────────────────────────────────────────────────────────────────┐
+│Google OAuth (google-auth-library) · Brevo ACTIVE                                                 │
+│resend/nodemailer INACTIVE · Swagger                                                              │
+│Docker gcc:14-bookworm native g++ fallback · CI/CD                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+> **Legend**: solid cyan = HTTP/REST · dashed amber = async/queue · dotted rose = sandbox/executor ·
+> dashed sky = outbound/external · solid emerald = data/DB
+
+Full diagrams: `docs/architecture/codeinsight-v2-architecture.html` (dark) · `codeinsight-v2-architecture-light.html` (light) · PNGs.
 
 ### Key Data Flow — Submission Lifecycle
 
@@ -91,41 +125,73 @@ Student writes code → POST /api/student/exercises/:id/submit
 - **Docker**: node:22-alpine, gcc:14-bookworm (sandbox), PostgreSQL 16, Redis 7
 - **CI/CD**: GitHub Actions (ubuntu-22.04)
 - **Deployment**: Cyclic.sh / Docker Compose / PM2
-- **Email**: Nodemailer (Gmail SMTP)
+- **Email**: Brevo (@getbrevo/brevo) ACTIVE — resend/nodemailer installed but inactive
 
 ---
 
-## 3. Database Schema (12 Tables)
+## 3. Database Schema (30 Tables · 8 Clusters)
 
+### Auth/Security (4)
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
 | `users` | User accounts (student/instructor/admin) | role, email_verified, verification_token |
 | `token_blacklist` | JWT revocation | jti, expires_at |
+| `otp_codes` | Email OTP verification | email (PK), otp, expires_at, attempts |
+| `audit_log` | Behavioral event trail | event_type, metadata |
+
+### Sections/Enrollment (3)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
 | `sections` | Course sections | code, join_policy, max_size |
 | `enrollments` | Student-section enrollment | student_id, section_id |
 | `section_memberships` | Rich memberships (TA, co-instructor, drops) | role, status |
+
+### Concepts/Exercises (6)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
 | `concepts` | Programming concepts | ast_nodes, knowledge_area_code |
 | `exercises` | Programming exercises | test_cases, deadline, is_draft |
+| `exercise_concepts` | Exercise↔concept mapping | exercise_id, concept_id (composite PK) |
 | `exercise_concept_tags` | Weighted multi-tag | weight, is_primary |
 | `concept_dependencies` | Prerequisite graph | parent_concept_id, child_concept_id |
+| `exercise_bank` | Exercise template bank | concept, sequence_order |
+
+### Submissions (2)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
 | `submissions` | Student code submissions | test_results, cds, ner, nrs, nts |
+| `run_attempts` | Non-submission run attempts | compiler_log, error_count |
+
+### CDS/Scoring (3)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
 | `cds_scores` | CDS computation results | cds, classification, source |
 | `cds_snapshots` | Append-only CDS audit | ner, nrs, nts, class_min/p95 |
+| `cds_job_queue` | DB-backed job queue | status |
+
+### Integrity/Alerts (4)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
 | `alerts` | Integrity/CDS alerts | cds_score, classification |
 | `integrity_flags` | Integrity violation flags | flag_type, severity, status |
 | `analytics_alerts` | CDS_HIGH, RETRY_STORM, etc. | alert_type, severity |
-| `behavioral_events` | Tab switch, paste, idle events | event_type, payload |
 | `verification_logs` | AST verification failures | verification_type, reason |
-| `audit_log` | Behavioral event trail | event_type, metadata |
-| `section_audit_log` | Section-level audit | action, meta |
-| `evaluation_responses` | ISO/IEC 25010 survey | fs_1-us_5, pe_1-pe_3 |
+
+### Behavioral/Audit (5)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `behavioral_events` | Tab switch, paste, idle events | event_type, payload |
+| `code_snapshots` | Periodic code snapshot capture | session_id, token_count, active_elapsed_seconds, autocomplete |
 | `performance_logs` | Request timing metrics | time_to_interactive_ms |
-| `run_attempts` | Non-submission run attempts | compiler_log, error_count |
+| `section_audit_log` | Section-level audit | action, meta |
 | `auto_close_log` | Auto-close audit | triggered_by |
-| `cds_job_queue` | DB-backed job queue | status |
+
+### Metrics/Evaluation (3)
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
 | `student_concept_metrics` | CMI + velocity | cmi, velocity |
 | `section_concept_metrics` | CRS + difficulty | crs, crs_score |
-| `exercise_bank` | Exercise template bank | concept, sequence_order |
+| `evaluation_responses` | ISO/IEC 25010 survey | fs_1-us_5, pe_1-pe_3 |
 
 ---
 
@@ -158,7 +224,7 @@ Student writes code → POST /api/student/exercises/:id/submit
 - **Docker** — Optional sandbox (fallback to native compilation)
 
 ### Integrations
-- **Gmail SMTP** — Email verification + OTP delivery (via Nodemailer)
+- **Brevo (@getbrevo/brevo)** — Email verification + OTP delivery (ACTIVE); resend/nodemailer installed but INACTIVE
 - **tree-sitter** — C++ AST parsing (does NOT require network)
 - **cppcheck** — Static analysis (bundled in Docker image)
 
@@ -170,9 +236,9 @@ Student writes code → POST /api/student/exercises/:id/submit
 codeinsight/
 ├── backend/                    # Express.js API server
 │   ├── config/db.js           # PostgreSQL pool + withTransaction
-│   ├── controllers/           # 14 controllers (thin routing logic)
+│   ├── controllers/           # 12 controllers (thin routing logic)
 │   ├── routes/                # 12 route files
-│   ├── services/              # 20+ services (core business logic)
+│   ├── services/              # 31 services (32 files, 1 test)
 │   ├── lib/                   # Shared utilities (15 modules)
 │   ├── middleware/            # auth, errorHandler, validate
 │   ├── migrations/            # 6 migration files
@@ -182,8 +248,8 @@ codeinsight/
 │   └── server.js              # Entry point
 ├── frontend/                  # React SPA
 │   ├── src/
-│   │   ├── components/        # 40+ components (Radix UI primitives)
-│   │   ├── pages/             # 30+ page components (admin/instructor/student)
+│   │   ├── components/        # 87 components (Radix UI primitives)
+│   │   ├── pages/             # 57 page files (admin/instructor/student)
 │   │   ├── context/           # Auth, EditorPrefs, Sidebar contexts
 │   │   ├── hooks/             # 6 custom hooks
 │   │   ├── services/          # API client (axios)
@@ -252,7 +318,7 @@ All `console.warn` calls replaced with structured `logger` in PRR session.
 1.  cyclic.json / docker-compose / PM2 → node server.js
 2.  server.js:2 → dotenv config
 3.  server.js:108 → ensureTablesExist()
-     ├── Check 12 tables exist
+     ├── Check 30 tables exist (8 clusters)
      ├── applySchemaPatches() — idempotent ALTER TABLE
      ├── applyV2Migrations() — SQL files + JS migrations
      ├── system_settings, verification_rules setup

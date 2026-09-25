@@ -36,8 +36,8 @@ export default function TestOutputPanel({ testResults, testCases = [], bare = fa
           return {
             id: tc.id ?? i,
             name: tc.name || result?.name || `Test ${i + 1}`,
-            input: tc.input ?? result?.input ?? null,
-            expected: tc.expected ?? tc.expectedOutput ?? result?.expected ?? null,
+            input: tc.input ?? tc.stdin ?? result?.input ?? null,
+            expected: tc.expected ?? tc.expectedOutput ?? tc.expected_output ?? tc.output ?? result?.expected ?? null,
             actual: result?.actual ?? null,
             result,
           };
