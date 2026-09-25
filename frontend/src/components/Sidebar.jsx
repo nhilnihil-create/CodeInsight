@@ -51,7 +51,6 @@ const adminLinks = [
   { to: '/admin/sections',       label: 'Sections',    icon: ListChecks },
   { to: '/admin/concepts',       label: 'Concepts',    icon: Code },
   { to: '/admin/exercises',      label: 'Exercises',   icon: PlusSquare },
-  { to: '/admin/evaluation',     label: 'Evaluation',  icon: TrendingUp },
   { to: '/admin/flags',          label: 'Flags',       icon: ShieldAlert },
   { to: '/admin/audit',          label: 'Audit Log',   icon: ShieldAlert },
   { to: '/admin/settings',       label: 'Settings',    icon: Settings },
