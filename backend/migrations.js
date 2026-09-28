@@ -650,6 +650,15 @@ async function ensureTablesExist() {
       }
     }
 
+    // Auth rate-limit kill-switch setting (idempotent insert-if-missing,
+    // runs on every boot so existing DBs pick up the new key).
+    try {
+      const { up } = require('./migrations/20260925_auth_rate_limit_setting');
+      await up(db);
+    } catch (rlErr) {
+      console.warn('⚠ auth rate-limit setting migration failed:', rlErr.message);
+    }
+
     // verification_rules table (data-driven AST pattern matching)
     if (!(await tableExists('verification_rules'))) {
       try {

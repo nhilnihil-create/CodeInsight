@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import PageBreadcrumb from '@/components/ui/page-breadcrumb';
 import { toast } from 'sonner';
 
@@ -30,7 +31,9 @@ export default function AdminSettings() {
   const handleSave = async (key, rawValue) => {
     setBusy(key);
     try {
-      const value = isNaN(Number(rawValue)) ? rawValue : Number(rawValue);
+      const value = typeof rawValue === 'boolean'
+        ? rawValue
+        : isNaN(Number(rawValue)) ? rawValue : Number(rawValue);
       await api.put('/api/admin/settings', { key, value });
       toast.success(key + ' updated');
       await load();
@@ -64,9 +67,10 @@ export default function AdminSettings() {
 }
 
 function SettingRow({ setting, busy, onSave }) {
-  const [value, setValue] = useState(String(setting.value));
-  useEffect(() => { setValue(String(setting.value)); }, [setting.value]);
-  const isNumber = !isNaN(Number(setting.value));
+  const isBool = typeof setting.value === 'boolean';
+  const [value, setValue] = useState(isBool ? setting.value : String(setting.value));
+  useEffect(() => { setValue(isBool ? setting.value : String(setting.value)); }, [setting.value, isBool]);
+  const isNumber = !isBool && !isNaN(Number(setting.value));
   const group = setting.key.split('.')[0];
 
   return (
@@ -78,21 +82,32 @@ function SettingRow({ setting, busy, onSave }) {
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <Input
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          type={isNumber ? 'number' : 'text'}
-          className="h-8 w-24 text-xs font-mono text-right"
-          step={isNumber && setting.value < 1 ? '0.01' : undefined}
-        />
-        <Button
-          size="sm"
-          className="h-8 text-xs"
-          onClick={() => onSave(setting.key, value)}
-          disabled={busy === setting.key}
-        >
-          {busy === setting.key ? 'Saving...' : 'Save'}
-        </Button>
+        {isBool ? (
+          <Switch
+            checked={value === true}
+            disabled={busy === setting.key}
+            onCheckedChange={(v) => { setValue(v); onSave(setting.key, v); }}
+            aria-label={setting.key}
+          />
+        ) : (
+          <>
+            <Input
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              type={isNumber ? 'number' : 'text'}
+              className="h-8 w-24 text-xs font-mono text-right"
+              step={isNumber && setting.value < 1 ? '0.01' : undefined}
+            />
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => onSave(setting.key, value)}
+              disabled={busy === setting.key}
+            >
+              {busy === setting.key ? 'Saving...' : 'Save'}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

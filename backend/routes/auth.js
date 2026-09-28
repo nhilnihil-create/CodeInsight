@@ -3,9 +3,22 @@ const router  = express.Router();
 const ctrl    = require('../controllers/authController');
 const { validate } = require('../middleware/validate');
 const { rateLimit } = require('express-rate-limit');
+const { isAuthRateLimitDisabled } = require('../lib/rateLimitControl');
 const v = require('../lib/validators');
 
 const PLAYWRIGHT = process.env.PLAYWRIGHT === '1';
+
+// Demo/defense kill-switch (admin Settings → auth.rate_limit_disabled):
+// when ON, the limiter below is skipped entirely. Fails safe — any error
+// reading the setting falls through to the limiter.
+const skipWhenDisabled = (limiter) => async (req, res, next) => {
+  try {
+    if (await isAuthRateLimitDisabled()) return next();
+  } catch (_) {
+    /* fall through to limiter */
+  }
+  return limiter(req, res, next);
+};
 
 const loginLimiter = PLAYWRIGHT
   ? (req, res, next) => next()
@@ -81,7 +94,7 @@ const resetPasswordLimiter = PLAYWRIGHT
  *       201: { description: Registration successful, check email to verify }
  *       409: { description: Email already registered }
  */
-router.post('/register', registrationLimiter, validate.body(v.register), ctrl.register);
+router.post('/register', skipWhenDisabled(registrationLimiter), validate.body(v.register), ctrl.register);
 
 /**
  * @swagger
@@ -104,7 +117,7 @@ router.post('/register', registrationLimiter, validate.body(v.register), ctrl.re
  *       401: { description: Invalid credentials }
  *       403: { description: Email not verified }
  */
-router.post('/login',    loginLimiter, validate.body(v.login), ctrl.login);
+router.post('/login',    skipWhenDisabled(loginLimiter), validate.body(v.login), ctrl.login);
 
 /**
  * @swagger
@@ -133,7 +146,7 @@ router.post('/login',    loginLimiter, validate.body(v.login), ctrl.login);
  *       409: { description: Email already registered }
  *       500: { description: Google sign-in is not configured }
  */
-router.post('/google', googleAuthLimiter, validate.body(v.googleAuth), ctrl.googleAuth);
+router.post('/google', skipWhenDisabled(googleAuthLimiter), validate.body(v.googleAuth), ctrl.googleAuth);
 
 /**
  * @swagger
@@ -221,7 +234,7 @@ router.post('/request-otp', otpLimiter, validate.body(v.requestOtp), ctrl.reques
  *       400: { description: Invalid OTP }
  *       409: { description: Email already registered }
  */
-router.post('/verify-otp',  registrationLimiter, validate.body(v.verifyOtp), ctrl.verifyOtpAndRegister);
+router.post('/verify-otp',  skipWhenDisabled(registrationLimiter), validate.body(v.verifyOtp), ctrl.verifyOtpAndRegister);
 
 /**
  * @swagger
@@ -242,7 +255,7 @@ router.post('/verify-otp',  registrationLimiter, validate.body(v.verifyOtp), ctr
  *       200: { description: Password reset code sent (otp included when email delivery fails) }
  *       404: { description: No account found with this email }
  */
-router.post('/forgot-password', forgotPasswordLimiter, validate.body(v.forgotPassword), ctrl.forgotPassword);
+router.post('/forgot-password', skipWhenDisabled(forgotPasswordLimiter), validate.body(v.forgotPassword), ctrl.forgotPassword);
 
 /**
  * @swagger
@@ -266,7 +279,7 @@ router.post('/forgot-password', forgotPasswordLimiter, validate.body(v.forgotPas
  *       400: { description: Invalid, expired, or exhausted OTP }
  *       404: { description: No account found with this email }
  */
-router.post('/reset-password', resetPasswordLimiter, validate.body(v.resetPassword), ctrl.resetPassword);
+router.post('/reset-password', skipWhenDisabled(resetPasswordLimiter), validate.body(v.resetPassword), ctrl.resetPassword);
 
 router.get('/email-status', (req, res) => {
   const enabled = process.env.EMAIL_ENABLED === 'true';
