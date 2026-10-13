@@ -20,7 +20,7 @@
       // Prevents a flash of the wrong theme before React hydrates.
       (function () {
         try {
-          var mode = localStorage.getItem('codeinsight-theme') || 'system';
+          var mode = localStorage.getItem('codeinsight-theme') || 'dark';
           var dark = mode === 'dark' || (mode !== 'light' &&
             window.matchMedia('(prefers-color-scheme: dark)').matches);
           var resolved = dark ? 'dark' : 'light';

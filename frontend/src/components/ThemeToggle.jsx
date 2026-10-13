@@ -1,5 +1,5 @@
-import { Sun, Moon, Monitor } from 'lucide-react';
-import { useTheme, LIGHT_THEME, DARK_THEME, SYSTEM_THEME } from '@/lib/theme';
+import { Sun, Moon } from 'lucide-react';
+import { useTheme, LIGHT_THEME, DARK_THEME } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -12,7 +12,6 @@ import {
 const OPTIONS = [
   { mode: LIGHT_THEME, label: 'Light', icon: Sun },
   { mode: DARK_THEME, label: 'Dark', icon: Moon },
-  { mode: SYSTEM_THEME, label: 'System', icon: Monitor },
 ];
 
 function labelFor(mode) {
@@ -31,7 +30,7 @@ export default function ThemeToggle({ collapsed = false, className }) {
   if (collapsed) {
     const idx = OPTIONS.findIndex((o) => o.mode === mode);
     const next = OPTIONS[(idx + 1) % OPTIONS.length];
-    const Current = OPTIONS[idx]?.icon ?? Monitor;
+    const Current = OPTIONS[idx]?.icon ?? Moon;
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -63,7 +62,7 @@ export default function ThemeToggle({ collapsed = false, className }) {
       role="group"
       aria-label="Color theme"
       className={cn(
-        'grid grid-cols-3 gap-0.5 rounded-xl border border-border bg-muted/40 p-0.5',
+        'grid grid-cols-2 gap-0.5 rounded-xl border border-border bg-muted/40 p-0.5',
         className
       )}
     >

@@ -18,9 +18,13 @@ function systemIsDark() {
 function readStored() {
   try {
     const v = window.localStorage.getItem(STORAGE_KEY);
-    return THEMES.includes(v) ? v : SYSTEM_THEME;
+    // 'system' is no longer offered in the UI but still resolves if stored
+    // from an earlier version. New visitors default to dark (design source
+    // of truth).
+    if (v === SYSTEM_THEME) return SYSTEM_THEME;
+    return v === LIGHT_THEME || v === DARK_THEME ? v : DARK_THEME;
   } catch {
-    return SYSTEM_THEME;
+    return DARK_THEME;
   }
 }
 
