@@ -521,6 +521,11 @@ router.post('/exercises/:id/submit', verifyToken, requireRole('student'), async 
               tab_switch_count: sessionTabSwitches,
               paste_count: sessionPastes,
               total_time_seconds: totalTime,
+              // Same self-consistent triple as the run checkpoint (see
+              // runCheckpoint.js): the flag row upserts merge per-key, so a
+              // submit write without a message would leave a stale run
+              // message next to fresh session counts in the evidence drawer.
+              message: `${sessionTabSwitches} tab switches; ${sessionPastes} paste events`,
             }),
             [
               behavioralSignals.join('; '),

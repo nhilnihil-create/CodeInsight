@@ -98,7 +98,11 @@ async function evaluateRunCheckpoint({
         tab_switch_count: tabSwitchCount,
         paste_count: pasteCount,
         time_spent_seconds: timeSpentSeconds,
-        message: behavioralSignals.join('; '),
+        // Always report BOTH counts (not just the tripped signals): flag
+        // evidence upserts merge per-key across run/submit writes, so every
+        // write must carry a self-consistent (message, counts) triple or the
+        // drawer shows a stale message next to newer counts (and vice versa).
+        message: `${tabSwitchCount} tab switches; ${pasteCount} paste events`,
       },
       contextBehaviors: ['PASSIVE_BEHAVIOR_LOG'],
     });
