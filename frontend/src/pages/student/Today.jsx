@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTheme } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import CDSPillDelta from '@/components/CDSPillDelta';
@@ -30,6 +31,7 @@ const fadeUp = {
 
 export default function StudentToday() {
   const { activeSectionId } = useStudentContext();
+  const { theme } = useTheme();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,7 +64,7 @@ export default function StudentToday() {
           { label: "Today's Plan" },
         ]}
       >
-        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading today's plan…</div>
+        <div className="py-16 text-center text-muted-foreground/60 light:text-muted-foreground text-sm">Loading today's plan…</div>
       </StudentDashboardShell>
     );
   }
@@ -109,7 +111,7 @@ export default function StudentToday() {
               </p>
               <h2 className="text-lg font-semibold text-foreground leading-snug">{focus.title}</h2>
               {focus.estimatedMinutes && (
-                <p className="text-sm text-muted-foreground/60">
+                <p className="text-sm text-muted-foreground/60 light:text-muted-foreground">
                   Estimated {focus.estimatedMinutes}
                 </p>
               )}
@@ -128,7 +130,7 @@ export default function StudentToday() {
                   <GlassPanelTitle>Why</GlassPanelTitle>
                 </GlassPanelHeader>
                 <GlassPanelContent>
-                  <p className="text-sm text-muted-foreground/70 leading-relaxed">{why}</p>
+                  <p className="text-sm text-muted-foreground/70 light:text-muted-foreground leading-relaxed">{why}</p>
                 </GlassPanelContent>
               </GlassPanel>
             )}
@@ -137,7 +139,7 @@ export default function StudentToday() {
                 <GlassPanelTitle>Who</GlassPanelTitle>
               </GlassPanelHeader>
               <GlassPanelContent>
-                <p className="text-sm text-muted-foreground/70">
+                <p className="text-sm text-muted-foreground/70 light:text-muted-foreground">
                   You. Class avg on this concept:{' '}
                   <CDSPillDelta
                     value={classAvg}
@@ -194,7 +196,7 @@ export default function StudentToday() {
                     return (
                       <li key={c.concept}>
                         <motion.div
-                          whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                          whileHover={{ backgroundColor: theme === "light" ? "rgba(15,23,42,0.045)" : "rgba(255,255,255,0.025)" }}
                           transition={{ duration: 0.15 }}
                           className={cn(
                             "grid grid-cols-[1fr_auto_auto] items-center gap-4 px-6 py-4",
@@ -249,7 +251,7 @@ export default function StudentToday() {
           <motion.section variants={fadeUp}>
             <div className="rounded-2xl border border-dashed border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl px-5 py-4 space-y-2">
               {data.signals.map((s, i) => (
-                <p key={i} className="text-sm text-muted-foreground/60">
+                <p key={i} className="text-sm text-muted-foreground/60 light:text-muted-foreground">
                   <span className="text-muted-foreground/30 mr-1.5" aria-hidden="true">•</span>
                   {s}
                 </p>

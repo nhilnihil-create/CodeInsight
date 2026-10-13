@@ -28,7 +28,7 @@ export function registerMonacoThemes(monaco) {
     colors: {
       'editor.background': '#ffffff',
       'editor.foreground': '#24292e',
-      'editorLineNumber.foreground': '#959da5',
+      'editorLineNumber.foreground': '#6e7781',
       'editorCursor.foreground': '#044289',
       'editor.selectionBackground': '#c8c8fa',
     },

@@ -93,7 +93,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
                   whileHover={{ scale: 1.015 }}
                   whileTap={{ scale: 0.985 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl text-left transition-colors duration-200 hover:border-teal-400/30 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl text-left transition-colors duration-200 hover:border-teal-400/30 hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {/* Top accent */}
                   <div className="h-px w-full bg-gradient-to-r from-transparent via-teal-400/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -109,13 +109,13 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
                       <p className="text-sm font-semibold text-foreground truncate">{title}</p>
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5">
                         {section.course_code && (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 light:text-muted-foreground">
                             <Hash className="h-3 w-3" strokeWidth={1.5} />
                             {section.course_code}
                           </span>
                         )}
                         {term && (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 light:text-muted-foreground">
                             <Calendar className="h-3 w-3" strokeWidth={1.5} />
                             {term}
                           </span>
@@ -125,7 +125,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
 
                     {/* Enter affordance */}
                     <ChevronRight
-                      className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:text-teal-400 group-light:hover:text-teal-700 group-hover:translate-x-0.5"
+                      className="h-4 w-4 shrink-0 text-muted-foreground/40 light:text-muted-foreground transition-all duration-200 group-hover:text-teal-400 group-hover:light:text-teal-700 group-light:hover:text-teal-700 group-hover:translate-x-0.5"
                       strokeWidth={1.5}
                     />
                   </div>

@@ -7,6 +7,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDurationFromNow } from "@/lib/relative-time";
@@ -54,6 +55,7 @@ const fadeUp = {
 
 export default function StudentDashboard() {
   const { activeSectionId } = useStudentContext();
+  const { theme } = useTheme();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -167,7 +169,7 @@ export default function StudentDashboard() {
             <h1 className="text-2xl font-semibold tracking-tight truncate text-foreground">
               {formatToday()}
             </h1>
-            <p className="text-xs text-muted-foreground/60 sm:text-sm">
+            <p className="text-xs text-muted-foreground/60 light:text-muted-foreground sm:text-sm">
               {overdueCount > 0 && dueCount - overdueCount > 0
                 ? `${dueCount - overdueCount} exercise${(dueCount - overdueCount) > 1 ? 's' : ''} due this week · ${overdueCount} overdue`
                 : overdueCount > 0
@@ -241,7 +243,7 @@ export default function StudentDashboard() {
               <span className={cn("text-3xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
                 {m.value}
               </span>
-              <span className="text-[11px] text-muted-foreground/50">{m.sub}</span>
+              <span className="text-[11px] text-muted-foreground/50 light:text-muted-foreground">{m.sub}</span>
             </div>
           ))}
         </motion.div>
@@ -254,7 +256,7 @@ export default function StudentDashboard() {
           <GlassPanel interactive>
             <GlassPanelHeader>
               <GlassPanelTitle>Focus areas</GlassPanelTitle>
-              <Sparkles className="h-4 w-4 text-muted-foreground/50" strokeWidth={1.5} />
+              <Sparkles className="h-4 w-4 text-muted-foreground/50 light:text-muted-foreground" strokeWidth={1.5} />
             </GlassPanelHeader>
             <GlassPanelContent className="p-0">
               {weakest.length > 0 ? (
@@ -267,7 +269,7 @@ export default function StudentDashboard() {
                     return (
                       <li key={c.name}>
                         <motion.div
-                          whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                          whileHover={{ backgroundColor: theme === "light" ? "rgba(15,23,42,0.045)" : "rgba(255,255,255,0.025)" }}
                           transition={{ duration: 0.15 }}
                           className={cn(
                             "grid grid-cols-[1fr_3.5rem] items-center gap-3 px-5 py-3.5",
@@ -286,7 +288,7 @@ export default function StudentDashboard() {
                                 </span>
                               </span>
                             </div>
-                            <p className="text-[11px] text-muted-foreground/60 truncate">{c.hint}</p>
+                            <p className="text-[11px] text-muted-foreground/60 light:text-muted-foreground truncate">{c.hint}</p>
                             <MasteryBar percent={displayValue} tier={tier} delay={i * 0.08} />
                           </div>
                           <span className="text-sm font-mono tabular-nums text-foreground font-semibold">
@@ -320,7 +322,7 @@ export default function StudentDashboard() {
             <GlassPanelHeader>
               <div className="flex items-center gap-2">
                 <GlassPanelTitle>Recommended next</GlassPanelTitle>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 light:text-muted-foreground">
                   Up next
                 </span>
               </div>
@@ -333,7 +335,7 @@ export default function StudentDashboard() {
             </GlassPanelHeader>
             <GlassPanelContent className="p-0">
               {recs.length > 0 ? (
-                <ul className="divide-y divide-white/[0.04]">
+                <ul className="divide-y divide-white/[0.04] light:divide-slate-950/10">
                   {recs.map((r, idx) => (
                     <li key={r.id}>
                       <motion.div
@@ -345,7 +347,7 @@ export default function StudentDashboard() {
                           className="flex items-center gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                         >
                           <span
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] border border-white/[0.06] light:border-slate-950/[0.06] text-xs font-semibold text-muted-foreground font-mono tabular-nums"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] light:bg-slate-950/[0.05] border border-white/[0.06] light:border-slate-950/[0.06] text-xs font-semibold text-muted-foreground font-mono tabular-nums"
                             aria-hidden="true"
                           >
                             {idx + 1}
@@ -356,17 +358,17 @@ export default function StudentDashboard() {
                                 {r.title}
                               </p>
                               {r.concept && (
-                                <span className="shrink-0 inline-flex items-center rounded-full border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.04] light:bg-slate-950/[0.04] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                                <span className="shrink-0 inline-flex items-center rounded-full border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.04] light:bg-slate-950/[0.04] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 light:text-muted-foreground">
                                   {r.conceptName || r.concept}
                                 </span>
                               )}
                             </div>
-                            <p className="mt-0.5 text-xs text-muted-foreground/50 truncate">
+                            <p className="mt-0.5 text-xs text-muted-foreground/50 light:text-muted-foreground truncate">
                               {r.blurb} · ~{r.minutes} min
                             </p>
                           </div>
                           <ChevronRight
-                            className="h-4 w-4 text-muted-foreground/40 shrink-0"
+                            className="h-4 w-4 text-muted-foreground/40 light:text-muted-foreground shrink-0"
                             strokeWidth={1.5}
                             aria-hidden="true"
                           />

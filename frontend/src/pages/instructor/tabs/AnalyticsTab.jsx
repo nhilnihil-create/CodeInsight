@@ -191,11 +191,11 @@ export default function AnalyticsTab({ sectionId }) {
                     options={pickerOptions}
                     size="sm"
                   />
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 shrink-0">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 light:text-muted-foreground shrink-0">
                     {attemptedConcepts}/{totalConcepts} concepts
                   </span>
                 </div>
-                <p className="text-[10px] text-muted-foreground/50 mb-2 ml-0.5 font-mono tracking-wide">
+                <p className="text-[10px] text-muted-foreground/50 light:text-muted-foreground mb-2 ml-0.5 font-mono tracking-wide">
                   {currentGroup?.label}
                 </p>
                 <div className="h-72 w-full">

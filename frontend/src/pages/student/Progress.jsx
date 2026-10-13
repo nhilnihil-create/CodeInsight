@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import PeriodSelector from "@/components/ui/period-selector";
 import GlassDivider from "@/components/ui/glass-divider";
@@ -41,7 +42,7 @@ function trendIcon(delta) {
 }
 
 function trendTone(delta) {
-  if (delta === 0) return "text-muted-foreground/50";
+  if (delta === 0) return "text-muted-foreground/50 light:text-muted-foreground";
   return delta > 0 ? "text-emerald-400 light:text-emerald-700" : "text-rose-400 light:text-rose-700";
 }
 
@@ -58,6 +59,7 @@ const fadeUp = {
 
 export default function StudentProgress() {
   const { activeSectionId } = useStudentContext();
+  const { theme } = useTheme();
   const [period, setPeriod] = useState("30d");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -103,7 +105,7 @@ export default function StudentProgress() {
       subtitle="Mastery, completion, and submissions over the selected window."
       action={
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60 light:text-muted-foreground">
             <RefreshCw className={cn("h-3 w-3", refetching && "animate-spin")} />
             {loading ? "Loading…" : `${concepts.length} concepts · ${completedEx}/${totalEx} done`}
           </span>
@@ -112,7 +114,7 @@ export default function StudentProgress() {
       }
     >
       {loading ? (
-        <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading progress...</div>
+        <div className="py-16 text-center text-muted-foreground/60 light:text-muted-foreground text-sm">Loading progress...</div>
       ) : error ? (
         <div className="py-16 text-center text-rose-400 light:text-rose-700 text-sm">{error}</div>
       ) : (
@@ -136,7 +138,7 @@ export default function StudentProgress() {
                   <h2 className="text-lg font-semibold text-foreground leading-snug">
                     {trajectory?.message ?? `Your mastery is ${overallMastery}% across ${concepts.length} concept${concepts.length !== 1 ? "s" : ""}.`}
                   </h2>
-                  <p className="text-sm text-muted-foreground/60">
+                  <p className="text-sm text-muted-foreground/60 light:text-muted-foreground">
                     {trajectory?.detail ?? `Avg attempts: ${avgAttempts.toFixed(1)} per exercise`}
                   </p>
                 </div>
@@ -176,7 +178,7 @@ export default function StudentProgress() {
                 <span className={cn("text-4xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
                   {m.value}
                 </span>
-                <span className="text-[11px] text-muted-foreground/50">{m.sub}</span>
+                <span className="text-[11px] text-muted-foreground/50 light:text-muted-foreground">{m.sub}</span>
               </div>
             ))}
           </motion.div>
@@ -188,7 +190,7 @@ export default function StudentProgress() {
              ═══════════════════════════════════════════════════════════ */}
           <motion.section variants={fadeUp}>
             {concepts.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16 text-center text-muted-foreground/60 text-sm">
+              <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16 text-center text-muted-foreground/60 light:text-muted-foreground text-sm">
                 No concept data yet. Complete some exercises to see your mastery profile.
               </div>
             ) : (
@@ -196,7 +198,7 @@ export default function StudentProgress() {
                 <GlassPanelHeader>
                   <div className="flex items-center gap-2">
                     <GlassPanelTitle>Per-Concept Mastery</GlassPanelTitle>
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 light:text-muted-foreground">
                       {concepts.length} tracked concept{concepts.length !== 1 ? "s" : ""}
                     </span>
                   </div>
@@ -210,7 +212,7 @@ export default function StudentProgress() {
                       return (
                         <li key={c.concept_code}>
                           <motion.div
-                            whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                            whileHover={{ backgroundColor: theme === "light" ? "rgba(15,23,42,0.045)" : "rgba(255,255,255,0.025)" }}
                             transition={{ duration: 0.15 }}
                             className={cn(
                               "grid grid-cols-[1fr_auto_auto] items-center gap-4 px-6 py-4",

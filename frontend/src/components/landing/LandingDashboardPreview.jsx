@@ -49,13 +49,13 @@ const TREND_DATA = [
 ];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "rgba(19, 27, 46, 0.92)",
-  border: "1px solid rgba(255,255,255,0.08)",
+  backgroundColor: "hsl(var(--popover) / 0.95)",
+  border: "1px solid hsl(var(--popover-border))",
   borderRadius: "8px",
   fontSize: "12px",
-  color: "hsl(215 32% 86%)",
+  color: "hsl(var(--popover-foreground))",
   backdropFilter: "blur(12px)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+  boxShadow: "0 8px 32px hsl(0 0% 0% / 0.25)",
 };
 
 const METRICS = [
@@ -165,10 +165,10 @@ export default function LandingDashboardPreview() {
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={TREND_DATA} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
-                <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} tickLine={false} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--border))" }} />
                 <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
                 <Line type="monotone" dataKey="cds" name="CDS" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
@@ -185,7 +185,7 @@ export default function LandingDashboardPreview() {
             <h4 className="px-5 pb-2 pt-4 text-xs font-semibold tracking-tight text-foreground">
               Top struggling concepts
             </h4>
-            <ul className="divide-y divide-white/[0.04]">
+            <ul className="divide-y divide-white/[0.04] light:divide-slate-950/10">
               {CONCEPT_ROWS.map((c, i) => {
                 const meta = TIER_META[c.tier];
                 const cds = ((100 - c.mastery) / 100).toFixed(2);
@@ -222,12 +222,12 @@ export default function LandingDashboardPreview() {
                             }}
                           />
                         </div>
-                        <p className="font-mono text-[10px] tabular-nums text-muted-foreground/50">
+                        <p className="font-mono text-[10px] tabular-nums text-muted-foreground/50 light:text-muted-foreground">
                           Mastery: {c.mastery}%
                         </p>
                       </div>
                       <span className="flex shrink-0 flex-col items-end gap-0.5">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40 light:text-muted-foreground">
                           CDS
                         </span>
                         <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
@@ -245,7 +245,7 @@ export default function LandingDashboardPreview() {
             <h4 className="px-5 pb-2 pt-4 text-xs font-semibold tracking-tight text-foreground">
               Recent integrity flags
             </h4>
-            <ul className="divide-y divide-white/[0.04]">
+            <ul className="divide-y divide-white/[0.04] light:divide-slate-950/10">
               {FLAG_ROWS.map((f) => (
                 <motion.li key={f.student} variants={fadeUp}>
                   <motion.div
@@ -254,12 +254,12 @@ export default function LandingDashboardPreview() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{f.student}</p>
-                      <p className="truncate text-[11px] text-muted-foreground/60">
+                      <p className="truncate text-[11px] text-muted-foreground/60 light:text-muted-foreground">
                         {flagTypeLabel(f.type)}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2.5">
-                      <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50">
+                      <span className="font-mono text-[11px] tabular-nums text-muted-foreground/50 light:text-muted-foreground">
                         {f.time}
                       </span>
                       <RiskBadge level={f.severity} />

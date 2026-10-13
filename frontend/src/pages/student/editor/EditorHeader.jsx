@@ -49,7 +49,7 @@ export default function EditorHeader({
           onClick={onBack}
           aria-label="Back to exercises"
           title="Back to exercises"
-          className="h-8 w-8 shrink-0 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]"
+          className="h-8 w-8 shrink-0 hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04]"
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
         </Button>

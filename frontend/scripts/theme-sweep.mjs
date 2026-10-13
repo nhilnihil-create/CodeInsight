@@ -42,13 +42,23 @@ PAIRS.push(
   ['text-white/30', 'text-slate-500'],
   ['text-white/25', 'text-slate-500'],
   ['text-white', 'text-slate-900'],
+  // De-emphasized muted text: translucent muted fails 4.5:1 on white, so it
+  // goes solid in light mode (5.19:1). foreground/* alphas stay translucent
+  // (their 17:1 base keeps every step above threshold).
+  ['text-muted-foreground/80', 'text-muted-foreground'],
+  ['text-muted-foreground/70', 'text-muted-foreground'],
+  ['text-muted-foreground/60', 'text-muted-foreground'],
+  ['text-muted-foreground/50', 'text-muted-foreground'],
+  ['text-muted-foreground/40', 'text-muted-foreground'],
   ['bg-white/[0.02]', 'bg-slate-950/[0.02]'],
   ['bg-white/[0.03]', 'bg-slate-950/[0.03]'],
   ['bg-white/[0.04]', 'bg-slate-950/[0.04]'],
+  ['bg-white/[0.05]', 'bg-slate-950/[0.05]'],
   ['bg-white/[0.06]', 'bg-slate-950/[0.06]'],
   ['bg-white/[0.08]', 'bg-slate-950/[0.08]'],
   ['bg-white/[0.1]', 'bg-slate-950/[0.1]'],
   ['bg-white/[0.12]', 'bg-slate-950/[0.12]'],
+  ['divide-white/[0.04]', 'divide-slate-950/10'],
   ['bg-white/10', 'bg-slate-950/10'],
   ['bg-white/5', 'bg-slate-950/5'],
   ['border-white/[0.04]', 'border-slate-950/[0.04]'],
@@ -105,8 +115,10 @@ for (const file of walk(SRC)) {
   let n = 0;
   for (const [from, lightCore] of PAIRS) {
     const re = new RegExp(`((?:[A-Za-z-]+:)*)${esc(from)}(?![\\w/-])`, 'g');
-    text = text.replace(re, (m, prefix) => {
+    text = text.replace(re, (m, prefix, offset, str) => {
       if (prefix.includes('dark:') || prefix.includes('light:')) return m;
+      // Idempotent: skip if this exact counterpart was already appended.
+      if (str.slice(offset + m.length).startsWith(` ${prefix}light:`)) return m;
       n++;
       pairCounts[from] = (pairCounts[from] || 0) + 1;
       return `${m} ${prefix}light:${lightCore}`;

@@ -278,21 +278,21 @@ export default function StudentExercises() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">My Exercises</h1>
             <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 light:text-muted-foreground" />
               <input
                 type="search"
                 aria-label="Search exercises"
                 placeholder="Search exercises…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] pl-9 pr-8 text-sm placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-9 w-full rounded-lg border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] pl-9 pr-8 text-sm placeholder:text-muted-foreground/40 placeholder:light:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               {query && (
                 <button
                   type="button"
                   aria-label="Clear search"
                   onClick={() => setQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground cursor-pointer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 light:text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -304,7 +304,7 @@ export default function StudentExercises() {
           <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl p-4 mb-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { key: 'todo', label: 'To-do', icon: <ListChecks className="h-4 w-4 text-muted-foreground/60" /> },
+                { key: 'todo', label: 'To-do', icon: <ListChecks className="h-4 w-4 text-muted-foreground/60 light:text-muted-foreground" /> },
                 { key: 'late', label: 'Late', icon: <Clock className="h-4 w-4 text-amber-400 light:text-amber-700" /> },
                 { key: 'missing', label: 'Missing', icon: <AlertCircle className="h-4 w-4 text-rose-400 light:text-rose-700" /> },
                 { key: 'done', label: 'Done', icon: <CheckCircle2 className="h-4 w-4 text-emerald-400 light:text-emerald-700" /> },
@@ -312,7 +312,7 @@ export default function StudentExercises() {
                 <div key={stat.key} className="flex items-center gap-2.5">
                   {stat.icon}
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 light:text-muted-foreground">
                       {stat.label}
                     </span>
                     <span className="text-lg font-semibold font-mono tabular-nums text-foreground">
@@ -343,14 +343,14 @@ export default function StudentExercises() {
                     "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active
                       ? "bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04]"
                   )}
                 >
                   {tab.label}
                   <span
                     className={cn(
                       "text-[10px] font-mono tabular-nums rounded-full px-1.5",
-                      active ? "text-slate-950/70" : "text-muted-foreground/60 bg-white/[0.04] light:bg-slate-950/[0.04]"
+                      active ? "text-slate-950/70" : "text-muted-foreground/60 light:text-muted-foreground bg-white/[0.04] light:bg-slate-950/[0.04]"
                     )}
                   >
                     {tabCounts[tab.key] || 0}
@@ -388,7 +388,7 @@ export default function StudentExercises() {
                 const workStatus = workStatusOf(ex);
                 const chip = STATUS_CHIP[workStatus];
                 const chipBase =
-                  "inline-flex items-center gap-1 rounded-full border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.04] light:bg-slate-950/[0.04] px-2 py-0.5 text-[10px] font-mono text-muted-foreground/70";
+                  "inline-flex items-center gap-1 rounded-full border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.04] light:bg-slate-950/[0.04] px-2 py-0.5 text-[10px] font-mono text-muted-foreground/70 light:text-muted-foreground";
                 const testsCount = countTestCases(ex.test_cases);
                 const showChips =
                   Boolean(ex.concept_name) ||
@@ -404,7 +404,7 @@ export default function StudentExercises() {
                         "relative rounded-2xl overflow-hidden",
                         "bg-white/[0.02] light:bg-slate-950/[0.02] border border-white/[0.06] light:border-slate-950/[0.06]",
                         "backdrop-blur-xl noise-overlay",
-                        "transition-colors duration-200 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]",
+                        "transition-colors duration-200 hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04]",
                         "flex flex-col h-full"
                       )}
                     >
@@ -415,7 +415,7 @@ export default function StudentExercises() {
                         {/* Deadline + Status */}
                         <div className="flex items-center justify-between mb-3">
                           {workStatus !== 'done' ? (
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground/50 font-mono tabular-nums">
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground/50 light:text-muted-foreground font-mono tabular-nums">
                               <CalendarClock className="h-3 w-3" aria-hidden="true" />
                               {formatDeadlineFromNow(ex.deadline)}
                             </span>
@@ -433,7 +433,7 @@ export default function StudentExercises() {
                         </h3>
 
                         {/* Description */}
-                        <p className="text-sm text-muted-foreground/60 mb-4 line-clamp-2 leading-relaxed">
+                        <p className="text-sm text-muted-foreground/60 light:text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
                           {ex.description}
                         </p>
 

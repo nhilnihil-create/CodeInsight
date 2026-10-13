@@ -66,7 +66,7 @@ export default function OutputPanel({
               onClick={onClear}
               aria-label="Clear terminal"
               title="Clear terminal"
-              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] transition-colors"
+              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04] transition-colors"
             >
               <Trash2 className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
               Clear

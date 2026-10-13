@@ -39,7 +39,7 @@ export default function InsightHeader({
             {insight}
           </h2>
           {description ? (
-            <p className="text-sm text-muted-foreground/60">{description}</p>
+            <p className="text-sm text-muted-foreground/60 light:text-muted-foreground">{description}</p>
           ) : null}
         </div>
         {(action || secondary) ? (

@@ -157,8 +157,8 @@ function StepIndicator({ currentStep, canAdvance, onStepClick }) {
                 : done
                   ? "bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer"
                   : reachable
-                    ? "bg-muted/60 text-muted-foreground/70 hover:bg-muted/80 cursor-pointer"
-                    : "bg-muted/30 text-muted-foreground/40"
+                    ? "bg-muted/60 text-muted-foreground/70 light:text-muted-foreground hover:bg-muted/80 cursor-pointer"
+                    : "bg-muted/30 text-muted-foreground/40 light:text-muted-foreground"
             }`}
           >
             {done ? <Check className="w-3 h-3" /> : <span className="w-4 h-4 flex items-center justify-center rounded-full border text-[10px]">{i + 1}</span>}
@@ -191,7 +191,7 @@ function TestCaseEditor({ tests, onChange }) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-xs font-semibold">Test {i + 1}</span>
-                <span className="text-[10px] font-mono text-muted-foreground/50 truncate">
+                <span className="text-[10px] font-mono text-muted-foreground/50 light:text-muted-foreground truncate">
                   {t.description || "No description"}
                 </span>
               </div>

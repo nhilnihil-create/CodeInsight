@@ -72,7 +72,7 @@ export default function DecisionList({
             }}
             className={cn(
               "flex flex-wrap items-center gap-x-3 gap-y-1 px-4 min-h-16 py-2.5 transition-all duration-200 ease-out cursor-pointer",
-              "hover:bg-slate-900/80 hover:scale-[1.01]",
+              "hover:bg-slate-900/80 light:hover:bg-slate-300/60 hover:scale-[1.01]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               highlighted && "bg-primary/5 border-l-2 border-primary",
             )}

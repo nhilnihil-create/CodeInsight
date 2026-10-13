@@ -32,7 +32,7 @@ export default function ConceptRadarPanel({ scores = [], loading = false }) {
       <GlassPanelHeader>
         <div className="flex items-center gap-2">
           <GlassPanelTitle>Concept Radar</GlassPanelTitle>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 light:text-muted-foreground">
             {loading ? 'Loading...' : `${attemptedConcepts}/${totalConcepts} concepts`}
           </span>
         </div>
@@ -45,7 +45,7 @@ export default function ConceptRadarPanel({ scores = [], loading = false }) {
             options={pickerOptions}
             size="sm"
           />
-          <p className="text-[10px] text-muted-foreground/50 mt-2 ml-0.5 font-mono tracking-wide">
+          <p className="text-[10px] text-muted-foreground/50 light:text-muted-foreground mt-2 ml-0.5 font-mono tracking-wide">
             {currentGroup?.label}
           </p>
         </div>

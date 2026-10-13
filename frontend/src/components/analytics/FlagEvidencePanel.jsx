@@ -83,7 +83,7 @@ function formatEvidenceKey(key) {
 
 function EvidenceValue({ value }) {
   if (value === null || value === undefined) {
-    return <span className="text-muted-foreground/50 italic">null</span>;
+    return <span className="text-muted-foreground/50 light:text-muted-foreground italic">null</span>;
   }
   if (typeof value === "boolean") {
     return <span className="text-sky-400 light:text-sky-700">{value ? "true" : "false"}</span>;
@@ -103,7 +103,7 @@ function EvidenceValue({ value }) {
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return <span className="text-muted-foreground/50 italic">empty</span>;
+      return <span className="text-muted-foreground/50 light:text-muted-foreground italic">empty</span>;
     }
     return (
       <div className="flex flex-wrap gap-1.5">
@@ -123,7 +123,7 @@ function EvidenceValue({ value }) {
       <div className="rounded-md border border-border/40 bg-muted/30 p-2.5 font-mono text-[11px] text-foreground/80 space-y-1">
         {Object.entries(value).map(([k, v]) => (
           <div key={k} className="flex gap-2">
-            <span className="text-muted-foreground/70 shrink-0">
+            <span className="text-muted-foreground/70 light:text-muted-foreground shrink-0">
               {formatEvidenceKey(k)}:
             </span>
             <span className="text-foreground/80 break-all">
@@ -154,7 +154,7 @@ function ConfidenceBar({ confidence }) {
       <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[10px] text-muted-foreground/60 font-medium w-12 text-right">{label}</span>
+      <span className="text-[10px] text-muted-foreground/60 light:text-muted-foreground font-medium w-12 text-right">{label}</span>
     </div>
   );
 }
@@ -216,7 +216,7 @@ function FlagCard({ flag, isExpanded, onToggle }) {
           </p>
         </div>
 
-        <div className="shrink-0 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+        <div className="shrink-0 text-muted-foreground/50 light:text-muted-foreground group-hover:text-muted-foreground transition-colors">
           {isExpanded ? (
             <ChevronDown className="h-3.5 w-3.5" />
           ) : (
@@ -233,7 +233,7 @@ function FlagCard({ flag, isExpanded, onToggle }) {
 
           {confidence !== null && (
             <div className="p-2 rounded bg-muted/30 border border-border/40">
-              <span className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">Confidence</span>
+              <span className="text-[10px] text-muted-foreground/60 light:text-muted-foreground font-semibold uppercase tracking-wider">Confidence</span>
               <ConfidenceBar confidence={confidence} />
             </div>
           )}
@@ -253,7 +253,7 @@ function FlagCard({ flag, isExpanded, onToggle }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1.5">
               {evidenceEntries.map(([key, value]) => (
                 <div key={key} className="flex items-baseline gap-1.5 min-w-0">
-                  <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                  <span className="text-[10px] text-muted-foreground/50 light:text-muted-foreground shrink-0">
                     {formatEvidenceKey(key)}
                   </span>
                   <EvidenceValue value={value} />
@@ -285,7 +285,7 @@ export default function FlagEvidencePanel({ flags }) {
 
   if (!flags || flags.length === 0) {
     return (
-      <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground/60">
+      <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground/60 light:text-muted-foreground">
         <Shield className="h-3.5 w-3.5" strokeWidth={1.5} />
         No integrity flags for this submission.
       </div>

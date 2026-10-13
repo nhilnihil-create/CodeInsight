@@ -129,7 +129,7 @@ export default function StudentSections() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               My Sections
             </h1>
-            <p className="text-xs text-muted-foreground/60 sm:text-sm">
+            <p className="text-xs text-muted-foreground/60 light:text-muted-foreground sm:text-sm">
               {visibleSections.length === 0
                 ? 'No sections yet — join one below'
                 : `${visibleSections.length} enrolled section${visibleSections.length !== 1 ? 's' : ''}`}
@@ -175,13 +175,13 @@ export default function StudentSections() {
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           {section.course_code && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 light:text-muted-foreground">
                               <Hash className="h-3 w-3" strokeWidth={1.5} />
                               {section.course_code}
                             </span>
                           )}
                           {section.term && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 light:text-muted-foreground">
                               <Calendar className="h-3 w-3" strokeWidth={1.5} />
                               {section.term}
                             </span>
@@ -208,7 +208,7 @@ export default function StudentSections() {
                           size="icon"
                           disabled={leavingId === section.id}
                           onClick={() => handleLeave(section)}
-                          className="h-8 w-8 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          className="h-8 w-8 text-muted-foreground/50 light:text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title={`Leave ${section.name}`}
                         >
                           {leavingId === section.id ? (
@@ -244,11 +244,11 @@ export default function StudentSections() {
             <GlassPanelHeader>
               <div className="flex items-center gap-2">
                 <GlassPanelTitle>Join a Section</GlassPanelTitle>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50 light:text-muted-foreground">
                   New
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50 light:text-muted-foreground">
                 <Plus className="h-3 w-3" strokeWidth={1.5} />
                 Enter code
               </div>
@@ -260,7 +260,7 @@ export default function StudentSections() {
                   <p className="text-xs text-destructive">{error}</p>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground/50 mb-3">
+              <p className="text-xs text-muted-foreground/50 light:text-muted-foreground mb-3">
                 Enter the 6-character code provided by your instructor.
               </p>
               <div className="flex gap-2">

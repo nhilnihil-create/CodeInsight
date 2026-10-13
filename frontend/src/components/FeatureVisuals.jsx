@@ -73,7 +73,7 @@ export function CDSVisual() {
     <div className="space-y-3">
       <div className="rounded-lg border border-border/60 bg-background/60 p-3">
         <div className="text-[10px] text-primary font-semibold mb-1">Concept Difficulty Score</div>
-        <div className="font-mono text-[8px] text-muted-foreground/60 mb-3">CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS)</div>
+        <div className="font-mono text-[8px] text-muted-foreground/60 light:text-muted-foreground mb-3">CDS = (0.40 × NER) + (0.35 × NRS) + (0.25 × NTS)</div>
         <div className="space-y-2.5">
           {components.map(({ label, sublabel, value, weight, color }, i) => (
             <div
@@ -83,9 +83,9 @@ export function CDSVisual() {
               <div className="flex items-center justify-between mb-0.5">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-[10px] font-semibold text-foreground">{label}</span>
-                  <span className="text-[8px] text-muted-foreground/60">{sublabel}</span>
+                  <span className="text-[8px] text-muted-foreground/60 light:text-muted-foreground">{sublabel}</span>
                 </div>
-                <span className="text-[8px] text-muted-foreground/60 font-mono">×{weight / 100}</span>
+                <span className="text-[8px] text-muted-foreground/60 light:text-muted-foreground font-mono">×{weight / 100}</span>
               </div>
               <BarSegment percent={Math.round(value * 100)} color={color} label="" />
             </div>
@@ -104,11 +104,11 @@ export function CDSVisual() {
         <div className="rounded-lg border border-border/40 bg-background/40 p-3 text-center space-y-1">
           <div className="text-[9px] text-muted-foreground">Class p95</div>
           <div className="text-lg font-bold font-mono text-foreground">0.54</div>
-          <div className="text-[8px] text-muted-foreground/60">normalized to class</div>
+          <div className="text-[8px] text-muted-foreground/60 light:text-muted-foreground">normalized to class</div>
         </div>
       </div>
 
-      <div className="rounded-lg border border-border/40 bg-background/40 px-3 py-2 text-[9px] text-muted-foreground/70 text-center">
+      <div className="rounded-lg border border-border/40 bg-background/40 px-3 py-2 text-[9px] text-muted-foreground/70 light:text-muted-foreground text-center">
         Class-wide p95-capped normalization — scores are relative, not absolute
       </div>
     </div>
@@ -150,7 +150,7 @@ export function HeatmapVisual() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search student..."
-          className="w-full bg-transparent outline-none text-muted-foreground placeholder:text-muted-foreground/40"
+          className="w-full bg-transparent outline-none text-muted-foreground placeholder:text-muted-foreground/40 placeholder:light:text-muted-foreground"
         />
       </div>
 
@@ -158,9 +158,9 @@ export function HeatmapVisual() {
         <table className="border-collapse text-[9px] font-mono">
           <thead>
             <tr>
-              <th className="text-[8px] text-muted-foreground/50 font-normal pr-1.5 text-left sticky left-0 bg-background"></th>
+              <th className="text-[8px] text-muted-foreground/50 light:text-muted-foreground font-normal pr-1.5 text-left sticky left-0 bg-background"></th>
               {conceptOrder.map(c => (
-                <th key={c} className="text-[8px] text-muted-foreground/50 font-normal pb-1 px-0.5 text-center">
+                <th key={c} className="text-[8px] text-muted-foreground/50 light:text-muted-foreground font-normal pb-1 px-0.5 text-center">
                   <div className="rotate-45 origin-bottom-left translate-x-1/2 whitespace-nowrap">{c}</div>
                 </th>
               ))}
@@ -169,7 +169,7 @@ export function HeatmapVisual() {
           <tbody>
             {filtered.map((s) => (
               <tr key={s.name} className="group">
-                <td className="text-[8px] text-muted-foreground/60 pr-1.5 text-left sticky left-0 bg-background">{s.name}</td>
+                <td className="text-[8px] text-muted-foreground/60 light:text-muted-foreground pr-1.5 text-left sticky left-0 bg-background">{s.name}</td>
                 {conceptOrder.map(c => {
                   const cds = s.scores[c];
                   const t = getTier(cds);
@@ -283,9 +283,9 @@ export function IntegrityVisual() {
           </div>
           <div className="font-medium text-foreground text-left mb-0.5">{title}</div>
           <div className="text-[10px] text-muted-foreground text-left">{detail}</div>
-          <div className="mt-1.5 pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground/70 space-y-0.5">
+          <div className="mt-1.5 pt-1.5 border-t border-border/40 text-[9px] text-muted-foreground/70 light:text-muted-foreground space-y-0.5">
             <div className="font-mono">{evidence}</div>
-            <div className="text-muted-foreground/50 italic">{whatNext}</div>
+            <div className="text-muted-foreground/50 light:text-muted-foreground italic">{whatNext}</div>
           </div>
         </div>
       ))}
@@ -403,7 +403,7 @@ export function MicroConceptVisual() {
                       {issue.students} students
                     </span>
                   </div>
-                  <div className="text-[9px] text-muted-foreground/70 italic">{issue.suggestion}</div>
+                  <div className="text-[9px] text-muted-foreground/70 light:text-muted-foreground italic">{issue.suggestion}</div>
                 </div>
               ))}
             </div>

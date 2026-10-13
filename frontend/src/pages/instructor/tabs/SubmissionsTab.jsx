@@ -644,7 +644,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                                 <div className="flex items-center gap-1.5 text-xs font-mono tabular-nums text-muted-foreground sm:hidden">
                                   <Clock className="h-3 w-3" strokeWidth={1.5} />
                                   {formatDuration(a.time_spent_seconds)}
-                                  <span className="text-muted-foreground/40">·</span>
+                                  <span className="text-muted-foreground/40 light:text-muted-foreground">·</span>
                                   {timeAgo(a.submitted_at)}
                                 </div>
 

@@ -88,7 +88,7 @@ function SubmissionsList({ submissions }) {
 
   return (
     <ScrollArea className="h-full">
-      <ul className="divide-y divide-white/[0.04]" role="list">
+      <ul className="divide-y divide-white/[0.04] light:divide-slate-950/10" role="list">
         {submissions.map((s) => {
           const meta = STATUS_META[s.status] ?? STATUS_META.pending;
           const Icon = meta.Icon;
@@ -96,7 +96,7 @@ function SubmissionsList({ submissions }) {
             <li
               key={s.id}
               className={cn(
-                "px-3 py-3 hover:bg-white/[0.02] light:hover:bg-slate-950/[0.02] cursor-pointer transition-colors",
+                "px-3 py-3 hover:bg-white/[0.02] hover:light:bg-slate-950/[0.02] light:hover:bg-slate-950/[0.02] cursor-pointer transition-colors",
                 "border-l-2",
                 s.status === "accepted"
                   ? "border-l-emerald-400/60"

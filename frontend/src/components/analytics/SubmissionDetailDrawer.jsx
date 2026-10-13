@@ -183,12 +183,12 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
               </div>
               <div className="text-xs text-muted-foreground truncate">
                 {submission?.student_email}
-                <span className="mx-1.5 text-muted-foreground/40 hidden sm:inline">·</span>
+                <span className="mx-1.5 text-muted-foreground/40 light:text-muted-foreground hidden sm:inline">·</span>
                 <span className="hidden sm:inline">{submission?.exercise_title}</span>
                 {submission?.time_spent_seconds !== null &&
                   submission?.time_spent_seconds !== undefined && (
                   <>
-                    <span className="mx-1.5 text-muted-foreground/40">·</span>
+                    <span className="mx-1.5 text-muted-foreground/40 light:text-muted-foreground">·</span>
                     <span className="inline-flex items-center gap-1" title="Time spent on this attempt">
                       <Clock className="h-3 w-3" strokeWidth={1.5} />
                       {formatDuration(submission.time_spent_seconds)}

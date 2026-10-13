@@ -146,7 +146,7 @@ export default function JoinSectionGate({ onJoined, onBack }) {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground/50">
+              <p className="text-xs text-muted-foreground/50 light:text-muted-foreground">
                 Ask your instructor for the 6-character code (e.g. K7P-3QX).
               </p>
             </div>

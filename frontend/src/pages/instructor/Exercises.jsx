@@ -203,7 +203,7 @@ export default function InstructorExercises() {
                   className={cn(
                     'rounded-xl border bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl transition-colors duration-200 overflow-hidden',
                     'border-white/[0.06] light:border-slate-950/[0.06]',
-                    isExpanded ? 'border-teal-400/30' : 'hover:border-white/[0.12] light:hover:border-slate-950/[0.12]'
+                    isExpanded ? 'border-teal-400/30' : 'hover:border-white/[0.12] hover:light:border-slate-950/[0.12] light:hover:border-slate-950/[0.12]'
                   )}
                 >
                   {/* Top accent */}
@@ -226,7 +226,7 @@ export default function InstructorExercises() {
                     <div className="flex items-start gap-2.5">
                       <ChevronRight
                         className={cn(
-                          'h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0 transition-transform duration-200',
+                          'h-4 w-4 text-muted-foreground/50 light:text-muted-foreground mt-0.5 shrink-0 transition-transform duration-200',
                           isExpanded && 'rotate-90 text-teal-400 light:text-teal-700'
                         )}
                         strokeWidth={1.5}
@@ -256,15 +256,15 @@ export default function InstructorExercises() {
                               </span>
                             ))
                           ) : (
-                            <span className="text-xs text-muted-foreground/60">No concept tagged</span>
+                            <span className="text-xs text-muted-foreground/60 light:text-muted-foreground">No concept tagged</span>
                           )}
 
-                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 light:text-muted-foreground">
                             <Calendar className="h-3 w-3" strokeWidth={1.5} />
                             Due {due}
                           </span>
 
-                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60 light:text-muted-foreground">
                             <Users className="h-3 w-3" strokeWidth={1.5} />
                             {submitted}/{total} submitted
                           </span>

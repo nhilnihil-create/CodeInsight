@@ -611,7 +611,7 @@ function MasteryTab({ data, activeKA, onKAChange }) {
             <div
               role="radiogroup"
               aria-label="Knowledge Area Group"
-              className="relative inline-flex flex-wrap items-center justify-center gap-1 rounded-xl bg-white/[0.04] light:bg-slate-950/[0.04] dark:bg-white/[0.04] border border-white/[0.08] light:border-slate-950/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+              className="relative inline-flex flex-wrap items-center justify-center gap-1 rounded-xl bg-white/[0.04] light:bg-slate-950/[0.04] border border-white/[0.08] light:border-slate-950/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
             >
               {KA_GROUPS.map((group) => {
                 const isActive = group.code === activeKA;
@@ -629,7 +629,7 @@ function MasteryTab({ data, activeKA, onKAChange }) {
                       "relative z-10 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-[10px] sm:text-[11px] font-semibold tracking-wide transition-all duration-200 select-none whitespace-nowrap inline-flex items-center gap-1.5 sm:gap-2",
                       isActive
                         ? "text-foreground"
-                        : "text-muted-foreground/60 hover:text-foreground/70"
+                        : "text-muted-foreground/60 light:text-muted-foreground hover:text-foreground/70"
                     )}
                   >
                     {isActive && (
@@ -644,7 +644,7 @@ function MasteryTab({ data, activeKA, onKAChange }) {
                       "relative z-10 inline-flex items-center justify-center min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 rounded-full text-[8px] sm:text-[9px] font-bold tabular-nums",
                       isActive
                         ? "bg-white/[0.12] light:bg-slate-950/[0.12] text-foreground/80"
-                        : "bg-white/[0.04] light:bg-slate-950/[0.04] text-muted-foreground/40"
+                        : "bg-white/[0.04] light:bg-slate-950/[0.04] text-muted-foreground/40 light:text-muted-foreground"
                     )}>
                       {count}
                     </span>
@@ -758,7 +758,7 @@ function MasteryTab({ data, activeKA, onKAChange }) {
               }
               if (col.key === "sparkline") {
                 const hasData = row.series.some(v => v != null);
-                if (!hasData) return <span className="text-[10px] text-muted-foreground/40">no data</span>;
+                if (!hasData) return <span className="text-[10px] text-muted-foreground/40 light:text-muted-foreground">no data</span>;
                 const idx = groupConcepts.findIndex(c => c.id === row.id);
                 return <Sparkline data={row.series} width={64} height={20} color={getConceptColor(row.id, idx)} />;
               }

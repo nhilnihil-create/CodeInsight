@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { NEW_TIER_META } from '@/components/ui/mastery-bar';
 import StudentDashboardShell from '@/components/student-dashboard-shell';
@@ -33,6 +34,7 @@ const TIER_LEGEND = [
 
 export default function StudentProfile() {
   const { activeSectionId, loading } = useStudentContext();
+  const { theme } = useTheme();
   const [scores, setScores] = useState([]);
   const [scoresLoading, setScoresLoading] = useState(true);
 
@@ -84,7 +86,7 @@ export default function StudentProfile() {
                   return (
                     <motion.div
                       key={item.tier}
-                      whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
+                      whileHover={{ backgroundColor: theme === "light" ? "rgba(15,23,42,0.045)" : "rgba(255,255,255,0.025)" }}
                       transition={{ duration: 0.15 }}
                       className="flex items-start gap-3 p-3 rounded-lg border border-white/[0.04] light:border-slate-950/[0.04] bg-white/[0.02] light:bg-slate-950/[0.02]"
                     >
@@ -96,7 +98,7 @@ export default function StudentProfile() {
                             {item.range}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground/60 mt-1">{item.desc}</p>
+                        <p className="text-xs text-muted-foreground/60 light:text-muted-foreground mt-1">{item.desc}</p>
                       </div>
                     </motion.div>
                   );

@@ -137,7 +137,7 @@ export default function Sidebar() {
           onClick={toggleSidebar}
           aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
           title={isOpen ? 'Close sidebar' : 'Open sidebar'}
-          className="h-8 w-8 shrink-0 border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.06] light:hover:bg-slate-950/[0.06]"
+          className="h-8 w-8 shrink-0 border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.06] hover:light:bg-slate-950/[0.06] light:hover:bg-slate-950/[0.06]"
         >
           {isOpen ? (
             <PanelLeftClose className="h-4 w-4" />
@@ -169,7 +169,7 @@ export default function Sidebar() {
                     <NavLink
                       to={link.to}
                       end={link.end}
-                      className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.03] light:hover:bg-slate-950/[0.03] hover:text-white light:hover:text-slate-900"
+                      className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.03] hover:light:bg-slate-950/[0.03] light:hover:bg-slate-950/[0.03] hover:text-white hover:light:text-slate-900 light:hover:text-slate-900"
                     >
                       {isActive && (
                         <motion.div
@@ -198,7 +198,7 @@ export default function Sidebar() {
                 key={link.to}
                 to={link.to}
                 end={link.end}
-                className="relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 min-h-11 lg:min-h-0 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-white/80 light:hover:text-slate-900/80"
+                className="relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 min-h-11 lg:min-h-0 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-white/80 hover:light:text-slate-900/80 light:hover:text-slate-900/80"
               >
                 {isActive && (
                   <motion.div
@@ -236,7 +236,7 @@ export default function Sidebar() {
                 </div>
                 <SectionPicker placeholder="Select section" />
                 <Button asChild variant="outline" size="sm"
-                  className="mt-1.5 w-full text-[11px] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] hover:text-white light:hover:text-slate-900">
+                  className="mt-1.5 w-full text-[11px] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04] hover:text-white hover:light:text-slate-900 light:hover:text-slate-900">
                   <Link to="/student/sections"><PlusSquare className="mr-2 h-3 w-3" />Join Section</Link>
                 </Button>
               </motion.div>
@@ -342,7 +342,7 @@ export default function Sidebar() {
                   variant="outline"
                   size="sm"
                   onClick={handleLogout}
-                  className="mt-2.5 w-full text-[11px] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] hover:text-white light:hover:text-slate-900"
+                  className="mt-2.5 w-full text-[11px] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04] hover:text-white hover:light:text-slate-900 light:hover:text-slate-900"
                 >
                   <LogOut className="mr-2 h-3 w-3" />
                   Logout

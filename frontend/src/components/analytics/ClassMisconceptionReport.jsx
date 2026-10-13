@@ -74,7 +74,7 @@ function ReportBody({ report }) {
   if (noData) {
     return (
       <div className="py-8 text-center">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" strokeWidth={1.5} />
+        <AlertTriangle className="h-8 w-8 text-muted-foreground/40 light:text-muted-foreground mx-auto mb-2" strokeWidth={1.5} />
         <p className="text-sm text-muted-foreground">
           No submissions yet. Check back after students complete the exercise.
         </p>
@@ -85,7 +85,7 @@ function ReportBody({ report }) {
   if (completelyEmpty) {
     return (
       <div className="py-8 text-center">
-        <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" strokeWidth={1.5} />
+        <AlertTriangle className="h-8 w-8 text-muted-foreground/40 light:text-muted-foreground mx-auto mb-2" strokeWidth={1.5} />
         <p className="text-sm text-muted-foreground">
           No patterns detected.
         </p>

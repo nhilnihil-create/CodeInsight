@@ -1,6 +1,7 @@
 import { ResponsiveContainer, LineChart, Line } from "recharts";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTheme } from "@/lib/theme";
 
 /**
  * KPIChartCard
@@ -30,24 +31,25 @@ export default function KPIChartCard({
           ? "text-emerald-400 light:text-emerald-700"
           : delta < 0
             ? "text-rose-400 light:text-rose-700"
-            : "text-muted-foreground/60"
+            : "text-muted-foreground/60 light:text-muted-foreground"
         : delta < 0
           ? "text-emerald-400 light:text-emerald-700"
           : delta > 0
             ? "text-rose-400 light:text-rose-700"
-            : "text-muted-foreground/60";
+            : "text-muted-foreground/60 light:text-muted-foreground";
 
+  const { theme } = useTheme();
   const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u25CF";
 
   return (
     <motion.div
-      whileHover={{ scale: 1.015, borderColor: "rgba(255,255,255,0.12)" }}
+      whileHover={{ scale: 1.015, borderColor: theme === "light" ? "rgba(15,23,42,0.20)" : "rgba(255,255,255,0.12)" }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={cn(
         "relative rounded-xl p-5 flex flex-col gap-2",
         "bg-white/[0.02] light:bg-slate-950/[0.02] border border-white/[0.05] light:border-slate-950/[0.05]",
         "backdrop-blur-sm noise-overlay",
-        "transition-colors duration-200 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]"
+        "transition-colors duration-200 hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04]"
       )}
     >
       {/* Label */}
@@ -80,7 +82,7 @@ export default function KPIChartCard({
 
       {/* Comparison */}
       {comparison && (
-        <p className="relative z-10 text-[10px] text-muted-foreground/50">{comparison}</p>
+        <p className="relative z-10 text-[10px] text-muted-foreground/50 light:text-muted-foreground">{comparison}</p>
       )}
 
       {/* Sparkline */}

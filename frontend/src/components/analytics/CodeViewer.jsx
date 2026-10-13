@@ -88,11 +88,11 @@ function tokenizeLine(line) {
 const COLORS = {
   keyword: "text-purple-400 light:text-purple-700",
   string: "text-emerald-400 light:text-emerald-700",
-  comment: "text-muted-foreground/50 italic",
+  comment: "text-muted-foreground/50 light:text-muted-foreground italic",
   number: "text-amber-400 light:text-amber-700",
   preprocessor: "text-cyan-400 light:text-cyan-700",
   type: "text-blue-400 light:text-blue-700",
-  punctuation: "text-muted-foreground/70",
+  punctuation: "text-muted-foreground/70 light:text-muted-foreground",
   identifier: "text-foreground",
   plain: "text-foreground",
 };
@@ -132,7 +132,7 @@ export default function CodeViewer({ code, className }) {
         <tbody>
           {lines.map((line, idx) => (
             <tr key={idx} className="hover:bg-muted/20">
-              <td className="select-none text-right text-[11px] text-muted-foreground/40 w-12 px-3 py-0 align-top">
+              <td className="select-none text-right text-[11px] text-muted-foreground/40 light:text-muted-foreground w-12 px-3 py-0 align-top">
                 {idx + 1}
               </td>
               <td className="whitespace-pre px-1 py-0">

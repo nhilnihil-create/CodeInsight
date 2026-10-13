@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { motion } from "framer-motion";
+import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import ExportDropdown from "@/components/ui/export-dropdown";
 import VisualReportButton from "@/components/ui/visual-report-button";
@@ -38,13 +39,13 @@ import api from "@/services/api";
 import { cn } from "@/lib/utils";
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "rgba(19, 27, 46, 0.92)",
-  border: "1px solid rgba(255,255,255,0.08)",
+  backgroundColor: "hsl(var(--popover) / 0.95)",
+  border: "1px solid hsl(var(--popover-border))",
   borderRadius: "8px",
   fontSize: "12px",
-  color: "hsl(215 32% 86%)",
+  color: "hsl(var(--popover-foreground))",
   backdropFilter: "blur(12px)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+  boxShadow: "0 8px 32px hsl(0 0% 0% / 0.25)",
 };
 
 /* ── Stagger config ──────────────────────────────────────────────── */
@@ -59,6 +60,7 @@ const fadeUp = {
 
 export default function InstructorDashboard() {
   const [period, setPeriod] = useState("7d");
+  const { theme } = useTheme();
   const [sectionId, setSectionId] = useLastSection();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -123,7 +125,7 @@ export default function InstructorDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Class Status
           </h1>
-          <p className="text-sm text-muted-foreground/70">
+          <p className="text-sm text-muted-foreground/70 light:text-muted-foreground">
             Aggregated metrics for this section, updated live.
           </p>
         </div>
@@ -176,7 +178,7 @@ export default function InstructorDashboard() {
 
       {loading ? (
         <GlassPanel variant="dense">
-          <GlassPanelContent className="py-16 text-center text-muted-foreground/60 text-sm">
+          <GlassPanelContent className="py-16 text-center text-muted-foreground/60 light:text-muted-foreground text-sm">
             Loading dashboard data...
           </GlassPanelContent>
         </GlassPanel>
@@ -199,10 +201,10 @@ export default function InstructorDashboard() {
                   {trendData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={trendData} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
-                        <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.06)" }} tickLine={false} />
-                        <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
-                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+                        <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} tickLine={false} />
+                        <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "hsl(var(--border))" }} />
                         <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="circle" iconSize={8} />
                         <Line type="monotone" dataKey="cds" name="CDS" stroke="#f43f5e" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
@@ -227,14 +229,14 @@ export default function InstructorDashboard() {
               </GlassPanelHeader>
               <GlassPanelContent className="p-0">
                 {strugglingConcepts.length > 0 ? (
-                  <ul className="divide-y divide-white/[0.04]">
+                  <ul className="divide-y divide-white/[0.04] light:divide-slate-950/10">
                     {strugglingConcepts.map((c, i) => {
                       const cds = (c.cds ?? c.value ?? 0) / 100;
                       const tier = tierForCds(cds);
                       const meta = TIER_META[tier];
                       return (
                         <li key={c.name}>
-                          <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-3 px-5 py-3.5">
+                          <motion.div whileHover={{ backgroundColor: theme === "light" ? "rgba(15,23,42,0.045)" : "rgba(255,255,255,0.025)" }} transition={{ duration: 0.15 }} className="grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-3 px-5 py-3.5">
                             <div className="min-w-0 space-y-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-sm font-medium text-foreground truncate">{c.name}</span>
@@ -245,13 +247,13 @@ export default function InstructorDashboard() {
                               </div>
                               <div className="space-y-0.5">
                                 <MasteryBar percent={Math.round((1 - cds) * 100)} tier={tier} delay={i * 0.08} />
-                                <p className="text-[10px] text-muted-foreground/50 font-mono tabular-nums">
+                                <p className="text-[10px] text-muted-foreground/50 light:text-muted-foreground font-mono tabular-nums">
                                   Mastery: {Math.round((1 - cds) * 100)}%
                                 </p>
                               </div>
                             </div>
                             <span className="flex flex-col items-end gap-0.5 shrink-0">
-                              <span className="text-[10px] text-muted-foreground/40 uppercase tracking-wider">CDS</span>
+                              <span className="text-[10px] text-muted-foreground/40 light:text-muted-foreground uppercase tracking-wider">CDS</span>
                               <span className="text-sm font-mono tabular-nums text-foreground font-semibold">{c.cds ?? c.value ?? 0}</span>
                             </span>
                           </motion.div>
@@ -280,19 +282,19 @@ export default function InstructorDashboard() {
               </GlassPanelHeader>
               <GlassPanelContent className="p-0">
                 {recentFlags.length > 0 ? (
-                  <ul className="divide-y divide-white/[0.04]">
+                  <ul className="divide-y divide-white/[0.04] light:divide-slate-950/10">
                     {recentFlags.map((flag) => (
                       <li key={flag.id}>
-                        <motion.div whileHover={{ backgroundColor: "rgba(255,255,255,0.03)", scale: 1.005 }} transition={{ duration: 0.15 }}>
+                        <motion.div whileHover={{ backgroundColor: theme === "light" ? "rgba(15,23,42,0.045)" : "rgba(255,255,255,0.03)", scale: 1.005 }} transition={{ duration: 0.15 }}>
                           <Link to="/instructor/integrity" className="flex items-center gap-3 px-5 h-14">
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-foreground truncate">{flag.studentName}</p>
-                              <p className="text-[11px] text-muted-foreground/60 truncate">
+                              <p className="text-[11px] text-muted-foreground/60 light:text-muted-foreground truncate">
                                 {flagTypeLabel(flag.flagType)}{flag.exerciseTitle ? ` · ${flag.exerciseTitle}` : ""}
                               </p>
                             </div>
                             <div className="flex items-center gap-2.5 shrink-0">
-                              <span className="text-[11px] text-muted-foreground/50 font-mono tabular-nums">{flag.timeAgo}</span>
+                              <span className="text-[11px] text-muted-foreground/50 light:text-muted-foreground font-mono tabular-nums">{flag.timeAgo}</span>
                               <RiskBadge level={flag.severity} />
                             </div>
                           </Link>

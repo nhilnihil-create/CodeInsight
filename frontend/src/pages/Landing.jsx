@@ -254,7 +254,7 @@ export default function Landing() {
           <div className="absolute inset-x-0 bottom-10 z-10 flex justify-center">
             <motion.a
               href="#dashboard"
-              className="text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+              className="text-muted-foreground/50 light:text-muted-foreground transition-colors hover:text-muted-foreground"
               animate={{ y: [0, 6, 0] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               aria-label="Scroll to dashboard preview"
@@ -402,10 +402,10 @@ export default function Landing() {
                       </span>
                     </div>
                     <div className="flex flex-col items-end gap-1 text-right">
-                      <span className="font-mono text-xs text-muted-foreground/70">
+                      <span className="font-mono text-xs text-muted-foreground/70 light:text-muted-foreground">
                         {t.difficulty} difficulty · CDS {t.cdsRange}
                       </span>
-                      <span className="font-mono text-xs text-muted-foreground/70">
+                      <span className="font-mono text-xs text-muted-foreground/70 light:text-muted-foreground">
                         Mastery {t.masteryRange}
                       </span>
                     </div>
@@ -461,7 +461,7 @@ export default function Landing() {
               <Link to="/" className="shrink-0">
                 <Logo size={24} showText />
               </Link>
-              <p className="text-xs text-muted-foreground/70">Learning Analytics Platform</p>
+              <p className="text-xs text-muted-foreground/70 light:text-muted-foreground">Learning Analytics Platform</p>
             </div>
             <nav className="flex items-center gap-6 text-xs text-muted-foreground">
               {NAV_LINKS.map((l) => (
@@ -476,7 +476,7 @@ export default function Landing() {
             </nav>
           </div>
           <div className="mt-6 border-t border-border/40 pt-6">
-            <p className="text-center text-xs text-muted-foreground/70">
+            <p className="text-center text-xs text-muted-foreground/70 light:text-muted-foreground">
               © {new Date().getFullYear()} CodeInsight · Pampanga State University · College of Computer Studies
             </p>
           </div>

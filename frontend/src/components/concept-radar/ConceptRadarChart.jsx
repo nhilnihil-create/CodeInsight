@@ -80,7 +80,7 @@ export default function ConceptRadarChart({ data = [] }) {
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} margin={RADAR_MARGIN}>
           <PolarGrid
-            stroke="rgba(255, 255, 255, 0.05)"
+            stroke="hsl(var(--border))"
             strokeWidth={1}
           />
           <PolarAngleAxis
@@ -90,33 +90,33 @@ export default function ConceptRadarChart({ data = [] }) {
               fontSize: 10,
               fontWeight: 500,
             }}
-            stroke="rgba(255,255,255,0.04)"
+            stroke="hsl(var(--border))"
           />
           <PolarRadiusAxis
             domain={[0, 100]}
             tick={false}
             axisLine={false}
-            stroke="rgba(255,255,255,0.03)"
+            stroke="hsl(var(--border))"
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }} />
+          <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }} />
           <Radar
             name="Mastery"
             dataKey="mastery"
             fill="url(#emeraldTealGradient)"
             fillOpacity={0.15}
-            stroke="#10B981"
+            stroke="hsl(var(--success))"
             strokeWidth={2}
             strokeLinejoin="round"
             dot={{
               r: 3,
-              fill: '#10B981',
-              stroke: 'rgba(16, 185, 129, 0.3)',
+              fill: 'hsl(var(--success))',
+              stroke: 'hsl(var(--success) / 0.3)',
               strokeWidth: 2,
             }}
             activeDot={{
               r: 5,
-              fill: '#10B981',
-              stroke: '#10B981',
+              fill: 'hsl(var(--success))',
+              stroke: 'hsl(var(--success))',
               strokeWidth: 2,
               filter: 'url(#radarGlow)',
             }}
@@ -125,7 +125,7 @@ export default function ConceptRadarChart({ data = [] }) {
       </ResponsiveContainer>
       {!hasData && data.length > 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-[11px] text-muted-foreground/50 font-mono tracking-wider uppercase">
+          <span className="text-[11px] text-muted-foreground/50 light:text-muted-foreground font-mono tracking-wider uppercase">
             No submissions yet
           </span>
         </div>

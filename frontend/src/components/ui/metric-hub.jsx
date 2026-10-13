@@ -1,6 +1,7 @@
 import { ResponsiveContainer, LineChart, Line } from "recharts";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useTheme } from "@/lib/theme";
 
 /**
  * MetricHub
@@ -27,6 +28,7 @@ export default function MetricHub({
   size = "md",
   className,
 }) {
+  const { theme } = useTheme();
   const hasSeries = Array.isArray(series) && series.length >= 2;
   const data = hasSeries ? series.map((v) => ({ v })) : [];
 
@@ -57,13 +59,13 @@ export default function MetricHub({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.015, borderColor: "rgba(255,255,255,0.12)" }}
+      whileHover={{ scale: 1.015, borderColor: theme === "light" ? "rgba(15,23,42,0.20)" : "rgba(255,255,255,0.12)" }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={cn(
         "group relative flex flex-col gap-1 p-4 rounded-xl",
         "bg-white/[0.03] light:bg-slate-950/[0.03] border border-white/[0.06] light:border-slate-950/[0.06]",
         "backdrop-blur-sm transition-colors duration-200",
-        "hover:bg-white/[0.05]",
+        "hover:bg-white/[0.05] hover:light:bg-slate-950/[0.05]",
         className
       )}
     >

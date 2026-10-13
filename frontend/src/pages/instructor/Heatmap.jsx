@@ -265,7 +265,7 @@ function DraggableColumnHeader({ concept, index, onSwap, totalColumns }) {
       className={cn(
         'relative h-28 p-0 m-0 text-center align-bottom',
         'border-b border-white/5 light:border-slate-950/5 cursor-grab active:cursor-grabbing',
-        'text-white/35 light:text-slate-500 hover:text-white/60 light:hover:text-slate-600 transition-colors',
+        'text-white/35 light:text-slate-500 hover:text-white/60 hover:light:text-slate-600 light:hover:text-slate-600 transition-colors',
         'select-none touch-none overflow-visible',
       )}
       title={concept}
@@ -457,7 +457,7 @@ export default function InstructorHeatmap() {
               placeholder="Search student…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 light:bg-slate-950/5 border-white/10 light:border-slate-950/10 text-white/80 light:text-slate-900/80 placeholder:text-white/30 light:placeholder:text-slate-500"
+              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 light:bg-slate-950/5 border-white/10 light:border-slate-950/10 text-white/80 light:text-slate-900/80 placeholder:text-white/30 placeholder:light:text-slate-500 light:placeholder:text-slate-500"
             />
             <div className="hidden sm:block"><Legend /></div>
           </div>
