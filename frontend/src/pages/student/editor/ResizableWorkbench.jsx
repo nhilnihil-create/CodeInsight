@@ -73,6 +73,7 @@ export default function ResizableWorkbench({
   programOutput = "",
   onClearTerminal,
   isReviewMode = false,
+  isRunning = false,
 }) {
   const centerGroupRef = useGroupRef();
   const outerGroupRef = useGroupRef();
@@ -244,6 +245,7 @@ export default function ResizableWorkbench({
               >
                 <OutputPanel
                   testResults={testResults}
+                  isRunning={isRunning}
                   testCases={exercise?.test_cases || []}
                   consoleLog={consoleLog}
                   compilationLog={compilationLog}

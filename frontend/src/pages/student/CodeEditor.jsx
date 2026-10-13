@@ -120,10 +120,15 @@ export default function StudentCodeEditor() {
   const [preCheckHints, setPreCheckHints] = useState([]);
   const [activeTab, setActiveTab] = useState(TAB_DEFAULT);
   const [isRunning, setIsRunning] = useState(false);
+  const [runningKind, setRunningKind] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const editorRef = useRef(null);
   const isSubmittingRef = useRef(false);
+  // Mutual run/submit lock: state updates are async, so rapid double-clicks
+  // (or the keyboard shortcut) within the same tick would slip past
+  // `isRunning` alone. Refs guard synchronously.
+  const runningRef = useRef(false);
   const behavioralCounts = useRef({ tabSwitches: 0, pastes: 0 });
   const pendingEventsRef = useRef([]);
   const editorContainerRef = useRef(null);
@@ -385,6 +390,9 @@ export default function StudentCodeEditor() {
 
   const handleRun = async () => {
     if (!exerciseId || isReviewMode) return;
+    if (runningRef.current || isSubmittingRef.current) return;
+    runningRef.current = true;
+    setRunningKind("run");
     setIsRunning(true);
     setTestResults(null);
     try {
@@ -405,6 +413,8 @@ export default function StudentCodeEditor() {
     } catch (err) {
       toast.error(err.response?.data?.message || err.message || "Run failed");
     } finally {
+      runningRef.current = false;
+      setRunningKind(null);
       setIsRunning(false);
     }
   };
@@ -414,13 +424,14 @@ export default function StudentCodeEditor() {
       toast.error("No exercise in URL — open an exercise to submit.");
       return;
     }
-    if (isSubmittingRef.current) return;
+    if (isSubmittingRef.current || runningRef.current) return;
     isSubmittingRef.current = true;
     if (isReviewMode) {
       if (isCompleted) toast.info("Exercise already completed. Your CDS is locked.");
-      isSubmittingRef.current = false;
-      return;
+    isSubmittingRef.current = false;
+    return;
     }
+    setRunningKind("submit");
     setIsRunning(true);
     try {
       // Flush pending behavioral events BEFORE submit — awaited so the audit
@@ -500,6 +511,8 @@ export default function StudentCodeEditor() {
       toast.error(err.response?.data?.message || err.message || "Submission failed");
     } finally {
       isSubmittingRef.current = false;
+      runningRef.current = false;
+      setRunningKind(null);
       setIsRunning(false);
     }
   };
@@ -589,6 +602,7 @@ export default function StudentCodeEditor() {
         timeLimitMinutes={exercise.time_limit_minutes}
         activeElapsedSeconds={activeElapsedSeconds}
         isRunning={isRunning}
+        runningKind={runningKind}
         isReviewMode={isReviewMode}
         onRun={handleRun}
         onSubmit={isReviewMode || isClosed ? undefined : handleSubmit}
@@ -610,6 +624,7 @@ export default function StudentCodeEditor() {
           compilationLog={testResults?.compilationLog ?? ""}
           onClearTerminal={handleClearTerminal}
           isReviewMode={isReviewMode}
+          isRunning={isRunning}
         />
       </div>
 
@@ -628,8 +643,9 @@ export default function StudentCodeEditor() {
           compilationLog={testResults?.compilationLog ?? ""}
           programOutput={testResults?.programOutput ?? ""}
           isReviewMode={isReviewMode}
+          isRunning={isRunning}
         />
-        <EditorActionBar onRun={handleRun} onSubmit={isReviewMode || isClosed ? undefined : handleSubmit} isRunning={isRunning} isReviewMode={isReviewMode} isClosed={isClosed} />
+        <EditorActionBar onRun={handleRun} onSubmit={isReviewMode || isClosed ? undefined : handleSubmit} isRunning={isRunning} runningKind={runningKind} isReviewMode={isReviewMode} isClosed={isClosed} />
       </div>
 
       {preCheckHints.length > 0 && (

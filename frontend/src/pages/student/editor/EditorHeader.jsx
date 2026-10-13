@@ -1,4 +1,4 @@
-import { Play, Send, Clock, ChevronLeft } from "lucide-react";
+import { Play, Send, Clock, ChevronLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,7 @@ export default function EditorHeader({
   timeLimitMinutes,
   activeElapsedSeconds = 0,
   isRunning = false,
+  runningKind = null,
   isReviewMode = false,
   onRun,
   onSubmit,
@@ -27,6 +28,8 @@ export default function EditorHeader({
 }) {
   const passing = testResults?.passing ?? 0;
   const total = testResults?.total ?? 0;
+  const isRunningRun = isRunning && runningKind !== "submit";
+  const isRunningSubmit = isRunning && runningKind === "submit";
 
   const timeLimitSeconds = timeLimitMinutes ? timeLimitMinutes * 60 : 0;
   const countdownSeconds = timeLimitSeconds > 0
@@ -39,7 +42,7 @@ export default function EditorHeader({
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-3 h-14 min-h-[56px] bg-[#0D1220]/80 backdrop-blur-md border-b border-white/[0.05] light:border-slate-950/[0.05] shadow-xs px-6 shrink-0"
+      className="sticky top-0 z-20 flex items-center gap-3 h-14 min-h-[56px] bg-[#0D1220]/80 light:bg-white/85 backdrop-blur-md border-b border-white/[0.05] light:border-slate-950/[0.05] shadow-xs px-6 shrink-0"
     >
       {/* Back */}
       {onBack ? (
@@ -114,10 +117,15 @@ export default function EditorHeader({
           type="button"
           onClick={onRun}
           disabled={isRunning || isReviewMode}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:shadow-[0_0_20px_rgba(16,185,129,0.35)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:shadow-[0_0_20px_rgba(16,185,129,0.35)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          aria-busy={isRunningRun}
         >
-          <Play className="h-3.5 w-3.5" strokeWidth={2} />
-          Run
+          {isRunningRun ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <Play className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+          )}
+          {isRunningRun ? "Running…" : "Run"}
           <span className="ml-1 hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono opacity-70">
             <kbd className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border border-slate-950/20 bg-white/20">⌘</kbd>
             <kbd className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border border-slate-950/20 bg-white/20">↵</kbd>
@@ -131,10 +139,16 @@ export default function EditorHeader({
           <button
             type="button"
             onClick={onSubmit}
-            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 text-white light:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:brightness-110 transition-all"
+            disabled={isRunning}
+            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 text-white light:text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.2)] hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            aria-busy={isRunningSubmit}
           >
-            Submit
-            <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {isRunningSubmit ? "Submitting…" : "Submit"}
+            {isRunningSubmit ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} aria-hidden="true" />
+            ) : (
+              <Send className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            )}
           </button>
         )}
       </div>

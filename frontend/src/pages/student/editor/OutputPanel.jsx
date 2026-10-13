@@ -1,4 +1,4 @@
-import { TerminalSquare, AlertOctagon, Trash2, CheckCircle2 } from "lucide-react";
+import { TerminalSquare, AlertOctagon, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,6 +17,7 @@ export default function OutputPanel({
   compilationLog = "",
   programOutput = "",
   onClear,
+  isRunning = false,
 }) {
   const error = testResults?.error;
   const hasRun = testResults !== null;
@@ -31,9 +32,9 @@ export default function OutputPanel({
     : 0;
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#0B0F19]/90 backdrop-blur-md border-t border-white/[0.05] light:border-slate-950/[0.05]">
+    <div className="flex flex-col h-full min-h-0 bg-[#0B0F19]/90 light:bg-white backdrop-blur-md border-t border-white/[0.05] light:border-slate-950/[0.05]">
       {/* Sticky bar */}
-      <div className="flex items-center gap-0 h-9 px-2 border-b border-white/[0.06] light:border-slate-950/[0.06] bg-[#0B0F19]/80 backdrop-blur-sm shrink-0">
+      <div className="flex items-center gap-0 h-9 px-2 border-b border-white/[0.06] light:border-slate-950/[0.06] bg-[#0B0F19]/80 light:bg-white backdrop-blur-sm shrink-0">
         <div className="inline-flex items-center gap-1.5 h-full px-3 text-xs font-medium text-emerald-400 light:text-emerald-700 border-b-2 -mb-px border-emerald-400">
           <TerminalSquare className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
           Terminal
@@ -66,7 +67,7 @@ export default function OutputPanel({
               onClick={onClear}
               aria-label="Clear terminal"
               title="Clear terminal"
-              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04] transition-colors"
+              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] hover:light:bg-slate-950/[0.04] light:hover:bg-slate-950/[0.04] transition-colors cursor-pointer"
             >
               <Trash2 className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
               Clear
@@ -76,8 +77,18 @@ export default function OutputPanel({
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
+        {/* Executing — code is compiling/running right now */}
+        {isRunning && (
+          <div className="h-full flex items-center justify-center gap-2 px-6 text-center" role="status" aria-live="polite">
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-400 light:text-emerald-700 shrink-0" strokeWidth={2} aria-hidden="true" />
+            <p className="text-xs text-muted-foreground font-mono">
+              Compiling and running your code…
+            </p>
+          </div>
+        )}
+
         {/* Not run yet */}
-        {!hasRun && !compilationLog && !programOutput && !error && (
+        {!isRunning && !hasRun && !compilationLog && !programOutput && !error && (
           <EmptyState>
             Press <strong className="text-emerald-400 light:text-emerald-700">Run</strong> to compile and execute your code.
           </EmptyState>

@@ -38,6 +38,7 @@ export default function MobileEditorTabs({
   compilationLog = "",
   programOutput = "",
   isReviewMode = false,
+  isRunning = false,
 }) {
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -85,6 +86,7 @@ export default function MobileEditorTabs({
               testResults={testResults}
               compilationLog={compilationLog}
               programOutput={programOutput}
+              isRunning={isRunning}
             />
           </div>
         ) : activeTab === "history" ? (
