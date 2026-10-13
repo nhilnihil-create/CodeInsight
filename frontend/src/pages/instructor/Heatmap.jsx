@@ -93,19 +93,26 @@ function cdsTier(cds) {
 
 /* ── Legend swatches: solid dots readable on both themes ─────────────── */
 const LEGEND_SWATCHES = [
-  { label: 'Very Low', dot: 'bg-slate-500' },
-  { label: 'Low', dot: 'bg-emerald-600' },
-  { label: 'Moderate', dot: 'bg-amber-600' },
-  { label: 'High', dot: 'bg-orange-600' },
-  { label: 'Very High', dot: 'bg-rose-600' },
+  { label: 'Very Low', min: '0.00', max: '0.20', dot: 'bg-slate-500' },
+  { label: 'Low', min: '0.21', max: '0.40', dot: 'bg-emerald-600' },
+  { label: 'Moderate', min: '0.41', max: '0.60', dot: 'bg-amber-600' },
+  { label: 'High', min: '0.61', max: '0.80', dot: 'bg-orange-600' },
+  { label: 'Very High', min: '0.81', max: '1.00', dot: 'bg-rose-600' },
 ];
 
 function Legend() {
   return (
     <div className="flex items-center gap-3 flex-wrap" role="img" aria-label="CDS tiers from Very Low to Very High">
       {LEGEND_SWATCHES.map((s) => (
-        <span key={s.label} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <span
+          key={s.label}
+          className="inline-flex items-center gap-1.5 whitespace-nowrap"
+          title={`CDS ${s.min} to ${s.max}: ${s.label}`}
+        >
           <span className={cn('h-2.5 w-2.5 rounded-[3px] shrink-0', s.dot)} aria-hidden="true" />
+          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+            {s.min}–{s.max}
+          </span>
           <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
         </span>
       ))}
