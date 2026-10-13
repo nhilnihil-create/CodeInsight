@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSidebar } from '../context/SidebarContext';
 import { useStudentContext } from '../context/StudentContext';
 import SectionPicker from './SectionPicker';
+import ThemeToggle from './ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -280,6 +281,14 @@ export default function Sidebar() {
             !isOpen && 'flex flex-col items-center'
           )}
         >
+          {/* ── Theme (Light / Dark / System) ─────────────────── */}
+          {isOpen ? (
+            <ThemeToggle className="mb-3" />
+          ) : (
+            <div className="pb-2">
+              <ThemeToggle collapsed />
+            </div>
+          )}
           {isOpen ? (
             <div className="flex items-center gap-2.5">
               <Avatar className="h-[30px] w-[30px] ring-2 ring-white/[0.08]">

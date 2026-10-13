@@ -3,15 +3,16 @@ import Editor from "@monaco-editor/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "@/lib/theme";
 import { useEditorPrefs } from "@/context/EditorPrefsContext";
+import { registerMonacoThemes, MONACO_THEMES } from "@/lib/monacoThemes";
 
 /**
  * CodeEditorSurface
  * Thin wrapper around @monaco-editor/react.
  *
- * For the redesign preview we FORCE the Monaco theme to "vs-dark" (FIX 3)
- * and inject scoped CSS that pins the editor's background to the
- * design-system --background token (dark navy). This decouples Monaco
- * from the app theme toggle until the theme-switch wiring is added.
+ * Theme wiring: LIGHT app theme → registered 'ci-light' Monaco theme;
+ * DARK app theme → builtin "vs-dark", exactly as before (the registered
+ * 'ci-dark-teal' exists for opted-in use but is NOT the default, so dark
+ * rendering is pixel-identical to the pre-theme build).
  *
  * We still read the app theme + editor prefs from context so the font /
  * tab size / minimap / word-wrap continue to follow the user's settings.
@@ -44,11 +45,11 @@ export default function CodeEditorSurface({
     };
   }, []);
 
-  // Re-apply the dark theme when the app theme changes so Monaco
-  // doesn't get stuck in the wrong theme after a toggle.
+  // Re-apply the matching Monaco theme when the app theme changes so
+  // Monaco doesn't get stuck in the wrong theme after a toggle.
   useEffect(() => {
     if (typeof window === "undefined" || !window.monaco) return;
-    window.monaco.editor.setTheme("vs-dark");
+    window.monaco.editor.setTheme(theme === "light" ? MONACO_THEMES.light : "vs-dark");
   }, [theme]);
 
   // Wire the autocomplete-accept signal to the caller, then forward the
@@ -61,6 +62,11 @@ export default function CodeEditorSurface({
   // Monaco's own keybinding handler (bubble phase), so the suggest widget
   // is still visible when we check.
   const handleEditorMount = (editor, monaco) => {
+    try {
+      registerMonacoThemes(monaco);
+    } catch (err) {
+      console.warn("CodeEditorSurface: monaco theme registration skipped", err);
+    }
     if (editor && typeof onAutocompleteAccept === "function") {
       try {
         if (typeof editor.onDidAcceptSuggestion === "function") {
@@ -97,6 +103,10 @@ export default function CodeEditorSurface({
     onMount?.(editor, monaco);
   };
 
+  // DARK renders builtin "vs-dark" exactly as before the theme work;
+  // LIGHT renders the registered 'ci-light' theme (see lib/monacoThemes.js).
+  const monacoTheme = theme === "light" ? MONACO_THEMES.light : "vs-dark";
+
   return (
     <div
       className="h-full w-full bg-background overflow-hidden"
@@ -108,11 +118,18 @@ export default function CodeEditorSurface({
         language={language}
         value={value}
         onChange={onChange}
+        beforeMount={(monaco) => {
+          try {
+            registerMonacoThemes(monaco);
+          } catch (err) {
+            console.warn("CodeEditorSurface: monaco theme registration skipped", err);
+          }
+        }}
         onMount={handleEditorMount}
-        theme="vs-dark"
+        theme={monacoTheme}
         loading={<EditorSkeleton />}
         options={{
-          theme: "vs-dark",
+          theme: monacoTheme,
           fontSize,
           fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
           fontLigatures: true,

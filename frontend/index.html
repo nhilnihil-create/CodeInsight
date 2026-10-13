@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0c1220" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="CodeInsight" />
@@ -14,6 +15,23 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+      // Pre-paint theme: mirrors src/lib/theme.jsx (choice > OS preference).
+      // Prevents a flash of the wrong theme before React hydrates.
+      (function () {
+        try {
+          var mode = localStorage.getItem('codeinsight-theme') || 'system';
+          var dark = mode === 'dark' || (mode !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var resolved = dark ? 'dark' : 'light';
+          var root = document.documentElement;
+          root.setAttribute('data-theme', resolved);
+          root.style.colorScheme = resolved;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#0B0F19' : '#F8FAFC');
+        } catch (e) { /* defaults (dark tokens) apply */ }
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { StudentProvider } from './context/StudentContext';
 import { ThemeProvider } from './lib/theme.jsx';
+import ThemedToaster from './components/ThemedToaster';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -337,6 +338,7 @@ function App() {
           <StudentProvider>
             <AppContent />
           </StudentProvider>
+          <ThemedToaster />
         </ThemeProvider>
       </SidebarProvider>
     </ErrorBoundary>

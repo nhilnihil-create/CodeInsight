@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
@@ -31,19 +30,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <EditorPrefsProvider>
             <App />
             </EditorPrefsProvider>
-            <Toaster
-              theme="dark"
-              position="top-right"
-              richColors
-              closeButton
-              toastOptions={{
-                style: {
-                  background: '#131d30',
-                  border: '1px solid #1e304d',
-                  color: '#dce8f5',
-                },
-              }}
-            />
           </AuthProvider>
         </TooltipProvider>
       </ToastProvider>
