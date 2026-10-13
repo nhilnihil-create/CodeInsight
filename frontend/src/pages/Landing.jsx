@@ -8,12 +8,15 @@ import {
   BrainCircuit,
   Code2,
   LayoutDashboard,
+  Moon,
   ScanSearch,
   ShieldCheck,
   Sparkles,
+  Sun,
   TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme, LIGHT_THEME, DARK_THEME } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Waves from '../components/Waves';
@@ -176,6 +179,7 @@ function SectionHeading({ eyebrow, title, subtitle }) {
 
 export default function Landing() {
   const { isLoggedIn, user } = useAuth();
+  const { mode, setTheme } = useTheme();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -198,6 +202,36 @@ export default function Landing() {
 
         {/* ─── Hero ─── */}
         <section className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-6 pb-24 pt-10 text-center">
+          {/* Theme toggle — top right */}
+          <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+            <div
+              role="group"
+              aria-label="Color theme"
+              className="flex items-center gap-0.5 rounded-full border border-border bg-card/70 p-0.5 shadow-sm backdrop-blur-md"
+            >
+              {[
+                { value: LIGHT_THEME, label: 'Light', Icon: Sun },
+                { value: DARK_THEME, label: 'Dark', Icon: Moon },
+              ].map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTheme(value)}
+                  aria-pressed={mode === value}
+                  title={`${label} theme`}
+                  aria-label={`${label} theme`}
+                  className={cn(
+                    'flex h-7 w-7 items-center justify-center rounded-full transition-colors',
+                    mode === value
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </div>
+          </div>
           <Waves
             // matches hsl(176 50% 67%) at 35% alpha
             lineColor="rgba(94, 234, 212, 0.35)"
