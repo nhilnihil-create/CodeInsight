@@ -93,7 +93,7 @@ export default function Sidebar() {
     <aside
       className={cn(
         'fixed left-0 top-0 z-40 h-full flex flex-col justify-between',
-        'bg-[#0E1322]/80 backdrop-blur-xl border-r border-white/[0.04]',
+        'bg-[#0E1322]/80 light:bg-white/80 backdrop-blur-xl border-r border-white/[0.04] light:border-slate-950/[0.04]',
         'text-sidebar-foreground transition-[width,transform] duration-300 ease-in-out overflow-hidden',
         // Below lg the sidebar is an off-canvas drawer (full 220px when open);
         // at/above lg it is the persistent rail (220px expanded / 70px collapsed).
@@ -137,7 +137,7 @@ export default function Sidebar() {
           onClick={toggleSidebar}
           aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
           title={isOpen ? 'Close sidebar' : 'Open sidebar'}
-          className="h-8 w-8 shrink-0 border-white/[0.08] bg-transparent hover:bg-white/[0.06]"
+          className="h-8 w-8 shrink-0 border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.06] light:hover:bg-slate-950/[0.06]"
         >
           {isOpen ? (
             <PanelLeftClose className="h-4 w-4" />
@@ -169,17 +169,17 @@ export default function Sidebar() {
                     <NavLink
                       to={link.to}
                       end={link.end}
-                      className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.03] hover:text-white"
+                      className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.03] light:hover:bg-slate-950/[0.03] hover:text-white light:hover:text-slate-900"
                     >
                       {isActive && (
                         <motion.div
                           layoutId="collapsedIndicator"
-                          className="absolute inset-0 rounded-xl bg-white/[0.06] border border-white/[0.08] text-emerald-400"
+                          className="absolute inset-0 rounded-xl bg-white/[0.06] light:bg-slate-950/[0.06] border border-white/[0.08] light:border-slate-950/[0.08] text-emerald-400 light:text-emerald-700"
                           transition={spring}
                           style={{ zIndex: 0 }}
                         />
                       )}
-                      <Icon className={cn('relative z-10 h-[18px] w-[18px]', isActive && 'text-emerald-400')} />
+                      <Icon className={cn('relative z-10 h-[18px] w-[18px]', isActive && 'text-emerald-400 light:text-emerald-700')} />
                     </NavLink>
                   </TooltipTrigger>
                   <TooltipPortal>
@@ -198,7 +198,7 @@ export default function Sidebar() {
                 key={link.to}
                 to={link.to}
                 end={link.end}
-                className="relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 min-h-11 lg:min-h-0 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-white/80"
+                className="relative flex items-center gap-2.5 rounded-xl px-4 py-2.5 min-h-11 lg:min-h-0 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-white/80 light:hover:text-slate-900/80"
               >
                 {isActive && (
                   <motion.div
@@ -208,8 +208,8 @@ export default function Sidebar() {
                     style={{ zIndex: 0 }}
                   />
                 )}
-                <Icon className={cn('relative z-10 h-4 w-4 shrink-0', isActive && 'text-emerald-400')} />
-                <span className={cn('relative z-10', isActive && 'text-emerald-400')}>{link.label}</span>
+                <Icon className={cn('relative z-10 h-4 w-4 shrink-0', isActive && 'text-emerald-400 light:text-emerald-700')} />
+                <span className={cn('relative z-10', isActive && 'text-emerald-400 light:text-emerald-700')}>{link.label}</span>
               </NavLink>
             );
           })}
@@ -218,7 +218,7 @@ export default function Sidebar() {
 
       {/* ── My Sections (Student only) ───────────────────── */}
       {isStudent && sections.length > 0 && (
-        <div className={cn('px-4 py-3 border-t border-white/[0.04]', !isOpen && 'px-2')}>
+        <div className={cn('px-4 py-3 border-t border-white/[0.04] light:border-slate-950/[0.04]', !isOpen && 'px-2')}>
           <AnimatePresence mode="wait">
             {isOpen ? (
               <motion.div
@@ -236,7 +236,7 @@ export default function Sidebar() {
                 </div>
                 <SectionPicker placeholder="Select section" />
                 <Button asChild variant="outline" size="sm"
-                  className="mt-1.5 w-full text-[11px] text-muted-foreground border-white/[0.08] bg-transparent hover:bg-white/[0.04] hover:text-white">
+                  className="mt-1.5 w-full text-[11px] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] hover:text-white light:hover:text-slate-900">
                   <Link to="/student/sections"><PlusSquare className="mr-2 h-3 w-3" />Join Section</Link>
                 </Button>
               </motion.div>
@@ -273,7 +273,7 @@ export default function Sidebar() {
       {/* ── Footer Profile ───────────────────────────────── */}
       <div className="relative mt-auto">
         {/* Gradient mesh separator — replaces hard border-t */}
-        <div className="pointer-events-none h-8 bg-gradient-to-t from-[#0E1322]/90 via-[#0E1322]/40 to-transparent" />
+        <div className="pointer-events-none h-8 bg-gradient-to-t from-[#0E1322]/90 light:from-white/90 via-[#0E1322]/40 light:via-slate-300/50 to-transparent" />
 
         <div
           className={cn(
@@ -291,7 +291,7 @@ export default function Sidebar() {
           )}
           {isOpen ? (
             <div className="flex items-center gap-2.5">
-              <Avatar className="h-[30px] w-[30px] ring-2 ring-white/[0.08]">
+              <Avatar className="h-[30px] w-[30px] ring-2 ring-white/[0.08] light:ring-slate-950/20">
                 <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-bold">
                   {initials}
                 </AvatarFallback>
@@ -313,7 +313,7 @@ export default function Sidebar() {
                   aria-label={`Logout ${user?.name || 'user'}`}
                   className="rounded-full transition-all duration-200 hover:ring-2 hover:ring-emerald-400/40"
                 >
-                  <Avatar className="h-9 w-9 ring-2 ring-white/[0.08]">
+                  <Avatar className="h-9 w-9 ring-2 ring-white/[0.08] light:ring-slate-950/20">
                     <AvatarFallback className="bg-primary text-primary-foreground text-[11px] font-bold">
                       {initials}
                     </AvatarFallback>
@@ -342,7 +342,7 @@ export default function Sidebar() {
                   variant="outline"
                   size="sm"
                   onClick={handleLogout}
-                  className="mt-2.5 w-full text-[11px] text-muted-foreground border-white/[0.08] bg-transparent hover:bg-white/[0.04] hover:text-white"
+                  className="mt-2.5 w-full text-[11px] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08] bg-transparent hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] hover:text-white light:hover:text-slate-900"
                 >
                   <LogOut className="mr-2 h-3 w-3" />
                   Logout

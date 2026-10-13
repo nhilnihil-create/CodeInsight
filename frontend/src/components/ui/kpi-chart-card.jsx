@@ -27,14 +27,14 @@ export default function KPIChartCard({
       ? null
       : !inverted
         ? delta > 0
-          ? "text-emerald-400"
+          ? "text-emerald-400 light:text-emerald-700"
           : delta < 0
-            ? "text-rose-400"
+            ? "text-rose-400 light:text-rose-700"
             : "text-muted-foreground/60"
         : delta < 0
-          ? "text-emerald-400"
+          ? "text-emerald-400 light:text-emerald-700"
           : delta > 0
-            ? "text-rose-400"
+            ? "text-rose-400 light:text-rose-700"
             : "text-muted-foreground/60";
 
   const arrow = delta > 0 ? "\u25B2" : delta < 0 ? "\u25BC" : "\u25CF";
@@ -45,9 +45,9 @@ export default function KPIChartCard({
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={cn(
         "relative rounded-xl p-5 flex flex-col gap-2",
-        "bg-white/[0.02] border border-white/[0.05]",
+        "bg-white/[0.02] light:bg-slate-950/[0.02] border border-white/[0.05] light:border-slate-950/[0.05]",
         "backdrop-blur-sm noise-overlay",
-        "transition-colors duration-200 hover:bg-white/[0.04]"
+        "transition-colors duration-200 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]"
       )}
     >
       {/* Label */}
@@ -99,7 +99,7 @@ export default function KPIChartCard({
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full w-full bg-white/[0.03] rounded" aria-hidden="true" />
+          <div className="h-full w-full bg-white/[0.03] light:bg-slate-950/[0.03] rounded" aria-hidden="true" />
         )}
       </div>
     </motion.div>

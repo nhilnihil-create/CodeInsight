@@ -129,7 +129,7 @@ export default function InstructorStudents() {
                 return <Badge className="bg-cds-na/10 text-cds-na border border-cds-na/20">Unstarted</Badge>;
               }
               const meta = TIER_META[tierForCds(s.avgCds)];
-              return <Badge className={`bg-white/[0.03] border-white/[0.08] ${meta.text}`}>{meta.label}</Badge>;
+              return <Badge className={`bg-white/[0.03] light:bg-slate-950/[0.03] border-white/[0.08] light:border-slate-950/[0.08] ${meta.text}`}>{meta.label}</Badge>;
             },
             renderMobileCell: (s) => {
               const unstarted = s.avgCds == null || Number.isNaN(s.avgCds) || s.submittedCount === 0;

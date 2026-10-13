@@ -201,7 +201,7 @@ function TestCaseEditor({ tests, onChange }) {
                   onClick={() => update(i, "hidden", !t.hidden)}
                   className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                     t.hidden
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-500 light:text-amber-700'
                       : 'bg-muted/40 border-border/40 text-muted-foreground hover:bg-muted/60'
                   }`}
                 >
@@ -368,7 +368,7 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
           <Card className="border-amber-500/20 bg-amber-500/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" /> Baseline Complexity
+                <Zap className="w-4 h-4 text-amber-500 light:text-amber-700" /> Baseline Complexity
                 <Badge variant="outline" className="text-xs">{complexityLabel}</Badge>
               </CardTitle>
             </CardHeader>
@@ -1069,7 +1069,7 @@ export default function ExerciseWorkspace() {
 
         {/* Drafts Panel */}
         {draftsOpen && (
-          <Card className="border-white/[0.08] bg-white/[0.02] backdrop-blur-xl">
+          <Card className="border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -1141,7 +1141,7 @@ export default function ExerciseWorkspace() {
                 />
 
                 {/* Navigation */}
-                <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-4 border-t border-white/[0.06]">
+                <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-4 border-t border-white/[0.06] light:border-slate-950/[0.06]">
                   <Button variant="ghost" disabled={currentStep === 0} onClick={() => setCurrentStep(s => s - 1)}>
                     <ArrowLeft className="w-4 h-4 mr-1" /> Previous
                   </Button>

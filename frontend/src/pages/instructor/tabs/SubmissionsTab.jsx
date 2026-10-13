@@ -46,11 +46,11 @@ function initials(name) {
 function cdsTierText(cds) {
   const v = Number(cds);
   if (cds === null || cds === undefined || Number.isNaN(v)) return "text-muted-foreground";
-  if (v <= 0.20) return "text-slate-500";
-  if (v <= 0.40) return "text-emerald-400";
-  if (v <= 0.60) return "text-amber-400";
-  if (v <= 0.80) return "text-orange-400";
-  return "text-rose-400";
+  if (v <= 0.20) return "text-slate-500 light:text-slate-600";
+  if (v <= 0.40) return "text-emerald-400 light:text-emerald-700";
+  if (v <= 0.60) return "text-amber-400 light:text-amber-700";
+  if (v <= 0.80) return "text-orange-400 light:text-orange-700";
+  return "text-rose-400 light:text-rose-700";
 }
 
 function formatCds(cds) {
@@ -498,19 +498,19 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           {/* Mobile: status + meta chips */}
                           <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
                             {isClosed(g) && (
-                              <Badge variant="outline" className="bg-slate-500/10 text-slate-300 border-slate-500/30 text-[11px]">
+                              <Badge variant="outline" className="bg-slate-500/10 text-slate-300 light:text-slate-600 border-slate-500/30 text-[11px]">
                                 <Lock className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                 Closed
                               </Badge>
                             )}
                             {isLate(g) && (
-                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 light:text-amber-700 border-amber-500/30 text-[11px]">
                                 <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                 Late
                               </Badge>
                             )}
                             {g.latest_is_correct ? (
-                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/30 text-[11px]">
                                 <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                 Pass
                               </Badge>
@@ -557,19 +557,19 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                           </span>
                           <span className="hidden sm:flex flex-wrap items-center justify-end gap-1.5">
                             {isClosed(g) && (
-                              <Badge variant="outline" className="bg-slate-500/10 text-slate-300 border-slate-500/30 text-[11px]">
+                              <Badge variant="outline" className="bg-slate-500/10 text-slate-300 light:text-slate-600 border-slate-500/30 text-[11px]">
                                 <Lock className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                 Closed
                               </Badge>
                             )}
                             {isLate(g) && (
-                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[11px]">
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 light:text-amber-700 border-amber-500/30 text-[11px]">
                                 <Clock className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                 Late
                               </Badge>
                             )}
                             {g.latest_is_correct ? (
-                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/30 text-[11px]">
                                 <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                 Pass
                               </Badge>
@@ -616,7 +616,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                                     #{a.attempt_number}
                                   </span>
                                   {a.is_correct ? (
-                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/30 text-[11px]">
                                       <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                       Pass
                                     </Badge>
@@ -657,7 +657,7 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                                 <span className="hidden sm:block"></span>
                                 <span className="hidden sm:flex justify-end">
                                   {a.is_correct ? (
-                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[11px]">
+                                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/30 text-[11px]">
                                       <CheckCircle className="h-3 w-3 mr-1" strokeWidth={1.5} />
                                       Pass
                                     </Badge>

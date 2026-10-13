@@ -28,19 +28,19 @@ const NO_DATA = Object.freeze({
 });
 
 const CDS_TIERS = [
-  { tier: 1, label: "Minimal Struggle / Trivial Mastery", color: "slate", tailwind: "bg-slate-900/40 text-slate-400 border-white/5", min: 0.00, max: 0.20 },
-  { tier: 2, label: "Expected Resistance", color: "emerald", tailwind: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", min: 0.21, max: 0.40 },
-  { tier: 3, label: "Moderate Friction", color: "amber", tailwind: "bg-amber-500/15 text-amber-400 border-amber-500/20", min: 0.41, max: 0.60 },
-  { tier: 4, label: "High Struggle Loop", color: "orange", tailwind: "bg-orange-500/20 text-orange-400 border-orange-500/30", min: 0.61, max: 0.80 },
-  { tier: 5, label: "Critical Blocker", color: "rose", tailwind: "bg-rose-600/30 text-rose-400 border-rose-500/40 font-bold shadow-[inset_0_0_12px_rgba(244,63,94,0.15)]", min: 0.81, max: 1.00 },
+  { tier: 1, label: "Minimal Struggle / Trivial Mastery", color: "slate", tailwind: "bg-slate-900/40 light:bg-slate-200/70 text-slate-400 light:text-slate-600 border-white/5 light:border-slate-950/5", min: 0.00, max: 0.20 },
+  { tier: 2, label: "Expected Resistance", color: "emerald", tailwind: "bg-emerald-500/15 text-emerald-400 light:text-emerald-700 border-emerald-500/20", min: 0.21, max: 0.40 },
+  { tier: 3, label: "Moderate Friction", color: "amber", tailwind: "bg-amber-500/15 text-amber-400 light:text-amber-700 border-amber-500/20", min: 0.41, max: 0.60 },
+  { tier: 4, label: "High Struggle Loop", color: "orange", tailwind: "bg-orange-500/20 text-orange-400 light:text-orange-700 border-orange-500/30", min: 0.61, max: 0.80 },
+  { tier: 5, label: "Critical Blocker", color: "rose", tailwind: "bg-rose-600/30 text-rose-400 light:text-rose-700 border-rose-500/40 font-bold shadow-[inset_0_0_12px_rgba(244,63,94,0.15)]", min: 0.81, max: 1.00 },
 ];
 
 const MASTERY_TIERS = [
-  { tier: 1, label: "Excellent Mastery", color: "slate", tailwind: "bg-slate-900/40 text-slate-400 border-white/5", min: 85, max: 100 },
-  { tier: 2, label: "Nominal Progress", color: "emerald", tailwind: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20", min: 65, max: 84.99 },
-  { tier: 3, label: "Moderate Challenge", color: "amber", tailwind: "bg-amber-500/15 text-amber-400 border-amber-500/20", min: 45, max: 64.99 },
-  { tier: 4, label: "Significant Struggle", color: "orange", tailwind: "bg-orange-500/20 text-orange-400 border-orange-500/30", min: 25, max: 44.99 },
-  { tier: 5, label: "Critical Support Required", color: "rose", tailwind: "bg-rose-600/30 text-rose-400 border-rose-500/40 font-bold", min: 0, max: 24.99 },
+  { tier: 1, label: "Excellent Mastery", color: "slate", tailwind: "bg-slate-900/40 light:bg-slate-200/70 text-slate-400 light:text-slate-600 border-white/5 light:border-slate-950/5", min: 85, max: 100 },
+  { tier: 2, label: "Nominal Progress", color: "emerald", tailwind: "bg-emerald-500/15 text-emerald-400 light:text-emerald-700 border-emerald-500/20", min: 65, max: 84.99 },
+  { tier: 3, label: "Moderate Challenge", color: "amber", tailwind: "bg-amber-500/15 text-amber-400 light:text-amber-700 border-amber-500/20", min: 45, max: 64.99 },
+  { tier: 4, label: "Significant Struggle", color: "orange", tailwind: "bg-orange-500/20 text-orange-400 light:text-orange-700 border-orange-500/30", min: 25, max: 44.99 },
+  { tier: 5, label: "Critical Support Required", color: "rose", tailwind: "bg-rose-600/30 text-rose-400 light:text-rose-700 border-rose-500/40 font-bold", min: 0, max: 24.99 },
 ];
 
 // ──────────────────────────────────────────────────────────────────────

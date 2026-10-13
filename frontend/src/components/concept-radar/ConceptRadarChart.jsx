@@ -14,12 +14,12 @@ const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="backdrop-blur-xl bg-white/[0.06] border border-white/[0.1] rounded-lg px-4 py-3 shadow-xl min-w-[180px]">
+    <div className="backdrop-blur-xl bg-white/[0.06] light:bg-slate-950/[0.06] border border-white/[0.1] light:border-slate-950/[0.1] rounded-lg px-4 py-3 shadow-xl min-w-[180px]">
       <p className="text-sm font-semibold text-foreground mb-2">{d.subject}</p>
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-4">
           <span className="text-[11px] text-muted-foreground">Mastery</span>
-          <span className="text-xs font-semibold font-mono tabular-nums text-emerald-400">
+          <span className="text-xs font-semibold font-mono tabular-nums text-emerald-400 light:text-emerald-700">
             {Number(d.mastery) || 0}%
           </span>
         </div>
@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload }) => {
             </span>
           </div>
         )}
-        <div className="flex items-center justify-between gap-4 pt-1 border-t border-white/[0.06] mt-1">
+        <div className="flex items-center justify-between gap-4 pt-1 border-t border-white/[0.06] light:border-slate-950/[0.06] mt-1">
           <span className="text-[11px] text-muted-foreground">Attempts</span>
           <span className="text-xs font-mono tabular-nums text-foreground/80">
             {d.attempts || 0}

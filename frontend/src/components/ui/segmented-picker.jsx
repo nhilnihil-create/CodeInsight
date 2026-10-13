@@ -58,7 +58,7 @@ export default function SegmentedPicker({
       aria-label="Filter"
       className={cn(
         "relative inline-flex items-center gap-0 rounded-lg max-w-full",
-        "bg-white/[0.04] border border-white/[0.06] p-1",
+        "bg-white/[0.04] light:bg-slate-950/[0.04] border border-white/[0.06] light:border-slate-950/[0.06] p-1",
         isSm ? "h-8" : "h-9",
         className
       )}

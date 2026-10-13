@@ -67,9 +67,9 @@ const SEVERITY_RANK = {
 };
 
 const SEVERITY_BADGE_TONE = {
-  high: "bg-rose-500/10 text-rose-400 border border-rose-500/15",
-  medium: "bg-amber-500/10 text-amber-300 border border-amber-500/15",
-  low: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/15",
+  high: "bg-rose-500/10 text-rose-400 light:text-rose-700 border border-rose-500/15",
+  medium: "bg-amber-500/10 text-amber-300 light:text-amber-700 border border-amber-500/15",
+  low: "bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border border-emerald-500/15",
 };
 
 const SEVERITY_RISK_LEVEL = {
@@ -351,8 +351,8 @@ export default function InstructorIntegrity() {
 
       {error && (
         <div className="flex items-center gap-3 rounded-xl border border-rose-500/15 bg-rose-500/5 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
-          <p className="text-sm text-rose-400 flex-1">{error}</p>
+          <AlertTriangle className="h-4 w-4 text-rose-400 light:text-rose-700 shrink-0" />
+          <p className="text-sm text-rose-400 light:text-rose-700 flex-1">{error}</p>
           <Button size="sm" variant="outline" className="border-destructive/30 text-destructive" onClick={fetchFlags}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Retry

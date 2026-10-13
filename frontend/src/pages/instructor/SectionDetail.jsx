@@ -181,7 +181,7 @@ export default function SectionDetail() {
                   title={`Copy code: ${section.code}`}
                 >
                   {copied ? (
-                    <CheckCircle className="h-3 w-3 text-emerald-400" strokeWidth={2} />
+                    <CheckCircle className="h-3 w-3 text-emerald-400 light:text-emerald-700" strokeWidth={2} />
                   ) : (
                     <Copy className="h-3 w-3" strokeWidth={1.5} />
                   )}

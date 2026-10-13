@@ -31,10 +31,10 @@ export default function OutputPanel({
     : 0;
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#0B0F19]/90 backdrop-blur-md border-t border-white/[0.05]">
+    <div className="flex flex-col h-full min-h-0 bg-[#0B0F19]/90 backdrop-blur-md border-t border-white/[0.05] light:border-slate-950/[0.05]">
       {/* Sticky bar */}
-      <div className="flex items-center gap-0 h-9 px-2 border-b border-white/[0.06] bg-[#0B0F19]/80 backdrop-blur-sm shrink-0">
-        <div className="inline-flex items-center gap-1.5 h-full px-3 text-xs font-medium text-emerald-400 border-b-2 -mb-px border-emerald-400">
+      <div className="flex items-center gap-0 h-9 px-2 border-b border-white/[0.06] light:border-slate-950/[0.06] bg-[#0B0F19]/80 backdrop-blur-sm shrink-0">
+        <div className="inline-flex items-center gap-1.5 h-full px-3 text-xs font-medium text-emerald-400 light:text-emerald-700 border-b-2 -mb-px border-emerald-400">
           <TerminalSquare className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
           Terminal
         </div>
@@ -45,10 +45,10 @@ export default function OutputPanel({
               className={cn(
                 "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border",
                 testResults.passed === true
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  ? "bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/20"
                   : failedCount > 0
                   ? "bg-destructive/10 text-destructive border-destructive/20"
-                  : "bg-white/[0.04] text-muted-foreground border-white/[0.06]",
+                  : "bg-white/[0.04] light:bg-slate-950/[0.04] text-muted-foreground border-white/[0.06] light:border-slate-950/[0.06]",
               )}
             >
               {testResults.passed === true ? (
@@ -66,7 +66,7 @@ export default function OutputPanel({
               onClick={onClear}
               aria-label="Clear terminal"
               title="Clear terminal"
-              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] transition-colors"
+              className="inline-flex items-center gap-1 h-6 px-1.5 rounded-sm text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] transition-colors"
             >
               <Trash2 className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
               Clear
@@ -79,7 +79,7 @@ export default function OutputPanel({
         {/* Not run yet */}
         {!hasRun && !compilationLog && !programOutput && !error && (
           <EmptyState>
-            Press <strong className="text-emerald-400">Run</strong> to compile and execute your code.
+            Press <strong className="text-emerald-400 light:text-emerald-700">Run</strong> to compile and execute your code.
           </EmptyState>
         )}
 
@@ -107,7 +107,7 @@ function CompilerErrorView({ compilationLog, error }) {
   return (
     <div className="space-y-2">
       {compilationLog && (
-        <pre className="text-amber-400 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
+        <pre className="text-amber-400 light:text-amber-700 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed">
           {compilationLog}
         </pre>
       )}

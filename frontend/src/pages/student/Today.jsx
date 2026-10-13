@@ -75,7 +75,7 @@ export default function StudentToday() {
           { label: "Today's Plan" },
         ]}
       >
-        <div className="py-16 text-center text-rose-400 text-sm">{error}</div>
+        <div className="py-16 text-center text-rose-400 light:text-rose-700 text-sm">{error}</div>
       </StudentDashboardShell>
     );
   }
@@ -99,12 +99,12 @@ export default function StudentToday() {
         {focus.title && (
           <motion.section
             variants={fadeUp}
-            className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl"
+            className="relative overflow-hidden rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl"
           >
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-teal-400/60 to-transparent" />
             <div className="relative z-10 px-6 py-5 space-y-1.5">
               <p className="metric-label flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-teal-400" />
+                <Sparkles className="w-3 h-3 text-teal-400 light:text-teal-700" />
                 What
               </p>
               <h2 className="text-lg font-semibold text-foreground leading-snug">{focus.title}</h2>
@@ -198,7 +198,7 @@ export default function StudentToday() {
                           transition={{ duration: 0.15 }}
                           className={cn(
                             "grid grid-cols-[1fr_auto_auto] items-center gap-4 px-6 py-4",
-                            i < data.concepts.length - 1 && "border-b border-white/[0.04]"
+                            i < data.concepts.length - 1 && "border-b border-white/[0.04] light:border-slate-950/[0.04]"
                           )}
                         >
                           <div className="min-w-0 space-y-2">
@@ -232,7 +232,7 @@ export default function StudentToday() {
               </GlassPanelContent>
             </GlassPanel>
           ) : (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16">
+            <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16">
               <EmptyState
                 icon={<Sparkles />}
                 title="No concept data yet"
@@ -247,7 +247,7 @@ export default function StudentToday() {
            ═══════════════════════════════════════════════════════════ */}
         {data.signals?.length > 0 && (
           <motion.section variants={fadeUp}>
-            <div className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] backdrop-blur-xl px-5 py-4 space-y-2">
+            <div className="rounded-2xl border border-dashed border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl px-5 py-4 space-y-2">
               {data.signals.map((s, i) => (
                 <p key={i} className="text-sm text-muted-foreground/60">
                   <span className="text-muted-foreground/30 mr-1.5" aria-hidden="true">•</span>

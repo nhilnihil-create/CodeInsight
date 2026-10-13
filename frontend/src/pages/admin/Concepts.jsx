@@ -17,13 +17,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 /** Generate a consistent color class from a concept name slug */
 function conceptColorClass(name) {
   const known = {
-    'Datatypes': 'text-blue-500 bg-blue-500/10 border-blue-500/30',
-    'Variables': 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30',
-    'Conditionals': 'text-amber-500 bg-amber-500/10 border-amber-500/30',
-    'Loops': 'text-purple-500 bg-purple-500/10 border-purple-500/30',
-    'Functions': 'text-rose-500 bg-rose-500/10 border-rose-500/30',
-    'Arrays': 'text-cyan-500 bg-cyan-500/10 border-cyan-500/30',
-    'OOP': 'text-orange-500 bg-orange-500/10 border-orange-500/30',
+    'Datatypes': 'text-blue-500 light:text-blue-700 bg-blue-500/10 border-blue-500/30',
+    'Variables': 'text-emerald-500 light:text-emerald-700 bg-emerald-500/10 border-emerald-500/30',
+    'Conditionals': 'text-amber-500 light:text-amber-700 bg-amber-500/10 border-amber-500/30',
+    'Loops': 'text-purple-500 light:text-purple-700 bg-purple-500/10 border-purple-500/30',
+    'Functions': 'text-rose-500 light:text-rose-700 bg-rose-500/10 border-rose-500/30',
+    'Arrays': 'text-cyan-500 light:text-cyan-700 bg-cyan-500/10 border-cyan-500/30',
+    'OOP': 'text-orange-500 light:text-orange-700 bg-orange-500/10 border-orange-500/30',
   };
   if (known[name]) return known[name];
   // Dynamic fallback: hash the name to a hue

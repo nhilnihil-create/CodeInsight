@@ -11,7 +11,7 @@ export default function EvidenceRow({ chips = [] }) {
   return (
     <div
       className={cn(
-        "grid gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]",
+        "grid gap-px rounded-2xl overflow-hidden border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.06] light:bg-slate-950/[0.06]",
         chips.length <= 2
           ? "grid-cols-1 sm:grid-cols-2"
           : chips.length === 3

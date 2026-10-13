@@ -42,7 +42,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
   };
 
   return (
-    <div className="mesh-bg noise-overlay min-h-dvh bg-[#0B0F19] text-foreground">
+    <div className="mesh-bg noise-overlay min-h-dvh bg-[#0B0F19] light:bg-[#F8FAFC] text-foreground">
       <div className="relative z-10 mx-auto max-w-6xl px-6 py-8">
         {/* Top bar */}
         <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
@@ -93,7 +93,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
                   whileHover={{ scale: 1.015 }}
                   whileTap={{ scale: 0.985 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl text-left transition-colors duration-200 hover:border-teal-400/30 hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group relative overflow-hidden rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl text-left transition-colors duration-200 hover:border-teal-400/30 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {/* Top accent */}
                   <div className="h-px w-full bg-gradient-to-r from-transparent via-teal-400/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -101,7 +101,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
                   <div className="flex items-center gap-3.5 px-4 py-4 sm:px-5">
                     {/* Gradient icon */}
                     <div className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-teal-400/20 to-emerald-500/20 border border-teal-400/20 flex items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-teal-400" strokeWidth={1.5} />
+                      <BookOpen className="h-5 w-5 text-teal-400 light:text-teal-700" strokeWidth={1.5} />
                     </div>
 
                     {/* Info */}
@@ -125,7 +125,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
 
                     {/* Enter affordance */}
                     <ChevronRight
-                      className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:text-teal-400 group-hover:translate-x-0.5"
+                      className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-all duration-200 group-hover:text-teal-400 group-light:hover:text-teal-700 group-hover:translate-x-0.5"
                       strokeWidth={1.5}
                     />
                   </div>
@@ -134,7 +134,7 @@ export default function SectionPickerPage({ sections, onSelected, onJoin }) {
             })}
           </motion.div>
         ) : (
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16 text-center">
+          <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16 text-center">
             <p className="text-sm text-muted-foreground">No classes yet — join one to get started.</p>
           </div>
         )}

@@ -22,23 +22,23 @@ import { cn } from "@/lib/utils";
  * Frosted glassmorphic theme with emerald accents.
  */
 const STATUS_META = {
-  accepted:    { Icon: Check, label: "Passed",       cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",     IconCls: "text-emerald-400" },
+  accepted:    { Icon: Check, label: "Passed",       cls: "bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/20",     IconCls: "text-emerald-400 light:text-emerald-700" },
   wrong_answer:{ Icon: X,     label: "Failed",       cls: "bg-destructive/10 text-destructive border-destructive/20", IconCls: "text-destructive" },
-  time_limit:  { Icon: Clock, label: "Time Limit",   cls: "bg-amber-500/10 text-amber-400 border-amber-500/20",     IconCls: "text-amber-400" },
+  time_limit:  { Icon: Clock, label: "Time Limit",   cls: "bg-amber-500/10 text-amber-400 light:text-amber-700 border-amber-500/20",     IconCls: "text-amber-400 light:text-amber-700" },
   runtime:     { Icon: X,     label: "Runtime",      cls: "bg-destructive/10 text-destructive border-destructive/20", IconCls: "text-destructive" },
-  pending:     { Icon: Clock, label: "Pending",      cls: "bg-white/[0.04] text-muted-foreground border-white/[0.06]",     IconCls: "text-muted-foreground" },
+  pending:     { Icon: Clock, label: "Pending",      cls: "bg-white/[0.04] light:bg-slate-950/[0.04] text-muted-foreground border-white/[0.06] light:border-slate-950/[0.06]",     IconCls: "text-muted-foreground" },
 };
 
 const HISTORY_META = {
-  submission: { Icon: Send,    IconCls: "text-emerald-400" },
-  run:        { Icon: Play,    IconCls: "text-sky-400" },
+  submission: { Icon: Send,    IconCls: "text-emerald-400 light:text-emerald-700" },
+  run:        { Icon: Play,    IconCls: "text-sky-400 light:text-sky-700" },
   edit:       { Icon: Pencil,  IconCls: "text-muted-foreground" },
   open:       { Icon: FileEdit,IconCls: "text-muted-foreground" },
 };
 
 export default function SubmissionsPanel({ submissions = [], history = [] }) {
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#131B2E]/40 backdrop-blur-md border-l border-white/[0.05]">
+    <div className="flex flex-col h-full min-h-0 bg-[#131B2E]/40 light:bg-white/60 backdrop-blur-md border-l border-white/[0.05] light:border-slate-950/[0.05]">
       <Section
         icon={Inbox}
         title="Submissions"
@@ -51,7 +51,7 @@ export default function SubmissionsPanel({ submissions = [], history = [] }) {
       <Section
         icon={HistoryIcon}
         title="History"
-        className="flex-1 min-h-0 border-t border-white/[0.05]"
+        className="flex-1 min-h-0 border-t border-white/[0.05] light:border-slate-950/[0.05]"
       >
         <HistoryList history={history} />
       </Section>
@@ -62,11 +62,11 @@ export default function SubmissionsPanel({ submissions = [], history = [] }) {
 function Section({ icon: Icon, title, badge, className, children }) {
   return (
     <section className={cn("flex flex-col min-h-0", className)}>
-      <header className="flex items-center gap-2 h-9 px-3 border-b border-white/[0.06] bg-[#131B2E]/30 backdrop-blur-sm shrink-0">
+      <header className="flex items-center gap-2 h-9 px-3 border-b border-white/[0.06] light:border-slate-950/[0.06] bg-[#131B2E]/30 light:bg-white/60 backdrop-blur-sm shrink-0">
         <Icon className="h-3.5 w-3.5 text-emerald-400/70" strokeWidth={1.5} aria-hidden="true" />
-        <h2 className="text-xs font-semibold tracking-tight text-white/80">{title}</h2>
+        <h2 className="text-xs font-semibold tracking-tight text-white/80 light:text-slate-900/80">{title}</h2>
         {badge != null ? (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums bg-emerald-500/10 text-emerald-400">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-mono tabular-nums bg-emerald-500/10 text-emerald-400 light:text-emerald-700">
             {badge}
           </span>
         ) : null}
@@ -96,7 +96,7 @@ function SubmissionsList({ submissions }) {
             <li
               key={s.id}
               className={cn(
-                "px-3 py-3 hover:bg-white/[0.02] cursor-pointer transition-colors",
+                "px-3 py-3 hover:bg-white/[0.02] light:hover:bg-slate-950/[0.02] cursor-pointer transition-colors",
                 "border-l-2",
                 s.status === "accepted"
                   ? "border-l-emerald-400/60"
@@ -118,7 +118,7 @@ function SubmissionsList({ submissions }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <p className="text-sm font-medium truncate text-white/90">{meta.label}</p>
+                    <p className="text-sm font-medium truncate text-white/90 light:text-slate-900/90">{meta.label}</p>
                     <span className="text-[10px] text-muted-foreground font-mono tabular-nums shrink-0">
                       #{s.attemptNumber}
                     </span>
@@ -137,13 +137,13 @@ function SubmissionsList({ submissions }) {
                   {s.input != null ? (
                     <>
                       <dt className="text-muted-foreground">Input</dt>
-                      <dd className="text-white/80 whitespace-pre-wrap break-words">{s.input}</dd>
+                      <dd className="text-white/80 light:text-slate-900/80 whitespace-pre-wrap break-words">{s.input}</dd>
                     </>
                   ) : null}
                   {s.expected != null ? (
                     <>
                       <dt className="text-muted-foreground">Expected</dt>
-                      <dd className="text-white/80 whitespace-pre-wrap break-words">{s.expected}</dd>
+                      <dd className="text-white/80 light:text-slate-900/80 whitespace-pre-wrap break-words">{s.expected}</dd>
                     </>
                   ) : null}
                   {s.actual != null ? (
@@ -153,7 +153,7 @@ function SubmissionsList({ submissions }) {
                         className={cn(
                           "whitespace-pre-wrap break-words",
                           s.status === "accepted"
-                            ? "text-emerald-400"
+                            ? "text-emerald-400 light:text-emerald-700"
                             : "text-destructive",
                         )}
                       >
@@ -185,7 +185,7 @@ function HistoryList({ history }) {
     <ScrollArea className="h-full">
       <ol className="relative px-4 py-3" role="list">
         <span
-          className="absolute left-[27px] top-3 bottom-3 w-px bg-white/[0.06]"
+          className="absolute left-[27px] top-3 bottom-3 w-px bg-white/[0.06] light:bg-slate-950/[0.06]"
           aria-hidden="true"
         />
         {history.map((h) => {
@@ -195,14 +195,14 @@ function HistoryList({ history }) {
             <li key={h.id} className="relative pl-9 py-2">
               <span
                 className={cn(
-                  "absolute left-2 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#131B2E] border border-white/[0.08]",
+                  "absolute left-2 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#131B2E] border border-white/[0.08] light:border-slate-950/[0.08]",
                 )}
                 aria-hidden="true"
               >
                 <Icon className={cn("h-3 w-3", meta.IconCls)} strokeWidth={1.75} />
               </span>
               <div className="flex items-start justify-between gap-2 min-w-0">
-                <p className="text-sm leading-snug text-white/80">{h.label}</p>
+                <p className="text-sm leading-snug text-white/80 light:text-slate-900/80">{h.label}</p>
                 <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0">
                   {h.timestamp}
                 </span>

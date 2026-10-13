@@ -27,7 +27,7 @@ function lerpColor(c1, c2, t) {
 }
 
 function cdsColor(cds) {
-  if (cds == null) return { bg: 'rgba(15,23,42,0.6)', text: 'text-slate-500', label: 'No Data' };
+  if (cds == null) return { bg: 'rgba(15,23,42,0.6)', text: 'text-slate-500 light:text-slate-600', label: 'No Data' };
   const v = Math.max(0, Math.min(1, Number(cds)));
 
   const stops = [
@@ -53,7 +53,7 @@ function cdsColor(cds) {
   const rgb = lerpColor(lower.rgb, upper.rgb, t);
 
   const alpha = lerp(0.15, 0.55, v);
-  const textColor = v < 0.20 ? 'text-slate-300' : v < 0.40 ? 'text-emerald-300' : v < 0.60 ? 'text-amber-300' : 'text-rose-300';
+  const textColor = v < 0.20 ? 'text-slate-300 light:text-slate-600' : v < 0.40 ? 'text-emerald-300 light:text-emerald-700' : v < 0.60 ? 'text-amber-300 light:text-amber-700' : 'text-rose-300 light:text-rose-700';
 
   const label =
     v <= 0.20 ? 'Very Low' :
@@ -69,12 +69,12 @@ function cdsColor(cds) {
 }
 
 const CDS_TIERS = [
-  { min: -1,   max: -1,   label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500',        text: '' },
-  { min: 0.00, max: 0.20, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500',        text: 'text-slate-500' },
-  { min: 0.21, max: 0.40, label: 'Low',       cell: 'bg-emerald-500/20 text-emerald-400',    text: 'text-emerald-400' },
-  { min: 0.41, max: 0.60, label: 'Moderate',  cell: 'bg-amber-500/20 text-amber-400',        text: 'text-amber-400' },
-  { min: 0.61, max: 0.80, label: 'High',      cell: 'bg-orange-500/25 text-orange-400',      text: 'text-orange-400' },
-  { min: 0.81, max: 1.00, label: 'Very High', cell: 'bg-rose-600/35 text-rose-400 font-bold', text: 'text-rose-400' },
+  { min: -1,   max: -1,   label: 'No Data',  cell: 'bg-slate-900/60 text-slate-500 light:text-slate-600',        text: '' },
+  { min: 0.00, max: 0.20, label: 'Very Low',  cell: 'bg-slate-800/20 text-slate-500 light:text-slate-600',        text: 'text-slate-500 light:text-slate-600' },
+  { min: 0.21, max: 0.40, label: 'Low',       cell: 'bg-emerald-500/20 text-emerald-400 light:text-emerald-700',    text: 'text-emerald-400 light:text-emerald-700' },
+  { min: 0.41, max: 0.60, label: 'Moderate',  cell: 'bg-amber-500/20 text-amber-400 light:text-amber-700',        text: 'text-amber-400 light:text-amber-700' },
+  { min: 0.61, max: 0.80, label: 'High',      cell: 'bg-orange-500/25 text-orange-400 light:text-orange-700',      text: 'text-orange-400 light:text-orange-700' },
+  { min: 0.81, max: 1.00, label: 'Very High', cell: 'bg-rose-600/35 text-rose-400 light:text-rose-700 font-bold', text: 'text-rose-400 light:text-rose-700' },
 ];
 
 function cdsTier(cds) {
@@ -94,14 +94,14 @@ function cdsTier(cds) {
 function Legend() {
   return (
     <div className="flex items-center gap-2.5 flex-wrap">
-      <span className="text-[9px] text-white/30 whitespace-nowrap">Very Low</span>
+      <span className="text-[9px] text-white/30 light:text-slate-500 whitespace-nowrap">Very Low</span>
       <div
         className="h-2.5 w-24 rounded-[2px]"
         style={{
           background: 'linear-gradient(to right, rgba(26,95,80,0.35), rgba(16,185,129,0.5), rgba(245,158,11,0.5), rgba(249,115,22,0.55), rgba(225,29,72,0.6))',
         }}
       />
-      <span className="text-[9px] text-white/30 whitespace-nowrap">Very High</span>
+      <span className="text-[9px] text-white/30 light:text-slate-500 whitespace-nowrap">Very High</span>
     </div>
   );
 }
@@ -130,7 +130,7 @@ function Cell({ cds, onHover, onLeave }) {
       onMouseMove={(e) => onHover?.(e)}
       onMouseLeave={onLeave}
     >
-      <span className={cds != null ? color.text : 'text-slate-500'}>
+      <span className={cds != null ? color.text : 'text-slate-500 light:text-slate-600'}>
         {cds != null ? Number(cds).toFixed(2) : ''}
       </span>
     </div>
@@ -146,40 +146,40 @@ function PortalTooltip({ x, y, data, visible }) {
   if (!visible || !data) return null;
 
   const isBlank = data.cds == null;
-  const color = isBlank ? { text: 'text-slate-500', label: 'No Data' } : cdsColor(data.cds);
+  const color = isBlank ? { text: 'text-slate-500 light:text-slate-600', label: 'No Data' } : cdsColor(data.cds);
 
   return createPortal(
     <div
       className="fixed z-[9999] pointer-events-none
-                 bg-white/[0.06] backdrop-blur-2xl
-                 border border-white/[0.12] rounded-xl px-4 py-3
+                 bg-white/[0.06] light:bg-slate-950/[0.06] backdrop-blur-2xl
+                 border border-white/[0.12] light:border-slate-950/[0.12] rounded-xl px-4 py-3
                  shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.08)]
                  text-xs leading-relaxed min-w-[180px] select-none"
       style={{ left: x + 18, top: y - 14 }}
     >
       {/* Concept + Student */}
-      <div className="font-semibold text-white/90 text-[11px] mb-1">{data.concept}</div>
-      <div className="text-white/40 text-[10px] mb-2">{data.student}</div>
+      <div className="font-semibold text-white/90 light:text-slate-900/90 text-[11px] mb-1">{data.concept}</div>
+      <div className="text-white/40 light:text-slate-500 text-[10px] mb-2">{data.student}</div>
 
       {isBlank ? (
         /* ── Blank cell: No Data badge + reason ── */
         <div className="space-y-1">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-white/60 text-sm">—</span>
+            <span className="font-semibold text-white/60 light:text-slate-600 text-sm">—</span>
             <span className="text-[9px] px-1.5 py-[1px] rounded-full font-medium
-                           bg-white/[0.08] border border-white/[0.08] text-slate-500">
+                           bg-white/[0.08] light:bg-slate-950/[0.08] border border-white/[0.08] light:border-slate-950/[0.08] text-slate-500 light:text-slate-600">
               No Data
             </span>
           </div>
           {data.blankReason && (
-            <div className="space-y-0.5 pt-1 border-t border-white/[0.08]">
-              <div className="text-white/60 text-[10px]">
+            <div className="space-y-0.5 pt-1 border-t border-white/[0.08] light:border-slate-950/[0.08]">
+              <div className="text-white/60 light:text-slate-600 text-[10px]">
                 {data.blankReason.classification === 'Flagged-Pending'
                   ? 'Flagged — pending review'
                   : 'Not scored'}
               </div>
               {data.blankReason.exerciseTitle && (
-                <div className="text-white/30 text-[9px] italic">
+                <div className="text-white/30 light:text-slate-500 text-[9px] italic">
                   {data.blankReason.exerciseTitle}
                 </div>
               )}
@@ -190,34 +190,34 @@ function PortalTooltip({ x, y, data, visible }) {
         /* ── Colored cell: existing rendering ── */
         <>
           <div className="flex items-center gap-2 mb-2">
-            <span className="font-mono tabular-nums font-semibold text-white/90 text-sm">
+            <span className="font-mono tabular-nums font-semibold text-white/90 light:text-slate-900/90 text-sm">
               {Number(data.cds).toFixed(2)}
             </span>
             <span className={cn(
               'text-[9px] px-1.5 py-[1px] rounded-full font-medium',
-              'bg-white/[0.08] border border-white/[0.08]',
+              'bg-white/[0.08] light:bg-slate-950/[0.08] border border-white/[0.08] light:border-slate-950/[0.08]',
               color.text,
             )}>
               {color.label}
             </span>
           </div>
           {data.raw && (
-            <div className="space-y-1 pt-2 border-t border-white/[0.08]">
+            <div className="space-y-1 pt-2 border-t border-white/[0.08] light:border-slate-950/[0.08]">
               <div className="flex justify-between gap-6">
-                <span className="text-white/40 text-[10px]">NER</span>
-                <span className="font-mono tabular-nums text-white/70 text-[10px]">
+                <span className="text-white/40 light:text-slate-500 text-[10px]">NER</span>
+                <span className="font-mono tabular-nums text-white/70 light:text-slate-700 text-[10px]">
                   {Number(data.raw.ner).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between gap-6">
-                <span className="text-white/40 text-[10px]">NRS</span>
-                <span className="font-mono tabular-nums text-white/70 text-[10px]">
+                <span className="text-white/40 light:text-slate-500 text-[10px]">NRS</span>
+                <span className="font-mono tabular-nums text-white/70 light:text-slate-700 text-[10px]">
                   {Number(data.raw.nrs).toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between gap-6">
-                <span className="text-white/40 text-[10px]">NTS</span>
-                <span className="font-mono tabular-nums text-white/70 text-[10px]">
+                <span className="text-white/40 light:text-slate-500 text-[10px]">NTS</span>
+                <span className="font-mono tabular-nums text-white/70 light:text-slate-700 text-[10px]">
                   {Number(data.raw.nts).toFixed(2)}
                 </span>
               </div>
@@ -264,8 +264,8 @@ function DraggableColumnHeader({ concept, index, onSwap, totalColumns }) {
       whileDrag={{ scale: 1.05, zIndex: 50, cursor: 'grabbing' }}
       className={cn(
         'relative h-28 p-0 m-0 text-center align-bottom',
-        'border-b border-white/5 cursor-grab active:cursor-grabbing',
-        'text-white/35 hover:text-white/60 transition-colors',
+        'border-b border-white/5 light:border-slate-950/5 cursor-grab active:cursor-grabbing',
+        'text-white/35 light:text-slate-500 hover:text-white/60 light:hover:text-slate-600 transition-colors',
         'select-none touch-none overflow-visible',
       )}
       title={concept}
@@ -432,10 +432,10 @@ export default function InstructorHeatmap() {
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white/90">
+          <h1 className="text-xl font-bold tracking-tight text-white/90 light:text-slate-900/90">
             Concept Difficulty Heatmap
           </h1>
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-white/40 light:text-slate-500">
             Dense mosaic — CDS struggle index across all concepts. Columns sorted easiest → hardest.
           </p>
         </div>
@@ -446,10 +446,10 @@ export default function InstructorHeatmap() {
       </div>
 
       {/* ── Glass Panel ─────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-h-0 w-full backdrop-blur-md bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 w-full backdrop-blur-md bg-slate-900/40 light:bg-slate-200/70 border border-white/10 light:border-slate-950/10 rounded-2xl overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 border-b border-white/5 flex-shrink-0">
-          <span className="text-[11px] font-medium text-white/50 uppercase tracking-wider">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 border-b border-white/5 light:border-slate-950/5 flex-shrink-0">
+          <span className="text-[11px] font-medium text-white/50 light:text-slate-600 uppercase tracking-wider">
             Student × Concept — Struggle Index
           </span>
           <div className="flex flex-wrap items-center gap-3">
@@ -457,7 +457,7 @@ export default function InstructorHeatmap() {
               placeholder="Search student…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 border-white/10 text-white/80 placeholder:text-white/30"
+              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 light:bg-slate-950/5 border-white/10 light:border-slate-950/10 text-white/80 light:text-slate-900/80 placeholder:text-white/30 light:placeholder:text-slate-500"
             />
             <div className="hidden sm:block"><Legend /></div>
           </div>
@@ -466,19 +466,19 @@ export default function InstructorHeatmap() {
         {/* Content */}
         <div className="flex flex-col flex-1 min-h-0">
           {loading ? (
-            <div className="py-16 text-center text-white/40 text-sm">
-              <div className="animate-spin h-5 w-5 border-2 border-white/10 border-t-white/40 rounded-full mx-auto mb-3" />
+            <div className="py-16 text-center text-white/40 light:text-slate-500 text-sm">
+              <div className="animate-spin h-5 w-5 border-2 border-white/10 light:border-slate-950/10 border-t-white/40 rounded-full mx-auto mb-3" />
               Loading heatmap…
             </div>
           ) : error ? (
             <div className="py-16 text-center">
-              <p className="text-sm text-rose-400 font-medium">{error}</p>
-              <p className="text-xs text-white/30 mt-1">Try selecting a different section or refresh.</p>
+              <p className="text-sm text-rose-400 light:text-rose-700 font-medium">{error}</p>
+              <p className="text-xs text-white/30 light:text-slate-500 mt-1">Try selecting a different section or refresh.</p>
             </div>
           ) : rows.length === 0 ? (
-            <div className="py-16 text-center text-white/40 text-sm">
+            <div className="py-16 text-center text-white/40 light:text-slate-500 text-sm">
               <p>No heatmap data available for this selection.</p>
-              <p className="text-xs mt-1 text-white/25">Students must have CDS scores computed to appear here.</p>
+              <p className="text-xs mt-1 text-white/25 light:text-slate-500">Students must have CDS scores computed to appear here.</p>
             </div>
           ) : (
             /* ── Dense Mosaic Grid ─────────────────────────────────── */
@@ -493,7 +493,7 @@ export default function InstructorHeatmap() {
                     <th
                       className="sticky left-0 z-30 bg-slate-950/90 backdrop-blur-md
                                  text-left px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider
-                                 text-white/40 border-b border-r border-white/5 h-28"
+                                 text-white/40 light:text-slate-500 border-b border-r border-white/5 light:border-slate-950/5 h-28"
                       style={{ minWidth: 120, width: 120 }}
                     >
                       Student
@@ -527,7 +527,7 @@ export default function InstructorHeatmap() {
                         className={cn(
                           'transition-opacity duration-75',
                           hoveredRow === row.studentId
-                            ? 'bg-white/[0.04]'
+                            ? 'bg-white/[0.04] light:bg-slate-950/[0.04]'
                             : hoveredRow
                               ? 'opacity-50'
                               : '',
@@ -538,11 +538,11 @@ export default function InstructorHeatmap() {
                         {/* Frozen student name cell */}
                         <td
                           className="sticky left-0 z-10 bg-slate-950/90 backdrop-blur-md
-                                     px-2 py-0.5 font-medium whitespace-nowrap border-r border-white/5
+                                     px-2 py-0.5 font-medium whitespace-nowrap border-r border-white/5 light:border-slate-950/5
                                      shadow-[3px_0_6px_-3px_rgba(0,0,0,0.4)]"
                           style={{ minWidth: 120, width: 120 }}
                         >
-                          <span className="text-[10px] text-white/80 truncate block">{row.name}</span>
+                          <span className="text-[10px] text-white/80 light:text-slate-900/80 truncate block">{row.name}</span>
                         </td>
 
                         {/* Flat mosaic cells — every intersection filled */}

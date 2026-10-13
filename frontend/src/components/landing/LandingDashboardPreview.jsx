@@ -104,7 +104,7 @@ export default function LandingDashboardPreview() {
         {/* ── Insight banner ───────────────────────────────────── */}
         <motion.div
           variants={fadeUp}
-          className="relative overflow-hidden border-b border-white/[0.06] px-5 py-4"
+          className="relative overflow-hidden border-b border-white/[0.06] light:border-slate-950/[0.06] px-5 py-4"
         >
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
           <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -126,10 +126,10 @@ export default function LandingDashboardPreview() {
         {/* ── Micro-metric strip ───────────────────────────────── */}
         <motion.div
           variants={fadeUp}
-          className="grid grid-cols-3 gap-px border-b border-white/[0.06] bg-white/[0.06]"
+          className="grid grid-cols-3 gap-px border-b border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.06] light:bg-slate-950/[0.06]"
         >
           {METRICS.map((m) => (
-            <div key={m.label} className="flex flex-col gap-1 bg-white/[0.02] px-5 py-4">
+            <div key={m.label} className="flex flex-col gap-1 bg-white/[0.02] light:bg-slate-950/[0.02] px-5 py-4">
               <span className="metric-label">{m.label}</span>
               <span
                 className={cn(
@@ -154,7 +154,7 @@ export default function LandingDashboardPreview() {
         </motion.div>
 
         {/* ── Class trend chart (recharts) ─────────────────────── */}
-        <motion.div variants={fadeUp} className="border-b border-white/[0.06] px-5 py-4">
+        <motion.div variants={fadeUp} className="border-b border-white/[0.06] light:border-slate-950/[0.06] px-5 py-4">
           <h4 className="mb-3 text-xs font-semibold tracking-tight text-foreground">
             Class trend
           </h4>
@@ -180,7 +180,7 @@ export default function LandingDashboardPreview() {
         <div className="grid md:grid-cols-[1.2fr_1fr]">
           <motion.div
             variants={fadeUp}
-            className="border-b border-white/[0.06] md:border-b-0 md:border-r"
+            className="border-b border-white/[0.06] light:border-slate-950/[0.06] md:border-b-0 md:border-r"
           >
             <h4 className="px-5 pb-2 pt-4 text-xs font-semibold tracking-tight text-foreground">
               Top struggling concepts

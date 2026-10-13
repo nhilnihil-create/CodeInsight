@@ -79,9 +79,9 @@ const TAB_EMPTY = {
 };
 
 const STATUS_CHIP = {
-  done: { label: 'Completed', color: 'text-emerald-400' },
-  late: { label: 'Late', color: 'text-amber-400' },
-  missing: { label: 'Missing', color: 'text-rose-400' },
+  done: { label: 'Completed', color: 'text-emerald-400 light:text-emerald-700' },
+  late: { label: 'Late', color: 'text-amber-400 light:text-amber-700' },
+  missing: { label: 'Missing', color: 'text-rose-400 light:text-rose-700' },
 };
 
 // Fallback for legacy payloads that predate work_status. Deliberately does
@@ -241,7 +241,7 @@ export default function StudentExercises() {
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-3"
+                className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] p-5 space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <Skeleton className="h-3 w-24" />
@@ -263,9 +263,9 @@ export default function StudentExercises() {
   return (
     <StudentDashboardShell breadcrumb={SHELL_BREADCRUMB} subtitle={SHELL_SUBTITLE}>
       {error ? (
-        <div className="py-16 text-center text-rose-400 text-sm">{error}</div>
+        <div className="py-16 text-center text-rose-400 light:text-rose-700 text-sm">{error}</div>
       ) : exercises.length === 0 ? (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16">
+        <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16">
           <EmptyState
             icon={<Sparkles />}
             title="No exercises available yet"
@@ -285,7 +285,7 @@ export default function StudentExercises() {
                 placeholder="Search exercises…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-white/[0.08] bg-white/[0.02] pl-9 pr-8 text-sm placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-9 w-full rounded-lg border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] pl-9 pr-8 text-sm placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               {query && (
                 <button
@@ -301,13 +301,13 @@ export default function StudentExercises() {
           </div>
 
           {/* Summary strip */}
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-4 mb-5">
+          <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl p-4 mb-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { key: 'todo', label: 'To-do', icon: <ListChecks className="h-4 w-4 text-muted-foreground/60" /> },
-                { key: 'late', label: 'Late', icon: <Clock className="h-4 w-4 text-amber-400" /> },
-                { key: 'missing', label: 'Missing', icon: <AlertCircle className="h-4 w-4 text-rose-400" /> },
-                { key: 'done', label: 'Done', icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" /> },
+                { key: 'late', label: 'Late', icon: <Clock className="h-4 w-4 text-amber-400 light:text-amber-700" /> },
+                { key: 'missing', label: 'Missing', icon: <AlertCircle className="h-4 w-4 text-rose-400 light:text-rose-700" /> },
+                { key: 'done', label: 'Done', icon: <CheckCircle2 className="h-4 w-4 text-emerald-400 light:text-emerald-700" /> },
               ].map((stat) => (
                 <div key={stat.key} className="flex items-center gap-2.5">
                   {stat.icon}
@@ -328,7 +328,7 @@ export default function StudentExercises() {
           <div
             role="tablist"
             aria-label="Filter exercises by work status"
-            className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1 mb-6"
+            className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] p-1 mb-6"
           >
             {TABS.map((tab) => {
               const active = activeTab === tab.key;
@@ -343,14 +343,14 @@ export default function StudentExercises() {
                     "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     active
                       ? "bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold"
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]"
                   )}
                 >
                   {tab.label}
                   <span
                     className={cn(
                       "text-[10px] font-mono tabular-nums rounded-full px-1.5",
-                      active ? "text-slate-950/70" : "text-muted-foreground/60 bg-white/[0.04]"
+                      active ? "text-slate-950/70" : "text-muted-foreground/60 bg-white/[0.04] light:bg-slate-950/[0.04]"
                     )}
                   >
                     {tabCounts[tab.key] || 0}
@@ -361,7 +361,7 @@ export default function StudentExercises() {
           </div>
 
           {tabExercises.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+            <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl">
               <EmptyState
                 icon={TAB_EMPTY[activeTab]?.icon}
                 title={TAB_EMPTY[activeTab]?.title}
@@ -369,7 +369,7 @@ export default function StudentExercises() {
               />
             </div>
           ) : visibleExercises.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+            <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl">
               <EmptyState
                 icon={<Search />}
                 title="No exercises match your search"
@@ -388,7 +388,7 @@ export default function StudentExercises() {
                 const workStatus = workStatusOf(ex);
                 const chip = STATUS_CHIP[workStatus];
                 const chipBase =
-                  "inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] font-mono text-muted-foreground/70";
+                  "inline-flex items-center gap-1 rounded-full border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.04] light:bg-slate-950/[0.04] px-2 py-0.5 text-[10px] font-mono text-muted-foreground/70";
                 const testsCount = countTestCases(ex.test_cases);
                 const showChips =
                   Boolean(ex.concept_name) ||
@@ -402,9 +402,9 @@ export default function StudentExercises() {
                       transition={{ type: "spring", stiffness: 400, damping: 25 }}
                       className={cn(
                         "relative rounded-2xl overflow-hidden",
-                        "bg-white/[0.02] border border-white/[0.06]",
+                        "bg-white/[0.02] light:bg-slate-950/[0.02] border border-white/[0.06] light:border-slate-950/[0.06]",
                         "backdrop-blur-xl noise-overlay",
-                        "transition-colors duration-200 hover:bg-white/[0.04]",
+                        "transition-colors duration-200 hover:bg-white/[0.04] light:hover:bg-slate-950/[0.04]",
                         "flex flex-col h-full"
                       )}
                     >
@@ -472,7 +472,7 @@ export default function StudentExercises() {
                             className={cn(
                               "w-full font-medium",
                               isCompleted
-                                ? "bg-white/[0.06] hover:bg-white/[0.10] text-foreground border border-white/[0.08]"
+                                ? "bg-white/[0.06] light:bg-slate-950/[0.06] hover:bg-white/[0.10] text-foreground border border-white/[0.08] light:border-slate-950/[0.08]"
                                 : "bg-gradient-to-r from-teal-400 to-emerald-500 text-slate-950 font-semibold border-0 hover:shadow-[0_0_20px_rgba(45,212,191,0.4)] transition-shadow duration-300"
                             )}
                             variant={isCompleted ? 'outline' : 'default'}

@@ -611,7 +611,7 @@ function MasteryTab({ data, activeKA, onKAChange }) {
             <div
               role="radiogroup"
               aria-label="Knowledge Area Group"
-              className="relative inline-flex flex-wrap items-center justify-center gap-1 rounded-xl bg-white/[0.04] dark:bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
+              className="relative inline-flex flex-wrap items-center justify-center gap-1 rounded-xl bg-white/[0.04] light:bg-slate-950/[0.04] dark:bg-white/[0.04] border border-white/[0.08] light:border-slate-950/[0.08] backdrop-blur-xl p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.06)]"
             >
               {KA_GROUPS.map((group) => {
                 const isActive = group.code === activeKA;
@@ -635,7 +635,7 @@ function MasteryTab({ data, activeKA, onKAChange }) {
                     {isActive && (
                       <motion.div
                         layoutId="kaGroupIndicator"
-                        className="absolute inset-0 bg-white/[0.08] border border-white/[0.1] rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                        className="absolute inset-0 bg-white/[0.08] light:bg-slate-950/[0.08] border border-white/[0.1] light:border-slate-950/[0.1] rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.08)]"
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
@@ -643,8 +643,8 @@ function MasteryTab({ data, activeKA, onKAChange }) {
                     <span className={cn(
                       "relative z-10 inline-flex items-center justify-center min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 rounded-full text-[8px] sm:text-[9px] font-bold tabular-nums",
                       isActive
-                        ? "bg-white/[0.12] text-foreground/80"
-                        : "bg-white/[0.04] text-muted-foreground/40"
+                        ? "bg-white/[0.12] light:bg-slate-950/[0.12] text-foreground/80"
+                        : "bg-white/[0.04] light:bg-slate-950/[0.04] text-muted-foreground/40"
                     )}>
                       {count}
                     </span>

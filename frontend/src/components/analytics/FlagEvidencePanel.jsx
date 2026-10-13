@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const FLAG_META = {
   HARDCODING: {
     label: "Hardcoding",
-    color: "text-rose-400",
+    color: "text-rose-400 light:text-rose-700",
     bg: "bg-rose-500/10",
     border: "border-rose-500/30",
     ring: "ring-rose-500/20",
@@ -14,7 +14,7 @@ const FLAG_META = {
   },
   BLANK_TEMPLATE: {
     label: "Blank Template",
-    color: "text-amber-400",
+    color: "text-amber-400 light:text-amber-700",
     bg: "bg-amber-500/10",
     border: "border-amber-500/30",
     ring: "ring-amber-500/20",
@@ -23,7 +23,7 @@ const FLAG_META = {
   },
   BEHAVIORAL_ANOMALY: {
     label: "Behavioral Anomaly",
-    color: "text-sky-400",
+    color: "text-sky-400 light:text-sky-700",
     bg: "bg-sky-500/10",
     border: "border-sky-500/30",
     ring: "ring-sky-500/20",
@@ -32,7 +32,7 @@ const FLAG_META = {
   },
   CODE_GROWTH_ANOMALY: {
     label: "Code Growth",
-    color: "text-emerald-400",
+    color: "text-emerald-400 light:text-emerald-700",
     bg: "bg-emerald-500/10",
     border: "border-emerald-500/30",
     ring: "ring-emerald-500/20",
@@ -41,7 +41,7 @@ const FLAG_META = {
   },
   PASSIVE_BEHAVIOR_LOG: {
     label: "Contextual Activity",
-    color: "text-violet-400",
+    color: "text-violet-400 light:text-violet-700",
     bg: "bg-violet-500/10",
     border: "border-violet-500/30",
     ring: "ring-violet-500/20",
@@ -51,9 +51,9 @@ const FLAG_META = {
 };
 
 const SEVERITY_META = {
-  high: { label: "HIGH", color: "text-rose-400", dot: "bg-rose-400" },
-  medium: { label: "MED", color: "text-amber-400", dot: "bg-amber-400" },
-  low: { label: "LOW", color: "text-emerald-400", dot: "bg-emerald-400" },
+  high: { label: "HIGH", color: "text-rose-400 light:text-rose-700", dot: "bg-rose-400" },
+  medium: { label: "MED", color: "text-amber-400 light:text-amber-700", dot: "bg-amber-400" },
+  low: { label: "LOW", color: "text-emerald-400 light:text-emerald-700", dot: "bg-emerald-400" },
 };
 
 const EVIDENCE_LABELS = {
@@ -86,10 +86,10 @@ function EvidenceValue({ value }) {
     return <span className="text-muted-foreground/50 italic">null</span>;
   }
   if (typeof value === "boolean") {
-    return <span className="text-sky-400">{value ? "true" : "false"}</span>;
+    return <span className="text-sky-400 light:text-sky-700">{value ? "true" : "false"}</span>;
   }
   if (typeof value === "number") {
-    return <span className="text-amber-400 font-mono">{value}</span>;
+    return <span className="text-amber-400 light:text-amber-700 font-mono">{value}</span>;
   }
   if (typeof value === "string") {
     if (value.length > 120) {
@@ -240,7 +240,7 @@ function FlagCard({ flag, isExpanded, onToggle }) {
 
           {innocentExplanation && (
             <div className="p-2.5 rounded bg-emerald-500/8 border border-emerald-500/20">
-              <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">
+              <span className="text-[10px] text-emerald-400 light:text-emerald-700 font-semibold uppercase tracking-wider">
                 Possible innocent explanation
               </span>
               <p className="text-[11px] text-foreground/70 mt-1 leading-relaxed">

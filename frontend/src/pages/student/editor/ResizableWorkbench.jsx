@@ -289,7 +289,7 @@ export default function ResizableWorkbench({
         onClick={handleReset}
         aria-label="Reset panel sizes"
         title="Reset panel sizes to defaults"
-        className="absolute top-2 right-2 z-40 inline-flex items-center gap-1.5 h-7 px-2 rounded-md border border-white/[0.08] bg-[#131B2E]/60 backdrop-blur-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-[#131B2E]/80 transition-colors shadow-sm"
+        className="absolute top-2 right-2 z-40 inline-flex items-center gap-1.5 h-7 px-2 rounded-md border border-white/[0.08] light:border-slate-950/[0.08] bg-[#131B2E]/60 light:bg-white/70 backdrop-blur-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-[#131B2E]/80 transition-colors shadow-sm"
       >
         <RotateCcw className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
         Reset
@@ -317,8 +317,8 @@ function DragHandle({ axis = "col" }) {
         aria-hidden="true"
         className={
           isCol
-            ? "h-full w-px bg-white/[0.06] group-hover:bg-emerald-400/60 group-data-[separator=active]:bg-emerald-400"
-            : "h-px w-full bg-white/[0.06] group-hover:bg-emerald-400/60 group-data-[separator=active]:bg-emerald-400"
+            ? "h-full w-px bg-white/[0.06] light:bg-slate-950/[0.06] group-hover:bg-emerald-400/60 group-data-[separator=active]:bg-emerald-400"
+            : "h-px w-full bg-white/[0.06] light:bg-slate-950/[0.06] group-hover:bg-emerald-400/60 group-data-[separator=active]:bg-emerald-400"
         }
       />
     </Separator>

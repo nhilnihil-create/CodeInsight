@@ -86,12 +86,12 @@ function tokenizeLine(line) {
 }
 
 const COLORS = {
-  keyword: "text-purple-400",
-  string: "text-emerald-400",
+  keyword: "text-purple-400 light:text-purple-700",
+  string: "text-emerald-400 light:text-emerald-700",
   comment: "text-muted-foreground/50 italic",
-  number: "text-amber-400",
-  preprocessor: "text-cyan-400",
-  type: "text-blue-400",
+  number: "text-amber-400 light:text-amber-700",
+  preprocessor: "text-cyan-400 light:text-cyan-700",
+  type: "text-blue-400 light:text-blue-700",
   punctuation: "text-muted-foreground/70",
   identifier: "text-foreground",
   plain: "text-foreground",

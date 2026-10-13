@@ -24,7 +24,7 @@ export function StateAwareShell({ role, data, state, progressText, children, cla
   if (state === 'LowConfidence') {
     return (
       <div className={`rounded-xl border border-solid bg-card p-4 ${className}`}>
-        <div className="text-xs font-semibold text-amber-500 mb-1">Limited</div>
+        <div className="text-xs font-semibold text-amber-500 light:text-amber-700 mb-1">Limited</div>
         {progressText && (
           <p className="text-xs text-muted-foreground mb-2">{progressText}</p>
         )}

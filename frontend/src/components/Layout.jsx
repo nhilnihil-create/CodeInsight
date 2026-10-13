@@ -26,7 +26,7 @@ export default function Layout({ children }) {
   }, [pathname, setOpen]);
 
   return (
-    <div className="h-dvh w-screen overflow-hidden flex bg-[#0B0F19]">
+    <div className="h-dvh w-screen overflow-hidden flex bg-[#0B0F19] light:bg-[#F8FAFC]">
       <Sidebar />
       {isOpen && (
         <div
@@ -40,7 +40,7 @@ export default function Layout({ children }) {
           type="button"
           onClick={toggleSidebar}
           aria-label="Open navigation"
-          className="fixed top-3 left-3 z-50 lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-[#0E1322]/80 text-muted-foreground backdrop-blur-xl"
+          className="fixed top-3 left-3 z-50 lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] light:border-slate-950/[0.08] bg-[#0E1322]/80 light:bg-white/80 text-muted-foreground backdrop-blur-xl"
         >
           <Menu className="h-5 w-5" />
         </button>

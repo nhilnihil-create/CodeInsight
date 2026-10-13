@@ -36,9 +36,9 @@ const fadeUp = {
 
 /* ── Status helpers ─────────────────────────────────────────────── */
 function statusOf(e) {
-  if (e.isDraft) return { label: 'Saved', className: 'bg-white/[0.04] text-muted-foreground border-white/[0.08]' };
-  if (e.closedAt) return { label: 'Closed', className: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
-  return { label: 'Open', className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+  if (e.isDraft) return { label: 'Saved', className: 'bg-white/[0.04] light:bg-slate-950/[0.04] text-muted-foreground border-white/[0.08] light:border-slate-950/[0.08]' };
+  if (e.closedAt) return { label: 'Closed', className: 'bg-slate-500/10 text-slate-400 light:text-slate-600 border-slate-500/20' };
+  return { label: 'Open', className: 'bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/20' };
 }
 
 function cdsPctOf(e) {
@@ -49,10 +49,10 @@ function cdsPctOf(e) {
 
 const CDS_COLOR = (pct) =>
   pct == null ? 'text-muted-foreground'
-  : pct >= 75 ? 'text-rose-400'
-  : pct >= 50 ? 'text-amber-400'
-  : pct >= 25 ? 'text-indigo-300'
-  : 'text-indigo-400';
+  : pct >= 75 ? 'text-rose-400 light:text-rose-700'
+  : pct >= 50 ? 'text-amber-400 light:text-amber-700'
+  : pct >= 25 ? 'text-indigo-300 light:text-indigo-700'
+  : 'text-indigo-400 light:text-indigo-700';
 
 /**
  * Exercises list — responsive glass-card redesign (2026-08-15).
@@ -174,12 +174,12 @@ export default function InstructorExercises() {
 
       {/* ---------- Exercise list ---------- */}
       {loading ? (
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16 text-center">
+        <div className="rounded-xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16 text-center">
           <div className="animate-spin h-5 w-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading exercises…</p>
         </div>
       ) : exercises.length === 0 ? (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-12">
+        <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-12">
           <EmptyState
             icon={<Code2 />}
             title="No exercises yet"
@@ -201,9 +201,9 @@ export default function InstructorExercises() {
               <motion.div key={e.id} variants={fadeUp} className="group">
                 <div
                   className={cn(
-                    'rounded-xl border bg-white/[0.02] backdrop-blur-xl transition-colors duration-200 overflow-hidden',
-                    'border-white/[0.06]',
-                    isExpanded ? 'border-teal-400/30' : 'hover:border-white/[0.12]'
+                    'rounded-xl border bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl transition-colors duration-200 overflow-hidden',
+                    'border-white/[0.06] light:border-slate-950/[0.06]',
+                    isExpanded ? 'border-teal-400/30' : 'hover:border-white/[0.12] light:hover:border-slate-950/[0.12]'
                   )}
                 >
                   {/* Top accent */}
@@ -227,7 +227,7 @@ export default function InstructorExercises() {
                       <ChevronRight
                         className={cn(
                           'h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0 transition-transform duration-200',
-                          isExpanded && 'rotate-90 text-teal-400'
+                          isExpanded && 'rotate-90 text-teal-400 light:text-teal-700'
                         )}
                         strokeWidth={1.5}
                       />
@@ -250,7 +250,7 @@ export default function InstructorExercises() {
                             e.conceptTags.map((t) => (
                               <span
                                 key={t}
-                                className="inline-flex items-center rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 text-[11px] font-medium"
+                                className="inline-flex items-center rounded-full bg-indigo-500/10 text-indigo-400 light:text-indigo-700 border border-indigo-500/20 px-2 py-0.5 text-[11px] font-medium"
                               >
                                 {t}
                               </span>
@@ -323,7 +323,7 @@ export default function InstructorExercises() {
 
                   {/* Accordion detail panel */}
                   {isExpanded && (
-                    <div className="border-t border-white/[0.06] bg-[#0D1126]/40">
+                    <div className="border-t border-white/[0.06] light:border-slate-950/[0.06] bg-[#0D1126]/40 light:bg-slate-200/50">
                       <ExerciseAccordionRow exercise={e} sectionId={sectionId} />
                     </div>
                   )}

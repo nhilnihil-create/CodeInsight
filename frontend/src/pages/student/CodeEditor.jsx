@@ -562,12 +562,12 @@ export default function StudentCodeEditor() {
       initial={{ opacity: 0, scale: 0.99 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
-      className="flex-1 h-full flex flex-col overflow-hidden bg-[#080C15]"
+      className="flex-1 h-full flex flex-col overflow-hidden bg-[#080C15] light:bg-white"
     >
       {isClosed && (
         <div className="bg-slate-500/10 border-b border-slate-500/25 px-4 py-2 flex items-center justify-between text-sm shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-slate-300">🔒 Exercise Closed</span>
+            <span className="font-medium text-slate-300 light:text-slate-600">🔒 Exercise Closed</span>
             <span className="text-muted-foreground">— Submissions are no longer accepted. CDS was finalized when the exercise closed.</span>
           </div>
         </div>
@@ -576,7 +576,7 @@ export default function StudentCodeEditor() {
       {isCompleted && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-sm shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-amber-400">✓ Exercise Completed</span>
+            <span className="font-medium text-amber-400 light:text-amber-700">✓ Exercise Completed</span>
             <span className="text-muted-foreground">— Your CDS is locked. Further submissions won't affect your score.</span>
           </div>
         </div>

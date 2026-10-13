@@ -86,7 +86,7 @@ export default function StudentProfile() {
                       key={item.tier}
                       whileHover={{ backgroundColor: "rgba(255,255,255,0.025)" }}
                       transition={{ duration: 0.15 }}
-                      className="flex items-start gap-3 p-3 rounded-lg border border-white/[0.04] bg-white/[0.02]"
+                      className="flex items-start gap-3 p-3 rounded-lg border border-white/[0.04] light:border-slate-950/[0.04] bg-white/[0.02] light:bg-slate-950/[0.02]"
                     >
                       <div className={cn("w-2 h-2 rounded-full mt-1 shrink-0", item.dot)} />
                       <div className="flex-1 min-w-0">

@@ -42,7 +42,7 @@ function trendIcon(delta) {
 
 function trendTone(delta) {
   if (delta === 0) return "text-muted-foreground/50";
-  return delta > 0 ? "text-emerald-400" : "text-rose-400";
+  return delta > 0 ? "text-emerald-400 light:text-emerald-700" : "text-rose-400 light:text-rose-700";
 }
 
 /* ── Stagger config ──────────────────────────────────────────────── */
@@ -114,7 +114,7 @@ export default function StudentProgress() {
       {loading ? (
         <div className="py-16 text-center text-muted-foreground/60 text-sm">Loading progress...</div>
       ) : error ? (
-        <div className="py-16 text-center text-rose-400 text-sm">{error}</div>
+        <div className="py-16 text-center text-rose-400 light:text-rose-700 text-sm">{error}</div>
       ) : (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
           {/* ═══════════════════════════════════════════════════════════
@@ -122,7 +122,7 @@ export default function StudentProgress() {
              ═══════════════════════════════════════════════════════════ */}
           <motion.section
             variants={fadeUp}
-            className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl"
+            className="relative overflow-hidden rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl"
           >
             {/* Ambient glow line at top */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-teal-400/60 to-transparent" />
@@ -130,7 +130,7 @@ export default function StudentProgress() {
               <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between px-6 py-5">
                 <div className="min-w-0 space-y-1.5">
                   <p className="metric-label flex items-center gap-1.5">
-                    <Sparkles className="w-3 h-3 text-teal-400" />
+                    <Sparkles className="w-3 h-3 text-teal-400 light:text-teal-700" />
                     Trajectory
                   </p>
                   <h2 className="text-lg font-semibold text-foreground leading-snug">
@@ -161,16 +161,16 @@ export default function StudentProgress() {
              ═══════════════════════════════════════════════════════════ */}
           <motion.div
             variants={fadeUp}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.06] light:bg-slate-950/[0.06]"
           >
             {[
-              { label: "Mastery", value: `${overallMastery}%`, sub: "concept understanding", accent: "text-teal-400" },
-              { label: "Completion", value: `${completionPct}%`, sub: `${completedEx}/${totalEx} exercises`, accent: "text-emerald-400" },
-              { label: "Avg Attempts", value: avgAttempts.toFixed(1), sub: "per exercise", accent: "text-amber-400" },
+              { label: "Mastery", value: `${overallMastery}%`, sub: "concept understanding", accent: "text-teal-400 light:text-teal-700" },
+              { label: "Completion", value: `${completionPct}%`, sub: `${completedEx}/${totalEx} exercises`, accent: "text-emerald-400 light:text-emerald-700" },
+              { label: "Avg Attempts", value: avgAttempts.toFixed(1), sub: "per exercise", accent: "text-amber-400 light:text-amber-700" },
             ].map((m) => (
               <div
                 key={m.label}
-                className="relative flex flex-col gap-1 px-6 py-5 bg-white/[0.02] backdrop-blur-xl"
+                className="relative flex flex-col gap-1 px-6 py-5 bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl"
               >
                 <span className="metric-label">{m.label}</span>
                 <span className={cn("text-4xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
@@ -188,7 +188,7 @@ export default function StudentProgress() {
              ═══════════════════════════════════════════════════════════ */}
           <motion.section variants={fadeUp}>
             {concepts.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-16 text-center text-muted-foreground/60 text-sm">
+              <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-16 text-center text-muted-foreground/60 text-sm">
                 No concept data yet. Complete some exercises to see your mastery profile.
               </div>
             ) : (
@@ -214,7 +214,7 @@ export default function StudentProgress() {
                             transition={{ duration: 0.15 }}
                             className={cn(
                               "grid grid-cols-[1fr_auto_auto] items-center gap-4 px-6 py-4",
-                              i < concepts.length - 1 && "border-b border-white/[0.04]"
+                              i < concepts.length - 1 && "border-b border-white/[0.04] light:border-slate-950/[0.04]"
                             )}
                           >
                             {/* Name + bar */}

@@ -209,7 +209,7 @@ export default function AdminUsers() {
             },
             { key: 'role', header: 'Role', mobile: 'label',
               renderCell: (u) => (
-                <Badge variant="outline" className={cn('text-[9px]', u.role === 'admin' ? 'border-purple-500/30 text-purple-500' : u.role === 'instructor' ? 'border-blue-500/30 text-blue-500' : 'border-emerald-500/30 text-emerald-500')}>
+                <Badge variant="outline" className={cn('text-[9px]', u.role === 'admin' ? 'border-purple-500/30 text-purple-500 light:text-purple-700' : u.role === 'instructor' ? 'border-blue-500/30 text-blue-500 light:text-blue-700' : 'border-emerald-500/30 text-emerald-500 light:text-emerald-700')}>
                   {u.role === 'admin' ? <Shield className="mr-1 h-2.5 w-2.5" /> : <User className="mr-1 h-2.5 w-2.5" />}
                   {u.role}
                 </Badge>

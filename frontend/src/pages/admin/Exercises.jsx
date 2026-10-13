@@ -85,7 +85,7 @@ export default function AdminExercises() {
                   {e.closed_at ? (
                     <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><XCircle className="h-3 w-3" /> Closed</span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500"><CheckCircle2 className="h-3 w-3" /> Open</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 light:text-emerald-700"><CheckCircle2 className="h-3 w-3" /> Open</span>
                   )}
                 </div>
               ),

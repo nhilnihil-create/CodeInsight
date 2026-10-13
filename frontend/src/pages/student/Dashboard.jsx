@@ -92,7 +92,7 @@ export default function StudentDashboard() {
             <Skeleton className="h-9 w-24" />
           </div>
           <Skeleton className="h-24 w-full rounded-2xl" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.06] light:bg-slate-950/[0.06]">
             {[1, 2, 3].map(i => (
               <Skeleton key={i} className="h-28 w-full rounded-none" />
             ))}
@@ -226,16 +226,16 @@ export default function StudentDashboard() {
            ═══════════════════════════════════════════════════════════ */}
         <motion.div
           variants={fadeUp}
-          className="grid grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]"
+          className="grid grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.06] light:bg-slate-950/[0.06]"
         >
           {[
-            { label: "Mastery", value: `${mastery?.percentage ?? 0}%`, sub: "concept understanding", accent: "text-teal-400" },
-            { label: "Completion", value: `${completion?.percentage ?? 0}%`, sub: `${completion?.completed ?? 0}/${completion?.total ?? 0} exercises`, accent: "text-emerald-400" },
-            { label: "Avg CDS", value: avgCds.toFixed(2), sub: avgCds <= 0.20 ? "on track" : avgCds <= 0.40 ? "fair" : avgCds <= 0.60 ? "moderate" : avgCds <= 0.80 ? "needs focus" : "critical", accent: avgCds <= 0.20 ? "text-emerald-400" : avgCds <= 0.40 ? "text-teal-400" : avgCds <= 0.60 ? "text-amber-400" : avgCds <= 0.80 ? "text-orange-400" : "text-rose-400" },
+            { label: "Mastery", value: `${mastery?.percentage ?? 0}%`, sub: "concept understanding", accent: "text-teal-400 light:text-teal-700" },
+            { label: "Completion", value: `${completion?.percentage ?? 0}%`, sub: `${completion?.completed ?? 0}/${completion?.total ?? 0} exercises`, accent: "text-emerald-400 light:text-emerald-700" },
+            { label: "Avg CDS", value: avgCds.toFixed(2), sub: avgCds <= 0.20 ? "on track" : avgCds <= 0.40 ? "fair" : avgCds <= 0.60 ? "moderate" : avgCds <= 0.80 ? "needs focus" : "critical", accent: avgCds <= 0.20 ? "text-emerald-400 light:text-emerald-700" : avgCds <= 0.40 ? "text-teal-400 light:text-teal-700" : avgCds <= 0.60 ? "text-amber-400 light:text-amber-700" : avgCds <= 0.80 ? "text-orange-400 light:text-orange-700" : "text-rose-400 light:text-rose-700" },
           ].map((m) => (
             <div
               key={m.label}
-              className="relative flex flex-col gap-1 px-5 py-5 bg-white/[0.02] backdrop-blur-xl"
+              className="relative flex flex-col gap-1 px-5 py-5 bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl"
             >
               <span className="metric-label">{m.label}</span>
               <span className={cn("text-3xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
@@ -271,7 +271,7 @@ export default function StudentDashboard() {
                           transition={{ duration: 0.15 }}
                           className={cn(
                             "grid grid-cols-[1fr_3.5rem] items-center gap-3 px-5 py-3.5",
-                            i < weakest.length - 1 && "border-b border-white/[0.04]"
+                            i < weakest.length - 1 && "border-b border-white/[0.04] light:border-slate-950/[0.04]"
                           )}
                         >
                           <div className="min-w-0 space-y-2">
@@ -345,7 +345,7 @@ export default function StudentDashboard() {
                           className="flex items-center gap-3 px-5 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                         >
                           <span
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] border border-white/[0.06] text-xs font-semibold text-muted-foreground font-mono tabular-nums"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.05] border border-white/[0.06] light:border-slate-950/[0.06] text-xs font-semibold text-muted-foreground font-mono tabular-nums"
                             aria-hidden="true"
                           >
                             {idx + 1}
@@ -356,7 +356,7 @@ export default function StudentDashboard() {
                                 {r.title}
                               </p>
                               {r.concept && (
-                                <span className="shrink-0 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                                <span className="shrink-0 inline-flex items-center rounded-full border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.04] light:bg-slate-950/[0.04] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
                                   {r.conceptName || r.concept}
                                 </span>
                               )}

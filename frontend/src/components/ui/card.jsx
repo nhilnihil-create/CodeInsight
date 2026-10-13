@@ -22,7 +22,7 @@ const CardHeader = React.forwardRef(function CardHeader(
   return (
     <div
       ref={ref}
-      className={cn("relative z-10 flex flex-col space-y-1.5 p-5 border-b border-white/[0.06]", className)}
+      className={cn("relative z-10 flex flex-col space-y-1.5 p-5 border-b border-white/[0.06] light:border-slate-950/[0.06]", className)}
       {...props}
     />
   );

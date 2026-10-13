@@ -60,7 +60,7 @@ export function CDSVisual() {
 
   const cds = components.reduce((sum, c) => sum + c.value * (c.weight / 100), 0);
   const classification = cds <= 0.20 ? 'Very Low' : cds <= 0.40 ? 'Low' : cds <= 0.60 ? 'Moderate' : cds <= 0.80 ? 'Elevated' : 'High';
-  const classColor = cds <= 0.40 ? 'text-emerald-400' : cds <= 0.60 ? 'text-amber-400' : 'text-orange-400';
+  const classColor = cds <= 0.40 ? 'text-emerald-400 light:text-emerald-700' : cds <= 0.60 ? 'text-amber-400 light:text-amber-700' : 'text-orange-400 light:text-orange-700';
 
   useEffect(() => {
     const timers = components.map((_, i) =>
@@ -120,13 +120,13 @@ export function HeatmapVisual() {
   const [search, setSearch] = useState('');
 
   const tiers = [
-    { min: 0.01, max: 0.20, label: 'Very Low', cell: 'bg-emerald-500/20 text-emerald-400' },
+    { min: 0.01, max: 0.20, label: 'Very Low', cell: 'bg-emerald-500/20 text-emerald-400 light:text-emerald-700' },
     { min: 0.21, max: 0.40, label: 'Low', cell: 'bg-emerald-500/10 text-emerald-300/70' },
-    { min: 0.41, max: 0.60, label: 'Moderate', cell: 'bg-amber-500/20 text-amber-400' },
-    { min: 0.61, max: 0.80, label: 'Elevated', cell: 'bg-orange-500/25 text-orange-400' },
-    { min: 0.81, max: 1.00, label: 'High', cell: 'bg-rose-600/35 text-rose-400 font-bold' },
+    { min: 0.41, max: 0.60, label: 'Moderate', cell: 'bg-amber-500/20 text-amber-400 light:text-amber-700' },
+    { min: 0.61, max: 0.80, label: 'Elevated', cell: 'bg-orange-500/25 text-orange-400 light:text-orange-700' },
+    { min: 0.81, max: 1.00, label: 'High', cell: 'bg-rose-600/35 text-rose-400 light:text-rose-700 font-bold' },
   ];
-  const noData = 'bg-slate-900/60 text-slate-500';
+  const noData = 'bg-slate-900/60 text-slate-500 light:text-slate-600';
 
   function getTier(cds) {
     if (cds == null || cds === 0) return null;
@@ -199,7 +199,7 @@ export function HeatmapVisual() {
         const cds = s?.scores[cn];
         if (!cds || !tiers.some(t => cds >= t.min && cds <= t.max)) return null;
         return (
-          <div className="rounded-lg border border-white/10 bg-white/[0.06] backdrop-blur-xl p-2.5 text-[10px] transition-all duration-200 animate-in fade-in">
+          <div className="rounded-lg border border-white/10 light:border-slate-950/10 bg-white/[0.06] light:bg-slate-950/[0.06] backdrop-blur-xl p-2.5 text-[10px] transition-all duration-200 animate-in fade-in">
             <div className="font-semibold text-foreground mb-1">{cn} — {s.name}</div>
             <div className="text-muted-foreground">Difficulty: {cds.toFixed(2)}</div>
           </div>
@@ -324,10 +324,10 @@ export function ASTVisual() {
                 step >= i ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
               }`}
             >
-              <span className={ok ? 'text-emerald-400' : 'text-red-400'}>
+              <span className={ok ? 'text-emerald-400 light:text-emerald-700' : 'text-red-400 light:text-red-700'}>
                 {step >= i ? (ok ? '✓' : '✗') : '·'}
               </span>
-              <span className={ok ? 'text-muted-foreground' : 'text-red-400'}>
+              <span className={ok ? 'text-muted-foreground' : 'text-red-400 light:text-red-700'}>
                 {label}
               </span>
             </div>
@@ -336,7 +336,7 @@ export function ASTVisual() {
       </div>
 
       {step >= checks.length - 1 && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-400 text-center transition-all duration-300 animate-in fade-in">
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-400 light:text-amber-700 text-center transition-all duration-300 animate-in fade-in">
           1 issue found — review recommended
         </div>
       )}
@@ -396,9 +396,9 @@ export function MicroConceptVisual() {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-medium text-foreground/80">{issue.name}</span>
                     <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium ${
-                      issue.severity === 'high' ? 'bg-red-500/10 text-red-400' :
-                      issue.severity === 'medium' ? 'bg-amber-500/10 text-amber-400' :
-                      'bg-emerald-500/10 text-emerald-400'
+                      issue.severity === 'high' ? 'bg-red-500/10 text-red-400 light:text-red-700' :
+                      issue.severity === 'medium' ? 'bg-amber-500/10 text-amber-400 light:text-amber-700' :
+                      'bg-emerald-500/10 text-emerald-400 light:text-emerald-700'
                     }`}>
                       {issue.students} students
                     </span>

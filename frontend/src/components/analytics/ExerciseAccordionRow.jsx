@@ -46,21 +46,21 @@ export default function ExerciseAccordionRow({ exercise, sectionId }) {
   const cdsValue = exercise.avg_cds ?? exercise.avgCds;
   const cdsPct = cdsValue != null && cdsValue !== '' ? Math.round(parseFloat(cdsValue) * 100) : null;
   const cdsColor = cdsPct != null
-    ? cdsPct >= 75 ? 'text-rose-400'
-    : cdsPct >= 50 ? 'text-amber-400'
-    : cdsPct >= 25 ? 'text-indigo-300'
-    : 'text-indigo-400'
+    ? cdsPct >= 75 ? 'text-rose-400 light:text-rose-700'
+    : cdsPct >= 50 ? 'text-amber-400 light:text-amber-700'
+    : cdsPct >= 25 ? 'text-indigo-300 light:text-indigo-700'
+    : 'text-indigo-400 light:text-indigo-700'
     : 'text-muted-foreground';
   const isClosed = !!exercise.closedAt;
 
   return (
-    <div className="border-l-2 border-indigo-500/50 bg-[#0D1126]/30 m-1 rounded-r-lg">
+    <div className="border-l-2 border-indigo-500/50 bg-[#0D1126]/30 light:bg-slate-200/40 m-1 rounded-r-lg">
       {/* Inline header: exercise name + stats */}
       <div className="px-5 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/30">
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-sm font-semibold truncate">{exercise.title}</span>
           {(exercise.conceptTags?.length > 0) && (
-            <span className="bg-slate-900 text-indigo-400 border border-indigo-950 px-2 py-0.5 rounded text-xs shrink-0">
+            <span className="bg-slate-900 text-indigo-400 light:text-indigo-700 border border-indigo-950 px-2 py-0.5 rounded text-xs shrink-0">
               {exercise.conceptTags[0]}
             </span>
           )}
@@ -82,7 +82,7 @@ export default function ExerciseAccordionRow({ exercise, sectionId }) {
           ) : (
             <span>Avg CDS: <span className="text-foreground">—</span></span>
           )}
-          {isClosed && <Badge className="bg-slate-800/50 text-slate-400 border-slate-700/50 text-[10px]">Closed</Badge>}
+          {isClosed && <Badge className="bg-slate-800/50 text-slate-400 light:text-slate-600 border-slate-700/50 text-[10px]">Closed</Badge>}
         </div>
       </div>
 

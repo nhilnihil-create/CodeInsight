@@ -101,11 +101,11 @@ export default function InstructorDashboard() {
   const avgCDSNum = parseFloat(avgCDSRaw);
   const avgCDSValid = !isNaN(avgCDSNum);
   const avgCDSColor = avgCDSValid
-    ? avgCDSNum <= 0.20 ? "text-slate-300"
-      : avgCDSNum <= 0.40 ? "text-emerald-400"
-      : avgCDSNum <= 0.60 ? "text-amber-400"
-      : avgCDSNum <= 0.80 ? "text-orange-400"
-      : "text-rose-400"
+    ? avgCDSNum <= 0.20 ? "text-slate-300 light:text-slate-600"
+      : avgCDSNum <= 0.40 ? "text-emerald-400 light:text-emerald-700"
+      : avgCDSNum <= 0.60 ? "text-amber-400 light:text-amber-700"
+      : avgCDSNum <= 0.80 ? "text-orange-400 light:text-orange-700"
+      : "text-rose-400 light:text-rose-700"
     : "text-muted-foreground";
   const avgCDSLabel = avgCDSValid
     ? avgCDSNum <= 0.20 ? "Excellent"
@@ -136,7 +136,7 @@ export default function InstructorDashboard() {
       </motion.div>
 
       {/* ── Insight Banner (glowing accent) ──────────────────── */}
-      <motion.section variants={fadeUp} className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
+      <motion.section variants={fadeUp} className="relative overflow-hidden rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl">
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
         <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between px-6 py-5">
           <div className="min-w-0 space-y-1.5">
@@ -155,13 +155,13 @@ export default function InstructorDashboard() {
       </motion.section>
 
       {/* ── Micro-Metrics Strip (floating typography-first) ─── */}
-      <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.06]">
+      <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-3 gap-px rounded-2xl overflow-hidden border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.06] light:bg-slate-950/[0.06]">
         {[
           { label: "Avg CDS", value: avgCDSRaw, accent: avgCDSColor, sub: avgCDSLabel },
-          { label: "At Risk", value: atRiskCount, accent: "text-amber-400" },
-          { label: "Students", value: studentCount, accent: "text-sky-400" },
+          { label: "At Risk", value: atRiskCount, accent: "text-amber-400 light:text-amber-700" },
+          { label: "Students", value: studentCount, accent: "text-sky-400 light:text-sky-700" },
         ].map((m) => (
-          <div key={m.label} className="flex flex-col gap-1 px-5 py-4 bg-white/[0.02] backdrop-blur-xl">
+          <div key={m.label} className="flex flex-col gap-1 px-5 py-4 bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl">
             <span className="metric-label">{m.label}</span>
             <span className={cn("text-3xl font-extrabold tracking-tight font-mono tabular-nums", m.accent)}>
               {m.value}
@@ -182,7 +182,7 @@ export default function InstructorDashboard() {
         </GlassPanel>
       ) : error ? (
         <GlassPanel variant="dense">
-          <GlassPanelContent className="py-16 text-center text-rose-400 text-sm">
+          <GlassPanelContent className="py-16 text-center text-rose-400 light:text-rose-700 text-sm">
             {error}
           </GlassPanelContent>
         </GlassPanel>

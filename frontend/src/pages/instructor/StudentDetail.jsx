@@ -73,12 +73,12 @@ const SEVERITY_RISK_LEVEL = { high: "high", medium: "moderate", low: "low", na: 
 const STATUS_BADGE = {
   done: {
     label: "Done",
-    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+    cls: "bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/30",
     icon: CheckCircle,
   },
   late: {
     label: "Late",
-    cls: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+    cls: "bg-amber-500/10 text-amber-400 light:text-amber-700 border-amber-500/30",
     icon: Clock,
   },
   missing: {
@@ -103,11 +103,11 @@ function StatusBadge({ status }) {
 function cdsTierText(cds) {
   const v = Number(cds);
   if (cds === null || cds === undefined || Number.isNaN(v)) return "text-muted-foreground";
-  if (v <= 0.20) return "text-slate-500";
-  if (v <= 0.40) return "text-emerald-400";
-  if (v <= 0.60) return "text-amber-400";
-  if (v <= 0.80) return "text-orange-400";
-  return "text-rose-400";
+  if (v <= 0.20) return "text-slate-500 light:text-slate-600";
+  if (v <= 0.40) return "text-emerald-400 light:text-emerald-700";
+  if (v <= 0.60) return "text-amber-400 light:text-amber-700";
+  if (v <= 0.80) return "text-orange-400 light:text-orange-700";
+  return "text-rose-400 light:text-rose-700";
 }
 
 function formatCds(cds) {
@@ -215,7 +215,7 @@ export default function InstructorStudentDetail() {
           title: c.concept,
           subtitle: `Mastery ${c.mastery}%`,
           badge: (
-            <Badge className={`bg-white/[0.03] border-white/[0.08] ${meta.text}`}>
+            <Badge className={`bg-white/[0.03] light:bg-slate-950/[0.03] border-white/[0.08] light:border-slate-950/[0.08] ${meta.text}`}>
               {meta.label}
             </Badge>
           ),

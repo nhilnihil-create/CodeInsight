@@ -61,7 +61,7 @@ export default function MetricHub({
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={cn(
         "group relative flex flex-col gap-1 p-4 rounded-xl",
-        "bg-white/[0.03] border border-white/[0.06]",
+        "bg-white/[0.03] light:bg-slate-950/[0.03] border border-white/[0.06] light:border-slate-950/[0.06]",
         "backdrop-blur-sm transition-colors duration-200",
         "hover:bg-white/[0.05]",
         className

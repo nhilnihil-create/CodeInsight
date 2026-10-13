@@ -34,7 +34,7 @@ export default function SectionPicker({
     >
       <SelectTrigger
         className={cn(
-          'h-8 w-full bg-white/[0.03] border-white/[0.08] text-foreground text-[11px]',
+          'h-8 w-full bg-white/[0.03] light:bg-slate-950/[0.03] border-white/[0.08] light:border-slate-950/[0.08] text-foreground text-[11px]',
           className
         )}
       >

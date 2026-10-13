@@ -224,7 +224,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
                   "border",
                   flagsExpanded
                     ? cn(
-                        "bg-rose-500/15 border-rose-500/40 text-rose-400",
+                        "bg-rose-500/15 border-rose-500/40 text-rose-400 light:text-rose-700",
                         "ring-1 ring-rose-500/20"
                       )
                     : "border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -352,7 +352,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
                             ) : run.error_count > 0 ? (
                               <AlertTriangle className="h-4 w-4 text-warning" strokeWidth={1.5} />
                             ) : (
-                              <Play className="h-4 w-4 text-emerald-400" strokeWidth={1.5} />
+                              <Play className="h-4 w-4 text-emerald-400 light:text-emerald-700" strokeWidth={1.5} />
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -420,7 +420,7 @@ export default function SubmissionDetailDrawer({ submission, open, onClose }) {
                           />
                         ) : (
                           <Play
-                            className="h-4 w-4 text-emerald-400"
+                            className="h-4 w-4 text-emerald-400 light:text-emerald-700"
                             strokeWidth={1.5}
                           />
                         )}

@@ -51,7 +51,7 @@ const GlassPanelHeader = React.forwardRef(function GlassPanelHeader(
     <div
       ref={ref}
       className={cn(
-        "flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]",
+        "flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] light:border-slate-950/[0.06]",
         className
       )}
       {...props}

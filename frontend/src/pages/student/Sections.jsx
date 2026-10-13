@@ -156,7 +156,7 @@ export default function StudentSections() {
                     <div className="flex items-center gap-4 px-5 py-4">
                       {/* Section icon */}
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400/20 to-emerald-500/20 border border-teal-400/20">
-                        <BookOpen className="h-5 w-5 text-teal-400" strokeWidth={1.5} />
+                        <BookOpen className="h-5 w-5 text-teal-400 light:text-teal-700" strokeWidth={1.5} />
                       </div>
 
                       {/* Section info */}
@@ -167,7 +167,7 @@ export default function StudentSections() {
                           </h3>
                           <Badge
                             variant="outline"
-                            className="shrink-0 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            className="shrink-0 text-[10px] font-mono uppercase tracking-wider bg-emerald-500/10 text-emerald-400 light:text-emerald-700 border-emerald-500/20"
                           >
                             <CheckCircle className="h-2.5 w-2.5 mr-1" />
                             Active
@@ -226,7 +226,7 @@ export default function StudentSections() {
           </motion.div>
         ) : (
           <motion.div variants={fadeUp}>
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl py-12">
+            <div className="rounded-2xl border border-white/[0.06] light:border-slate-950/[0.06] bg-white/[0.02] light:bg-slate-950/[0.02] backdrop-blur-xl py-12">
               <EmptyState
                 icon={<BookOpen />}
                 title="No sections yet"
@@ -270,7 +270,7 @@ export default function StudentSections() {
                   onChange={handleCodeChange}
                   maxLength={7}
                   disabled={joining}
-                  className="font-mono text-sm h-9 bg-white/[0.03] border-white/[0.08] focus:border-teal-400/50 focus:ring-teal-400/20 placeholder:text-muted-foreground/30"
+                  className="font-mono text-sm h-9 bg-white/[0.03] light:bg-slate-950/[0.03] border-white/[0.08] light:border-slate-950/[0.08] focus:border-teal-400/50 focus:ring-teal-400/20 placeholder:text-muted-foreground/30"
                 />
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <Button
