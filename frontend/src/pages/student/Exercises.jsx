@@ -285,7 +285,7 @@ export default function StudentExercises() {
                 placeholder="Search exercises…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] pl-9 pr-8 text-sm placeholder:text-muted-foreground/40 placeholder:light:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-9 w-full rounded-lg border border-white/[0.08] light:border-slate-950/[0.08] bg-white/[0.02] light:bg-slate-950/[0.02] pl-9 pr-8 text-sm placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               {query && (
                 <button

@@ -91,17 +91,24 @@ function cdsTier(cds) {
    LEGEND — inline tier swatches
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ── Legend swatches: solid dots readable on both themes ─────────────── */
+const LEGEND_SWATCHES = [
+  { label: 'Very Low', dot: 'bg-slate-500' },
+  { label: 'Low', dot: 'bg-emerald-600' },
+  { label: 'Moderate', dot: 'bg-amber-600' },
+  { label: 'High', dot: 'bg-orange-600' },
+  { label: 'Very High', dot: 'bg-rose-600' },
+];
+
 function Legend() {
   return (
-    <div className="flex items-center gap-2.5 flex-wrap">
-      <span className="text-[9px] text-white/30 light:text-slate-500 whitespace-nowrap">Very Low</span>
-      <div
-        className="h-2.5 w-24 rounded-[2px]"
-        style={{
-          background: 'linear-gradient(to right, rgba(26,95,80,0.35), rgba(16,185,129,0.5), rgba(245,158,11,0.5), rgba(249,115,22,0.55), rgba(225,29,72,0.6))',
-        }}
-      />
-      <span className="text-[9px] text-white/30 light:text-slate-500 whitespace-nowrap">Very High</span>
+    <div className="flex items-center gap-3 flex-wrap" role="img" aria-label="CDS tiers from Very Low to Very High">
+      {LEGEND_SWATCHES.map((s) => (
+        <span key={s.label} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <span className={cn('h-2.5 w-2.5 rounded-[3px] shrink-0', s.dot)} aria-hidden="true" />
+          <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -448,18 +455,18 @@ export default function InstructorHeatmap() {
       {/* ── Glass Panel ─────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-h-0 w-full backdrop-blur-md bg-slate-900/40 light:bg-slate-200/70 border border-white/10 light:border-slate-950/10 rounded-2xl overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 border-b border-white/5 light:border-slate-950/5 flex-shrink-0">
-          <span className="text-[11px] font-medium text-white/50 light:text-slate-600 uppercase tracking-wider">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center px-4 py-2.5 border-b border-white/5 light:border-slate-950/5 flex-shrink-0">
+          <span className="text-[11px] font-medium text-white/50 light:text-slate-600 uppercase tracking-wider shrink-0">
             Student × Concept — Struggle Index
           </span>
-          <div className="flex flex-wrap items-center gap-3">
+          <Legend />
+          <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
             <Input
               placeholder="Search student…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 light:bg-slate-950/5 border-white/10 light:border-slate-950/10 text-white/80 light:text-slate-900/80 placeholder:text-white/30 placeholder:light:text-slate-500 light:placeholder:text-slate-500"
+              className="h-7 w-full sm:w-40 text-[11px] bg-white/5 light:bg-slate-950/5 border-white/10 light:border-slate-950/10 text-white/80 light:text-slate-900/80 placeholder:text-white/30"
             />
-            <div className="hidden sm:block"><Legend /></div>
           </div>
         </div>
 
@@ -491,7 +498,7 @@ export default function InstructorHeatmap() {
                   <tr>
                     {/* Frozen student column header */}
                     <th
-                      className="sticky left-0 z-30 bg-slate-950/90 backdrop-blur-md
+                      className="sticky left-0 z-30 bg-slate-950/90 light:bg-slate-100 backdrop-blur-md
                                  text-left px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider
                                  text-white/40 light:text-slate-500 border-b border-r border-white/5 light:border-slate-950/5 h-28"
                       style={{ minWidth: 120, width: 120 }}
@@ -537,7 +544,7 @@ export default function InstructorHeatmap() {
                       >
                         {/* Frozen student name cell */}
                         <td
-                          className="sticky left-0 z-10 bg-slate-950/90 backdrop-blur-md
+                          className="sticky left-0 z-10 bg-slate-950/90 light:bg-slate-100 backdrop-blur-md
                                      px-2 py-0.5 font-medium whitespace-nowrap border-r border-white/5 light:border-slate-950/5
                                      shadow-[3px_0_6px_-3px_rgba(0,0,0,0.4)]"
                           style={{ minWidth: 120, width: 120 }}

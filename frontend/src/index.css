@@ -707,3 +707,14 @@
     transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 }
+
+/* ── Placeholder text follows the theme ────────────────────────────────
+   Pseudo-element variants (placeholder:) cannot stack with the `light:`
+   variant — the composed selector is invalid and gets dropped at build
+   time. So placeholders are themed here instead (unlayered, so this beats
+   the `placeholder:` utilities). Dark keeps each component's own class. */
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}

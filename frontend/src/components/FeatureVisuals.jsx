@@ -150,7 +150,7 @@ export function HeatmapVisual() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search student..."
-          className="w-full bg-transparent outline-none text-muted-foreground placeholder:text-muted-foreground/40 placeholder:light:text-muted-foreground"
+          className="w-full bg-transparent outline-none text-muted-foreground placeholder:text-muted-foreground/40"
         />
       </div>
 
