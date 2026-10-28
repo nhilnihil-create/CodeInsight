@@ -334,8 +334,13 @@ export default function SubmissionsTab({ sectionId, initialExerciseId = null }) 
                 setShowNonSubmitters(true);
                 setStatusFilter("all");
               } else {
+                // Switching away from "Missing" must also clear any exercise
+                // that was selected while browsing missing students, otherwise
+                // the Done/Late/Closed/All tabs stay filtered to that single
+                // exercise and show inaccurate data.
                 setShowNonSubmitters(false);
                 setStatusFilter(tab.key);
+                setExerciseFilter("");
               }
             }}
             className={cn(
