@@ -464,7 +464,7 @@ function ExerciseForm({ exercise, onChange, concepts, step }) {
 
 /* ── Basket Panel ───────────────────────────────────────────────────────── */
 
-function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
+function BasketPanel({ basket, setBasket, sections, busy, onPublish, onClear }) {
   const [selectedSections, setSelectedSections] = useState([]);
   const [deadline, setDeadline] = useState("");
 
@@ -541,10 +541,18 @@ function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
                 variant="outline"
                 size="sm"
                 onClick={() => onPublish(basket, selectedSections, deadline, true)}
-                disabled={basket.length === 0}
+                disabled={busy || basket.length === 0}
                 className="flex-1"
               >
-                <Save className="w-3.5 h-3.5 mr-1" /> Save
+                {busy ? (
+                  <>
+                    <Save className="w-3.5 h-3.5 mr-1 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5 mr-1" /> Save
+                  </>
+                )}
               </Button>
               <Button
                 size="sm"
@@ -552,10 +560,18 @@ function BasketPanel({ basket, setBasket, sections, onPublish, onClear }) {
                   if (selectedSections.length === 0) { toast.error("Select at least one section."); return; }
                   onPublish(basket, selectedSections, deadline, false);
                 }}
-                disabled={basket.length === 0}
+                disabled={busy || basket.length === 0}
                 className="flex-1"
               >
-                <Upload className="w-3.5 h-3.5 mr-1" /> Publish
+                {busy ? (
+                  <>
+                    <Upload className="w-3.5 h-3.5 mr-1 animate-spin" /> Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5 mr-1" /> Publish
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -1158,14 +1174,9 @@ export default function ExerciseWorkspace() {
                       <Save className="w-4 h-4 mr-1" /> {busy ? "Saving..." : "Update Exercise"}
                     </Button>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" onClick={addToBasket}>
-                        <Plus className="w-4 h-4 mr-1" /> Add to Basket
-                      </Button>
-                      <Button onClick={addToBasket}>
-                        <Layers className="w-4 h-4 mr-1" /> Add &amp; New
-                      </Button>
-                    </div>
+                  <Button onClick={addToBasket} className="w-full">
+                    <Layers className="w-4 h-4 mr-1" /> Add &amp; New
+                  </Button>
                   )}
                 </div>
               </CardContent>
@@ -1184,6 +1195,7 @@ export default function ExerciseWorkspace() {
                 basket={basket}
                 setBasket={setBasket}
                 sections={sections}
+                busy={busy}
                 onPublish={handlePublish}
                 onClear={clearBasket}
               />
